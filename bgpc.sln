@@ -1,9 +1,9 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio 2013
-VisualStudioVersion = 12.0.21005.1
+VisualStudioVersion = 12.0.40629.0
 MinimumVisualStudioVersion = 10.0.40219.1
-Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "bgpc", "bgpc\bgpc.fsproj", "{B651F986-F9FA-4168-9FF7-727032C0CFE4}"
+Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "src", "bgpc\src.fsproj", "{B651F986-F9FA-4168-9FF7-727032C0CFE4}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
