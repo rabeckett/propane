@@ -6,7 +6,7 @@ type NodeType =
     | Start
     | Outside
     | Inside 
-    | InsideHost 
+    | InsideHostConnected
 
 type State = 
     {Loc: string; 
@@ -17,13 +17,13 @@ type T = BidirectionalGraph<State,TaggedEdge<State,unit>>
 module Example1 = 
     let topo () = 
         let g = BidirectionalGraph<State ,TaggedEdge<State,unit>>()
-        let vA = {Loc="A"; Typ=InsideHost}
+        let vA = {Loc="A"; Typ=InsideHostConnected}
         let vX = {Loc="X"; Typ=Inside}
         let vM = {Loc="M"; Typ=Inside}
         let vN = {Loc="N"; Typ=Inside}
         let vY = {Loc="Y"; Typ=Inside}
         let vZ = {Loc="Z"; Typ=Inside}
-        let vB = {Loc="B"; Typ=InsideHost}
+        let vB = {Loc="B"; Typ=InsideHostConnected}
         g.AddVertex vA |> ignore 
         g.AddVertex vX |> ignore 
         g.AddVertex vM |> ignore 
@@ -44,10 +44,10 @@ module Example1 =
 module Example2 = 
     let topo () = 
         let g = BidirectionalGraph<State, TaggedEdge<State,unit>>()
-        let vA = {Loc="A"; Typ=InsideHost}
-        let vB = {Loc="B"; Typ=InsideHost}
-        let vC = {Loc="C"; Typ=InsideHost}
-        let vD = {Loc="D"; Typ=InsideHost}
+        let vA = {Loc="A"; Typ=InsideHostConnected}
+        let vB = {Loc="B"; Typ=InsideHostConnected}
+        let vC = {Loc="C"; Typ=InsideHostConnected}
+        let vD = {Loc="D"; Typ=InsideHostConnected}
         let vX = {Loc="X"; Typ=Inside}
         let vY = {Loc="Y"; Typ=Inside}
         let vM = {Loc="M"; Typ=Inside}

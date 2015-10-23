@@ -18,7 +18,7 @@ let main argv =
     
     ConstraintGraph.pruneHeuristic cg
     
-    printfn "%s" (ConstraintGraph.toDot cg)
+    (* printfn "%s" (ConstraintGraph.toDot cg) *)
 
     ConstraintGraph.compile cg
 

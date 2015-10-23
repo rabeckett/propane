@@ -6,11 +6,10 @@ module Assert =
         failwith "unreachable"
 
     let unimplemented () = 
-        failwith "unimplmemented"
+        raise (System.NotImplementedException ())
 
 
 module List = 
-    
     let inline fold f b ls = 
         let mutable acc = b 
         for i in ls do 
@@ -29,7 +28,7 @@ module List =
 
 module Error =
 
-    type ('a, 'b) Result = 
+    type Result<'a, 'b> = 
         | Ok of 'a
         | Err of 'b
 

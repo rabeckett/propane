@@ -1,5 +1,7 @@
 ﻿module ConstraintGraph
 
+open Common.Error 
+open Common.Assert
 open QuickGraph
 open QuickGraph.Algorithms
 
@@ -21,7 +23,7 @@ let private alphabet (topo: Topology.T) =
     for v in topo.Vertices do
         match v.Typ with 
         | Topology.Inside -> ain <- Set.add v ain
-        | Topology.InsideHost -> ain <- Set.add v ain
+        | Topology.InsideHostConnected -> ain <- Set.add v ain
         | Topology.Outside -> aout <- Set.add v aout
         | Topology.Start -> failwith "unreachable"
     (ain, aout)
@@ -221,7 +223,7 @@ let build (topo: Topology.T) (autos : Regex.Automata array) : ConstraintGraph =
 
     let isEndHostConnected (t: Topology.State) = 
         match t.Typ with 
-        | Topology.InsideHost -> true 
+        | Topology.InsideHostConnected -> true 
         | Topology.Outside -> true
         | Topology.Inside -> false
         | Topology.Start -> false
@@ -283,20 +285,27 @@ let build (topo: Topology.T) (autos : Regex.Automata array) : ConstraintGraph =
     {Start=newStart; Graph=graph}
 
 
-type ConsistencyError = 
-    | PrefConsistency of CgState * CgState 
-    | TopoConsistency of string
+exception PrefConsistencyException of CgState * CgState 
+exception TopoConsistencyException of CgState * CgState
+
+type Preferences = (CgState * Set<int>) list
 
 type Ordering = 
-    Map<string, (CgState * Set<int>) list>
+    Map<string, Preferences>
+
+type OrderingResult = 
+    Result<Ordering, CgState * CgState>
+
+type TopoResult = 
+    Result<unit, CgState * CgState>
 
 
+(* Check preference consistency for each topology location.
+   Checks for a total ordering nodes in the constraint graph.
+   Total order is required to ensure the policy holds under all possible 
+   failure scenarios. *)
+let private prefConsistency (cg: ConstraintGraph) : OrderingResult =
 
-exception private ViolatesPrefConsistencyException of CgState * CgState
-exception private ViolatesTopoConsistencyException
-
-(* Check preference consistency for each topology location *)
-let private prefConsistency (cg: ConstraintGraph) : Ordering =
     (* Custom sorting by reachable state preference rages *)
     let comparer (_,x) (_,y) = 
         let minx, maxx = Set.minElement x, Set.maxElement y
@@ -305,6 +314,7 @@ let private prefConsistency (cg: ConstraintGraph) : Ordering =
         if cmp = 0 then 
             compare (maxx - minx) (maxy - miny)
         else cmp
+    
     (* Check well-formed preference ranges *)
     let rec aux ls = 
         match ls with
@@ -313,22 +323,70 @@ let private prefConsistency (cg: ConstraintGraph) : Ordering =
             let maxx = Set.maxElement x 
             let miny = Set.minElement y
             if maxx > miny then
-                raise (ViolatesPrefConsistencyException (vx, vy))
+                raise (PrefConsistencyException (vx, vy))
             else 
                 hd :: (aux tl)
+    
     (* Map topology locations to a set of nodes/preferences *)
     let mutable acc = Map.empty
     for v in cg.Graph.Vertices do 
         let loc = v.Topo.Loc
         let ins = if Map.containsKey loc acc then Map.find loc acc else []
-        acc <- Map.add loc ((v, reachableSrcAccepting cg v (fun _ -> false))::ins) acc 
+        let accepting = reachableSrcAccepting cg v (fun _ -> false)
+        acc <- Map.add loc ((v, accepting)::ins) acc 
+    
     (* Ensure well-formedness and return the ordering. Raises an exception otherwise *) 
-    let check _ v = aux (List.sortWith comparer v)    
-    Map.map check acc
+    let check _ v = aux (List.sortWith comparer v)
+
+    (* Hide the exception behind a result type *)
+    try Ok (Map.map check acc)
+    with PrefConsistencyException (x,y) ->
+        Err (x,y)
 
 
-let private topoConsistency (cg: ConstraintGraph) (ord: Ordering) = 
-    failwith "todo"
+let private topoConsistency (cg: ConstraintGraph) (ord: Ordering) : TopoResult =
+    let reachableEdges x = 
+        let mutable edges = Set.empty
+        let mutable seen = Set.empty
+        let mutable todo = Set.singleton x
+        while not (Set.isEmpty todo) do 
+            let current = Set.minElement todo 
+            todo <- Set.remove current todo
+            seen <- Set.add current seen
+            for e in cg.Graph.OutEdges current do 
+                edges <- Set.add (e.Source, e.Target) edges 
+                if not (Set.contains e.Target seen) then 
+                    todo <- Set.add e.Target todo
+        edges
+
+    let checkFailures loc x y = 
+        (* failing links from x disconnects y from start to accept state *)
+        let es = reachableEdges x
+        if not (Set.isEmpty es) && (Option.isSome x.Accept) then 
+            let copy = copyGraph cg 
+            for (u,v) in es do 
+                copy.Graph.RemoveEdgeIf (fun e -> 
+                    (e.Source.Topo.Loc = u.Topo.Loc && e.Target.Topo.Loc = v.Topo.Loc) || 
+                    (e.Target.Topo.Loc = u.Topo.Loc && e.Source.Topo.Loc = v.Topo.Loc)
+                ) |> ignore
+
+            (* Check reachability for y *)
+            if reachableSrcDst copy copy.Start y (fun _ -> false) then
+                if not (Set.isEmpty (reachableSrcAccepting copy y (fun _ -> false))) then 
+                    raise (TopoConsistencyException (x,y))
+
+    let rec aux loc prefs =
+        match prefs with 
+        | [] -> ()
+        | [x] -> ()
+        | (x,_)::(((y,_)::z) as tl) -> 
+            checkFailures loc x y
+            aux loc tl
+    try
+        Map.iter (fun loc prefs -> aux loc prefs) ord
+        Ok ()
+    with TopoConsistencyException(x,y) -> 
+        Err (x,y)
 
 
 let private genRules (cg: ConstraintGraph) (ord: Ordering) = 
@@ -357,19 +415,25 @@ let private genRules (cg: ConstraintGraph) (ord: Ordering) =
                 if u.topo.typ <> Start then
                     printfn "  Send to: %A, %A" u.states u.topo.loc *)
 
+
+(* Generate the BGP match/action rules that are guaranteed to 
+   implement the user policy under all possible failure scenarios. 
+   This function returns an intermediate representation (IR) for BGP policies *) 
 let compile (cg: ConstraintGraph) =
-    try 
-        let ord = prefConsistency cg 
-        (* topoConsistency cg ord |> ignore *)
-        genRules cg ord 
-    with 
-        | ViolatesPrefConsistencyException(v,u) -> 
-            printfn "Nodes %A and %A violate pref consistency" v u 
-        | ViolatesTopoConsistencyException -> 
-            failwith "Todo"
+    match prefConsistency cg with 
+    | Ok ord ->
+        match topoConsistency cg ord with 
+        | Ok _ -> 
+            genRules cg ord 
+            unimplemented ()
+        | Err (x,y) ->
+            printfn "Violates Topology Consistency:"
+            printfn "%A\n%A" x y
+    | Err (x,y) ->
+        failwith "Violates Preference consistency"
 
 
-(* Generate Graphviz DOT format output *)
+(* Generate Graphviz DOT format output for visualization *)
 let toDot (cg: ConstraintGraph) = 
     let onFormatEdge(e: Graphviz.FormatEdgeEventArgs<CgState, TaggedEdge<CgState,unit>>) = ()
 

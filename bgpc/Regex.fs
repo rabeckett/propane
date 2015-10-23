@@ -23,7 +23,7 @@ let rec private rev re =
     | Star r -> Star (rev r)
 
 
-(* Smart constructors for building partitioning regular expressions 
+(* Smart constructors for partitioning regular expressions 
    according to a few algebraic laws. Nested negation and Kleene star 
    operators are removed. Intersection, union, and concatenation are 
    merged and stored as lists that are sorted in ascending order. *)
