@@ -214,7 +214,7 @@ let private makeDFA alphabet pref r =
 (* Parameterize regular expression by an alphabet. Since f# does 
    not support ML-style functors, different objects can use different 
    alphabets. Client code must ensure a single object is used. *)
-type RegularExpression(inside, outside) = 
+type REBuilder(inside, outside) = 
 
     let alphabet = Set.union inside outside
     

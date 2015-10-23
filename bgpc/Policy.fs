@@ -1,12 +1,9 @@
 ﻿module Policy
 
 
-type private Prefix = string
-
-
 type private Constraint = 
-    | PathSelection of Prefix * Regex.T list 
-    | RouteSummary of Prefix * Regex.T * Regex.T
+    | PathSelection of Prefix.T * Regex.T list 
+    | RouteSummary of Prefix.T * Regex.T * Regex.T
     | MaxAdvertisements of int
 
 

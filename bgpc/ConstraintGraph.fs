@@ -40,14 +40,14 @@ let private neighborMap (topo: Topology.T) =
     nmap
 
 (* Make a copy of the constraint graph *)
-let copyGraph (cg: ConstraintGraph) : ConstraintGraph = 
+let private copyGraph (cg: ConstraintGraph) : ConstraintGraph = 
     let newCG = QuickGraph.AdjacencyGraph() 
     for v in cg.Graph.Vertices do newCG.AddVertex v |> ignore
     for e in cg.Graph.Edges do newCG.AddEdge e |> ignore
     {Start=cg.Start; Graph=newCG}
 
 (* Make a copy of the constraint graph with all directed edges reversed *)
-let copyReverseGraph (cg: ConstraintGraph) : ConstraintGraph = 
+let private copyReverseGraph (cg: ConstraintGraph) : ConstraintGraph = 
     let newCG = QuickGraph.AdjacencyGraph() 
     for v in cg.Graph.Vertices do newCG.AddVertex v |> ignore
     for e in cg.Graph.Edges do
@@ -56,7 +56,7 @@ let copyReverseGraph (cg: ConstraintGraph) : ConstraintGraph =
     {Start=cg.Start; Graph=newCG}
 
 (* Compute all-pairs reachability *)
-let floydWarshall (cg: ConstraintGraph) : Map<CgState, Set<CgState>> = 
+let private floydWarshall (cg: ConstraintGraph) : Map<CgState, Set<CgState>> = 
     let fw = ShortestPath.FloydWarshallAllShortestPathAlgorithm(cg.Graph, fun _ -> 1.0)
     fw.Compute ()
     let mutable reachability = Map.empty
@@ -69,81 +69,154 @@ let floydWarshall (cg: ConstraintGraph) : Map<CgState, Set<CgState>> =
     reachability
 
 (* Attach reachability information to the graph *)
-type AnnotatedCG(cg: ConstraintGraph) =
+type private AnnotatedCG(cg: ConstraintGraph) =
     let reachability = floydWarshall cg
-    member this.cg = cg
+    member this.Cg = cg
     member this.ReachInfo = reachability
 
 (* Check if src can reach dst *)
-let reachableSrcDst (cg: ConstraintGraph) src dst = 
-    if src = dst then true 
+let private reachableSrcDst (cg: ConstraintGraph) src dst without =
+    if Set.contains src without || Set.contains dst without then false 
+    else if src = dst then true 
     else
-        let tryGetPaths = cg.Graph.ShortestPathsDijkstra((fun _ -> 1.0), src)
-        tryGetPaths.Invoke(dst, ref Seq.empty) 
+        let numNodes = float cg.Graph.VertexCount
+        let weight (e: TaggedEdge<CgState,unit>) = 
+             if Set.contains e.Source without then numNodes + 1.0 else 1.0
+        let tryGetPaths = cg.Graph.ShortestPathsDijkstra((fun e -> weight e), src)
+        let path = ref Seq.empty
+        tryGetPaths.Invoke(dst, path) |> ignore
+        match !path with 
+        | null -> false 
+        | _ ->
+            let weight = Seq.fold (fun acc e -> acc + weight e) 0.0 !path
+            weight <= numNodes
 
 (* Find all locations reachable from src *)
-let reachableSrc (cg: ConstraintGraph) src = 
-    let tryGetPaths = cg.Graph.ShortestPathsDijkstra((fun _ -> 1.0), src)
-    let mutable reachable = Set.singleton src
-    for v in cg.Graph.Vertices do 
-        if tryGetPaths.Invoke(v, ref Seq.empty) then 
-            reachable <- Set.add v reachable
-    reachable
+let private reachableSrc (cg: ConstraintGraph) src without =
+    if Set.contains src without then Set.empty
+    else
+        let numNodes = float cg.Graph.VertexCount
+        let weight (e: TaggedEdge<CgState,unit>) = 
+             if Set.contains e.Source without then numNodes + 1.0 else 1.0
+        let tryGetPaths = cg.Graph.ShortestPathsDijkstra((fun e -> weight e), src)
+        let mutable reachable = Set.singleton src
+        let path = ref Seq.empty
+        for v in cg.Graph.Vertices do 
+            tryGetPaths.Invoke(v, path) |> ignore
+            match !path with 
+            | null -> () 
+            | _ ->
+                (* printfn "Found path" *)
+                let weight = Seq.fold (fun acc e -> acc + weight e) 0.0 !path
+                (* printfn "  weight: %A" weight *)
+                if weight <= numNodes then
+                    reachable <- Set.add v reachable
+        reachable
 
 (* Find all accepting states reachable from src *)
-let reachableSrcAccepting cg src = 
+let private reachableSrcAccepting cg src without = 
     let aux acc cg = 
         match cg.Accept with 
         | None -> acc
         | Some i -> Set.add i acc
-    reachableSrc cg src |> Set.fold aux Set.empty
+    reachableSrc cg src without |> Set.fold aux Set.empty
 
 
-(* Remove states and edges that are effectively dead.
-    1. Circular links
-    2. Node can't reach an accepting state 
-    3. No path can reach a node without loops *)
+(* Polynomial-time heuristic for pruning edges that never lie on a 
+   simple path. This looks for bidirectional edges between two nodes 
+   X and Y, and checks: 
+   (1) Can the start node reach X without going through Y? 
+   (2) Can Y reach an accepting state without going through X? 
+   If the answer to either is no, then the edges X -> Y can be removed *)
+let private removeDeadEdgesHeuristic (cg: ConstraintGraph) = 
+    let cgRev = copyReverseGraph cg
 
-let removeDeadStates (cg: ConstraintGraph) = 
-    (* Remove obvious loop transitions *)
-    let cgRev = copyReverseGraph(cg)
-    let mutable deadEdges = []
-    for v in cg.Graph.Vertices do 
-        let oes = cg.Graph.OutEdges v
-        let ies = cgRev.Graph.OutEdges v 
-        if Seq.length oes = 1 && Seq.length ies = 1 then
-            let oe = Seq.nth 0 oes 
-            let ie = Seq.nth 0 ies
-            if oe.Target = ie.Target then 
-                deadEdges <- oe :: deadEdges
-    for de in deadEdges do
-        ignore (cg.Graph.RemoveEdge de)
-    
-    (* Remove nodes that can't be reached on non-loop path *)
+    cg.Graph.RemoveEdgeIf (fun (e: TaggedEdge<CgState,unit>) -> 
+        let oes = cg.Graph.OutEdges e.Source
+        let ies = cgRev.Graph.OutEdges e.Source
+
+        let ie = Seq.tryFind (fun (ie: TaggedEdge<CgState,unit>) -> ie.Target = e.Target) ies
+        match ie with 
+        | None -> false 
+        | Some ie ->
+            let cantReachAccepting = Set.isEmpty (reachableSrcAccepting cg e.Target (Set.singleton e.Source))
+            let startCantReach = not (reachableSrcDst cg cg.Start e.Source (Set.singleton e.Target))
+            cantReachAccepting || startCantReach
+    ) |> ignore
+
+
+(* This is a worst-case exponential time algorithm that marks 
+   and removes all nodes to which there is no simple path to an accepting state.
+   The first pass does a depth-first search that maintains a set of seen labels.
+   At each step it checks if there are any reachable unmarked nodes to avoid 
+   exploring redundant paths. *)
+let private removeDeadStatesHeuristic (cg: ConstraintGraph) =
     let acg = AnnotatedCG(cg)
-    let cantReach = ref (acg.cg.Graph.Vertices |> Set.ofSeq)
+    let explored = ref 0
+    let cantReach = ref (acg.Cg.Graph.Vertices |> Set.ofSeq)
     let rec search v seen = 
+        explored := !explored + 1
         cantReach := Set.remove v !cantReach
-        for e in acg.cg.Graph.OutEdges v do
+        for e in acg.Cg.Graph.OutEdges v do
             let u = e.Target 
             (* Optimization to avoid unnecessary exploration *)
             let relevant = Set.exists (fun x -> Set.contains x (Map.find u acg.ReachInfo)) !cantReach 
             let notInPath = not (Set.contains u.Topo.Loc seen)
             if relevant && notInPath then 
-                search u (Set.add u.Topo.Loc seen)                 
-    search acg.cg.Start Set.empty
-    Set.iter (fun v -> acg.cg.Graph.RemoveVertex v |> ignore) !cantReach
+                search u (Set.add u.Topo.Loc seen)
+    search acg.Cg.Start Set.empty
+    Set.iter (fun v -> acg.Cg.Graph.RemoveVertex v |> ignore) !cantReach
 
     (* Remove states that can't reach an accepting state *)
     let removeUnacceptableStates (cg: ConstraintGraph) = 
         let mutable deadNodes = Set.empty 
         for v in cg.Graph.Vertices do 
-            if Set.isEmpty (reachableSrcAccepting cg v) then 
+            if Set.isEmpty (reachableSrcAccepting cg v Set.empty) then 
                 deadNodes <- Set.add v deadNodes
         for v in deadNodes do 
             cg.Graph.RemoveVertex v |> ignore
     removeUnacceptableStates cg 
+
+    printfn "Number of nodes total: %A" cg.Graph.VertexCount
+    printfn "Number of nodes explored: %A" !explored
+
+
+let pruneHeuristic (cg: ConstraintGraph) = 
+    removeDeadEdgesHeuristic cg 
+    removeDeadStatesHeuristic cg
+
+let pruneExact (cg: ConstraintGraph) = 
+
+    let acg = AnnotatedCG(cg)
     
+    let num_explored = ref 0
+    let cantReachNodes = ref (acg.Cg.Graph.Vertices |> Set.ofSeq)
+    let cantReachEdges = ref (acg.Cg.Graph.Edges |> Seq.map (fun e -> (e.Source, e.Target)) |> Set.ofSeq)
+
+    let rec search v seenLocations seenNodes seenEdges =
+        num_explored := !num_explored + 1
+
+        if Option.isSome v.Accept then 
+            cantReachNodes := Set.difference !cantReachNodes seenNodes
+            cantReachEdges := Set.difference !cantReachEdges seenEdges
+
+        for e in acg.Cg.Graph.OutEdges v do
+            let u = e.Target 
+            (* Optimization to avoid unnecessary exploration *)
+            (* let relevant = Set.exists (fun x -> Set.contains x (Map.find u acg.ReachInfo)) !cantReach *)
+            let notInPath = not (Set.contains u.Topo.Loc seenLocations)
+            if notInPath then 
+                search u (Set.add u.Topo.Loc seenLocations) (Set.add u seenNodes) (Set.add (v,u) seenEdges)
+
+    search acg.Cg.Start Set.empty (Set.singleton acg.Cg.Start) Set.empty
+
+    Set.iter (fun v -> acg.Cg.Graph.RemoveVertex v |> ignore) !cantReachNodes
+    acg.Cg.Graph.RemoveEdgeIf (fun e -> Set.contains (e.Source, e.Target) !cantReachEdges) |> ignore
+
+    (* printfn "number of verticies total: %A" (Seq.length acg.Cg.Graph.Vertices)
+    printfn "number of nodes explored:  %A" !num_explored *)
+
+
 
 (* TODO: more efficient mutable data structures *)
 (* TODO: check for duplicate topology nodes *)
@@ -202,8 +275,7 @@ let build (topo: Topology.T) (autos : Regex.Automata array) : ConstraintGraph =
 
         for c in Set.intersect alphabetAll neighbors do
             let nextInfo = Array.init autos.Length (fun i -> 
-                let g = autos.[i]
-                let v = ss.[i]
+                let g, v = autos.[i], ss.[i]
                 let key = Map.findKey (fun (q,S) _ -> q = v && Set.contains c.Loc S) g.trans
                 let newState = Map.find key g.trans 
                 let accept = 
@@ -223,14 +295,13 @@ let build (topo: Topology.T) (autos : Regex.Automata array) : ConstraintGraph =
     {Start=newStart; Graph=graph}
 
 
-type Ordering = Map<string, (CgState * Set<int>) list>
+type private Ordering = Map<string, (CgState * Set<int>) list>
+exception private ViolatesPrefConsistencyException of CgState * CgState
+exception private ViolatesTopoConsistencyException
 
-exception ViolatesPrefConsistencyException of CgState * CgState
-exception ViolatesTopoConsistencyException
-
-
-let prefConsistency (cg: ConstraintGraph) : Ordering =
-    
+(* Check preference consistency for each topology location *)
+let private prefConsistency (cg: ConstraintGraph) : Ordering =
+    (* Custom sorting by reachable state preference rages *)
     let comparer (_,x) (_,y) = 
         let minx, maxx = Set.minElement x, Set.maxElement y
         let miny, maxy = Set.minElement y, Set.maxElement y
@@ -238,7 +309,7 @@ let prefConsistency (cg: ConstraintGraph) : Ordering =
         if cmp = 0 then 
             compare (maxx - minx) (maxy - miny)
         else cmp
-    
+    (* Check well-formed preference ranges *)
     let rec aux ls = 
         match ls with
         | [] | [_] -> ls
@@ -249,22 +320,22 @@ let prefConsistency (cg: ConstraintGraph) : Ordering =
                 raise (ViolatesPrefConsistencyException (vx, vy))
             else 
                 hd :: (aux tl)
-
+    (* Map topology locations to a set of nodes/preferences *)
     let mutable acc = Map.empty
     for v in cg.Graph.Vertices do 
         let loc = v.Topo.Loc
         let ins = if Map.containsKey loc acc then Map.find loc acc else []
-        acc <- Map.add loc ((v, reachableSrcAccepting cg v)::ins) acc 
-          
+        acc <- Map.add loc ((v, reachableSrcAccepting cg v Set.empty)::ins) acc 
+    (* Ensure well-formedness and return the ordering. Raises an exception otherwise *) 
     let check _ v = aux (List.sortWith comparer v)    
     Map.map check acc
 
 
-let topoConsistency (cg: ConstraintGraph) (ord: Ordering) = 
+let private topoConsistency (cg: ConstraintGraph) (ord: Ordering) = 
     failwith "todo"
 
 
-let genRules (cg: ConstraintGraph) (ord: Ordering) = 
+let private genRules (cg: ConstraintGraph) (ord: Ordering) = 
     let cgRev = copyReverseGraph cg
     
     let mutable ruleMap = Map.empty 
