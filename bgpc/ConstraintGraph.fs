@@ -1,7 +1,6 @@
 ﻿module ConstraintGraph
 
-open Common.Error 
-open Common.Assert
+open Extension.Error 
 open QuickGraph
 open QuickGraph.Algorithms
 
@@ -389,46 +388,90 @@ let private topoConsistency (cg: ConstraintGraph) (ord: Ordering) : TopoResult =
         Err (x,y)
 
 
-let private genRules (cg: ConstraintGraph) (ord: Ordering) = 
+type Match = 
+    | Peer of string 
+    | Comm of int array * string
+    | PathRE of Regex.T
+
+type Action = 
+    | NoAction
+    | SetComm of int array * string
+    | SetMed of int
+    | SetLP
+
+type Rule =
+    {Match: Match;
+     Action: Action}
+
+type Config = 
+    Map<string, Rule list>
+
+
+let private genConfig (cg: ConstraintGraph) (ord: Ordering) : Config = 
     let cgRev = copyReverseGraph cg
+
+    let mutable inMap = Map.empty
+    let mutable outMap = Map.empty 
     
-    let mutable ruleMap = Map.empty 
     for v in cgRev.Graph.Vertices do 
-        let rcvEdges = cgRev.Graph.OutEdges v
-        for re in rcvEdges do
-            let u = re.Target
-            let rcvState = u.States
+        let edges = cgRev.Graph.OutEdges v 
+        for e in edges do 
+            let u = e.Target
+            let key = v.Topo.Loc
+            inMap <- Extension.Map.modify key (Set.singleton u) (Set.add u) inMap
 
-            let localpref = 
-                Map.find v.Topo.Loc ord
-                |> List.findIndex (fun (v',_) -> v' = v)
-                |> (+) 100
+    for v in cg.Graph.Vertices do 
+        let edges = cgRev.Graph.OutEdges v 
+        for e in edges do 
+            let u = e.Target
+            let key = v.Topo.Loc
+            outMap <- Extension.Map.modify key (Set.singleton u) (Set.add u) outMap
+
+    let mutable config = Map.empty
+
+    for entry in inMap do 
+        let mutable rules = []
+        let x = entry.Key
+        let neighbors = entry.Value 
+        let neighbors = Set.filter (fun x -> x.Topo.Typ <> Topology.Start) neighbors
+        let grouped = Set.toSeq neighbors |> Seq.groupBy (fun n -> n.Topo.Loc)
+        for _, states in grouped do
+            if Seq.length states = 1 then 
+                let peer = (Seq.nth 0 states).Topo.Loc
+                let rule = {Match = Peer peer; Action = NoAction}
+                rules <- rule::rules
+            else 
+                for v in states do 
+                    let rule = {Match = Comm (v.States, v.Topo.Loc); Action = NoAction}
+                    rules <- rule::rules
+        config <- Map.add x rules config
+
+    config
+
+        (* let localpref = 
+            Map.find v.Topo.Loc ord
+            |> List.findIndex (fun (v',_) -> v' = v)
+            |> (+) 100
             
-            printfn "Receive from: %A, %A" rcvState u.Topo.Loc
-            printfn "Update to:    %A, %A" v.States v.Topo.Loc
-            printfn "Local-Pref:   %A\n" localpref
-
-            (* let adEdges = cg.graph.OutEdges v
-            for ae in adEdges do
-                let u = ae.Target
-                
-                if u.topo.typ <> Start then
-                    printfn "  Send to: %A, %A" u.states u.topo.loc *)
+        printfn "Receive from: %A, %A" rcvState u.Topo.Loc
+        printfn "Update to:    %A, %A" v.States v.Topo.Loc
+        printfn "Local-Pref:   %A\n" localpref *)
+    
 
 
 (* Generate the BGP match/action rules that are guaranteed to 
    implement the user policy under all possible failure scenarios. 
    This function returns an intermediate representation (IR) for BGP policies *) 
-let compile (cg: ConstraintGraph) =
+let compile (cg: ConstraintGraph) : Config =
     match prefConsistency cg with 
     | Ok ord ->
         match topoConsistency cg ord with 
         | Ok _ -> 
-            genRules cg ord 
-            unimplemented ()
+            genConfig cg ord 
         | Err (x,y) ->
             printfn "Violates Topology Consistency:"
             printfn "%A\n%A" x y
+            failwith "Oh No!"
     | Err (x,y) ->
         failwith "Violates Preference consistency"
 

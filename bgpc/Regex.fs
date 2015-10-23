@@ -115,10 +115,10 @@ let rec singleLocations alphabet r =
     | Locs s -> Some s
     | Inter rs ->
         List.map (singleLocations alphabet) rs |> 
-        Common.List.fold1 (aux Set.intersect)
+        Extension.List.fold1 (aux Set.intersect)
     | Union rs -> 
         List.map (singleLocations alphabet) rs |>
-        Common.List.fold1 (aux Set.union)
+        Extension.List.fold1 (aux Set.union)
     | Negate r ->
         Option.map (Set.difference alphabet) (singleLocations alphabet r)
     | _ -> None

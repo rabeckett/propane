@@ -1,15 +1,8 @@
-﻿module Common
-
-module Assert = 
-
-    let unreachable () = 
-        failwith "unreachable"
-
-    let unimplemented () = 
-        raise (System.NotImplementedException ())
+﻿module Extension
 
 
 module List = 
+
     let inline fold f b ls = 
         let mutable acc = b 
         for i in ls do 
@@ -24,6 +17,13 @@ module List =
             for i in tl do 
                 acc <- f acc i 
             acc
+
+module Map = 
+
+    let inline modify k d f map = 
+        match Map.tryFind k map with 
+        | None -> Map.add k d map
+        | Some v -> Map.add k (f v) map
 
 
 module Error =

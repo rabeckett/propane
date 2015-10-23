@@ -4,9 +4,6 @@ let RE = Regex.REBuilder(Set.ofList ["A"; "B"; "C"; "D"; "X"; "Y"; "M"; "N"], Se
 
 [<EntryPoint>]
 let main argv = 
-    (* let r = RE.concat (RE.loc "A") (RE.concat (RE.loc "X") (RE.concat (RE.loc "N") (RE.concat (RE.loc "Y") (RE.loc "B")) )) *)
-    (* let r = RE.star RE.inside *)
-
     let x = RE.Star RE.Inside
     let r1 = RE.Concat (RE.Concat x (RE.Loc "M")) x
     let r2 = RE.Concat (RE.Concat x (RE.Loc "N")) x
@@ -15,13 +12,12 @@ let main argv =
     let dfa2 = RE.MakeDFA 2 (RE.Rev r2)
     
     let cg = ConstraintGraph.build (Topology.Example2.topo()) [|dfa1; dfa2|] 
-    
     ConstraintGraph.pruneHeuristic cg
     
     (* printfn "%s" (ConstraintGraph.toDot cg) *)
 
-    ConstraintGraph.compile cg
-
+    let config = ConstraintGraph.compile cg
+    printfn "Configuration: \n%A" config
     0
 
 

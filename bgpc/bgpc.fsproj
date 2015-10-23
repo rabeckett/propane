@@ -63,7 +63,7 @@
     <Reference Include="System.Numerics" />
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="Common.fs" />
+    <Compile Include="Extension.fs" />
     <Compile Include="Topology.fs" />
     <Compile Include="Prefix.fs" />
     <Compile Include="Regex.fs" />
