@@ -14,7 +14,6 @@ type ConstraintGraph =
      Graph: AdjacencyGraph<CgState, TaggedEdge<CgState, unit>>}
 
    
-
 (* Get the alphabet from the topology *)
 let private alphabet (topo: Topology.T) = 
     let mutable ain = Set.empty 
@@ -24,7 +23,7 @@ let private alphabet (topo: Topology.T) =
         | Topology.Inside -> ain <- Set.add v ain
         | Topology.InsideHost -> ain <- Set.add v ain
         | Topology.Outside -> aout <- Set.add v aout
-        | Topology.Start -> Assert.unreachable()
+        | Topology.Start -> failwith "unreachable"
     (ain, aout)
 
 (* Find and remember all topological neighbors for each location *)
@@ -76,12 +75,12 @@ type private AnnotatedCG(cg: ConstraintGraph) =
 
 (* Check if src can reach dst *)
 let private reachableSrcDst (cg: ConstraintGraph) src dst without =
-    if Set.contains src without || Set.contains dst without then false 
+    if without src || without dst then false 
     else if src = dst then true 
     else
         let numNodes = float cg.Graph.VertexCount
         let weight (e: TaggedEdge<CgState,unit>) = 
-             if Set.contains e.Source without then numNodes + 1.0 else 1.0
+             if without e.Target then numNodes + 1.0 else 1.0
         let tryGetPaths = cg.Graph.ShortestPathsDijkstra((fun e -> weight e), src)
         let path = ref Seq.empty
         tryGetPaths.Invoke(dst, path) |> ignore
@@ -93,11 +92,11 @@ let private reachableSrcDst (cg: ConstraintGraph) src dst without =
 
 (* Find all locations reachable from src *)
 let private reachableSrc (cg: ConstraintGraph) src without =
-    if Set.contains src without then Set.empty
+    if without src then Set.empty
     else
         let numNodes = float cg.Graph.VertexCount
         let weight (e: TaggedEdge<CgState,unit>) = 
-             if Set.contains e.Source without then numNodes + 1.0 else 1.0
+             if without e.Target then numNodes + 1.0 else 1.0
         let tryGetPaths = cg.Graph.ShortestPathsDijkstra((fun e -> weight e), src)
         let mutable reachable = Set.singleton src
         let path = ref Seq.empty
@@ -106,9 +105,7 @@ let private reachableSrc (cg: ConstraintGraph) src without =
             match !path with 
             | null -> () 
             | _ ->
-                (* printfn "Found path" *)
                 let weight = Seq.fold (fun acc e -> acc + weight e) 0.0 !path
-                (* printfn "  weight: %A" weight *)
                 if weight <= numNodes then
                     reachable <- Set.add v reachable
         reachable
@@ -124,10 +121,7 @@ let private reachableSrcAccepting cg src without =
 
 (* Polynomial-time heuristic for pruning edges that never lie on a 
    simple path. This looks for bidirectional edges between two nodes 
-   X and Y, and checks: 
-   (1) Can the start node reach X without going through Y? 
-   (2) Can Y reach an accepting state without going through X? 
-   If the answer to either is no, then the edges X -> Y can be removed *)
+   X and Y, and checks if X -> Y can be removed *)
 let private removeDeadEdgesHeuristic (cg: ConstraintGraph) = 
     let cgRev = copyReverseGraph cg
 
@@ -139,77 +133,72 @@ let private removeDeadEdgesHeuristic (cg: ConstraintGraph) =
         match ie with 
         | None -> false 
         | Some ie ->
-            let cantReachAccepting = Set.isEmpty (reachableSrcAccepting cg e.Target (Set.singleton e.Source))
-            let startCantReach = not (reachableSrcDst cg cg.Start e.Source (Set.singleton e.Target))
+            let cantReachAccepting = Set.isEmpty (reachableSrcAccepting cg e.Target ((=) e.Source))
+            let startCantReach = not (reachableSrcDst cg cg.Start e.Source ((=) e.Target))
             cantReachAccepting || startCantReach
     ) |> ignore
 
 
-(* This is a worst-case exponential time algorithm that marks 
-   and removes all nodes to which there is no simple path to an accepting state.
-   The first pass does a depth-first search that maintains a set of seen labels.
-   At each step it checks if there are any reachable unmarked nodes to avoid 
-   exploring redundant paths. *)
+(* This is a worst-case exponential time algorithm that marks and removes all nodes 
+   to which there is no simple path to an accepting state. It does a depth-first search 
+   that maintains a set of seen labels. To avoid exploring unnecessary paths, at each step 
+   it checks if there are any reachable, unmarked states that don't go through an already 
+   observed label *)
 let private removeDeadStatesHeuristic (cg: ConstraintGraph) =
-    let acg = AnnotatedCG(cg)
+    
+    (* Remove nodes that don't occur on any simple path *)
     let explored = ref 0
-    let cantReach = ref (acg.Cg.Graph.Vertices |> Set.ofSeq)
+    let cantReach = ref (cg.Graph.Vertices |> Set.ofSeq)
     let rec search v seen = 
         explored := !explored + 1
         cantReach := Set.remove v !cantReach
-        for e in acg.Cg.Graph.OutEdges v do
-            let u = e.Target 
-            (* Optimization to avoid unnecessary exploration *)
-            let relevant = Set.exists (fun x -> Set.contains x (Map.find u acg.ReachInfo)) !cantReach 
-            let notInPath = not (Set.contains u.Topo.Loc seen)
-            if relevant && notInPath then 
-                search u (Set.add u.Topo.Loc seen)
-    search acg.Cg.Start Set.empty
-    Set.iter (fun v -> acg.Cg.Graph.RemoveVertex v |> ignore) !cantReach
+        (* Optimization to avoid unnecessary exploration *)
+        let exclude = (fun node -> node <> v && Set.contains node.Topo.Loc seen)
+        let reachable = reachableSrc cg v exclude
+        let relevant = Set.exists (fun x -> Set.contains x reachable) !cantReach 
+        if relevant then
+            for e in cg.Graph.OutEdges v do
+                let u = e.Target 
+                if not (Set.contains u.Topo.Loc seen) then 
+                    search u (Set.add u.Topo.Loc seen)
+    search cg.Start Set.empty
+    Set.iter (fun v -> cg.Graph.RemoveVertex v |> ignore) !cantReach
 
     (* Remove states that can't reach an accepting state *)
     let removeUnacceptableStates (cg: ConstraintGraph) = 
         let mutable deadNodes = Set.empty 
         for v in cg.Graph.Vertices do 
-            if Set.isEmpty (reachableSrcAccepting cg v Set.empty) then 
+            if Set.isEmpty (reachableSrcAccepting cg v (fun _ -> false)) then 
                 deadNodes <- Set.add v deadNodes
         for v in deadNodes do 
             cg.Graph.RemoveVertex v |> ignore
     removeUnacceptableStates cg 
 
-    printfn "Number of nodes total: %A" cg.Graph.VertexCount
-    printfn "Number of nodes explored: %A" !explored
+    (* printfn "Number of nodes total: %A" cg.Graph.VertexCount
+    printfn "Number of nodes explored: %A" !explored *)
 
 
 let pruneHeuristic (cg: ConstraintGraph) = 
     removeDeadEdgesHeuristic cg 
     removeDeadStatesHeuristic cg
 
-let pruneExact (cg: ConstraintGraph) = 
 
+let pruneExact (cg: ConstraintGraph) = 
     let acg = AnnotatedCG(cg)
-    
     let num_explored = ref 0
     let cantReachNodes = ref (acg.Cg.Graph.Vertices |> Set.ofSeq)
     let cantReachEdges = ref (acg.Cg.Graph.Edges |> Seq.map (fun e -> (e.Source, e.Target)) |> Set.ofSeq)
-
     let rec search v seenLocations seenNodes seenEdges =
         num_explored := !num_explored + 1
-
         if Option.isSome v.Accept then 
             cantReachNodes := Set.difference !cantReachNodes seenNodes
             cantReachEdges := Set.difference !cantReachEdges seenEdges
-
         for e in acg.Cg.Graph.OutEdges v do
             let u = e.Target 
-            (* Optimization to avoid unnecessary exploration *)
-            (* let relevant = Set.exists (fun x -> Set.contains x (Map.find u acg.ReachInfo)) !cantReach *)
             let notInPath = not (Set.contains u.Topo.Loc seenLocations)
             if notInPath then 
                 search u (Set.add u.Topo.Loc seenLocations) (Set.add u seenNodes) (Set.add (v,u) seenEdges)
-
     search acg.Cg.Start Set.empty (Set.singleton acg.Cg.Start) Set.empty
-
     Set.iter (fun v -> acg.Cg.Graph.RemoveVertex v |> ignore) !cantReachNodes
     acg.Cg.Graph.RemoveEdgeIf (fun e -> Set.contains (e.Source, e.Target) !cantReachEdges) |> ignore
 
@@ -223,7 +212,6 @@ let pruneExact (cg: ConstraintGraph) =
 (* TODO: well defined in and out (fully connected inside) *)
 let build (topo: Topology.T) (autos : Regex.Automata array) : ConstraintGraph = 
 
-    (* Helper function to find best preference *)
     let minPref x y = 
         match x, y with 
         | None, None -> None
@@ -295,7 +283,15 @@ let build (topo: Topology.T) (autos : Regex.Automata array) : ConstraintGraph =
     {Start=newStart; Graph=graph}
 
 
-type private Ordering = Map<string, (CgState * Set<int>) list>
+type ConsistencyError = 
+    | PrefConsistency of CgState * CgState 
+    | TopoConsistency of string
+
+type Ordering = 
+    Map<string, (CgState * Set<int>) list>
+
+
+
 exception private ViolatesPrefConsistencyException of CgState * CgState
 exception private ViolatesTopoConsistencyException
 
@@ -325,7 +321,7 @@ let private prefConsistency (cg: ConstraintGraph) : Ordering =
     for v in cg.Graph.Vertices do 
         let loc = v.Topo.Loc
         let ins = if Map.containsKey loc acc then Map.find loc acc else []
-        acc <- Map.add loc ((v, reachableSrcAccepting cg v Set.empty)::ins) acc 
+        acc <- Map.add loc ((v, reachableSrcAccepting cg v (fun _ -> false))::ins) acc 
     (* Ensure well-formedness and return the ordering. Raises an exception otherwise *) 
     let check _ v = aux (List.sortWith comparer v)    
     Map.map check acc

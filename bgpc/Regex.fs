@@ -102,6 +102,28 @@ let rec private union r1 r2 =
     | _, _ -> union (Union [r1]) r2
 
 
+(* Check if a regular expression denotes only single characters and 
+   if so, return the set of characters it denotes. *)
+let rec singleLocations alphabet r =
+    let aux f r1 r2 = 
+        match r1, r2 with 
+        | None, _ -> None 
+        | _, None -> None 
+        | Some s1, Some s2 -> Some (f s1 s2)
+
+    match r with 
+    | Locs s -> Some s
+    | Inter rs ->
+        List.map (singleLocations alphabet) rs |> 
+        Common.List.fold1 (aux Set.intersect)
+    | Union rs -> 
+        List.map (singleLocations alphabet) rs |>
+        Common.List.fold1 (aux Set.union)
+    | Negate r ->
+        Option.map (Set.difference alphabet) (singleLocations alphabet r)
+    | _ -> None
+
+
 (* Build a DFA for a regular expression directly using regular 
    expression derivatives. Works well with complement,
    intersection, and character classes. Produces near-minimal DFAs *)
