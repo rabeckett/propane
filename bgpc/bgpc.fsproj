@@ -68,7 +68,8 @@
     <Compile Include="Prefix.fs" />
     <Compile Include="Regex.fs" />
     <Compile Include="Policy.fs" />
-    <Compile Include="ConstraintGraph.fs" />
+    <Compile Include="Config.fs" />
+    <Compile Include="CGraph.fs" />
     <Compile Include="Program.fs" />
     <None Include="App.config" />
     <None Include="packages.config" />

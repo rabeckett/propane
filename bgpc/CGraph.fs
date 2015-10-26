@@ -1,9 +1,8 @@
-﻿module ConstraintGraph
+﻿module CGraph
 
 open Extension.Error 
 open QuickGraph
 open QuickGraph.Algorithms
-
 
 type CgState = 
     {States: int array; 
@@ -14,39 +13,96 @@ type ConstraintGraph =
     {Start: CgState; 
      Graph: AdjacencyGraph<CgState, TaggedEdge<CgState, unit>>}
 
-   
-(* Get the alphabet from the topology *)
-let private alphabet (topo: Topology.T) = 
-    let mutable ain = Set.empty 
-    let mutable aout = Set.empty 
-    for v in topo.Vertices do
-        match v.Typ with 
-        | Topology.Inside -> ain <- Set.add v ain
-        | Topology.InsideHostConnected -> ain <- Set.add v ain
-        | Topology.Outside -> aout <- Set.add v aout
-        | Topology.Start -> failwith "unreachable"
-    (ain, aout)
+exception PrefConsistencyException of CgState * CgState 
+exception TopoConsistencyException of CgState * CgState
 
-(* Find and remember all topological neighbors for each location *)
-let private neighborMap (topo: Topology.T) = 
-    let mutable nmap = Map.empty
-    for v in topo.Vertices do
-        let mutable adj = Set.empty 
-        for e in topo.OutEdges v do 
-            adj <- Set.add e.Target adj
-        for e in topo.InEdges v do 
-            adj <- Set.add e.Source adj
-        nmap <- Map.add v adj nmap
-    nmap
+type ConsistencyViolation = 
+    | PrefConsistency of CgState * CgState
+    | TopoConsistency of CgState * CgState
 
-(* Make a copy of the constraint graph *)
+type Preferences = (CgState * Set<int>) list
+
+type Ordering = 
+    Map<string, Preferences>
+
+
+module Reach = 
+
+    let floydWarshall (cg: ConstraintGraph) : Map<CgState, Set<CgState>> = 
+        let fw = ShortestPath.FloydWarshallAllShortestPathAlgorithm(cg.Graph, fun _ -> 1.0)
+        fw.Compute ()
+        let mutable reachability = Map.empty
+        for src in cg.Graph.Vertices do 
+            let mutable toDst = Set.singleton src
+            for dst in cg.Graph.Vertices do 
+                if fw.TryGetPath(src, dst, ref Seq.empty) then 
+                    toDst <- Set.add dst toDst
+            reachability <- Map.add src toDst reachability
+        reachability
+
+    type AnnotatedCG(cg: ConstraintGraph) =
+        let reachability = floydWarshall cg
+        member this.Cg = cg
+        member this.ReachInfo = reachability
+
+    let srcDstWithout (cg: ConstraintGraph) src dst without =
+        if without src || without dst then false 
+        else if src = dst then true 
+        else
+            let numNodes = float cg.Graph.VertexCount
+            let weight (e: TaggedEdge<CgState,unit>) = 
+                 if without e.Target then numNodes + 1.0 else 1.0
+            let tryGetPaths = cg.Graph.ShortestPathsDijkstra((fun e -> weight e), src)
+            let path = ref Seq.empty
+            tryGetPaths.Invoke(dst, path) |> ignore
+            match !path with 
+            | null -> false 
+            | _ ->
+                let weight = Seq.fold (fun acc e -> acc + weight e) 0.0 !path
+                weight <= numNodes
+
+    let srcDst cg src dst = 
+        srcDstWithout cg src dst (fun _ -> false)
+
+    let srcWithout (cg: ConstraintGraph) src without =
+        if without src then Set.empty
+        else
+            let numNodes = float cg.Graph.VertexCount
+            let weight (e: TaggedEdge<CgState,unit>) = 
+                 if without e.Target then numNodes + 1.0 else 1.0
+            let tryGetPaths = cg.Graph.ShortestPathsDijkstra((fun e -> weight e), src)
+            let mutable reachable = Set.singleton src
+            let path = ref Seq.empty
+            for v in cg.Graph.Vertices do 
+                tryGetPaths.Invoke(v, path) |> ignore
+                match !path with 
+                | null -> () 
+                | _ ->
+                    let weight = Seq.fold (fun acc e -> acc + weight e) 0.0 !path
+                    if weight <= numNodes then
+                        reachable <- Set.add v reachable
+            reachable
+
+    let src cg src = 
+        srcWithout cg src (fun _ -> false)
+
+    let srcAcceptingWithout cg src without = 
+        let aux acc cg = 
+            match cg.Accept with 
+            | None -> acc
+            | Some i -> Set.add i acc
+        srcWithout cg src without |> Set.fold aux Set.empty
+
+    let srcAccepting cg src = 
+        srcAcceptingWithout cg src (fun _ -> false)
+
+
 let private copyGraph (cg: ConstraintGraph) : ConstraintGraph = 
     let newCG = QuickGraph.AdjacencyGraph() 
     for v in cg.Graph.Vertices do newCG.AddVertex v |> ignore
     for e in cg.Graph.Edges do newCG.AddEdge e |> ignore
     {Start=cg.Start; Graph=newCG}
 
-(* Make a copy of the constraint graph with all directed edges reversed *)
 let private copyReverseGraph (cg: ConstraintGraph) : ConstraintGraph = 
     let newCG = QuickGraph.AdjacencyGraph() 
     for v in cg.Graph.Vertices do newCG.AddVertex v |> ignore
@@ -55,77 +111,12 @@ let private copyReverseGraph (cg: ConstraintGraph) : ConstraintGraph =
         newCG.AddEdge e' |> ignore
     {Start=cg.Start; Graph=newCG}
 
-(* Compute all-pairs reachability *)
-let private floydWarshall (cg: ConstraintGraph) : Map<CgState, Set<CgState>> = 
-    let fw = ShortestPath.FloydWarshallAllShortestPathAlgorithm(cg.Graph, fun _ -> 1.0)
-    fw.Compute ()
-    let mutable reachability = Map.empty
-    for src in cg.Graph.Vertices do 
-        let mutable toDst = Set.singleton src
-        for dst in cg.Graph.Vertices do 
-            if fw.TryGetPath(src, dst, ref Seq.empty) then 
-                toDst <- Set.add dst toDst
-        reachability <- Map.add src toDst reachability
-    reachability
-
-(* Attach reachability information to the graph *)
-type private AnnotatedCG(cg: ConstraintGraph) =
-    let reachability = floydWarshall cg
-    member this.Cg = cg
-    member this.ReachInfo = reachability
-
-(* Check if src can reach dst *)
-let private reachableSrcDst (cg: ConstraintGraph) src dst without =
-    if without src || without dst then false 
-    else if src = dst then true 
-    else
-        let numNodes = float cg.Graph.VertexCount
-        let weight (e: TaggedEdge<CgState,unit>) = 
-             if without e.Target then numNodes + 1.0 else 1.0
-        let tryGetPaths = cg.Graph.ShortestPathsDijkstra((fun e -> weight e), src)
-        let path = ref Seq.empty
-        tryGetPaths.Invoke(dst, path) |> ignore
-        match !path with 
-        | null -> false 
-        | _ ->
-            let weight = Seq.fold (fun acc e -> acc + weight e) 0.0 !path
-            weight <= numNodes
-
-(* Find all locations reachable from src *)
-let private reachableSrc (cg: ConstraintGraph) src without =
-    if without src then Set.empty
-    else
-        let numNodes = float cg.Graph.VertexCount
-        let weight (e: TaggedEdge<CgState,unit>) = 
-             if without e.Target then numNodes + 1.0 else 1.0
-        let tryGetPaths = cg.Graph.ShortestPathsDijkstra((fun e -> weight e), src)
-        let mutable reachable = Set.singleton src
-        let path = ref Seq.empty
-        for v in cg.Graph.Vertices do 
-            tryGetPaths.Invoke(v, path) |> ignore
-            match !path with 
-            | null -> () 
-            | _ ->
-                let weight = Seq.fold (fun acc e -> acc + weight e) 0.0 !path
-                if weight <= numNodes then
-                    reachable <- Set.add v reachable
-        reachable
-
-(* Find all accepting states reachable from src *)
-let private reachableSrcAccepting cg src without = 
-    let aux acc cg = 
-        match cg.Accept with 
-        | None -> acc
-        | Some i -> Set.add i acc
-    reachableSrc cg src without |> Set.fold aux Set.empty
-
 
 (* Polynomial-time heuristic for pruning edges that never lie on a 
    simple path. This looks for bidirectional edges between two nodes 
    X and Y, and checks if X -> Y can be removed *)
 let private removeDeadEdgesHeuristic (cg: ConstraintGraph) = 
     let cgRev = copyReverseGraph cg
-
     cg.Graph.RemoveEdgeIf (fun (e: TaggedEdge<CgState,unit>) -> 
         let oes = cg.Graph.OutEdges e.Source
         let ies = cgRev.Graph.OutEdges e.Source
@@ -134,8 +125,8 @@ let private removeDeadEdgesHeuristic (cg: ConstraintGraph) =
         match ie with 
         | None -> false 
         | Some ie ->
-            let cantReachAccepting = Set.isEmpty (reachableSrcAccepting cg e.Target ((=) e.Source))
-            let startCantReach = not (reachableSrcDst cg cg.Start e.Source ((=) e.Target))
+            let cantReachAccepting = Set.isEmpty (Reach.srcAcceptingWithout cg e.Target ((=) e.Source))
+            let startCantReach = not (Reach.srcDstWithout cg cg.Start e.Source ((=) e.Target))
             cantReachAccepting || startCantReach
     ) |> ignore
 
@@ -146,16 +137,13 @@ let private removeDeadEdgesHeuristic (cg: ConstraintGraph) =
    it checks if there are any reachable, unmarked states that don't go through an already 
    observed label *)
 let private removeDeadStatesHeuristic (cg: ConstraintGraph) =
-    
-    (* Remove nodes that don't occur on any simple path *)
     let explored = ref 0
     let cantReach = ref (cg.Graph.Vertices |> Set.ofSeq)
     let rec search v seen = 
         explored := !explored + 1
         cantReach := Set.remove v !cantReach
-        (* Optimization to avoid unnecessary exploration *)
         let exclude = (fun node -> node <> v && Set.contains node.Topo.Loc seen)
-        let reachable = reachableSrc cg v exclude
+        let reachable = Reach.srcWithout cg v exclude
         let relevant = Set.exists (fun x -> Set.contains x reachable) !cantReach 
         if relevant then
             for e in cg.Graph.OutEdges v do
@@ -166,14 +154,12 @@ let private removeDeadStatesHeuristic (cg: ConstraintGraph) =
     Set.iter (fun v -> cg.Graph.RemoveVertex v |> ignore) !cantReach
 
     (* Remove states that can't reach an accepting state *)
-    let removeUnacceptableStates (cg: ConstraintGraph) = 
-        let mutable deadNodes = Set.empty 
-        for v in cg.Graph.Vertices do 
-            if Set.isEmpty (reachableSrcAccepting cg v (fun _ -> false)) then 
-                deadNodes <- Set.add v deadNodes
-        for v in deadNodes do 
-            cg.Graph.RemoveVertex v |> ignore
-    removeUnacceptableStates cg 
+    let mutable deadNodes = Set.empty 
+    for v in cg.Graph.Vertices do 
+        if Set.isEmpty (Reach.srcAccepting cg v) then 
+            deadNodes <- Set.add v deadNodes
+    for v in deadNodes do 
+        cg.Graph.RemoveVertex v |> ignore
 
     (* printfn "Number of nodes total: %A" cg.Graph.VertexCount
     printfn "Number of nodes explored: %A" !explored *)
@@ -185,7 +171,7 @@ let pruneHeuristic (cg: ConstraintGraph) =
 
 
 let pruneExact (cg: ConstraintGraph) = 
-    let acg = AnnotatedCG(cg)
+    let acg = Reach.AnnotatedCG(cg)
     let num_explored = ref 0
     let cantReachNodes = ref (acg.Cg.Graph.Vertices |> Set.ofSeq)
     let cantReachEdges = ref (acg.Cg.Graph.Edges |> Seq.map (fun e -> (e.Source, e.Target)) |> Set.ofSeq)
@@ -202,10 +188,6 @@ let pruneExact (cg: ConstraintGraph) =
     search acg.Cg.Start Set.empty (Set.singleton acg.Cg.Start) Set.empty
     Set.iter (fun v -> acg.Cg.Graph.RemoveVertex v |> ignore) !cantReachNodes
     acg.Cg.Graph.RemoveEdgeIf (fun e -> Set.contains (e.Source, e.Target) !cantReachEdges) |> ignore
-
-    (* printfn "number of verticies total: %A" (Seq.length acg.Cg.Graph.Vertices)
-    printfn "number of nodes explored:  %A" !num_explored *)
-
 
 
 (* TODO: more efficient mutable data structures *)
@@ -228,9 +210,9 @@ let build (topo: Topology.T) (autos : Regex.Automata array) : ConstraintGraph =
         | Topology.Start -> false
 
     (* Graph topology information *)
-    let alphabetIn, alphabetOut = alphabet(topo)
+    let alphabetIn, alphabetOut = Topology.alphabet(topo)
     let alphabetAll = Set.union alphabetIn alphabetOut
-    let neighborMap = neighborMap topo
+    let neighborMap = Topology.neighborMap topo
 
     (* Create the new constraint graph *)
     let graph = AdjacencyGraph<CgState, TaggedEdge<CgState,unit>>()
@@ -284,28 +266,10 @@ let build (topo: Topology.T) (autos : Regex.Automata array) : ConstraintGraph =
     {Start=newStart; Graph=graph}
 
 
-exception PrefConsistencyException of CgState * CgState 
-exception TopoConsistencyException of CgState * CgState
 
-type Preferences = (CgState * Set<int>) list
+let private prefConsistency (cg: ConstraintGraph) : Result<Ordering, ConsistencyViolation> =
 
-type Ordering = 
-    Map<string, Preferences>
-
-type OrderingResult = 
-    Result<Ordering, CgState * CgState>
-
-type TopoResult = 
-    Result<unit, CgState * CgState>
-
-
-(* Check preference consistency for each topology location.
-   Checks for a total ordering nodes in the constraint graph.
-   Total order is required to ensure the policy holds under all possible 
-   failure scenarios. *)
-let private prefConsistency (cg: ConstraintGraph) : OrderingResult =
-
-    (* Custom sorting by reachable state preference rages *)
+    (* Custom sorting by reachable state preference ranges *)
     let comparer (_,x) (_,y) = 
         let minx, maxx = Set.minElement x, Set.maxElement y
         let miny, maxy = Set.minElement y, Set.maxElement y
@@ -331,7 +295,7 @@ let private prefConsistency (cg: ConstraintGraph) : OrderingResult =
     for v in cg.Graph.Vertices do 
         let loc = v.Topo.Loc
         let ins = if Map.containsKey loc acc then Map.find loc acc else []
-        let accepting = reachableSrcAccepting cg v (fun _ -> false)
+        let accepting = Reach.srcAccepting cg v
         acc <- Map.add loc ((v, accepting)::ins) acc 
     
     (* Ensure well-formedness and return the ordering. Raises an exception otherwise *) 
@@ -340,10 +304,10 @@ let private prefConsistency (cg: ConstraintGraph) : OrderingResult =
     (* Hide the exception behind a result type *)
     try Ok (Map.map check acc)
     with PrefConsistencyException (x,y) ->
-        Err (x,y)
+        Err (PrefConsistency (x,y))
 
 
-let private topoConsistency (cg: ConstraintGraph) (ord: Ordering) : TopoResult =
+let private topoConsistency (cg: ConstraintGraph) (ord: Ordering) : Result<unit, ConsistencyViolation> =
     let reachableEdges x = 
         let mutable edges = Set.empty
         let mutable seen = Set.empty
@@ -370,8 +334,8 @@ let private topoConsistency (cg: ConstraintGraph) (ord: Ordering) : TopoResult =
                 ) |> ignore
 
             (* Check reachability for y *)
-            if reachableSrcDst copy copy.Start y (fun _ -> false) then
-                if not (Set.isEmpty (reachableSrcAccepting copy y (fun _ -> false))) then 
+            if Reach.srcDst copy copy.Start y then
+                if not (Set.isEmpty (Reach.srcAccepting copy y)) then 
                     raise (TopoConsistencyException (x,y))
 
     let rec aux loc prefs =
@@ -382,98 +346,101 @@ let private topoConsistency (cg: ConstraintGraph) (ord: Ordering) : TopoResult =
             checkFailures loc x y
             aux loc tl
     try
-        Map.iter (fun loc prefs -> aux loc prefs) ord
+        Map.iter aux ord
         Ok ()
     with TopoConsistencyException(x,y) -> 
-        Err (x,y)
+        Err (TopoConsistency (x,y))
 
 
-type Match = 
-    | Peer of string 
-    | Comm of int array * string
-    | PathRE of Regex.T
 
-type Action = 
-    | NoAction
-    | SetComm of int array * string
-    | SetMed of int
-    | SetLP
+let private genConfig (cg: ConstraintGraph) (ord: Ordering) : Config.T = 
+    
+    let compareLocThenPref (x,i1) (y,i2) = 
+        let cmp = compare i1 i2
+        if cmp = 0 then 
+            compare x.Topo.Loc y.Topo.Loc
+        else cmp
 
-type Rule =
-    {Match: Match;
-     Action: Action}
-
-type Config = 
-    Map<string, Rule list>
-
-
-let private genConfig (cg: ConstraintGraph) (ord: Ordering) : Config = 
+    let rec aux sorted = 
+        match sorted with 
+        | [] | [_] -> sorted
+        | hd1::((hd2::z) as tl) ->
+            let (x,i1) = hd1 
+            let (y,i2) = hd2 
+            if x.Topo.Loc = y.Topo.Loc then aux (hd1::z)
+            else hd1 :: (aux tl)
+    
     let cgRev = copyReverseGraph cg
 
-    let mutable inMap = Map.empty
-    let mutable outMap = Map.empty 
-    
-    for v in cgRev.Graph.Vertices do 
-        let edges = cgRev.Graph.OutEdges v 
-        for e in edges do 
-            let u = e.Target
-            let key = v.Topo.Loc
-            inMap <- Extension.Map.modify key (Set.singleton u) (Set.add u) inMap
+    let neighborsIn v = 
+        seq {for e in cgRev.Graph.OutEdges v do 
+                if e.Target.Topo.Typ <> Topology.Start then yield e.Target}
 
-    for v in cg.Graph.Vertices do 
-        let edges = cgRev.Graph.OutEdges v 
-        for e in edges do 
-            let u = e.Target
-            let key = v.Topo.Loc
-            outMap <- Extension.Map.modify key (Set.singleton u) (Set.add u) outMap
+    let neighborsOut v = 
+        seq {for e in cg.Graph.OutEdges v do
+                if e.Target.Topo.Typ <> Topology.Start then yield e.Target}
+
 
     let mutable config = Map.empty
 
-    for entry in inMap do 
+    for entry in ord do 
         let mutable rules = []
-        let x = entry.Key
-        let neighbors = entry.Value 
-        let neighbors = Set.filter (fun x -> x.Topo.Typ <> Topology.Start) neighbors
-        let grouped = Set.toSeq neighbors |> Seq.groupBy (fun n -> n.Topo.Loc)
-        for _, states in grouped do
-            if Seq.length states = 1 then 
-                let peer = (Seq.nth 0 states).Topo.Loc
-                let rule = {Match = Peer peer; Action = NoAction}
-                rules <- rule::rules
-            else 
-                for v in states do 
-                    let rule = {Match = Comm (v.States, v.Topo.Loc); Action = NoAction}
-                    rules <- rule::rules
-        config <- Map.add x rules config
+        
+        let loc = entry.Key 
+        let prefs = entry.Value 
+        
+        let prefNeighborsIn = 
+            prefs
+            |> List.mapi (fun i (v,_) -> (neighborsIn v, i))
+            |> List.map (fun (ns,i) -> Seq.map (fun n -> (n,i)) ns) 
+            |> Seq.fold Seq.append Seq.empty 
+            |> List.ofSeq
+            |> List.sortWith compareLocThenPref
+            |> aux
+ 
+        let mutable lp = 99
+        let mutable lastPref = None
+        
+        for v, pref in prefNeighborsIn do 
+
+            match lastPref with 
+            | Some p when pref = p -> () 
+            | _ ->
+                lastPref <- Some pref 
+                lp <- lp + 1
+
+            let unambiguous = 
+                prefNeighborsIn 
+                |> Set.ofList 
+                |> Set.filter (fun (x,_) -> x.Topo.Loc = v.Topo.Loc) 
+                |> Set.count 
+                |> ((=) 1)
+
+            let m = 
+                if unambiguous then Config.Peer v.Topo.Loc 
+                else Config.State (v.States, v.Topo.Loc)
+
+            let a = 
+                if lp = 100 then [] 
+                else [Config.SetLP(lp)]
+
+            rules <- {Config.Import = m; Config.Export = a}::rules
+        
+        config <- Map.add loc rules config
 
     config
-
-        (* let localpref = 
-            Map.find v.Topo.Loc ord
-            |> List.findIndex (fun (v',_) -> v' = v)
-            |> (+) 100
-            
-        printfn "Receive from: %A, %A" rcvState u.Topo.Loc
-        printfn "Update to:    %A, %A" v.States v.Topo.Loc
-        printfn "Local-Pref:   %A\n" localpref *)
-    
 
 
 (* Generate the BGP match/action rules that are guaranteed to 
    implement the user policy under all possible failure scenarios. 
    This function returns an intermediate representation (IR) for BGP policies *) 
-let compile (cg: ConstraintGraph) : Config =
+let compile (cg: ConstraintGraph) : Result<Config.T, ConsistencyViolation> =
     match prefConsistency cg with 
     | Ok ord ->
         match topoConsistency cg ord with 
-        | Ok _ -> 
-            genConfig cg ord 
-        | Err (x,y) ->
-            printfn "Violates Topology Consistency:"
-            printfn "%A\n%A" x y
-            failwith "Oh No!"
-    | Err (x,y) ->
-        failwith "Violates Preference consistency"
+        | Ok _ -> Ok (genConfig cg ord)
+        | Err(tc) -> Err(tc)
+    | Err(pc) -> Err(pc)
 
 
 (* Generate Graphviz DOT format output for visualization *)

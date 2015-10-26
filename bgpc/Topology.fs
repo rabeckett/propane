@@ -12,7 +12,31 @@ type State =
     {Loc: string; 
      Typ: NodeType}
 
+type NeighborMap = Map<State, Set<State>>
+
 type T = BidirectionalGraph<State,TaggedEdge<State,unit>>
+
+let alphabet (topo: T) : Set<State> * Set<State> = 
+    let mutable ain = Set.empty 
+    let mutable aout = Set.empty 
+    for v in topo.Vertices do
+        match v.Typ with 
+        | Inside -> ain <- Set.add v ain
+        | InsideHostConnected -> ain <- Set.add v ain
+        | Outside -> aout <- Set.add v aout
+        | Start -> failwith "unreachable"
+    (ain, aout)
+
+let neighborMap (topo: T) : NeighborMap   = 
+    let mutable nmap = Map.empty
+    for v in topo.Vertices do
+        let mutable adj = Set.empty 
+        for e in topo.OutEdges v do 
+            adj <- Set.add e.Target adj
+        for e in topo.InEdges v do 
+            adj <- Set.add e.Source adj
+        nmap <- Map.add v adj nmap
+    nmap
 
 module Example1 = 
     let topo () = 
@@ -38,7 +62,7 @@ module Example1 =
         g.AddEdge (TaggedEdge(vN, vY, ())) |> ignore
         g.AddEdge (TaggedEdge(vN, vZ, ())) |> ignore
         g.AddEdge (TaggedEdge(vY, vB, ())) |> ignore
-        g.AddEdge (TaggedEdge(vZ, vB, ())) |> ignore        
+        g.AddEdge (TaggedEdge(vZ, vB, ())) |> ignore
         g
 
 module Example2 = 

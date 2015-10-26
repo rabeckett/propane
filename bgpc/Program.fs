@@ -1,4 +1,5 @@
 ﻿
+open Extension.Error
 
 let RE = Regex.REBuilder(Set.ofList ["A"; "B"; "C"; "D"; "X"; "Y"; "M"; "N"], Set.empty)
 
@@ -11,13 +12,14 @@ let main argv =
     let dfa1 = RE.MakeDFA 1 (RE.Rev r1)
     let dfa2 = RE.MakeDFA 2 (RE.Rev r2)
     
-    let cg = ConstraintGraph.build (Topology.Example2.topo()) [|dfa1; dfa2|] 
-    ConstraintGraph.pruneHeuristic cg
-    
+    let cg = CGraph.build (Topology.Example2.topo()) [|dfa1; dfa2|] 
+    CGraph.pruneHeuristic cg
+
     (* printfn "%s" (ConstraintGraph.toDot cg) *)
 
-    let config = ConstraintGraph.compile cg
-    printfn "Configuration: \n%A" config
+    match CGraph.compile cg with 
+    | Ok(config) -> printfn "Configuration: \n%A" config
+    | Err(CGraph.PrefConsistency (x,y)) -> failwith "pref consistency"
+    | Err(CGraph.TopoConsistency (x,y)) -> failwith "topo consistency"
+
     0
-
-
