@@ -1,0 +1,371 @@
+
+Sources of bugs:
+	
+	1. Dissemination
+	
+		[A]Routers with duplicate loopback addresses or cluster IDs 
+		- routers may incorrectly drop routes 
+
+		[A]iBGP configured on one end
+		- routers won't exchange routes 
+	
+		[A]prepending with bogus AS
+		- AS path is no longer valid
+	
+		[A]incorrect next-hop 
+		- other routes may be unable to reach routes for a next-hop
+		  not in the IGP
+	
+		[A]originating unroutable destination 
+		- creates a blackhole
+	
+	
+	2. Filtering 
+	
+		[S]transit between peers 
+		- network carries traffic for free
+	
+		[A]inconsistent export to peer 
+		- violation of contract
+		
+		[S/A]inconsistent import
+		- possible unintentional "cold potato" routing
+		  (maybe this is desirable)
+	
+		[S/A]eBGP session with 
+		no filters, undef filter, undef policy,
+		filter w/missing prefix, policy w/undef AS path, 
+		pol w/undef community, policy w/undef filter 
+		- leaked internal routes 
+		- re-advertising bogus routes 
+		- accepting bogus routes from neighbors 
+		- unintentional transit between peers
+
+		[A]consistent export to peer 
+		(can be caused by iBGP signalling partition)
+		- unintentionally prevent hot potato routing and violate peering agreement
+
+	Miscellaneous:
+	
+		[A]nondeterministic MED 
+		- cold potato routing
+	
+		[A]age-based tiebreaking
+
+		
+		
+
+	
+	[Information control]
+		set-metric-internal [8], a Cisco IOS command that assigns
+		MED values for route announcements according to the IGP
+		distance from network ingress to egress, can reveal information
+		about internal routing instability because IGP changes are reflected
+		as changes in BGP routes.
+	
+		every object in the systems is assigned a security level.
+		information flow plicy is defined in terms of a partial ordering (lattice)
+		
+		information objects in wide area routing fall into 3 categories 
+		1) 	Policy - e.g., peering and transit agreements,
+			filtering policies, other route preferences 
+		2)	Reachability - any type of information related to events 
+			that affect reachability (e.g., internal network failure)
+		3)	Topology - internal network topology as well as inter-AS
+			connectivity
+	
+		Routing messages, which contain information such as prefixes,
+		next-hop IP addresses, AS paths, MED values, and session resets,
+		can cause the unexpected transfer of information across security
+		levels. An administrative domain specifies an information flow policy
+		by assigning security levels to each of these pieces of information
+		(e.g., keep peering relationships private), as well as to other
+		participants (e.g., assign AS A to the security level corresponding
+		to “all of my peers”), and specifying the information flow policy
+		itself (e.g., “don’t let arbitrary participants discover information intended
+		for this specific peer”).
+	
+		The routing logic should express whether a routing protocol satisfies
+		the noninterference property. Noninterference states that actions
+		of objects at higher security levels should not be visible to
+		objects at lower security levels
+
+		A puts route_A to dest for B :- 
+			L(route_A) <= L(B)
+			xorL {route_A, RB} <= L(B)
+		
+		
+		
+Rather than talking about exports, maybe we can take about non-interference?
+
+
+	
+
+-----------------------
+BGP
+-----------------------
+
+
+Example
+-------
+
+
+
+Peer inbound 1 
+	
+	# this is just filtering 
+	1. Deny BOGON, MSFT-PRIVATE, GLOBAL-EGRESS 
+	2. Add origin code 
+	3. Delete 8075 communities 
+	4. Reject long as-path 
+	5. Reject routes with private ASNs 
+	  
+
+Peer inbound 2 
+	
+	1. Differentiate peers w/tags 
+		- paid on-net 
+		- paid off-net 
+		- free private 
+		- free public 
+		- route server 
+		
+	2. Add attributes based on type 
+		Local Pref (least to most)
+			- paid off-net = 100 
+			- paid on-net = 200 
+			- free peer = 300
+		
+		Communities 
+		
+		Default MEDs (least to most)
+			- free peer = 80  
+			- transit/paid = 100 
+			
+	3. If COMM_OVERLOAD (65535:0), then LP = 10 
+	
+	4. Reject trasit ISPs as-path from free peers 
+	
+Peer inbound 3 (optional)
+
+	# used for cold potato routing 
+	1. cold potato for free peer 
+		MED = standard (80) - 20 
+		
+	2. transit/paid peers 
+		MED = $ x 100 
+		
+	3. community based cold potato for transit/paid peers 
+		MED = $ x 100 - 20
+
+	
+
+-----------------------
+Properties (BGP):
+-----------------------
+	
+Control Plane:
+
+	peer preferences based on cost etc
+		- prefer free peers over paid peers
+		- cold potato routing (prefer certain links over others)
+		- prefer customers over peers
+		- no transit between peers
+		
+	routes head from one AS should not be readvertised to another
+
+	deny advertisements with certain attributes from certain neighbors
+		- deny MSFT internal address space
+		- deny private ASNs from external neighbors
+
+	traffic engineering
+		- ???
+
+	route redistribution
+
+
+Data Plane:
+
+	ensure k equal cost paths between nodes
+	ensure all routers in a tier treat all traffic similarly
+	policy based on lowest-latency path
+	failure resilience: some number of paths available between nodes
+	close fail between two nodes
+		(encrypted tunnel goes down, don't go over unencrypted path)
+
+	variants of source routing
+
+	locality: don't go higher up the tree than you need to 
+			  in data centers and in BGP, similar to preferences 
+			  but a more direct way of stating it
+
+			  (is this the same as always taking the shortest path?)
+
+
+	
+	information flow control
+		- ensure, dont leak information 
+
+		
+		
+		
+Efficiency:
+	
+	- can we check at a single router, or all/multiple routers?
+	- do we require information from other routing protocols like IGP
+	- can we use symmetry of the topology and policy?
+	- can we use the hierarchy to our advantage. 
+	  for example rather than checking all-pairs reachability, 
+	  can we just check that the reach the egress point and then 
+	  proceed to reach the correct place?
+
+
+
+-------------------------
+Summary for (wed)
+-------------------------
+
+Agenda:
+	1) 	What properties do we care about 
+	2) 	What is the correct model for BGP 
+
+
+Properties:
+	
+	Why BGP config is hard:
+		1)	Configuration is distributed
+				a) 	Possible inconsistent filtering (synchronization)
+				b) 	Duplication of intent 
+				c) 	Can't understand network-wide behavior
+		2)	Low-level mechanisms used for high-level intent (communities, local pref)
+				a)	Stateful tagging used to create a non-local effect 
+		3)	Control + data planes out of sync (complex iBGP route propagation)
+				a)	Routes may advertise paths that don't exist (validity)
+				b)	Paths that exist might not be known (visibility)
+		4)	Asynchrony in message arrival order
+				a)	Non-deterministic path selection
+		5)	Information control 
+				a)	Don't leak more information than necessary
+
+	
+	There are two very different views of BGP here, (1) the traditional 
+	view of an AS that has no control over its peer's policies, and (2) 
+	the view where you are implementing a traditional network using BGP 
+	speaking routers to do richer routing.
+
+
+	1)	Isolated AS: 
+	
+		Overview:
+	
+			The issue of control + data planes out of sync, and asynchrony can 
+			be solved modularly by ensuring a proper iBGP configuration 
+			e.g., using deterministic-med and always-compare-med
+		
+			If you have a good iBGP configuration, then you get validity and visibility 
+			more or less for free, which simplifies things a lot.
+		
+			Most literature seems to assume the steady state, and don't 
+			model the dynamics of BGP explicitly
+		
+			These solve issues (3) and (4)
+	
+		Abstraction:
+
+			The right abstraction seems to be one where you view the 
+			network (single AS) from a centralized point of view
+	
+			Also, I think the only specification you need is actually just 
+			high-level preferences. If you guarantee that the control and 
+			data planes are in sync with each other, then all you need to do 
+			is say which route you want to select, and the underlying data plane 
+			should implement this for you (modular verification)
+			
+			The centralized view solves issues (1) and (2) since you could imagine 
+			synthesizing polcies that use communities without ever talking about them 
+			
+			There is also a need to talk about what information is exported for (5). 
+			This seems fundamentally disjoint from talking about route selection.
+		
+		Properties:
+	
+			The main form of specification seems to be related to high-level preferences 
+			1)	route selection is just about preferences between peers, customers, paid etc
+			2) 	filtering can be viewed as prefering the null path to another path (e.g., no transit)
+			3)	cold-potato routing is just preference for a particular link over another
+
+			Example (cold potato): 
+			true ~ p1 > p2 when p1.next-hop = 10 and p2.next-hop = 11 
+
+			The other part seems to be about information control
+			1)	who should I advertise my choices to?
+				is this noninterference?
+
+
+	2)	Mutliple ASes 
+	
+		Overview:
+			
+			Here we are using BGP as a way of implementing rich policies 
+			as a form of IGP
+			
+			Since there is no iBGP running (each router is trivially full-mesh),
+			we don't have to worry about issues relating to validity or visibility 
+			
+		Abstraction:
+			
+			Once again, we want to specify properties at the network-wide level 
+			Here though, we are concerned with paths over preferences though it seems. 
+			
+			We can still specify things in terms of preferences and avoid having to 
+			do this kind of stateful tagging of communities
+			
+			There is still some notion of only exporting certain paths since we are still 
+			running BGP for example, between T3 routers in different data centers. 
+			
+			We are basically running BGP in a hierarchical fashion 
+			(i.e., we control the peers, provider, customers etc)
+			
+			Still, having full control makes it seem like we can do a bit better 
+			e.g., rather than use preferences to prevent traffic, state it directly 
+			!(t3.t3.t3) "a packet never goes across 3 AZ sets"
+			although this is a bit harder to think about completeness (have we missed a case)
+			
+		Properties:
+			
+			It is unclear if we should still talk about route preferences, 
+			or if we should be talking about reachability now. We are still running 
+			BGP with peers etc, but this is lower-level
+			
+			Examples:
+			1)	Information control 
+				- aggregate prefixes sent to CORE and IDFX, 
+				  but more specific prefixes should not leak outside 
+				- Prevent transit between Peer T3s 
+				- Yammer traffic does not leak beyond T1
+				- Locality of path, don't go "up" in the datacenter farther than necessary 
+				- Ensure at least k paths 
+				- All routers in a tier treat all traffic similarly 
+				- Failure resistance (how many backup paths)
+				- Disjoint paths (backup is disjoint, encrypted vs unencrypted)?
+				- Close fail (e.g., encrypted fails, don't go over unencrypted)
+				
+			Aggregate preferences could just be expressed as route selection 
+			specific prefixes, non-aggregates, are blocked in the T3 route selection
+				
+			path1 or  path2		// load balance 
+			path1 and path2 	// multicast 
+			path1 xor path2 	// e.g., disjoint paths
+			path1 min k 		// at least k paths 
+			path1 max k 		// no more than k paths 
+			
+	
+
+	
+	
+	
+	
+	
+	
+	
+	
