@@ -182,8 +182,7 @@ let rec private derivative alphabet a r =
     | Locs s -> if Set.contains a s then epsilon else empty
     | Concat rs -> 
         match rs with 
-        | [] -> failwith "impossible"
-        | x::[] -> failwith "impossible"
+        | [] | [_] -> failwith "impossible"
         | x::y::tl ->
             let y = if List.isEmpty tl then y else Concat (y::tl)
             union (concat (derivative alphabet a x) y) (concat (nullable x) (derivative alphabet a y))
@@ -191,7 +190,7 @@ let rec private derivative alphabet a r =
     | Union rs -> List.fold (fun acc r -> union acc (derivative alphabet a r)) empty rs
     | Negate r' -> negate alphabet (derivative alphabet a r')
     | Star r' -> concat (derivative alphabet a r') r
-
+    
 type Automata =
     {pref: int;
      q0: int;

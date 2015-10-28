@@ -101,3 +101,56 @@ module Example2 =
         g.AddEdge (TaggedEdge(vY, vN, ())) |> ignore
         g.AddEdge (TaggedEdge(vN, vY, ())) |> ignore
         g
+
+module Example3 = 
+    let topo () = 
+        let g = BidirectionalGraph<State, TaggedEdge<State,unit>>()
+        let vA = {Loc="A"; Typ=InsideHostConnected}
+        let vB = {Loc="B"; Typ=InsideHostConnected}
+        let vC = {Loc="C"; Typ=Inside}
+        let vD = {Loc="D"; Typ=Inside}
+        let vE = {Loc="E"; Typ=InsideHostConnected}
+        let vF = {Loc="F"; Typ=InsideHostConnected}
+        let vG = {Loc="G"; Typ=Inside}
+        let vH = {Loc="H"; Typ=Inside}
+        let vX = {Loc="X"; Typ=Inside}
+        let vY = {Loc="Y"; Typ=Inside}
+        g.AddVertex vA |> ignore 
+        g.AddVertex vB |> ignore 
+        g.AddVertex vC |> ignore 
+        g.AddVertex vD |> ignore 
+        g.AddVertex vE |> ignore 
+        g.AddVertex vF |> ignore 
+        g.AddVertex vG |> ignore 
+        g.AddVertex vH |> ignore 
+        g.AddVertex vX |> ignore
+        g.AddVertex vY |> ignore
+        g.AddEdge (TaggedEdge(vA, vC, ())) |> ignore
+        g.AddEdge (TaggedEdge(vC, vA, ())) |> ignore
+        g.AddEdge (TaggedEdge(vA, vD, ())) |> ignore
+        g.AddEdge (TaggedEdge(vD, vA, ())) |> ignore
+        g.AddEdge (TaggedEdge(vB, vC, ())) |> ignore
+        g.AddEdge (TaggedEdge(vC, vB, ())) |> ignore
+        g.AddEdge (TaggedEdge(vB, vD, ())) |> ignore
+        g.AddEdge (TaggedEdge(vD, vB, ())) |> ignore
+        g.AddEdge (TaggedEdge(vE, vG, ())) |> ignore
+        g.AddEdge (TaggedEdge(vG, vE, ())) |> ignore
+        g.AddEdge (TaggedEdge(vE, vH, ())) |> ignore
+        g.AddEdge (TaggedEdge(vH, vE, ())) |> ignore
+        g.AddEdge (TaggedEdge(vF, vG, ())) |> ignore
+        g.AddEdge (TaggedEdge(vG, vF, ())) |> ignore
+        g.AddEdge (TaggedEdge(vF, vH, ())) |> ignore
+        g.AddEdge (TaggedEdge(vH, vF, ())) |> ignore
+        g.AddEdge (TaggedEdge(vC, vX, ())) |> ignore
+        g.AddEdge (TaggedEdge(vX, vC, ())) |> ignore
+        g.AddEdge (TaggedEdge(vC, vY, ())) |> ignore
+        g.AddEdge (TaggedEdge(vY, vC, ())) |> ignore
+        g.AddEdge (TaggedEdge(vD, vX, ())) |> ignore
+        g.AddEdge (TaggedEdge(vX, vD, ())) |> ignore
+        g.AddEdge (TaggedEdge(vD, vY, ())) |> ignore
+        g.AddEdge (TaggedEdge(vY, vD, ())) |> ignore
+        g.AddEdge (TaggedEdge(vG, vX, ())) |> ignore
+        g.AddEdge (TaggedEdge(vX, vG, ())) |> ignore
+        g.AddEdge (TaggedEdge(vG, vY, ())) |> ignore
+        g.AddEdge (TaggedEdge(vY, vG, ())) |> ignore
+        g

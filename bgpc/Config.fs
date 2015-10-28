@@ -19,6 +19,14 @@ type Rule =
 
 type T = Map<string, Rule list>
 
+
+let print (config: T) = 
+    for kv in config do 
+        printfn "\nRouter %s" kv.Key
+        for rule in kv.Value do 
+            printfn "  Match: (%A), Update: (%A)" rule.Import rule.Export
+
+
 (* Generate templates 
 let generateTemplates (config: T) (path: string) = 
     failwith "todo" *)

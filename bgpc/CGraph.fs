@@ -60,7 +60,7 @@ module Reach =
             | _ ->
                 let weight = Seq.fold (fun acc e -> acc + weight e) 0.0 !path
                 weight <= numNodes
-
+             
     let srcDst cg src dst = 
         srcDstWithout cg src dst (fun _ -> false)
 
@@ -95,6 +95,21 @@ module Reach =
 
     let srcAccepting cg src = 
         srcAcceptingWithout cg src (fun _ -> false)
+
+    let edges cg x = 
+        let mutable es = Set.empty
+        let mutable seen = Set.empty
+        let mutable todo = Set.singleton x
+        while not (Set.isEmpty todo) do 
+            let current = Set.minElement todo 
+            todo <- Set.remove current todo
+            seen <- Set.add current seen
+            for e in cg.Graph.OutEdges current do 
+                es <- Set.add (e.Source, e.Target) es 
+                if not (Set.contains e.Target seen) then 
+                    todo <- Set.add e.Target todo
+        es
+
 
 
 let private copyGraph (cg: ConstraintGraph) : ConstraintGraph = 
@@ -308,23 +323,10 @@ let private prefConsistency (cg: ConstraintGraph) : Result<Ordering, Consistency
 
 
 let private topoConsistency (cg: ConstraintGraph) (ord: Ordering) : Result<unit, ConsistencyViolation> =
-    let reachableEdges x = 
-        let mutable edges = Set.empty
-        let mutable seen = Set.empty
-        let mutable todo = Set.singleton x
-        while not (Set.isEmpty todo) do 
-            let current = Set.minElement todo 
-            todo <- Set.remove current todo
-            seen <- Set.add current seen
-            for e in cg.Graph.OutEdges current do 
-                edges <- Set.add (e.Source, e.Target) edges 
-                if not (Set.contains e.Target seen) then 
-                    todo <- Set.add e.Target todo
-        edges
 
     let checkFailures loc x y = 
         (* failing links from x disconnects y from start to accept state *)
-        let es = reachableEdges x
+        let es = Reach.edges cg x
         if not (Set.isEmpty es) && (Option.isSome x.Accept) then 
             let copy = copyGraph cg 
             for (u,v) in es do 
@@ -340,8 +342,7 @@ let private topoConsistency (cg: ConstraintGraph) (ord: Ordering) : Result<unit,
 
     let rec aux loc prefs =
         match prefs with 
-        | [] -> ()
-        | [x] -> ()
+        | [] | [_] -> ()
         | (x,_)::(((y,_)::z) as tl) -> 
             checkFailures loc x y
             aux loc tl
@@ -454,7 +455,7 @@ let toDot (cg: ConstraintGraph) =
         | None -> 
             v.VertexFormatter.Label <- "(" + states + ", " + location + ")"
         | Some i ->
-            v.VertexFormatter.Label <- "(" + states + ", " + location + ")\npref=" + (string i)
+            v.VertexFormatter.Label <- "(" + states + ", " + location + "\npref=" + (string i)
             v.VertexFormatter.Shape <- Graphviz.Dot.GraphvizVertexShape.DoubleCircle
             v.VertexFormatter.Style <- Graphviz.Dot.GraphvizVertexStyle.Filled
             v.VertexFormatter.FillColor <- Graphviz.Dot.GraphvizColor.LightYellow
