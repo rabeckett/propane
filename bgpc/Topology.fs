@@ -166,4 +166,8 @@ module Example3 =
         g.AddEdge (TaggedEdge(vX, vG, ())) |> ignore
         g.AddEdge (TaggedEdge(vG, vY, ())) |> ignore
         g.AddEdge (TaggedEdge(vY, vG, ())) |> ignore
+        g.AddEdge (TaggedEdge(vH, vX, ())) |> ignore
+        g.AddEdge (TaggedEdge(vX, vH, ())) |> ignore
+        g.AddEdge (TaggedEdge(vH, vY, ())) |> ignore
+        g.AddEdge (TaggedEdge(vY, vH, ())) |> ignore
         g

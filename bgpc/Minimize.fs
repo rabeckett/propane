@@ -28,6 +28,7 @@ let removeNodesNotReachableOnSimplePath (cg: CGraph.T) =
     let rec search v seen = 
         explored := !explored + 1
         cantReach := Set.remove v !cantReach
+        (* Stop if no unmarked node reachable without repeating location *)
         let exclude = (fun node -> node <> v && Set.contains node.Topo.Loc seen)
         let reachable = Reachable.srcWithout cg v exclude
         let relevant = Set.exists (fun x -> Set.contains x reachable) !cantReach 
@@ -40,20 +41,32 @@ let removeNodesNotReachableOnSimplePath (cg: CGraph.T) =
     Set.iter (fun v -> cg.Graph.RemoveVertex v |> ignore) !cantReach
 
 let removeNodesNotOnAnySimplePathToEnd (cg: CGraph.T) = 
-    let acg = Reachable.AnnotatedCG(cg)
     let num_explored = ref 0
-    let cantReachNodes = ref (acg.Cg.Graph.Vertices |> Set.ofSeq)
-    let rec search v seenLocations seenNodes seenEdges =
+    let cantReach = ref (cg.Graph.Vertices |> Set.ofSeq)
+    let rec search v seenLocations seenNodes =
         num_explored := !num_explored + 1
         if v = cg.End then 
-            cantReachNodes := Set.difference !cantReachNodes seenNodes
-        for e in acg.Cg.Graph.OutEdges v do
-            let u = e.Target 
-            let notInPath = not (Set.contains u.Topo.Loc seenLocations)
-            if notInPath then 
-                search u (Set.add u.Topo.Loc seenLocations) (Set.add u seenNodes) (Set.add (v,u) seenEdges)
-    search acg.Cg.Start Set.empty (Set.singleton acg.Cg.Start) Set.empty
-    Set.iter (fun v -> acg.Cg.Graph.RemoveVertex v |> ignore) !cantReachNodes
+            cantReach := Set.difference !cantReach seenNodes
+       
+        (* Stop if can't reach the end state *)
+        let exclude = (fun node -> node <> v && Set.contains node.Topo.Loc seenLocations)
+        let reachable = Reachable.srcWithout cg v exclude
+     
+        let seenUnmarked = not (Set.isEmpty (Set.intersect !cantReach seenNodes))
+        let canReachUnmarked = not (Set.isEmpty (Set.filter (fun v -> Set.contains v !cantReach) reachable))
+        if seenUnmarked || canReachUnmarked then
+            let canReachEnd = Set.contains cg.End reachable
+            if canReachEnd then
+                    for e in cg.Graph.OutEdges v do
+                        let u = e.Target 
+                        let notInPath = not (Set.contains u.Topo.Loc seenLocations)
+                        if notInPath then 
+                            search u (Set.add u.Topo.Loc seenLocations) (Set.add u seenNodes)
+    
+    search cg.Start Set.empty (Set.singleton cg.Start)
+    Set.iter (fun v -> cg.Graph.RemoveVertex v |> ignore) !cantReach
+
+    (* printfn "Number of explored nodes: %A" !num_explored *)
 
 
 let pruneHeuristic (cg: CGraph.T) = 
