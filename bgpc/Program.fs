@@ -6,13 +6,14 @@ let RE = Regex.REBuilder(Set.ofList ["A"; "B"; "C"; "D"; "X"; "Y"; "M"; "N"], Se
 [<EntryPoint>]
 let main argv = 
     let x = RE.Star RE.Inside
-    (* let r1 = RE.Concat (RE.Concat x (RE.Loc "M")) x
-    let r2 = RE.Concat (RE.Concat x (RE.Loc "N")) x *)
+    let r1 = RE.Concat (RE.Loc "A") (RE.Concat (RE.Concat x (RE.Loc "M")) x)
+    let r2 = RE.Concat (RE.Loc "A") (RE.Concat (RE.Concat x (RE.Loc "N")) x)
 
-    let dfa1 = RE.MakeDFA 1 (RE.Rev x)
-    (* let dfa2 = RE.MakeDFA 2 (RE.Rev r2) *)
+    let dfa1 = RE.MakeDFA 1 (RE.Rev r1)
+    let dfa2 = RE.MakeDFA 2 (RE.Rev r2)
+    (* let dfa3 = RE.MakeDFA 3 (RE.Rev x) *)
     
-    let cg = CGraph.build (Topology.Example2.topo()) [|dfa1|] 
+    let cg = CGraph.build (Topology.Example2.topo()) [|dfa1; dfa2|] 
     CGraph.pruneHeuristic cg
 
     printfn "%s" (CGraph.toDot cg)

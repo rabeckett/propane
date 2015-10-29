@@ -1,4 +1,7 @@
-﻿module Regex
+﻿
+module Regex
+
+open Extension
 
 (* Extended regular expressions with negation and intersection 
    Characters are modelled using sets of locations as character classes *)
@@ -11,6 +14,18 @@ type T =
     | Union of T list
     | Negate of T
     | Star of T
+
+    override this.ToString() =
+        let addParens s = "(" + s + ")"
+        match this with 
+        | Empty -> "{}"
+        | Epsilon -> ""
+        | Locs S ->  "[" + (Set.toList S |> List.joinBy ",") + "]"
+        | Concat rs -> List.map (fun r -> r.ToString()) rs |> List.joinBy ";" |> addParens
+        | Inter rs -> List.map (fun r -> r.ToString()) rs |> List.joinBy " and " |> addParens
+        | Union rs -> List.map (fun r -> r.ToString()) rs |> List.joinBy " or " |> addParens
+        | Negate r -> "!(" + r.ToString() + ")"
+        | Star r -> (r.ToString() |> addParens) + "*"
 
 (* Return a regular expression that matches reversed strings *)
 let rec private rev re = 
@@ -156,11 +171,7 @@ let rec private dclasses alphabet r =
     | Empty | Epsilon -> Set.singleton alphabet
     | Locs s ->
         assert not (Set.isEmpty s)
-        let diff = Set.difference alphabet s 
-        if Set.isEmpty diff then 
-            Set.ofList [s]
-        else 
-            Set.ofList [s; diff]
+        Set.ofList [s; Set.difference alphabet s]
     | Concat rs ->
         match rs with 
         | [] -> failwith "impossible"
@@ -210,7 +221,8 @@ let rec private goto alphabet q (Q,trans) S =
         explore alphabet Q' trans' qc
 
 and private explore alphabet Q trans q = 
-    Set.fold (goto alphabet q) (Q,trans) (dclasses alphabet q)
+    let charClasses = Set.remove Set.empty (dclasses alphabet q)
+    Set.fold (goto alphabet q) (Q,trans) charClasses
 
 (* Re-index states by ints rather than regular expressions *)
 let private indexStates (q0, Q, F, trans) = 

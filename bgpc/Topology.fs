@@ -38,6 +38,18 @@ let neighborMap (topo: T) : NeighborMap   =
         nmap <- Map.add v adj nmap
     nmap
 
+let isEndHostConnected (t: State) = 
+    match t.Typ with 
+    | InsideHostConnected -> true 
+    | Outside -> true
+    | Inside -> false
+    | Start -> false
+
+(* TODO: check for duplicate topology nodes *)
+(* TODO: well defined in and out (fully connected inside) *)
+let isWellFormed (t: State) = 
+    failwith "TODO"
+
 module Example1 = 
     let topo () = 
         let g = BidirectionalGraph<State ,TaggedEdge<State,unit>>()

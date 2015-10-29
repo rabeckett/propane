@@ -18,6 +18,10 @@ module List =
                 acc <- f acc i 
             acc
 
+    let inline joinBy sep ss = 
+        fold1 (fun a b -> a + sep + b) ss
+
+
 module Map = 
 
     let inline modify k d f map = 

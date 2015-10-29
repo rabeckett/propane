@@ -206,8 +206,6 @@ let pruneExact (cg: ConstraintGraph) =
 
 
 (* TODO: more efficient mutable data structures *)
-(* TODO: check for duplicate topology nodes *)
-(* TODO: well defined in and out (fully connected inside) *)
 let build (topo: Topology.T) (autos : Regex.Automata array) : ConstraintGraph = 
 
     let minPref x y = 
@@ -217,13 +215,6 @@ let build (topo: Topology.T) (autos : Regex.Automata array) : ConstraintGraph =
         | None, Some b -> Some b 
         | Some a, Some b -> Some (min a b)
 
-    let isEndHostConnected (t: Topology.State) = 
-        match t.Typ with 
-        | Topology.InsideHostConnected -> true 
-        | Topology.Outside -> true
-        | Topology.Inside -> false
-        | Topology.Start -> false
-
     (* Graph topology information *)
     let alphabetIn, alphabetOut = Topology.alphabet(topo)
     let alphabetAll = Set.union alphabetIn alphabetOut
@@ -231,32 +222,26 @@ let build (topo: Topology.T) (autos : Regex.Automata array) : ConstraintGraph =
 
     (* Create the new constraint graph *)
     let graph = AdjacencyGraph<CgState, TaggedEdge<CgState,unit>>()
-
-    (* Create the new initial node and add to the graph *)
     let starting = Array.map (fun (x: Regex.Automata) -> x.q0) autos
     
     let newStart = 
         {States = starting; 
          Accept = None; 
          Topo = {Loc="start"; Typ = Topology.Start} }
-
     graph.AddVertex newStart |> ignore
 
-    (* Explore reachable nodes and add to constraint graph *)
     let mutable finished = Set.empty
     let mutable todo = Set.singleton newStart
 
     while not (Set.isEmpty todo) do
-        (* Extract and add the next todo node *)
         let currState = Set.minElement todo 
         todo <- Set.remove currState todo
         graph.AddVertex currState |> ignore
         let {States=ss; Topo=t} = currState
 
-        (* should never fail *)
         let neighbors = 
             if t.Typ = Topology.Start then 
-                Set.filter isEndHostConnected alphabetAll 
+                Set.filter Topology.isEndHostConnected alphabetAll 
             else Map.find t neighborMap
 
         for c in Set.intersect alphabetAll neighbors do
@@ -265,7 +250,7 @@ let build (topo: Topology.T) (autos : Regex.Automata array) : ConstraintGraph =
                 let key = Map.findKey (fun (q,S) _ -> q = v && Set.contains c.Loc S) g.trans
                 let newState = Map.find key g.trans 
                 let accept = 
-                    if (isEndHostConnected c) && (Set.contains newState g.F) then 
+                    if (Topology.isEndHostConnected c) && (Set.contains newState g.F) then 
                         Some g.pref 
                     else None
                 newState, accept
