@@ -73,8 +73,10 @@
     <Compile Include="Prefix.fs" />
     <Compile Include="Regex.fs" />
     <Compile Include="Policy.fs" />
-    <Compile Include="Config.fs" />
     <Compile Include="CGraph.fs" />
+    <Compile Include="Reachable.fs" />
+    <Compile Include="Minimize.fs" />
+    <Compile Include="Config.fs" />
     <Compile Include="Program.fs" />
     <None Include="App.config" />
     <None Include="packages.config" />

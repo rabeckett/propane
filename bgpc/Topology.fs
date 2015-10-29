@@ -4,9 +4,10 @@ open QuickGraph
 
 type NodeType = 
     | Start
+    | End
     | Outside
     | Inside 
-    | InsideHostConnected
+    | InsideOriginates
 
 type State = 
     {Loc: string; 
@@ -22,9 +23,9 @@ let alphabet (topo: T) : Set<State> * Set<State> =
     for v in topo.Vertices do
         match v.Typ with 
         | Inside -> ain <- Set.add v ain
-        | InsideHostConnected -> ain <- Set.add v ain
+        | InsideOriginates -> ain <- Set.add v ain
         | Outside -> aout <- Set.add v aout
-        | Start -> failwith "unreachable"
+        | Start | End -> failwith "unreachable"
     (ain, aout)
 
 let neighborMap (topo: T) : NeighborMap   = 
@@ -38,12 +39,12 @@ let neighborMap (topo: T) : NeighborMap   =
         nmap <- Map.add v adj nmap
     nmap
 
-let isEndHostConnected (t: State) = 
+let canOriginateTraffic (t: State) = 
     match t.Typ with 
-    | InsideHostConnected -> true 
+    | InsideOriginates -> true 
     | Outside -> true
     | Inside -> false
-    | Start -> false
+    | Start | End -> false
 
 (* TODO: check for duplicate topology nodes *)
 (* TODO: well defined in and out (fully connected inside) *)
@@ -53,13 +54,13 @@ let isWellFormed (t: State) =
 module Example1 = 
     let topo () = 
         let g = BidirectionalGraph<State ,TaggedEdge<State,unit>>()
-        let vA = {Loc="A"; Typ=InsideHostConnected}
+        let vA = {Loc="A"; Typ=InsideOriginates}
         let vX = {Loc="X"; Typ=Inside}
         let vM = {Loc="M"; Typ=Inside}
         let vN = {Loc="N"; Typ=Inside}
         let vY = {Loc="Y"; Typ=Inside}
         let vZ = {Loc="Z"; Typ=Inside}
-        let vB = {Loc="B"; Typ=InsideHostConnected}
+        let vB = {Loc="B"; Typ=InsideOriginates}
         g.AddVertex vA |> ignore 
         g.AddVertex vX |> ignore 
         g.AddVertex vM |> ignore 
@@ -80,10 +81,10 @@ module Example1 =
 module Example2 = 
     let topo () = 
         let g = BidirectionalGraph<State, TaggedEdge<State,unit>>()
-        let vA = {Loc="A"; Typ=InsideHostConnected}
-        let vB = {Loc="B"; Typ=InsideHostConnected}
-        let vC = {Loc="C"; Typ=InsideHostConnected}
-        let vD = {Loc="D"; Typ=InsideHostConnected}
+        let vA = {Loc="A"; Typ=InsideOriginates}
+        let vB = {Loc="B"; Typ=InsideOriginates}
+        let vC = {Loc="C"; Typ=InsideOriginates}
+        let vD = {Loc="D"; Typ=InsideOriginates}
         let vX = {Loc="X"; Typ=Inside}
         let vY = {Loc="Y"; Typ=Inside}
         let vM = {Loc="M"; Typ=Inside}
@@ -117,12 +118,12 @@ module Example2 =
 module Example3 = 
     let topo () = 
         let g = BidirectionalGraph<State, TaggedEdge<State,unit>>()
-        let vA = {Loc="A"; Typ=InsideHostConnected}
-        let vB = {Loc="B"; Typ=InsideHostConnected}
+        let vA = {Loc="A"; Typ=InsideOriginates}
+        let vB = {Loc="B"; Typ=InsideOriginates}
         let vC = {Loc="C"; Typ=Inside}
         let vD = {Loc="D"; Typ=Inside}
-        let vE = {Loc="E"; Typ=InsideHostConnected}
-        let vF = {Loc="F"; Typ=InsideHostConnected}
+        let vE = {Loc="E"; Typ=InsideOriginates}
+        let vF = {Loc="F"; Typ=InsideOriginates}
         let vG = {Loc="G"; Typ=Inside}
         let vH = {Loc="H"; Typ=Inside}
         let vX = {Loc="X"; Typ=Inside}

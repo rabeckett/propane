@@ -14,8 +14,12 @@ let main argv =
     (* let dfa3 = RE.MakeDFA 3 (RE.Rev x) *)
     
     let cg = CGraph.build (Topology.Example2.topo()) [|dfa1; dfa2|] 
-    CGraph.pruneHeuristic cg
-
+    
+    Minimize.pruneHeuristic cg
+    
+    (* Minimize.removeEdgesForDominatedNodes cg
+    Minimize.removeNodesNotOnAnySimplePathToEnd cg *)
+    
     printfn "%s" (CGraph.toDot cg)
 
     (* match CGraph.compile cg with 
