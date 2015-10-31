@@ -4,6 +4,7 @@ open CGraph
 open QuickGraph
 
 
+(* Heuristic to remove edges not on any simple path *)
 let removeEdgesForDominatedNodes (cg: CGraph.T) = 
     let cgRev = copyReverseGraph cg
     cg.Graph.RemoveEdgeIf (fun (e: TaggedEdge<CgState,unit>) -> 
@@ -13,62 +14,30 @@ let removeEdgesForDominatedNodes (cg: CGraph.T) =
         match ie with 
         | None -> false 
         | Some ie ->
-            let cantReachAccepting = Set.isEmpty (Reachable.srcAcceptingWithout cg e.Target ((=) e.Source))
+            let cantReachAccepting = not (Reachable.srcDstWithout cg e.Target cg.End ((=) e.Source))
             let startCantReach = not (Reachable.srcDstWithout cg cg.Start e.Source ((=) e.Target))
             cantReachAccepting || startCantReach
     ) |> ignore
 
 
+(* Remove nodes that will never result in an accepting state *)
 let removeNodesThatCantReachEnd (cg: CGraph.T) = 
     cg.Graph.RemoveVertexIf(fun v -> not (Reachable.srcDst cg v cg.End)) |> ignore
 
+
+(* Remove nodes that can't be reached from the start node without looping *)
 let removeNodesNotReachableOnSimplePath (cg: CGraph.T) =
-    let explored = ref 0
-    let cantReach = ref (cg.Graph.Vertices |> Set.ofSeq)
-    let rec search v seen = 
-        explored := !explored + 1
-        cantReach := Set.remove v !cantReach
-        (* Stop if no unmarked node reachable without repeating location *)
-        let exclude = (fun node -> node <> v && Set.contains node.Topo.Loc seen)
-        let reachable = Reachable.srcWithout cg v exclude
-        let relevant = Set.exists (fun x -> Set.contains x reachable) !cantReach 
-        if relevant then
-            for e in cg.Graph.OutEdges v do
-                let u = e.Target 
-                if not (Set.contains u.Topo.Loc seen) then 
-                    search u (Set.add u.Topo.Loc seen)
-    search cg.Start Set.empty
-    Set.iter (fun v -> cg.Graph.RemoveVertex v |> ignore) !cantReach
+    let canReach = Reachable.simplePathSrc cg cg.Start
+    cg.Graph.RemoveVertexIf (fun v -> not (Set.contains v canReach)) |> ignore
 
+
+(* Remove nodes that are on no path from start to end without looping *)
 let removeNodesNotOnAnySimplePathToEnd (cg: CGraph.T) = 
-    let num_explored = ref 0
-    let cantReach = ref (cg.Graph.Vertices |> Set.ofSeq)
-    let rec search v seenLocations seenNodes =
-        num_explored := !num_explored + 1
-        if v = cg.End then 
-            cantReach := Set.difference !cantReach seenNodes
-       
-        (* Stop if can't reach the end state *)
-        let exclude = (fun node -> node <> v && Set.contains node.Topo.Loc seenLocations)
-        let reachable = Reachable.srcWithout cg v exclude
-     
-        let seenUnmarked = not (Set.isEmpty (Set.intersect !cantReach seenNodes))
-        let canReachUnmarked = not (Set.isEmpty (Set.filter (fun v -> Set.contains v !cantReach) reachable))
-        if seenUnmarked || canReachUnmarked then
-            let canReachEnd = Set.contains cg.End reachable
-            if canReachEnd then
-                    for e in cg.Graph.OutEdges v do
-                        let u = e.Target 
-                        let notInPath = not (Set.contains u.Topo.Loc seenLocations)
-                        if notInPath then 
-                            search u (Set.add u.Topo.Loc seenLocations) (Set.add u seenNodes)
-    
-    search cg.Start Set.empty (Set.singleton cg.Start)
-    Set.iter (fun v -> cg.Graph.RemoveVertex v |> ignore) !cantReach
-
-    (* printfn "Number of explored nodes: %A" !num_explored *)
+    let canReach = Reachable.alongSimplePathSrcDst cg cg.Start cg.End
+    cg.Graph.RemoveVertexIf (fun v -> not (Set.contains v canReach)) |> ignore
 
 
+(* Heuristic to minimize the constraint graph *)
 let pruneHeuristic (cg: CGraph.T) = 
     removeEdgesForDominatedNodes cg 
     removeNodesNotReachableOnSimplePath cg

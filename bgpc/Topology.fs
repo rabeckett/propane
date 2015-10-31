@@ -2,6 +2,8 @@
 
 open QuickGraph
 
+
+(* Classify internal and external locations *)
 type NodeType = 
     | Start
     | End
@@ -9,14 +11,19 @@ type NodeType =
     | Inside 
     | InsideOriginates
 
+(* Topology node given by its name and type *)
 type State = 
     {Loc: string; 
      Typ: NodeType}
 
+(* Alternative representation as neighbor map *)
 type NeighborMap = Map<State, Set<State>>
 
+(* Topology as a directed graph between States *)
 type T = BidirectionalGraph<State,TaggedEdge<State,unit>>
 
+
+(* Build the internal and external alphabet from a topology *)
 let alphabet (topo: T) : Set<State> * Set<State> = 
     let mutable ain = Set.empty 
     let mutable aout = Set.empty 
@@ -28,6 +35,8 @@ let alphabet (topo: T) : Set<State> * Set<State> =
         | Start | End -> failwith "unreachable"
     (ain, aout)
 
+
+(* Construct the neighbor map representation from a topology *)
 let neighborMap (topo: T) : NeighborMap   = 
     let mutable nmap = Map.empty
     for v in topo.Vertices do
@@ -39,6 +48,11 @@ let neighborMap (topo: T) : NeighborMap   =
         nmap <- Map.add v adj nmap
     nmap
 
+let isInside (t: State) = 
+    match t.Typ with 
+    | Inside | InsideOriginates ->  true 
+    | Outside | Start | End -> false
+
 let canOriginateTraffic (t: State) = 
     match t.Typ with 
     | InsideOriginates -> true 
@@ -46,10 +60,42 @@ let canOriginateTraffic (t: State) =
     | Inside -> false
     | Start | End -> false
 
+
 (* TODO: check for duplicate topology nodes *)
 (* TODO: well defined in and out (fully connected inside) *)
 let isWellFormed (t: State) = 
     failwith "TODO"
+
+
+(* Helper module for enumerating and constructing topology failure scenarios *)
+module Failure = 
+
+    type FailType = 
+        | NodeFailure of State 
+        | LinkFailure of TaggedEdge<State,unit>
+
+    let combinations n ls = 
+        let rec aux acc size set = seq {
+            match size, set with 
+            | n, x::xs -> 
+                if n > 0 then yield! aux (x::acc) (n - 1) xs
+                if n >= 0 then yield! aux acc n xs 
+            | 0, [] -> yield acc 
+            | _, [] -> () }
+        aux [] n ls
+
+    let allFailures n (topo: T) : seq<FailType list> = 
+        let fvs = topo.Vertices |> Seq.filter isInside |> Seq.map NodeFailure
+        
+        let fes = 
+            topo.Edges 
+            |> Seq.filter (fun e -> isInside e.Source || isInside e.Target) 
+            |> Seq.map LinkFailure 
+        
+        Seq.append fes fvs 
+        |> Seq.toList 
+        |> combinations n
+
 
 module Example1 = 
     let topo () = 
@@ -77,6 +123,7 @@ module Example1 =
         g.AddEdge (TaggedEdge(vY, vB, ())) |> ignore
         g.AddEdge (TaggedEdge(vZ, vB, ())) |> ignore
         g
+
 
 module Example2 = 
     let topo () = 
@@ -114,6 +161,7 @@ module Example2 =
         g.AddEdge (TaggedEdge(vY, vN, ())) |> ignore
         g.AddEdge (TaggedEdge(vN, vY, ())) |> ignore
         g
+
 
 module Example3 = 
     let topo () = 

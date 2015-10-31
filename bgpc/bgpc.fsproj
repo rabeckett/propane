@@ -76,6 +76,7 @@
     <Compile Include="CGraph.fs" />
     <Compile Include="Reachable.fs" />
     <Compile Include="Minimize.fs" />
+    <Compile Include="Consistency.fs" />
     <Compile Include="Config.fs" />
     <Compile Include="Program.fs" />
     <None Include="App.config" />

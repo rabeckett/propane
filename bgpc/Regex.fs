@@ -203,8 +203,7 @@ let rec private derivative alphabet a r =
     | Star r' -> concat (derivative alphabet a r') r
     
 type Automata =
-    {pref: int;
-     q0: int;
+    {q0: int;
      Q: Set<int>; 
      F: Set<int>;
      trans: Map<int*Set<string>, int>}
@@ -236,21 +235,24 @@ let private indexStates (q0, Q, F, trans) =
     (q0', Q', F', trans')
 
 (* Build a DFA over a custom alphabet using derivatives *)
-let private makeDFA alphabet pref r = 
+let private makeDFA alphabet r = 
     let q0 = r
     let (Q, trans) = explore alphabet (Set.singleton q0) Map.empty q0
     let F = Set.filter (fun q -> nullable q = epsilon) Q 
     let (q0', Q', F', trans') = indexStates (q0, Q, F, trans)
-    {pref=pref; q0=q0'; Q=Q'; F=F'; trans=trans'}
+    {q0=q0'; Q=Q'; F=F'; trans=trans'}
 
 
 (* Parameterize regular expression by an alphabet. Since f# does 
    not support ML-style functors, different objects can use different 
    alphabets. Client code must ensure a single object is used. *)
-type REBuilder(inside, outside) = 
+type REBuilder(topo: Topology.T) = 
 
+    let (inStates, outStates) = Topology.alphabet topo
+    let inside = Set.map (fun (s: Topology.State) -> s.Loc) inStates
+    let outside = Set.map (fun (s: Topology.State) -> s.Loc) outStates
     let alphabet = Set.union inside outside
-    
+
     member __.Inside = locs inside
     member __.Outside = locs outside
     member __.Rev = rev

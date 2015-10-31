@@ -2,23 +2,28 @@
 
 open QuickGraph
 
+
+(* Constraint graph state tracks automaton states, topo location, and prefs *)
 type CgState = 
     {States: int array; 
      Accept: int option; 
      Topo: Topology.State}
 
+(* Constraint graph type with dedicated start and end nodes *)
 type T = 
     {Start: CgState;
      End: CgState;
      Graph: AdjacencyGraph<CgState, TaggedEdge<CgState, unit>>}
 
 
+(* Make a new copy of the constraint graph *)
 let copyGraph (cg: T) : T = 
     let newCG = QuickGraph.AdjacencyGraph() 
     for v in cg.Graph.Vertices do newCG.AddVertex v |> ignore
     for e in cg.Graph.Edges do newCG.AddEdge e |> ignore
     {Start=cg.Start; Graph=newCG; End=cg.End}
 
+(* Make a copy of the constraint graph with edges reversed *)
 let copyReverseGraph (cg: T) : T = 
     let newCG = QuickGraph.AdjacencyGraph() 
     for v in cg.Graph.Vertices do newCG.AddVertex v |> ignore
@@ -28,6 +33,7 @@ let copyReverseGraph (cg: T) : T =
     {Start=cg.Start; Graph=newCG; End=cg.End}
 
 
+(* Build the constraint graph from the topology and compiled query DFAs *)
 let build (topo: Topology.T) (autos : Regex.Automata array) : T = 
 
     let minPref x y = 
@@ -72,7 +78,7 @@ let build (topo: Topology.T) (autos : Regex.Automata array) : T =
                 let newState = Map.find key g.trans 
                 let accept = 
                     if (Topology.canOriginateTraffic c) && (Set.contains newState g.F) then 
-                        Some g.pref 
+                        Some (i+1)
                     else None
                 newState, accept
             )
@@ -124,9 +130,3 @@ let toDot (cg: T) : string =
     graphviz.FormatVertex.Add(onFormatVertex)
     graphviz.Generate()
    
-
-
-(*
-let compile (rs: Policy.Constraint list) : ConstraintGraph = 
-    failwith "Todo"
-*)

@@ -23,18 +23,6 @@ type Rule =
 type T = Map<string, Rule list>
 
 
-exception PrefConsistencyException of CgState * CgState 
-exception TopoConsistencyException of CgState * CgState
-
-type ConsistencyViolation = 
-    | PrefConsistency of CgState * CgState
-    | TopoConsistency of CgState * CgState
-
-type Preferences = (CgState * Set<int>) list
-
-type Ordering = 
-    Map<string, Preferences>
-
 
 let print (config: T) = 
     for kv in config do 
@@ -43,80 +31,7 @@ let print (config: T) =
             printfn "  Match: (%A), Update: (%A)" rule.Import rule.Export
 
 
-
-let private prefConsistency (cg: CGraph.T) : Result<Ordering, ConsistencyViolation> =
-
-    (* Custom sorting by reachable state preference ranges *)
-    let comparer (_,x) (_,y) = 
-        let minx, maxx = Set.minElement x, Set.maxElement y
-        let miny, maxy = Set.minElement y, Set.maxElement y
-        let cmp = compare minx miny
-        if cmp = 0 then 
-            compare (maxx - minx) (maxy - miny)
-        else cmp
-    
-    (* Check well-formed preference ranges *)
-    let rec aux ls = 
-        match ls with
-        | [] | [_] -> ls
-        | ((vx,x) as hd)::(( (vy,y)::_) as tl) ->
-            let maxx = Set.maxElement x 
-            let miny = Set.minElement y
-            if maxx > miny then
-                raise (PrefConsistencyException (vx, vy))
-            else 
-                hd :: (aux tl)
-    
-    (* Map topology locations to a set of nodes/preferences *)
-    let mutable acc = Map.empty
-    for v in cg.Graph.Vertices do 
-        let loc = v.Topo.Loc
-        let ins = if Map.containsKey loc acc then Map.find loc acc else []
-        let accepting = Reachable.srcAccepting cg v
-        acc <- Map.add loc ((v, accepting)::ins) acc 
-    
-    (* Ensure well-formedness and return the ordering. Raises an exception otherwise *) 
-    let check _ v = aux (List.sortWith comparer v)
-
-    (* Hide the exception behind a result type *)
-    try Ok (Map.map check acc)
-    with PrefConsistencyException (x,y) ->
-        Err (PrefConsistency (x,y))
-
-
-let private topoConsistency (cg: CGraph.T) (ord: Ordering) : Result<unit, ConsistencyViolation> =
-
-    let checkFailures loc x y = 
-        (* failing links from x disconnects y from start to accept state *)
-        let es = Reachable.edges cg x
-        if not (Set.isEmpty es) && (Option.isSome x.Accept) then 
-            let copy = copyGraph cg 
-            for (u,v) in es do 
-                copy.Graph.RemoveEdgeIf (fun e -> 
-                    (e.Source.Topo.Loc = u.Topo.Loc && e.Target.Topo.Loc = v.Topo.Loc) || 
-                    (e.Target.Topo.Loc = u.Topo.Loc && e.Source.Topo.Loc = v.Topo.Loc)
-                ) |> ignore
-
-            (* Check reachability for y *)
-            if Reachable.srcDst copy copy.Start y then
-                if not (Set.isEmpty (Reachable.srcAccepting copy y)) then 
-                    raise (TopoConsistencyException (x,y))
-
-    let rec aux loc prefs =
-        match prefs with 
-        | [] | [_] -> ()
-        | (x,_)::(((y,_)::z) as tl) -> 
-            checkFailures loc x y
-            aux loc tl
-    try
-        Map.iter aux ord
-        Ok ()
-    with TopoConsistencyException(x,y) -> 
-        Err (TopoConsistency (x,y))
-
-
-
-let private genConfig (cg: CGraph.T) (ord: Ordering) : T = 
+let private genConfig (cg: CGraph.T) (ord: Consistency.Ordering) : T = 
     
     let compareLocThenPref (x,i1) (y,i2) = 
         let cmp = compare i1 i2
@@ -197,16 +112,14 @@ let private genConfig (cg: CGraph.T) (ord: Ordering) : T =
 (* Generate the BGP match/action rules that are guaranteed to 
    implement the user policy under all possible failure scenarios. 
    This function returns an intermediate representation (IR) for BGP policies *) 
-let compile (cg: CGraph.T) : Result<T, ConsistencyViolation> =
-    match prefConsistency cg with 
+let compile (topo: Topology.T) (cg: CGraph.T) : Result<T, Consistency.CounterExample> =
+    match Consistency.findOrdering cg with 
     | Ok ord ->
-        match topoConsistency cg ord with 
+        let nFailures = 1
+        match Consistency.checkFailuresByEnumerating nFailures topo cg ord with 
         | Ok _ -> Ok (genConfig cg ord)
         | Err(tc) -> Err(tc)
     | Err(pc) -> Err(pc)
-
-
-
 
 
 (* Generate templates 

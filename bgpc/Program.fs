@@ -1,7 +1,9 @@
 ﻿
 open Extension.Error
 
-let RE = Regex.REBuilder(Set.ofList ["A"; "B"; "C"; "D"; "E"; "F"; "G"; "H"; "X"; "Y"], Set.empty)
+let topo = Topology.Example3.topo ()
+
+let RE = Regex.REBuilder(topo)
 
 [<EntryPoint>]
 let main argv = 
@@ -9,22 +11,27 @@ let main argv =
     let r1 = (RE.Concat (RE.Concat inStar (RE.Loc "X")) inStar)
     let r2 = (RE.Concat (RE.Concat inStar (RE.Loc "Y")) inStar)
 
-    let dfa1 = RE.MakeDFA 1 (RE.Rev r1)
-    let dfa2 = RE.MakeDFA 2 (RE.Rev r2)
-    (* let dfa3 = RE.MakeDFA 3 (RE.Rev x) *)
+    let dfa1 = RE.MakeDFA (RE.Rev r1)
+    let dfa2 = RE.MakeDFA (RE.Rev r2)
+    (* let dfa3 = RE.MakeDFA 3 (RE.Rev inStar) *)
     
-    let cg = CGraph.build (Topology.Example3.topo()) [|dfa1; dfa2|] 
+    let cg = CGraph.build topo [|dfa1; dfa2|] 
     
+
     (* Minimize.pruneHeuristic cg *)
-    
+   
     Minimize.removeEdgesForDominatedNodes cg
     Minimize.removeNodesNotOnAnySimplePathToEnd cg
     
-    printfn "%s" (CGraph.toDot cg)
 
-    (* match CGraph.compile cg with 
+    (* printfn "%s" (CGraph.toDot cg) *)
+
+    match Config.compile topo cg with
     | Ok(config) -> Config.print config
-    | Err(CGraph.PrefConsistency (x,y)) -> failwith "pref consistency"
-    | Err(CGraph.TopoConsistency (x,y)) -> failwith "topo consistency" *)
+    | Err(Consistency.PrefViolation (x,y)) ->
+        printfn "Pref Consistency Violation" 
+        printfn "Node1: %A" x 
+        printfn "Node2: %A" y
+    | Err(Consistency.TopoViolation (x,y)) -> failwith "topo consistency"
 
     0

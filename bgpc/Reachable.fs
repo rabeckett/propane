@@ -4,6 +4,8 @@ open CGraph
 open QuickGraph
 open QuickGraph.Algorithms
 
+
+(* All pairs reachability in the constraint graph *)
 let floydWarshall (cg: CGraph.T) : Map<CgState, Set<CgState>> = 
     let fw = ShortestPath.FloydWarshallAllShortestPathAlgorithm(cg.Graph, fun _ -> 1.0)
     fw.Compute ()
@@ -16,11 +18,15 @@ let floydWarshall (cg: CGraph.T) : Map<CgState, Set<CgState>> =
         reachability <- Map.add src toDst reachability
     reachability
 
+
+(* Object to wrap the constraint graph and provide reachability info *)
 type AnnotatedCG(cg: CGraph.T) =
     let reachability = floydWarshall cg
     member this.Cg = cg
     member this.ReachInfo = reachability
 
+
+(* Check if src can reach dst while avoiding certain nodes *)
 let srcDstWithout (cg: CGraph.T) src dst without =
     if without src || without dst then false 
     else if src = dst then true 
@@ -36,10 +42,14 @@ let srcDstWithout (cg: CGraph.T) src dst without =
         | _ ->
             let weight = Seq.fold (fun acc e -> acc + weight e) 0.0 !path
             weight <= numNodes
-             
+
+
+(* Check if src can reach dst *)
 let srcDst cg src dst = 
     srcDstWithout cg src dst (fun _ -> false)
 
+
+(* Find all destinations reachable from src while avoiding certain nodes *)
 let srcWithout (cg: CGraph.T) src without =
     if without src then Set.empty
     else
@@ -59,9 +69,13 @@ let srcWithout (cg: CGraph.T) src without =
                     reachable <- Set.add v reachable
         reachable
 
+
+(* Find all destinations reachable from src *)
 let src cg src = 
     srcWithout cg src (fun _ -> false)
 
+
+(* Find all accepting states reachable from src while avoiding certain nodes *)
 let srcAcceptingWithout cg src without = 
     let aux acc cg = 
         match cg.Accept with 
@@ -69,19 +83,54 @@ let srcAcceptingWithout cg src without =
         | Some i -> Set.add i acc
     srcWithout cg src without |> Set.fold aux Set.empty
 
+
+(* Find all accepting states reachable from src *)
 let srcAccepting cg src = 
     srcAcceptingWithout cg src (fun _ -> false)
 
-let edges cg x = 
-    let mutable es = Set.empty
-    let mutable seen = Set.empty
-    let mutable todo = Set.singleton x
-    while not (Set.isEmpty todo) do 
-        let current = Set.minElement todo 
-        todo <- Set.remove current todo
-        seen <- Set.add current seen
-        for e in cg.Graph.OutEdges current do 
-            es <- Set.add (e.Source, e.Target) es 
-            if not (Set.contains e.Target seen) then 
-                todo <- Set.add e.Target todo
-    es
+
+(* Find all nodes reachable from src on a simple path *)
+let simplePathSrc cg src = 
+    let explored = ref 0
+    let allNodes = cg.Graph.Vertices |> Set.ofSeq
+    let cantReach = ref allNodes
+    let rec search v seen = 
+        explored := !explored + 1
+        cantReach := Set.remove v !cantReach
+        (* Stop if no unmarked node reachable without repeating location *)
+        let exclude = (fun node -> node <> v && Set.contains node.Topo.Loc seen)
+        let reachable = srcWithout cg v exclude
+        let relevant = Set.exists (fun x -> Set.contains x reachable) !cantReach 
+        if relevant then
+            for e in cg.Graph.OutEdges v do
+                let u = e.Target 
+                if not (Set.contains u.Topo.Loc seen) then 
+                    search u (Set.add u.Topo.Loc seen)
+    search src Set.empty
+    Set.difference allNodes !cantReach
+
+
+(* Find all nodes along some simple path from src to dst *)
+let alongSimplePathSrcDst cg src dst = 
+    let num_explored = ref 0
+    let allNodes = cg.Graph.Vertices |> Set.ofSeq
+    let cantReach = ref allNodes
+    let rec search v seenLocations seenNodes =
+        num_explored := !num_explored + 1
+        if v = cg.End then 
+            cantReach := Set.difference !cantReach seenNodes
+        (* Stop if can't reach the end state *)
+        let exclude = (fun node -> node <> v && Set.contains node.Topo.Loc seenLocations)
+        let reachable = srcWithout cg v exclude
+        let seenUnmarked = not (Set.isEmpty (Set.intersect !cantReach seenNodes))
+        let canReachUnmarked = Set.exists (fun v -> Set.contains v !cantReach) reachable
+        if seenUnmarked || canReachUnmarked then
+            let canReachDst = Set.contains dst reachable
+            if canReachDst then
+                for e in cg.Graph.OutEdges v do
+                    let u = e.Target 
+                    let notInPath = not (Set.contains u.Topo.Loc seenLocations)
+                    if notInPath then 
+                        search u (Set.add u.Topo.Loc seenLocations) (Set.add u seenNodes)
+    search src Set.empty (Set.singleton cg.Start)
+    Set.difference allNodes !cantReach
