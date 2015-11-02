@@ -1,0 +1,243 @@
+%-----------------------------------------------------------------------------
+%
+%               Template for sigplanconf LaTeX Class
+%
+% Name:         sigplanconf-template.tex
+%
+% Purpose:      A template for sigplanconf.cls, which is a LaTeX 2e class
+%               file for SIGPLAN conference proceedings.
+%
+% Guide:        Refer to "Author's Guide to the ACM SIGPLAN Class,"
+%               sigplanconf-guide.pdf
+%
+% Author:       Paul C. Anagnostopoulos
+%               Windfall Software
+%               978 371-2316
+%               paul@windfall.com
+%
+% Created:      15 February 2005
+%
+%-----------------------------------------------------------------------------
+
+
+\documentclass{sigplanconf}
+
+% The following \documentclass options may be useful:
+
+% preprint      Remove this option only once the paper is in final form.
+% 10pt          To set in 10-point type instead of 9-point.
+% 11pt          To set in 11-point type instead of 9-point.
+% authoryear    To obtain author/year citation style instead of numeric.
+
+\usepackage{amsmath}
+
+
+\begin{document}
+
+\special{papersize=8.5in,11in}
+\setlength{\pdfpageheight}{\paperheight}
+\setlength{\pdfpagewidth}{\paperwidth}
+
+\conferenceinfo{CONF 'yy}{Month d--d, 20yy, City, ST, Country} 
+\copyrightyear{20yy} 
+\copyrightdata{978-1-nnnn-nnnn-n/yy/mm} 
+\doi{nnnnnnn.nnnnnnn}
+
+% Uncomment one of the following two, if you are not going for the 
+% traditional copyright transfer agreement.
+
+%\exclusivelicense                % ACM gets exclusive license to publish, 
+                                  % you retain copyright
+
+%\permissiontopublish             % ACM gets nonexclusive license to publish
+                                  % (paid open-access papers, 
+                                  % short abstracts)
+
+\titlebanner{banner above paper title}        % These are ignored unless
+\preprintfooter{short description of paper}   % 'preprint' option specified.
+
+\title{Title Text}
+\subtitle{Subtitle Text, if any}
+
+\authorinfo{Name1}
+           {Affiliation1}
+           {Email1}
+\authorinfo{Name2\and Name3}
+           {Affiliation2/3}
+           {Email2/3}
+
+\maketitle
+
+\begin{abstract}
+This is the text of the abstract.
+\end{abstract}
+
+\category{CR-number}{subcategory}{third-level}
+
+% general terms are not compulsory anymore, 
+% you may leave them out
+\terms
+term1, term2
+
+\keywords
+keyword1, keyword2
+
+\section{Introduction}
+
+
+%% Word vommit
+\begin{itemize}
+	\item Network configuration is hard ...
+	\item Configs are local and distributed
+	\item Difficult to express intent directly
+	\item Often achieve intent through indirect means (i.e., backups through aggregation)
+	\item Distributed, asynchronous, environment unknown, failures ... means difficult to consider all scenarios	
+	\item Problems are compounded in inter-domain routing where other factors like peering agreements are important
+	\item Wide variety of considerations: Have preferences for certain routes over others, failure resistance, backups etc
+	\item On the other hand, BGP is the only widely used, policy-rich routing language
+	\item Often used for intra-domain routing as well
+	\item We present a new language that allows operators to directly express intent for inter and intra-domain routing policies 
+		  from a centralized point of view.
+	\item The language provides the operator with the abstraction that they can control all end-to-end routes that transit their 
+		  network, even if the routes start and/or end outside of their network.
+	\item The language consists of regular expression constraints on the set of allowed routes along with a flexible preference operator
+		  that allows ranking sets of paths to enable both inter-domain routing preferences and intra-domain backup paths.
+	\item A compiler takes a routing policy written in this language and synthesizes concrete, per-device configurations running BGP. 
+	\item The resulting configurations are guaranteed to correctly implement the policy using the standard, distributed path vector protocol, 
+		  and remain correct under all possible network failure scenarios.
+	\item To enable a wider spectrum of implementable policies, we model common environment assumptions (e.g., semantics of BGP community values)
+		  As sets of allowed/disallowed paths provided by a neighbor using the same regular path framework.
+	\item Although we choose to target BGP for both inter and intra domain routing due to its expressiveness, our language is agnostic to any particular 
+		  routing protocol. It describes only routes and their relative preferences. As such, an alternative routing protocol, such as OSPF, could 
+		  be used internally. This would change the set of implementable policies.
+	\item To allow for more fine-grained control over control-plane details, our language permits additional constraints on the control protocol
+		  (e.g., maximum number of allowed routes, whether to use multipath etc)
+	\item Advantages: Centralized configuration (no copy paste error, more concise), Synthesis (no need for gory details, e.g., community values),
+		  Expressiveness (backup routing, preferences, waypointing, directly say things like no transit), 
+		  Correctness: (Guaranteed to implement the policy, even under failure scenarios),
+		  Verification: (Language serves as a high-level abstraction of the low-level details, so we can perform verification directly on the high-level policies)
+\end{itemize}
+
+
+
+\section{Overview}
+
+\begin{itemize}
+	\item Introduce language with examples...
+	\item Maybe, start with a typical AS, and show how simple it would be to implement a typical policy
+	\item Another good example, would be something that combined internal backup routing with preference based 
+		  entrance into the network using aggregation.
+	\item Could probably show an example of the resulting config, and how it is tagging using communities, 
+		  or alternatively show that it doesn't compile due to a particular failure scenario.
+\end{itemize}
+
+\section{Language} 
+
+\subsection{Syntax}
+Define the grammar of the language.
+Need to distinguish whether the preference operator 
+appears only at the top level or not.
+
+\subsection{Semantics} 
+Give the semantics in terms of ranked paths.
+Should be straightforward extension of regular expression semantics with the 
+additional constraint that we take only valid topology paths and that their are no paths with 
+repeated locations in the path. If preferences appear only at the top level, then it is easy to rank the paths.
+One tricky point is that we care about paths starting or ending at locations that are connected to end-hosts in some way.
+And we want the length of the path to be a secondary tie-breaker .
+Additional assumption here should be that the prefixes are disjoint.
+
+\subsection{Theory}
+What are the properties of this language? Ideally, a proof here about its expressiveness. We can perhaps do everything 
+BGP can do? We can't do shortest paths routing with BGP, but we could with OSPF though? Clearly we can only describe 
+policies that are stable under all possible failure scenarios (at least internally stable, could still cause) routing 
+loops with interactions with neighbors.
+
+
+\section{Compilation}
+
+\begin{itemize}
+	\item Separate prefixes so they are disjoint (assumption) for semantics)
+		  probably using BDDs where each bit is a variable is the easiest way to do this.
+	\item For each prefix, build a DFA from each of the regular path constraints 
+		  We do this using character classes and regular expression derivatives.
+		  The accepting states are labeled with the particular preference.
+	\item Build the constraint graph, which gives us valid paths through the network that satisfy one or 
+		  more of the regular path constraints. We accept if we are in at least one of the accepting states 
+		  for one or more of the DFAs. We take the max of the preferences for the accepting preference.
+		  Add a new start and end node as well.
+	\item Minimize the constraint graph by removing nodes and edges that never contribute to a solution. 
+		  This is sound. Removing these makes it easier to check if things are implementable using BGP (see next point).
+		  There are two ways to do this: a sound heuristic for removing edges and nodes, and a complete, but slow method for 
+		  removing everything not needed.
+	\item Since our policy language is richer than BGP, we need to check if it is implementable with BGP.
+		  First show some examples of what the problem is: why BGP cannot make a decision.
+		  We check: preference consistency (doesn't regret a choice based on which preference accepting state it might reach)
+		  and topology consistency (no failure scenario will result in an advertisement reaching a router from a more preferred neighbor 
+		  but then not get to an accepting state, when another, less preferred route was available).
+	\item We can check for topology consistency using a sufficient condition (that works often and is very fast), 
+		  and by enumerating failure scenarios using a necessary and sufficient condition (that always works but is slooooow)
+	
+	\item Finally, if we know BGP can make decision locally, then we can directly translate to local BGP configurations using 
+		  information about the state machines from the neighbors. In particular, we tag (and test on) community values for the
+		  corresponding state and set preferences accordingly (example will be needed)
+	\item Running example will be helpful here.	
+\end{itemize}
+
+\section{Evaluation}
+
+\begin{itemize}
+	\item Expressiveness of the policy language (maybe a proof earlier for this)
+	\item Compactness of the policy language (how verbose? likely pretty concise)
+	\item Intuitiveness of the policy language (how easy is it to understand? probably make the earlier examples clear)
+	\item Speed of compilation (does it take forever?)
+	\item Understandability of the resulting configurations (Can humans understand them?)
+	\item Some measure of the size of the resulting configurations (is this actually an issue in BGP??)
+\end{itemize}
+
+\section{Related Work}
+
+\begin{itemize}
+	\item Regular path queries
+	\item Lots of background on BGP
+	\item Feamster rcc stuff
+	\item Logic programming BGP configs
+\end{itemize}
+
+\section{Conclusions}
+
+TODO
+
+\appendix
+\section{Appendix Title}
+
+This is the text of the appendix, if you need one.
+
+\acks
+
+Acknowledgments, if needed.
+
+% We recommend abbrvnat bibliography style.
+
+\bibliographystyle{abbrvnat}
+
+% The bibliography should be embedded for final submission.
+
+\begin{thebibliography}{}
+\softraggedright
+
+\bibitem[Smith et~al.(2009)Smith, Jones]{smith02}
+P. Q. Smith, and X. Y. Jones. ...reference text...
+
+\end{thebibliography}
+
+
+\end{document}
+
+%                       Revision History
+%                       -------- -------
+%  Date         Person  Ver.    Change
+%  ----         ------  ----    ------
+
+%  2013.06.29   TU      0.1--4  comments on permission/copyright notices
+

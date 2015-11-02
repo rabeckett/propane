@@ -190,3 +190,5 @@ ModelManifest.xml
 
 # Graph visualization
 script/generated/*
+*.aux
+/paper/sigplanconf-template.synctex.gz
