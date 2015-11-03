@@ -64,24 +64,21 @@ Example:
 	define exit_in(X)	= out* in* (X inter in) out+
 	define exit_out(X)	= out* in+ (X inter out) out*
 
-	# Communities
 	define AGGREGATE = 8075:420
 	define REGIONAL	 = 8075:61000
 
-	# Blocked prefixes and owned prefixes for DC
 	define blocks 	= ...
 	define pfx1		= 10.0.0.0/8
 	define pfx2		= 127.0.0.1/24
 	define pfx3		= 15.6.7.8/16
 
-	# Collections of routers
 	define T0 	= (A + B + C + D + ...)  	# if from DB, then maybe: {X | X.tier = T0}
 	define T1 	= ...
 	define T2 	= ...
 	define T3 	= ...
 	define DCR 	= ...
 
-	bgp {
+	scope {
 		paths ordered {
 			block => {}
 			pfx1 => through_me
