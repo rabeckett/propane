@@ -3,7 +3,7 @@
 open QuickGraph
 
 
-(* Classify internal and external locations *)
+/// Classify topology nodes according to type
 type NodeType = 
     | Start
     | End
@@ -11,12 +11,13 @@ type NodeType =
     | Inside 
     | InsideOriginates
 
-(* Topology node given by its name and type *)
+/// Type for a node in the topology. Given by its name and type
 type State = 
     {Loc: string; 
      Typ: NodeType}
 
-(* Alternative representation as neighbor map *)
+/// Alternative representation of the topology as a map.
+/// Gives fast access to 
 type NeighborMap = Map<State, Set<State>>
 
 (* Topology as a directed graph between States *)
@@ -47,6 +48,11 @@ let neighborMap (topo: T) : NeighborMap   =
             adj <- Set.add e.Source adj
         nmap <- Map.add v adj nmap
     nmap
+
+let isTopoNode (t: State) = 
+    match t.Typ with 
+    | Start | End -> false
+    | Outside | Inside | InsideOriginates -> true
 
 let isInside (t: State) = 
     match t.Typ with 

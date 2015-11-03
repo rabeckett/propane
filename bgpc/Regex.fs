@@ -3,8 +3,8 @@ module Regex
 
 open Extension
 
-(* Extended regular expressions with negation and intersection 
-   Characters are modelled using sets of locations as character classes *)
+/// Extended regular expressions with negation and intersection 
+/// Characters classes are modelled using sets of locations
 type T = 
     | Empty
     | Epsilon
@@ -27,7 +27,7 @@ type T =
         | Negate r -> "!(" + r.ToString() + ")"
         | Star r -> (r.ToString() |> addParens) + "*"
 
-(* Return a regular expression that matches reversed strings *)
+/// Return a regular expression that matches reversed strings
 let rec private rev re = 
     match re with 
     | Empty | Epsilon | Locs _ -> re
@@ -37,12 +37,7 @@ let rec private rev re =
     | Negate r -> Negate (rev r)
     | Star r -> Star (rev r)
 
-
-(* Smart constructors for partitioning regular expressions 
-   according to a few algebraic laws. Nested negation and Kleene star 
-   operators are removed. Intersection, union, and concatenation are 
-   merged and stored as lists that are sorted in ascending order. *)
-
+/// Insert a regular expression into a sorted list
 let rec private insertOrdered rs r = 
     match rs with 
     | [] -> [r]
@@ -55,11 +50,18 @@ let rec private insertOrdered rs r =
         else 
             rhd::(insertOrdered rtl r)
 
+/// Add a list of regular expressions to another while 
+/// preserving the left-ordered property
 let rec private insertOrderedAll dups rs1 rs2 = 
     match rs2 with 
     | [] -> rs1
     | hd::tl -> 
         insertOrderedAll dups (insertOrdered rs1 hd) tl
+
+(* Smart constructors for partitioning regular expressions 
+   according to a few algebraic laws. Nested negation and Kleene star 
+   operators are removed. Intersection, union, and concatenation are 
+   merged and stored as lists that are sorted in ascending order. *)
 
 let private empty = Empty 
 
@@ -116,9 +118,8 @@ let rec private union r1 r2 =
     | _, Union rs -> Union (insertOrdered rs r1)
     | _, _ -> union (Union [r1]) r2
 
-
-(* Check if a regular expression denotes only single characters and 
-   if so, return the set of characters it denotes. *)
+/// Check if a regular expression denotes only single characters and 
+/// if so, returns the set of characters it denotes
 let rec singleLocations alphabet r =
     let aux f r1 r2 = 
         match r1, r2 with 
@@ -138,12 +139,7 @@ let rec singleLocations alphabet r =
         Option.map (Set.difference alphabet) (singleLocations alphabet r)
     | _ -> None
 
-
-(* Build a DFA for a regular expression directly using regular 
-   expression derivatives. Works well with complement,
-   intersection, and character classes. Produces near-minimal DFAs *)
-
-(* Check if a regular expression accepts the empty string *)
+/// Check if a regular expression accepts the empty string
 let rec private nullable r = 
     match r with 
     | Epsilon -> epsilon
@@ -159,13 +155,13 @@ let rec private nullable r =
         | Empty -> epsilon
         | _ -> empty 
 
-(* An overapproximation of the set of character classes *)
+/// An overapproximation of the set of character classes
 let private conserv r s =
     seq {for x in Set.toSeq r do
             for y in Set.toSeq s do 
                 yield Set.intersect x y} |> Set.ofSeq
 
-(* Approximate the character classes for a regular expression *)
+/// Approximate the character classes for a regular expression
 let rec private dclasses alphabet r =
     match r with 
     | Empty | Epsilon -> Set.singleton alphabet
@@ -186,7 +182,8 @@ let rec private dclasses alphabet r =
     | Star r -> dclasses alphabet r 
     | Negate r -> dclasses alphabet r
 
-(* Compute the derivative of a regular expression with respect to a character class *)
+/// Compute the derivative of a regular expression with respect to a character class.
+/// Results in a new regular expression that matches remaining strings
 let rec private derivative alphabet a r = 
     match r with 
     | Epsilon | Empty -> empty
@@ -201,14 +198,16 @@ let rec private derivative alphabet a r =
     | Union rs -> List.fold (fun acc r -> union acc (derivative alphabet a r)) empty rs
     | Negate r' -> negate alphabet (derivative alphabet a r')
     | Star r' -> concat (derivative alphabet a r') r
-    
+
+/// Standard deterministic finite automaton, implemented 
+/// using maps ans sets for simplicity
 type Automata =
     {q0: int;
      Q: Set<int>; 
      F: Set<int>;
      trans: Map<int*Set<string>, int>}
 
-(* Explore and construct the automata in a depth-first fashion *)
+/// Explore and construct an automaton in a depth-first fashion
 let rec private goto alphabet q (Q,trans) S = 
     let c = Set.minElement S
     let qc = derivative alphabet c q 
@@ -223,7 +222,7 @@ and private explore alphabet Q trans q =
     let charClasses = Set.remove Set.empty (dclasses alphabet q)
     Set.fold (goto alphabet q) (Q,trans) charClasses
 
-(* Re-index states by ints rather than regular expressions *)
+/// Re-index states by integers starting from 0 rather than regular expressions
 let private indexStates (q0, Q, F, trans) = 
     let aQ = Set.toSeq Q
     let idxs = seq {for i in 0..(Seq.length aQ - 1) -> i}
@@ -234,7 +233,9 @@ let private indexStates (q0, Q, F, trans) =
     let trans' = Map.fold (fun acc (re,c) v -> Map.add ((Map.find re idxMap),c) (Map.find v idxMap) acc) Map.empty trans
     (q0', Q', F', trans')
 
-(* Build a DFA over a custom alphabet using derivatives *)
+/// Build a DFA for a regular expression directly using regular 
+/// expression derivatives. Works well with complement,
+/// intersection, and character classes. Produces near-minimal DFAs
 let private makeDFA alphabet r = 
     let q0 = r
     let (Q, trans) = explore alphabet (Set.singleton q0) Map.empty q0
@@ -242,17 +243,14 @@ let private makeDFA alphabet r =
     let (q0', Q', F', trans') = indexStates (q0, Q, F, trans)
     {q0=q0'; Q=Q'; F=F'; trans=trans'}
 
-
-(* Parameterize regular expression by an alphabet. Since f# does 
-   not support ML-style functors, different objects can use different 
-   alphabets. Client code must ensure a single object is used. *)
+/// Parameterize regular expression by an alphabet. Since f# does 
+/// not support ML-style functors, different objects can use different 
+/// alphabets. Client code must ensure a single object is used
 type REBuilder(topo: Topology.T) = 
-
     let (inStates, outStates) = Topology.alphabet topo
     let inside = Set.map (fun (s: Topology.State) -> s.Loc) inStates
     let outside = Set.map (fun (s: Topology.State) -> s.Loc) outStates
     let alphabet = Set.union inside outside
-
     member __.Inside = locs inside
     member __.Outside = locs outside
     member __.Rev = rev

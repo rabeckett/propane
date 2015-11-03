@@ -143,44 +143,69 @@ let supersetPaths (cg1: CGraph.T) (n1: CGraph.CgState) (cg2: CGraph.T) (n2: CGra
         | None -> Map.add k (Set.singleton v) map
         | Some vs -> Map.add k (Set.add v vs) map
 
-    let step n1 n2 = 
-        let neighbors1 = cg1.Graph.OutEdges n1 |> Seq.map (fun e -> e.Target) |> Set.ofSeq
-        let neighbors2 = cg2.Graph.OutEdges n2 |> Seq.map (fun e -> e.Target) |> Set.ofSeq
+    let addAll k vs map = 
+        Set.fold (fun acc v -> add k v acc) map vs
+
+    let merge x y = 
+        Map.fold (fun acc k v -> addAll k v acc) x y
+
+    let remainsSuperset b = 
+        Map.fold (fun acc k v -> 
+            acc && not (Map.exists (fun k' v' -> 
+                (k.Topo.Loc = k'.Topo.Loc && k <> k') &&
+                (Set.intersect v v' |> Set.isEmpty |> not) ) b)) true b
+
+    let stepNodeNode n1 n2 = 
+        let neighbors1 = 
+            cg1.Graph.OutEdges n1 
+            |> Seq.map (fun e -> e.Target) 
+            |> Seq.filter (fun v -> Topology.isTopoNode v.Topo)
+            |> Set.ofSeq
+        let neighbors2 = 
+            cg2.Graph.OutEdges n2 
+            |> Seq.map (fun e -> e.Target) 
+            |> Seq.filter (fun v -> Topology.isTopoNode v.Topo)
+            |> Set.ofSeq
         let nchars1 = Set.map (fun v -> v.Topo.Loc) neighbors1
         let nchars2 = Set.map (fun v -> v.Topo.Loc) neighbors2
         if not (Set.isSuperset nchars1 nchars2) then 
-            failwith "TODO: (not superset) counter example"
+            None
         else
             let newBisim = ref Map.empty
             let common = Set.intersect nchars1 nchars2 
             Set.iter (fun c ->
                 let v1 = Set.filter (fun v -> v.Topo.Loc = c) neighbors1 |> Set.minElement
                 let v2 = Set.filter (fun v -> v.Topo.Loc = c) neighbors2 |> Set.minElement
-                if Topology.isInside v1.Topo && Topology.isInside v2.Topo then 
-                    newBisim := add v1 v2 !newBisim
+                newBisim := add v1 v2 !newBisim
             ) common
-            !newBisim
+            Some !newBisim
  
-    let step n1 n2s = 
-        Set.fold (fun acc v -> add n1 v acc) Map.empty n2s
+    let stepNodeNodes n1 n2s = 
+        Set.fold (fun acc n2 ->
+            match acc, stepNodeNode n1 n2 with 
+            | None, _ | _, None -> None 
+            | Some acc, Some x -> Some (merge acc x)
+        ) (Some Map.empty) n2s
 
-    let isLegit b = 
-        let res = ref true
-        Map.iter (fun k v -> 
-            res := !res && (Map.exists (fun k' v' -> k.Topo.Loc = k'.Topo.Loc && not (Set.isEmpty (Set.intersect v v')) ) b)
-        ) b
+    let step b n1 n2s = 
+        match b, stepNodeNodes n1 n2s with 
+        | None, _ | _, None -> None
+        | Some b, Some x -> Some (merge b x)
 
-    try
-        if n1.Topo.Loc <> n2.Topo.Loc then false 
-        else
-            let mutable bisim = Map.add n1 (Set.singleton n2) Map.empty
-            let iterations = max cg1.Graph.VertexCount cg2.Graph.VertexCount 
-            for i = 0 to iterations do
-                (* Merge maps here *)
-                (* Then check if legit *)
-                ()
-                (* Map.fold (fun acc k v ->
-                    (step n1 n2s)
-                ) bisim *)
-            true
-    with _ -> false
+    let rec iter n bisim = 
+        match n with 
+        | 0 -> true 
+        | _ ->
+            if Map.isEmpty bisim then true else
+            if not (remainsSuperset bisim) then false else 
+            let b = Map.fold step (Some Map.empty) bisim
+            match b with 
+            | None -> false
+            | Some b -> iter (n-1) b
+
+    if n1.Topo.Loc <> n2.Topo.Loc then false 
+    else
+        let bisim = Map.add n1 (Set.singleton n2) Map.empty
+        let steps = max cg1.Graph.VertexCount cg2.Graph.VertexCount 
+        iter steps bisim
+

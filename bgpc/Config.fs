@@ -115,10 +115,13 @@ let private genConfig (cg: CGraph.T) (ord: Consistency.Ordering) : T =
 let compile (topo: Topology.T) (cg: CGraph.T) : Result<T, Consistency.CounterExample> =
     match Consistency.findOrdering cg with 
     | Ok ord ->
-        let nFailures = 1
-        match Consistency.checkFailuresByEnumerating nFailures topo cg ord with 
+        match Consistency.checkFailures cg ord with 
         | Ok _ -> Ok (genConfig cg ord)
         | Err(tc) -> Err(tc)
+            (* let nFailures = 1
+            match Consistency.checkFailuresByEnumerating nFailures topo cg ord with 
+            | Ok _ -> Ok (genConfig cg ord)
+            | Err(tc) -> Err(tc) *)
     | Err(pc) -> Err(pc)
 
 
