@@ -5,7 +5,6 @@ open QuickGraph
 open QuickGraph.Algorithms
 
 
-(* All pairs reachability in the constraint graph *)
 let floydWarshall (cg: CGraph.T) : Map<CgState, Set<CgState>> = 
     let fw = ShortestPath.FloydWarshallAllShortestPathAlgorithm(cg.Graph, fun _ -> 1.0)
     fw.Compute ()
@@ -18,15 +17,11 @@ let floydWarshall (cg: CGraph.T) : Map<CgState, Set<CgState>> =
         reachability <- Map.add src toDst reachability
     reachability
 
-
-(* Object to wrap the constraint graph and provide reachability info *)
 type AnnotatedCG(cg: CGraph.T) =
     let reachability = floydWarshall cg
     member this.Cg = cg
     member this.ReachInfo = reachability
 
-
-(* Check if src can reach dst while avoiding certain nodes *)
 let srcDstWithout (cg: CGraph.T) src dst without =
     if without src || without dst then false 
     else if src = dst then true 
@@ -43,13 +38,9 @@ let srcDstWithout (cg: CGraph.T) src dst without =
             let weight = Seq.fold (fun acc e -> acc + weight e) 0.0 !path
             weight <= numNodes
 
-
-(* Check if src can reach dst *)
 let srcDst cg src dst = 
     srcDstWithout cg src dst (fun _ -> false)
 
-
-(* Find all destinations reachable from src while avoiding certain nodes *)
 let srcWithout (cg: CGraph.T) src without =
     if without src then Set.empty
     else
@@ -69,13 +60,9 @@ let srcWithout (cg: CGraph.T) src without =
                     reachable <- Set.add v reachable
         reachable
 
-
-(* Find all destinations reachable from src *)
 let src cg src = 
     srcWithout cg src (fun _ -> false)
 
-
-(* Find all accepting states reachable from src while avoiding certain nodes *)
 let srcAcceptingWithout cg src without = 
     let aux acc cg = 
         match cg.Accept with 
@@ -83,13 +70,9 @@ let srcAcceptingWithout cg src without =
         | Some i -> Set.add i acc
     srcWithout cg src without |> Set.fold aux Set.empty
 
-
-(* Find all accepting states reachable from src *)
 let srcAccepting cg src = 
     srcAcceptingWithout cg src (fun _ -> false)
 
-
-(* Find all nodes reachable from src on a simple path *)
 let simplePathSrc cg src = 
     let explored = ref 0
     let allNodes = cg.Graph.Vertices |> Set.ofSeq
@@ -109,8 +92,6 @@ let simplePathSrc cg src =
     search src Set.empty
     Set.difference allNodes !cantReach
 
-
-(* Find all nodes along some simple path from src to dst *)
 let alongSimplePathSrcDst cg src dst = 
     let num_explored = ref 0
     let allNodes = cg.Graph.Vertices |> Set.ofSeq
@@ -136,8 +117,7 @@ let alongSimplePathSrcDst cg src dst =
     Set.difference allNodes !cantReach
 
 
-(* Check if paths from n1 in cg1 are a superset of paths from n2 in cg2 *)
-let supersetPaths (cg1: CGraph.T) (n1: CGraph.CgState) (cg2: CGraph.T) (n2: CGraph.CgState) =
+let supersetPaths (cg1, n1) (cg2, n2) : bool =
     let add k v map = 
         match Map.tryFind k map with 
         | None -> Map.add k (Set.singleton v) map

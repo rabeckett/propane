@@ -1,5 +1,4 @@
 ﻿module Config
-
 open Extension.Error
 open CGraph
 
@@ -23,16 +22,13 @@ type Rule =
 type T = Map<string, Rule list>
 
 
-
 let print (config: T) = 
     for kv in config do 
         printfn "\nRouter %s" kv.Key
         for rule in kv.Value do 
             printfn "  Match: (%A), Update: (%A)" rule.Import rule.Export
 
-
-let private genConfig (cg: CGraph.T) (ord: Consistency.Ordering) : T = 
-    
+let private genConfig (cg: CGraph.T) (ord: Consistency.Ordering) : T =     
     let compareLocThenPref (x,i1) (y,i2) = 
         let cmp = compare i1 i2
         if cmp = 0 then 
@@ -49,24 +45,17 @@ let private genConfig (cg: CGraph.T) (ord: Consistency.Ordering) : T =
             else hd1 :: (aux tl)
     
     let cgRev = copyReverseGraph cg
-
     let neighborsIn v = 
         seq {for e in cgRev.Graph.OutEdges v do 
                 if e.Target.Topo.Typ <> Topology.Start then yield e.Target}
-
     let neighborsOut v = 
         seq {for e in cg.Graph.OutEdges v do
                 if e.Target.Topo.Typ <> Topology.Start then yield e.Target}
-
-
     let mutable config = Map.empty
-
     for entry in ord do 
         let mutable rules = []
-        
         let loc = entry.Key 
         let prefs = entry.Value 
-        
         let prefNeighborsIn = 
             prefs
             |> List.mapi (fun i (v,_) -> (neighborsIn v, i))
@@ -75,43 +64,30 @@ let private genConfig (cg: CGraph.T) (ord: Consistency.Ordering) : T =
             |> List.ofSeq
             |> List.sortWith compareLocThenPref
             |> aux
- 
         let mutable lp = 99
         let mutable lastPref = None
-        
         for v, pref in prefNeighborsIn do 
-
             match lastPref with 
             | Some p when pref = p -> () 
             | _ ->
                 lastPref <- Some pref 
                 lp <- lp + 1
-
             let unambiguous = 
                 prefNeighborsIn 
                 |> Set.ofList 
                 |> Set.filter (fun (x,_) -> x.Topo.Loc = v.Topo.Loc) 
                 |> Set.count 
                 |> ((=) 1)
-
             let m = 
                 if unambiguous then Peer v.Topo.Loc 
                 else State (v.States, v.Topo.Loc)
-
             let a = 
                 if lp = 100 then [] 
                 else [SetLP(lp)]
-
             rules <- {Import = m; Export = a}::rules
-        
         config <- Map.add loc rules config
-
     config
 
-
-(* Generate the BGP match/action rules that are guaranteed to 
-   implement the user policy under all possible failure scenarios. 
-   This function returns an intermediate representation (IR) for BGP policies *) 
 let compile (topo: Topology.T) (cg: CGraph.T) : Result<T, Consistency.CounterExample> =
     match Consistency.findOrdering cg with 
     | Ok ord ->

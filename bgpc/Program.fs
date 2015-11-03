@@ -22,9 +22,8 @@ let main argv =
     Minimize.removeEdgesForDominatedNodes cg
     Minimize.removeNodesNotOnAnySimplePathToEnd cg
 
-    printfn "%s" (CGraph.toDot cg)
+    (* printfn "%s" (CGraph.toDot cg) *)
 
-    (*
     match Config.compile topo cg with
     | Ok(config) -> Config.print config
     | Err(Consistency.PrefViolation (x,y)) ->
@@ -34,6 +33,6 @@ let main argv =
     | Err(Consistency.TopoViolation (x,y)) ->
         printfn "Topo Consistency Violation"
         printfn "Node1: %A" x 
-        printfn "Node2: %A" y *)
+        printfn "Node2: %A" y
 
     0

@@ -69,14 +69,21 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="Extension.fs" />
+    <Compile Include="Topology.fsi" />
     <Compile Include="Topology.fs" />
     <Compile Include="Prefix.fs" />
+    <Compile Include="Regex.fsi" />
     <Compile Include="Regex.fs" />
     <Compile Include="Policy.fs" />
+    <Compile Include="CGraph.fsi" />
     <Compile Include="CGraph.fs" />
+    <Compile Include="Reachable.fsi" />
     <Compile Include="Reachable.fs" />
+    <Compile Include="Minimize.fsi" />
     <Compile Include="Minimize.fs" />
+    <Compile Include="Consistency.fsi" />
     <Compile Include="Consistency.fs" />
+    <Compile Include="Config.fsi" />
     <Compile Include="Config.fs" />
     <Compile Include="Program.fs" />
     <None Include="App.config" />

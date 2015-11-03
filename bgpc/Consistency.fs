@@ -1,5 +1,4 @@
 ﻿module Consistency
-
 open Extension.Error
 open CGraph
 open QuickGraph
@@ -57,10 +56,10 @@ let findOrdering (cg: CGraph.T) : Result<Ordering, CounterExample> =
 let checkFailures (cg: CGraph.T) (ord: Ordering) : Result<unit, CounterExample> =
     let cgRev = copyReverseGraph cg
     let subsumes x y = 
-        (Reachable.supersetPaths cg x cg y) ||
-        (Reachable.supersetPaths cg x cgRev y) || 
-        (Reachable.supersetPaths cgRev x cg y) || 
-        (Reachable.supersetPaths cgRev x cgRev y)
+        (Reachable.supersetPaths (cg, x) (cg, y)) ||
+        (Reachable.supersetPaths (cg, x) (cgRev, y)) || 
+        (Reachable.supersetPaths (cgRev, x) (cg, y)) || 
+        (Reachable.supersetPaths (cgRev, x) (cgRev, y))
     (* TODO: Is this check needed if they have equal prefs? *)
     let rec checkAll name prefs = 
         match prefs with 

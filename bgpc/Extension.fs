@@ -1,14 +1,15 @@
 ﻿module Extension
 
-
 module List = 
 
+    /// A faster, inline version of fold
     let inline fold f b ls = 
         let mutable acc = b 
         for i in ls do 
             acc <- f acc i 
         acc
 
+    /// List fold without a required base element
     let inline fold1 f ls = 
         match ls with 
         | [] -> failwith "empty list in fold1"
@@ -18,16 +19,20 @@ module List =
                 acc <- f acc i 
             acc
 
+    /// Easier custom printing by joining a list of strings with a separator
     let inline joinBy sep ss = 
         fold1 (fun a b -> a + sep + b) ss
 
-
-module Map = 
-
-    let inline modify k d f map = 
-        match Map.tryFind k map with 
-        | None -> Map.add k d map
-        | Some v -> Map.add k (f v) map
+    /// Enumerate all length-n combinations of a list
+    let combinations n ls = 
+        let rec aux acc size set = seq {
+            match size, set with 
+            | n, x::xs -> 
+                if n > 0 then yield! aux (x::acc) (n - 1) xs
+                if n >= 0 then yield! aux acc n xs 
+            | 0, [] -> yield acc 
+            | _, [] -> () }
+        aux [] n ls
 
 
 module Error =

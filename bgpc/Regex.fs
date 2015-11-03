@@ -1,6 +1,5 @@
 ﻿
 module Regex
-
 open Extension
 
 /// Extended regular expressions with negation and intersection 
@@ -27,8 +26,7 @@ type T =
         | Negate r -> "!(" + r.ToString() + ")"
         | Star r -> (r.ToString() |> addParens) + "*"
 
-/// Return a regular expression that matches reversed strings
-let rec private rev re = 
+let rec rev re = 
     match re with 
     | Empty | Epsilon | Locs _ -> re
     | Concat rs -> Concat (List.rev rs |> List.map rev)
@@ -37,8 +35,12 @@ let rec private rev re =
     | Negate r -> Negate (rev r)
     | Star r -> Star (rev r)
 
-/// Insert a regular expression into a sorted list
-let rec private insertOrdered rs r = 
+(* Smart constructors for partitioning regular expressions 
+   according to a few algebraic laws. Nested negation and Kleene star 
+   operators are removed. Intersection, union, and concatenation are 
+   merged and stored as lists that are sorted in ascending order. *)
+
+let rec insertOrdered rs r = 
     match rs with 
     | [] -> [r]
     | rhd::rtl -> 
@@ -50,41 +52,34 @@ let rec private insertOrdered rs r =
         else 
             rhd::(insertOrdered rtl r)
 
-/// Add a list of regular expressions to another while 
-/// preserving the left-ordered property
-let rec private insertOrderedAll dups rs1 rs2 = 
+let rec insertOrderedAll dups rs1 rs2 = 
     match rs2 with 
     | [] -> rs1
     | hd::tl -> 
         insertOrderedAll dups (insertOrdered rs1 hd) tl
 
-(* Smart constructors for partitioning regular expressions 
-   according to a few algebraic laws. Nested negation and Kleene star 
-   operators are removed. Intersection, union, and concatenation are 
-   merged and stored as lists that are sorted in ascending order. *)
+let empty = Empty 
 
-let private empty = Empty 
+let epsilon = Epsilon
 
-let private epsilon = Epsilon
+let locs s = Locs s
 
-let private locs s = Locs s
+let loc s = Locs (Set.singleton s)
 
-let private loc s = Locs (Set.singleton s)
-
-let private star r = 
+let star r = 
     match r with 
     | Star _ -> r
     | Epsilon -> Epsilon
     | Empty -> Epsilon
     | _ -> Star r
 
-let private negate alphabet r = 
+let negate alphabet r = 
     match r with 
     | Negate _ -> r
     | Locs s -> Locs (Set.difference alphabet s)
     | _ -> Negate r
 
-let rec private concat r1 r2 = 
+let rec concat r1 r2 = 
     match r1, r2 with 
     | _, Empty -> Empty
     | Empty, _ -> Empty
@@ -95,7 +90,7 @@ let rec private concat r1 r2 =
     | _, Concat rs -> Concat (r1::rs)
     | _, _ -> concat (Concat [r1]) r2
 
-let rec private inter r1 r2 = 
+let rec inter r1 r2 = 
     match r1, r2 with 
     | _, Empty -> Empty
     | Empty, _ -> Empty
@@ -106,7 +101,7 @@ let rec private inter r1 r2 =
     | _, Inter rs -> Inter (insertOrdered rs r1)
     | _, _ -> inter (Inter [r1]) r2
 
-let rec private union r1 r2 = 
+let rec union r1 r2 = 
     match r1, r2 with 
     | _, Empty -> r1
     | Empty, _ -> r2
@@ -126,7 +121,6 @@ let rec singleLocations alphabet r =
         | None, _ -> None 
         | _, None -> None 
         | Some s1, Some s2 -> Some (f s1 s2)
-
     match r with 
     | Locs s -> Some s
     | Inter rs ->
@@ -140,7 +134,7 @@ let rec singleLocations alphabet r =
     | _ -> None
 
 /// Check if a regular expression accepts the empty string
-let rec private nullable r = 
+let rec nullable r = 
     match r with 
     | Epsilon -> epsilon
     | Locs _ -> empty
@@ -156,13 +150,13 @@ let rec private nullable r =
         | _ -> empty 
 
 /// An overapproximation of the set of character classes
-let private conserv r s =
+let conserv r s =
     seq {for x in Set.toSeq r do
             for y in Set.toSeq s do 
                 yield Set.intersect x y} |> Set.ofSeq
 
 /// Approximate the character classes for a regular expression
-let rec private dclasses alphabet r =
+let rec dclasses alphabet r =
     match r with 
     | Empty | Epsilon -> Set.singleton alphabet
     | Locs s ->
@@ -184,7 +178,7 @@ let rec private dclasses alphabet r =
 
 /// Compute the derivative of a regular expression with respect to a character class.
 /// Results in a new regular expression that matches remaining strings
-let rec private derivative alphabet a r = 
+let rec derivative alphabet a r = 
     match r with 
     | Epsilon | Empty -> empty
     | Locs s -> if Set.contains a s then epsilon else empty
@@ -201,14 +195,14 @@ let rec private derivative alphabet a r =
 
 /// Standard deterministic finite automaton, implemented 
 /// using maps ans sets for simplicity
-type Automata =
+type Automaton =
     {q0: int;
      Q: Set<int>; 
      F: Set<int>;
      trans: Map<int*Set<string>, int>}
 
 /// Explore and construct an automaton in a depth-first fashion
-let rec private goto alphabet q (Q,trans) S = 
+let rec goto alphabet q (Q,trans) S = 
     let c = Set.minElement S
     let qc = derivative alphabet c q 
     if Set.exists ((=) qc) Q then 
@@ -218,12 +212,12 @@ let rec private goto alphabet q (Q,trans) S =
         let trans' = Map.add (q,S) qc trans
         explore alphabet Q' trans' qc
 
-and private explore alphabet Q trans q = 
+and explore alphabet Q trans q = 
     let charClasses = Set.remove Set.empty (dclasses alphabet q)
     Set.fold (goto alphabet q) (Q,trans) charClasses
 
 /// Re-index states by integers starting from 0 rather than regular expressions
-let private indexStates (q0, Q, F, trans) = 
+let indexStates (q0, Q, F, trans) = 
     let aQ = Set.toSeq Q
     let idxs = seq {for i in 0..(Seq.length aQ - 1) -> i}
     let idxMap = idxs |> Seq.zip aQ |> Map.ofSeq
@@ -236,7 +230,7 @@ let private indexStates (q0, Q, F, trans) =
 /// Build a DFA for a regular expression directly using regular 
 /// expression derivatives. Works well with complement,
 /// intersection, and character classes. Produces near-minimal DFAs
-let private makeDFA alphabet r = 
+let makeDFA alphabet r = 
     let q0 = r
     let (Q, trans) = explore alphabet (Set.singleton q0) Map.empty q0
     let F = Set.filter (fun q -> nullable q = epsilon) Q 
