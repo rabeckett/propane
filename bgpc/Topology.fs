@@ -1,7 +1,5 @@
 ﻿module Topology
-
 open QuickGraph
-
 
 type NodeType = 
     | Start
@@ -16,7 +14,6 @@ type State =
 
 type T = BidirectionalGraph<State,TaggedEdge<State,unit>>
 
-/// Build the internal and external alphabet from a topology
 let alphabet (topo: T) : Set<State> * Set<State> = 
     let mutable ain = Set.empty 
     let mutable aout = Set.empty 
@@ -28,19 +25,16 @@ let alphabet (topo: T) : Set<State> * Set<State> =
         | Start | End -> failwith "unreachable"
     (ain, aout)
 
-/// Check if a node is a valid topology node
 let isTopoNode (t: State) = 
     match t.Typ with 
     | Start | End -> false
     | Outside | Inside | InsideOriginates -> true
 
-/// Check if a node represents an internal location (under AS control)
 let isInside (t: State) = 
     match t.Typ with 
     | Inside | InsideOriginates ->  true 
     | Outside | Start | End -> false
 
-/// Check if a node can originate traffice (e.g., TOR in DC)
 let canOriginateTraffic (t: State) = 
     match t.Typ with 
     | InsideOriginates -> true 
@@ -48,13 +42,10 @@ let canOriginateTraffic (t: State) =
     | Inside -> false
     | Start | End -> false
 
-/// Checks if a topology is well-formed. This involves checking 
-/// for duplicate names, as well as checking that the inside is fully connected
+(* TODO *)
 let isWellFormed (t: State) = 
     false
 
-
-/// Helper module for enumerating and constructing topology failure scenarios
 module Failure = 
 
     type FailType = 
@@ -70,7 +61,6 @@ module Failure =
         Seq.append fes fvs 
         |> Seq.toList 
         |> Extension.List.combinations n
-
 
 module Example1 = 
     let topo () = 
@@ -98,7 +88,6 @@ module Example1 =
         g.AddEdge (TaggedEdge(vY, vB, ())) |> ignore
         g.AddEdge (TaggedEdge(vZ, vB, ())) |> ignore
         g
-
 
 module Example2 = 
     let topo () = 
@@ -136,7 +125,6 @@ module Example2 =
         g.AddEdge (TaggedEdge(vY, vN, ())) |> ignore
         g.AddEdge (TaggedEdge(vN, vY, ())) |> ignore
         g
-
 
 module Example3 = 
     let topo () = 
@@ -193,4 +181,21 @@ module Example3 =
         g.AddEdge (TaggedEdge(vX, vH, ())) |> ignore
         g.AddEdge (TaggedEdge(vH, vY, ())) |> ignore
         g.AddEdge (TaggedEdge(vY, vH, ())) |> ignore
+        g
+
+module ExampleUnstable = 
+    let topo () = 
+        let g = BidirectionalGraph<State, TaggedEdge<State,unit>>()
+        let vA = {Loc="A"; Typ=InsideOriginates}
+        let vB = {Loc="B"; Typ=InsideOriginates}
+        let vC = {Loc="C"; Typ=InsideOriginates}
+        g.AddVertex vA |> ignore 
+        g.AddVertex vB |> ignore 
+        g.AddVertex vC |> ignore 
+        g.AddEdge (TaggedEdge(vA, vB, ())) |> ignore
+        g.AddEdge (TaggedEdge(vB, vA, ())) |> ignore
+        g.AddEdge (TaggedEdge(vB, vC, ())) |> ignore
+        g.AddEdge (TaggedEdge(vC, vB, ())) |> ignore
+        g.AddEdge (TaggedEdge(vA, vC, ())) |> ignore
+        g.AddEdge (TaggedEdge(vC, vA, ())) |> ignore
         g

@@ -1,17 +1,21 @@
-﻿
-open Extension.Error
+﻿open Extension.Error
 
-let topo = Topology.Example3.topo ()
-
+let topo = Topology.ExampleUnstable.topo ()
 let RE = Regex.REBuilder(topo)
-
 
 [<EntryPoint>]
 let main argv = 
-    let inStar = RE.Star RE.Inside
+    (* let inStar = RE.Star RE.Inside
     let r1 = (RE.Concat (RE.Concat inStar (RE.Loc "X")) inStar)
-    let r2 = (RE.Concat (RE.Concat inStar (RE.Loc "Y")) inStar)
-    
+    let r2 = (RE.Concat (RE.Concat inStar (RE.Loc "Y")) inStar) *)
+
+    let ac = RE.Concat (RE.Loc "A") (RE.Loc "C")
+    let ba = RE.Concat (RE.Loc "B") (RE.Loc "A")
+    let cb = RE.Concat (RE.Loc "C") (RE.Loc "B")
+
+    let r1 = RE.Union (RE.Union ac ba) cb 
+    let r2 = RE.Union (RE.Union (RE.Loc "A") (RE.Loc "B")) (RE.Loc "")
+
     let dfa1 = RE.MakeDFA (RE.Rev r1)
     let dfa2 = RE.MakeDFA (RE.Rev r2)
     

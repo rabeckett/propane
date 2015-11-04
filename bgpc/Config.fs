@@ -21,7 +21,6 @@ type Rule =
 
 type T = Map<string, Rule list>
 
-
 let print (config: T) = 
     for kv in config do 
         printfn "\nRouter %s" kv.Key
@@ -35,14 +34,14 @@ let private genConfig (cg: CGraph.T) (ord: Consistency.Ordering) : T =
             compare x.Topo.Loc y.Topo.Loc
         else cmp
 
-    let rec aux sorted = 
+    let rec removeAdjacentLocs sorted = 
         match sorted with 
         | [] | [_] -> sorted
         | hd1::((hd2::z) as tl) ->
             let (x,i1) = hd1 
             let (y,i2) = hd2 
-            if x.Topo.Loc = y.Topo.Loc then aux (hd1::z)
-            else hd1 :: (aux tl)
+            if x.Topo.Loc = y.Topo.Loc then removeAdjacentLocs (hd1::z)
+            else hd1 :: (removeAdjacentLocs tl)
     
     let cgRev = copyReverseGraph cg
     let neighborsIn v = 
@@ -63,7 +62,7 @@ let private genConfig (cg: CGraph.T) (ord: Consistency.Ordering) : T =
             |> Seq.fold Seq.append Seq.empty 
             |> List.ofSeq
             |> List.sortWith compareLocThenPref
-            |> aux
+            |> removeAdjacentLocs
         let mutable lp = 99
         let mutable lastPref = None
         for v, pref in prefNeighborsIn do 

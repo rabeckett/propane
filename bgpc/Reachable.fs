@@ -1,9 +1,7 @@
 ﻿module Reachable
-
 open CGraph
 open QuickGraph
 open QuickGraph.Algorithms
-
 
 let floydWarshall (cg: CGraph.T) : Map<CgState, Set<CgState>> = 
     let fw = ShortestPath.FloydWarshallAllShortestPathAlgorithm(cg.Graph, fun _ -> 1.0)

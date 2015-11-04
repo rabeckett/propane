@@ -1,5 +1,4 @@
-﻿
-module Regex
+﻿module Regex
 open Extension
 
 /// Extended regular expressions with negation and intersection 

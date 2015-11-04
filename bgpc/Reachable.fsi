@@ -1,7 +1,5 @@
-﻿
-module Reachable
+﻿module Reachable
 open CGraph
-
 
 /// All pairs reachability in the constraint graph
 val floydWarshall: T -> Map<CgState, Set<CgState>>
@@ -24,10 +22,10 @@ val srcWithout: T -> CgState -> (CgState -> bool) -> Set<CgState>
 /// Find all destinations reachable from src
 val src: T -> CgState -> Set<CgState>
 
-/// Find all accepting states reachable from src while avoiding certain nodes
+/// Find all accepting preferences reachable from src while avoiding certain nodes
 val srcAcceptingWithout: T -> CgState -> (CgState -> bool) -> Set<int> 
 
-/// Find all accepting states reachable from src
+/// Find all accepting preferences reachable from src
 val srcAccepting: T -> CgState -> Set<int>
 
 /// Find all nodes reachable from src on a simple path

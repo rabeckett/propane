@@ -1,7 +1,6 @@
 ﻿module CGraph
 open QuickGraph
 
-
 type CgState = 
     {States: int array; 
      Accept: int option; 
@@ -25,7 +24,6 @@ let copyReverseGraph (cg: T) : T =
         let e' = TaggedEdge(e.Target, e.Source, ())
         newCG.AddEdge e' |> ignore
     {Start=cg.Start; Graph=newCG; End=cg.End}
-
 
 let build (topo: Topology.T) (autos : Regex.Automaton array) : T = 
     let minPref x y = 

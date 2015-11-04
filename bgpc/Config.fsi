@@ -1,7 +1,6 @@
 ﻿module Config
 open Extension.Error
 
-
 type Match = 
     | Peer of string 
     | State of int array * string

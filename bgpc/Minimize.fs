@@ -1,9 +1,8 @@
 ﻿module Minimize
-
 open CGraph
 open QuickGraph
 
-
+(* TODO: use faster algorithms for this *)
 let removeEdgesForDominatedNodes (cg: CGraph.T) = 
     let cgRev = copyReverseGraph cg
     cg.Graph.RemoveEdgeIf (fun (e: TaggedEdge<CgState,unit>) -> 

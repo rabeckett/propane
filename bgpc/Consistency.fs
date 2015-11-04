@@ -3,28 +3,21 @@ open Extension.Error
 open CGraph
 open QuickGraph
 
-
-/// Local control flow exceptions
 exception PrefConsistencyException of CgState * CgState 
 exception TopoConsistencyException of CgState * CgState
 
-/// An explanation for why a policy is unimplementable with BGP
 type CounterExample = 
     | PrefViolation of CgState * CgState
     | TopoViolation of CgState * CgState
 
-/// Preference ranking for each router based on possible routes
 type Preferences = (CgState * Set<int>) list
 
-/// Preferences for each internal router
 type Ordering = 
     Map<string, Preferences>
 
-/// Checks if the BGP routers can make local decisions not knowing about failures
-/// based solely on the possibility to satisfy different preferences
 let findOrdering (cg: CGraph.T) : Result<Ordering, CounterExample> =
     let compareByMinThenRange (_,x) (_,y) = 
-        let minx, maxx = Set.minElement x, Set.maxElement y
+        let minx, maxx = Set.minElement x, Set.maxElement x
         let miny, maxy = Set.minElement y, Set.maxElement y
         let cmp = compare minx miny
         if cmp = 0 then 
@@ -37,9 +30,10 @@ let findOrdering (cg: CGraph.T) : Result<Ordering, CounterExample> =
             let maxx = Set.maxElement x 
             let miny = Set.minElement y
             if maxx > miny then
+                printfn "x: %A" x
+                printfn "y: %A" y
                 raise (PrefConsistencyException (vx, vy))
-            else 
-                hd :: (wfPrefRanges tl)
+            else  hd :: (wfPrefRanges tl)
     let mutable acc = Map.empty
     for v in cg.Graph.Vertices do 
         let loc = v.Topo.Loc
@@ -51,8 +45,6 @@ let findOrdering (cg: CGraph.T) : Result<Ordering, CounterExample> =
     with PrefConsistencyException (x,y) ->
         Err (PrefViolation (x,y))
 
-/// Conservative check that no failure scenario will result a violation of the policy
-/// Checks that each more preferred node has a superset of paths of a less preferred node
 let checkFailures (cg: CGraph.T) (ord: Ordering) : Result<unit, CounterExample> =
     let cgRev = copyReverseGraph cg
     let subsumes x y = 
@@ -72,8 +64,7 @@ let checkFailures (cg: CGraph.T) (ord: Ordering) : Result<unit, CounterExample> 
     with TopoConsistencyException(x,y) -> 
         Err (TopoViolation(x,y))
 
-/// Build a copy of the constraint graph with nodes and edges removed to simulate failures
-let private failedGraph (cg: CGraph.T) (failures: Topology.Failure.FailType list) : CGraph.T = 
+let failedGraph (cg: CGraph.T) (failures: Topology.Failure.FailType list) : CGraph.T = 
     let failed = CGraph.copyGraph cg
     let rec aux acc fs =
         let (vs,es) = acc 
@@ -88,8 +79,6 @@ let private failedGraph (cg: CGraph.T) (failures: Topology.Failure.FailType list
     failed.Graph.RemoveEdgeIf (fun e -> List.exists ((=) (e.Source.Topo.Loc, e.Target.Topo.Loc)) failedEdges) |> ignore
     failed
 
-/// Precise check that no failure scenario will result in unspecified routes
-/// by enumerating, and checking, all possible failure combinations up to some depth
 let checkFailuresByEnumerating (n:int) (topo: Topology.T) (cg: CGraph.T) (ord: Ordering) : Result<unit, CounterExample> = 
     let aux () = 
         let failCombos = Topology.Failure.allFailures n topo
