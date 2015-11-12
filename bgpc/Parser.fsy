@@ -1,0 +1,35 @@
+%{
+open System
+open Ast
+open Microsoft.FSharp.Collections
+%}
+
+%start start
+%type <Ast.T> start
+
+%token <string> ID
+%token <System.Int32> INT
+
+%token EQUAL LPAREN RPAREN LBRACKET RBRACKET LBRACE RBRACE COMMA SLASH COLON RARROW EOF
+%token DEFINE SCOPE PATHS ORDERED UNORDERED AGGREGATE COMMUNITY MAXROUTES MULTIPATH INCLUDE
+
+%%
+
+start:
+	| constrs EOF						{ {Defs=[]; PConstraints=[]; CConstraints=(List.rev $1)} }
+	| definitions constrs EOF			{ {Defs=(List.rev $1); PConstraints=[]; CConstraints=(List.rev $2)} }
+
+constrs:
+	| constr							{ [$1] }
+	| constr constrs					{ $1 :: $2 }
+
+constr:
+	| MULTIPATH							{ Ast.Multipath }
+	| MAXROUTES LPAREN INT RPAREN		{ Ast.MaxRoutes $3 }
+
+definitions:
+	| definition						{ [$1] }
+	| definition definitions			{ $1 :: $2 }
+
+definition:
+	| DEFINE ID							{ $2 }

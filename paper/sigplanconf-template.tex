@@ -166,15 +166,19 @@ loops with interactions with neighbors.
 		  more of the regular path constraints. We accept if we are in at least one of the accepting states 
 		  for one or more of the DFAs. We take the max of the preferences for the accepting preference.
 		  Add a new start and end node as well.
+		  
 	\item Minimize the constraint graph by removing nodes and edges that never contribute to a solution. 
 		  This is sound. Removing these makes it easier to check if things are implementable using BGP (see next point).
 		  There are two ways to do this: a sound heuristic for removing edges and nodes, and a complete, but slow method for 
 		  removing everything not needed.
-	\item Since our policy language is richer than BGP, we need to check if it is implementable with BGP.
-		  First show some examples of what the problem is: why BGP cannot make a decision.
-		  We check: preference consistency (doesn't regret a choice based on which preference accepting state it might reach)
-		  and topology consistency (no failure scenario will result in an advertisement reaching a router from a more preferred neighbor 
-		  but then not get to an accepting state, when another, less preferred route was available).
+		  
+	\item Since our policy language can express things not implementable in BGP, we need a few checks.
+		  First show some examples of what the problem is: why BGP cannot make a decision. 
+		  The reasons this can happen are: 
+		  (1) Single best path per router - no subset of paths specified is consistent (if A goes through B and C goes through A, then C goes through B).
+		  (2) Failures - Have to make a decision without knowing what failures have occurred. Must be the case that 
+		                 
+
 	\item We can check for topology consistency using a sufficient condition (that works often and is very fast), 
 		  and by enumerating failure scenarios using a necessary and sufficient condition (that always works but is slooooow)
 	
@@ -183,6 +187,21 @@ loops with interactions with neighbors.
 		  corresponding state and set preferences accordingly (example will be needed)
 	\item Running example will be helpful here.	
 \end{itemize}
+
+\subsection{Optimizations}
+
+\begin{itemize}
+	\item Compress communities by reusing communities across routers.
+	      That is, we can reuse the same community value since we know who the next hop is 
+	      (e.g., if there are 4 Y nodes, then use communities 0-4 for Y)
+
+	\item If we have the same match across all starting locations, then match only on community.
+		  If we have the same match across all communities (per peer) for a location, then omit checking 
+		  the community (similarly avoid tagging the community from the other point of view)
+		  These mainly just make things much easier to read for a human (more natural policy).
+\end{itemize}
+
+
 
 \section{Evaluation}
 

@@ -1,0 +1,47 @@
+{
+module Lexer
+open System
+open Parser
+open Microsoft.FSharp.Text.Lexing
+
+exception EofInComment
+exception UnrecognizedChar of char
+}
+
+
+let id = ['a'-'z' 'A'-'Z'] ['a'-'z' 'A'-'Z' '0'-'9']*
+let whitespace = [ ' ' '\t' '\r' '\n' ]
+
+rule tokenize = parse
+	| "/*"					{ comments 0 lexbuf } 
+	| "define"				{ DEFINE }
+	| "scope"				{ SCOPE }
+	| "paths"				{ PATHS }
+	| "ordered"				{ ORDERED }
+	| "unordered"			{ UNORDERED }
+	| "aggregate"			{ AGGREGATE }
+	| "community"			{ COMMUNITY }
+	| "maxroutes"			{ MAXROUTES }
+	| "multipath"			{ MULTIPATH }
+	| "include"				{ INCLUDE }
+	| id					{ ID (LexBuffer<char>.LexemeString lexbuf) }
+	| ['0'-'9']+			{ INT (Int32.Parse (LexBuffer<char>.LexemeString lexbuf)) }
+	| '='					{ EQUAL }
+	| '('					{ LPAREN }
+	| ')'					{ RPAREN }
+	| "->"					{ RARROW }
+	| '['					{ LBRACKET }
+	| ']'					{ RBRACKET }
+	| '{'					{ LBRACE }
+	| '}'					{ RBRACE }
+	| ','					{ COMMA }
+	| '/'					{ SLASH }
+	| ':'					{ COLON }
+	| [' ' '\t' '\n']		{ tokenize lexbuf }
+	| eof					{ EOF }
+
+and comments level = parse
+	| "*/"					{ if level = 0 then tokenize lexbuf else comments (level-1) lexbuf }
+	| "/*"					{ comments (level+1) lexbuf }
+	| _						{ comments level lexbuf }
+	| eof					{ raise EofInComment }

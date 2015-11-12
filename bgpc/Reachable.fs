@@ -121,11 +121,9 @@ let supersetPaths (cg1, n1) (cg2, n2) : bool =
         | None -> Map.add k (Set.singleton v) map
         | Some vs -> Map.add k (Set.add v vs) map
 
-    let addAll k vs map = 
-        Set.fold (fun acc v -> add k v acc) map vs
+    let addAll k vs map = Set.fold (fun acc v -> add k v acc) map vs
 
-    let merge x y = 
-        Map.fold (fun acc k v -> addAll k v acc) x y
+    let merge x y = Map.fold (fun acc k v -> addAll k v acc) x y
 
     let remainsSuperset b = 
         Map.fold (fun acc k v -> 
@@ -172,7 +170,7 @@ let supersetPaths (cg1, n1) (cg2, n2) : bool =
 
     let rec iter n bisim = 
         match n with 
-        | 0 -> true 
+        | 0 -> true
         | _ ->
             if Map.isEmpty bisim then true else
             if not (remainsSuperset bisim) then false else 
@@ -186,4 +184,3 @@ let supersetPaths (cg1, n1) (cg2, n2) : bool =
         let bisim = Map.add n1 (Set.singleton n2) Map.empty
         let steps = max cg1.Graph.VertexCount cg2.Graph.VertexCount 
         iter steps bisim
-

@@ -13,7 +13,7 @@
     <AutoGenerateBindingRedirects>true</AutoGenerateBindingRedirects>
     <TargetFSharpCoreVersion>4.3.1.0</TargetFSharpCoreVersion>
     <Name>bgpc</Name>
-    <NuGetPackageImportStamp>6092ca94</NuGetPackageImportStamp>
+    <NuGetPackageImportStamp>a6a8f69c</NuGetPackageImportStamp>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
     <DebugSymbols>true</DebugSymbols>
@@ -43,6 +43,7 @@
       <HintPath>..\packages\FsLexYacc.Runtime.6.1.0\lib\net40\FsLexYacc.Runtime.dll</HintPath>
       <Private>True</Private>
     </Reference>
+    <Reference Include="FsLexYacc.Runtime" />
     <Reference Include="mscorlib" />
     <Reference Include="FSharp.Core, Version=$(TargetFSharpCoreVersion), Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a">
       <Private>True</Private>
@@ -74,6 +75,19 @@
     <Compile Include="Prefix.fs" />
     <Compile Include="Regex.fsi" />
     <Compile Include="Regex.fs" />
+    <Compile Include="Ast.fs" />
+    <FsLex Include="Lexer.fsl">
+      <OtherFlags>--unicode</OtherFlags>
+      <Link>Lexer.fsl</Link>
+    </FsLex>
+    <FsYacc Include="Parser.fsy">
+      <OtherFlags>--module Parser</OtherFlags>
+      <Link>Parser.fsy</Link>
+    </FsYacc>
+    <Compile Include="Parser.fs" />
+    <Compile Include="Lexer.fs" />
+    <Compile Include="Input.fsi" />
+    <Compile Include="Input.fs" />
     <Compile Include="Policy.fs" />
     <Compile Include="CGraph.fsi" />
     <Compile Include="CGraph.fs" />

@@ -1,0 +1,57 @@
+Tdefine external		= out+
+define internal	 	= in+
+define through_me 	= out* internal
+define leaving_me	= internal external
+define enter_in(X) 	= out+ (X inter in) in* out*
+define enter_out(X)	= out* (X inter out) in+ out*
+define exit_in(X)	= out* in* (X inter in) out+
+define exit_out(X)	= out* in+ (X inter out) out*
+
+define AGGREGATE = 8075:420
+define REGIONAL	 = 8075:61000
+
+define blocks 	= ...
+define pfx1		= 10.0.0.0/8
+define pfx2		= 127.0.0.1/24
+define pfx3		= 15.6.7.8/16
+
+define T0 	= (A + B + C + D + ...)  	# if from DB, then maybe: {X | X.tier = T0}
+define T1 	= ...
+define T2 	= ...
+define T3 	= ...
+define DCR 	= ...
+
+scope {
+	paths ordered {
+		block => {}
+		pfx1 => through_me
+		pfx2 => through_me
+		pfx3 => through_me
+		...
+		true => leaving_me
+	}
+
+	aggregate(pfx1, in → DCR)
+	aggregate(pfx2, in → DCR)
+	aggregate(pfx3, in → DCR)
+	...
+
+	community(pfx1[exact], in → DCR, AGGREGATE)		# same as pfx1[8..8] in this case
+	community(pfx2[exact], in → DCR, AGGREGATE)
+	...
+	community(true , in → DCR, REGIONAL)			
+
+	max_routes(T1 → T0, 12000)
+	max_routes(T0 → T1, 150)
+	...
+
+	allow_as_in(T0)
+	del_private(in → out)
+	multipath
+}
+
+include("
+	snmp commands
+	access lists 
+	etc...
+")
