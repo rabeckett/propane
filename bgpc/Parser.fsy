@@ -10,22 +10,60 @@ open Microsoft.FSharp.Collections
 %token <string> ID
 %token <System.Int32> INT
 
-%token EQUAL LPAREN RPAREN LBRACKET RBRACKET LBRACE RBRACE COMMA SLASH COLON RARROW EOF
-%token DEFINE SCOPE PATHS ORDERED UNORDERED AGGREGATE COMMUNITY MAXROUTES MULTIPATH INCLUDE
+%token EQUAL LPAREN RPAREN LBRACKET RBRACKET LBRACE RBRACE COMMA SLASH COLON SEMICOLON RARROW EOF
+%token INTERSECT UNION NOT STAR SHR
+%token DEFINE SCOPE OWNS PATHS ORDERED UNORDERED AGGREGATE COMMUNITY MAXROUTES MULTIPATH INCLUDE
+
+%nonassoc EQUALS
+%left UNION 
+%left INTERSECT
+%left SEMICOLON
+%right NOT
+%left STAR
+%left SHR
 
 %%
 
 start:
-	| constrs EOF						{ {Defs=[]; PConstraints=[]; CConstraints=(List.rev $1)} }
-	| definitions constrs EOF			{ {Defs=(List.rev $1); PConstraints=[]; CConstraints=(List.rev $2)} }
+	| pconstrs EOF						{ {Defs=[]; PConstraints=(List.rev $1); CConstraints=[]} }
+	| pconstrs cconstrs EOF				{ {Defs=[]; PConstraints=(List.rev $1); CConstraints=(List.rev $2)} }
+	| definitions pconstrs EOF			{ {Defs=(List.rev $1); PConstraints=(List.rev $2); CConstraints=[]} }
+	| definitions pconstrs cconstrs EOF	{ {Defs=(List.rev $1); PConstraints=(List.rev $2); CConstraints=(List.rev $3)} }
 
-constrs:
-	| constr							{ [$1] }
-	| constr constrs					{ $1 :: $2 }
+cconstrs:
+	| cconstr							{ [$1] }
+	| cconstr cconstrs					{ $1 :: $2 }
 
-constr:
+cconstr:
 	| MULTIPATH							{ Ast.Multipath }
 	| MAXROUTES LPAREN INT RPAREN		{ Ast.MaxRoutes $3 }
+	| AGGREGATE LPAREN prefix COMMA regex RARROW regex RPAREN { Ast.RouteAggregate($3, $5, $7) }
+	| COMMUNITY LPAREN prefix COMMA regex RARROW regex RPAREN { Ast.CommunityTag($3, $5, $7) }
+	| OWNS LPAREN prefix COMMA regex	{ Ast.Ownership($3, $5) }
+
+pconstrs:
+	| pconstr							{ [$1] }
+	| pconstr pconstrs					{ $1 :: $2 }
+
+pconstr:
+	| prefix regexs						{ Ast.Path($1, List.rev $2) }
+
+regexs:
+	| regex								{ [$1] }
+	| regex SHR regexs					{ $1 :: $3 }
+
+regex:
+	| ID								{ Ast.Loc $1 }
+	| LBRACKET RBRACKET					{ Ast.Empty }
+	| regex SEMICOLON regex				{ Ast.Concat ($1, $3) }
+	| regex INTERSECT regex				{ Ast.Inter ($1, $3) }
+	| regex UNION regex					{ Ast.Union ($1, $3) }
+	| NOT regex							{ Ast.Negate $2 }
+	| regex STAR						{ Ast.Star $1 }
+	| LPAREN regex RPAREN				{ $2 }
+
+prefix:
+	ID									{ $1 }
 
 definitions:
 	| definition						{ [$1] }

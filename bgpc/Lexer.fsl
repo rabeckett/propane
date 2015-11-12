@@ -23,7 +23,11 @@ rule tokenize = parse
 	| "community"			{ COMMUNITY }
 	| "maxroutes"			{ MAXROUTES }
 	| "multipath"			{ MULTIPATH }
+	| "owns"				{ OWNS }
 	| "include"				{ INCLUDE }
+	| "inter"				{ INTERSECT }
+	| "union"				{ UNION }
+	| "not"					{ NOT }
 	| id					{ ID (LexBuffer<char>.LexemeString lexbuf) }
 	| ['0'-'9']+			{ INT (Int32.Parse (LexBuffer<char>.LexemeString lexbuf)) }
 	| '='					{ EQUAL }
@@ -37,6 +41,9 @@ rule tokenize = parse
 	| ','					{ COMMA }
 	| '/'					{ SLASH }
 	| ':'					{ COLON }
+	| ';'					{ SEMICOLON }
+	| '*'					{ STAR }
+	| ">>"					{ SHR }
 	| [' ' '\t' '\n']		{ tokenize lexbuf }
 	| eof					{ EOF }
 

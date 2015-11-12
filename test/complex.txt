@@ -1,4 +1,4 @@
-Tdefine external		= out+
+define external		= out+
 define internal	 	= in+
 define through_me 	= out* internal
 define leaving_me	= internal external

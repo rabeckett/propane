@@ -31,6 +31,7 @@ type REBuilder  =
     member Concat: (T -> T -> T)
     member Inter: (T -> T -> T)
     member Union: (T -> T -> T)
-    member Star: (T -> T)
     member Negate: (T -> T)
+    member Star: (T -> T)
     member MakeDFA: (T -> Automaton)
+    member FromAst: Ast.Re -> T

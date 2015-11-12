@@ -3,6 +3,7 @@ module Parser
 type token = 
   | DEFINE
   | SCOPE
+  | OWNS
   | PATHS
   | ORDERED
   | UNORDERED
@@ -11,6 +12,11 @@ type token =
   | MAXROUTES
   | MULTIPATH
   | INCLUDE
+  | INTERSECT
+  | UNION
+  | NOT
+  | STAR
+  | SHR
   | EQUAL
   | LPAREN
   | RPAREN
@@ -21,6 +27,7 @@ type token =
   | COMMA
   | SLASH
   | COLON
+  | SEMICOLON
   | RARROW
   | EOF
   | INT of (System.Int32)
@@ -28,6 +35,7 @@ type token =
 type tokenId = 
     | TOKEN_DEFINE
     | TOKEN_SCOPE
+    | TOKEN_OWNS
     | TOKEN_PATHS
     | TOKEN_ORDERED
     | TOKEN_UNORDERED
@@ -36,6 +44,11 @@ type tokenId =
     | TOKEN_MAXROUTES
     | TOKEN_MULTIPATH
     | TOKEN_INCLUDE
+    | TOKEN_INTERSECT
+    | TOKEN_UNION
+    | TOKEN_NOT
+    | TOKEN_STAR
+    | TOKEN_SHR
     | TOKEN_EQUAL
     | TOKEN_LPAREN
     | TOKEN_RPAREN
@@ -46,6 +59,7 @@ type tokenId =
     | TOKEN_COMMA
     | TOKEN_SLASH
     | TOKEN_COLON
+    | TOKEN_SEMICOLON
     | TOKEN_RARROW
     | TOKEN_EOF
     | TOKEN_INT
@@ -55,8 +69,13 @@ type tokenId =
 type nonTerminalId = 
     | NONTERM__startstart
     | NONTERM_start
-    | NONTERM_constrs
-    | NONTERM_constr
+    | NONTERM_cconstrs
+    | NONTERM_cconstr
+    | NONTERM_pconstrs
+    | NONTERM_pconstr
+    | NONTERM_regexs
+    | NONTERM_regex
+    | NONTERM_prefix
     | NONTERM_definitions
     | NONTERM_definition
 /// This function maps tokens to integer indexes
