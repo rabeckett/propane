@@ -88,7 +88,6 @@
     <Compile Include="Lexer.fs" />
     <Compile Include="Input.fsi" />
     <Compile Include="Input.fs" />
-    <Compile Include="Policy.fs" />
     <Compile Include="CGraph.fsi" />
     <Compile Include="CGraph.fs" />
     <Compile Include="Reachable.fsi" />

@@ -9,4 +9,3 @@ type T =
     | Or of T * T
     | And of T * T
     | Not of T
-

@@ -15,15 +15,6 @@ let readFromFile fname =
         | Lexer.EofInComment -> 
             printfn "[Parse Error]: End of file detected in comment"
             exit 0
-        | Parser.NoPathConstraints -> 
-            printfn "[Parse Error]: No path constraints found"
-            exit 0
-        | Parser.NoScope -> 
-            printfn "[Parse Error]: No top-level scope found"
-            exit 0
-        | Parser.EmptyFile -> 
-            printfn "[Parse Error]: File is empty. Must provide path constraints"
-            exit 0
         | _ ->
            let pos = lexbuf.EndPos
            let line = pos.Line

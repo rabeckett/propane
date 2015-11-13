@@ -59,7 +59,7 @@ cconstr:
 	| MAXROUTES LPAREN INT RPAREN			{ Ast.MaxRoutes $3 }
 	| AGGREGATE LPAREN predicate COMMA regex RARROW regex RPAREN { Ast.RouteAggregate($3, $5, $7) }
 	| COMMUNITY LPAREN predicate COMMA regex RARROW regex RPAREN { Ast.CommunityTag($3, $5, $7) }
-	| OWNS LPAREN predicate COMMA regex		{ Ast.Ownership($3, $5) }
+	| OWNS LPAREN predicate COMMA regex	RPAREN	{ Ast.Ownership($3, $5) }
 
 pconstrs:
 	| pconstr								{ [$1] }

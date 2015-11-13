@@ -1,5 +1,9 @@
 ﻿scope DC {
 	true => in* >> out*
+	true => in* >> in*;M;in*
+
 	aggregate(1.2.3.4/16, in -> out)
 	community(1.2.3.4/16, in -> out)
+	maxroutes(100)
+	owns(1.2.3.4/10, M)
 }
