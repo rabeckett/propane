@@ -6,17 +6,20 @@ let RE = Regex.REBuilder(topo)
 
 [<EntryPoint>]
 let main argv = 
+    let x = Input.readFromFile "..\..\..\\test\simple1.txt"
 
+    printfn "%A" x
 
     (* let inStar = RE.Star RE.Inside
     let r1 = (RE.Concat (RE.Concat inStar (RE.Loc "X")) inStar)
     let r2 = (RE.Concat (RE.Concat inStar (RE.Loc "Y")) inStar) *)
 
-    let ac = RE.Concat (RE.Loc "A") (RE.Loc "C")
+    (* let ac = RE.Concat (RE.Loc "A") (RE.Loc "C")
     let ba = RE.Concat (RE.Loc "B") (RE.Loc "A")
-    let cb = RE.Concat (RE.Loc "C") (RE.Loc "B")
+    let cb = RE.Concat (RE.Loc "C") (RE.Loc "B") *)
 
-    let r1 = RE.Union (RE.Union ac ba) cb 
+
+    (* let r1 = RE.Union (RE.Union ac ba) cb 
     let r2 = RE.Union (RE.Union (RE.Loc "A") (RE.Loc "B")) (RE.Loc "")
 
     let dfa1 = RE.MakeDFA (RE.Rev r1)
@@ -40,6 +43,7 @@ let main argv =
     | Err(Consistency.TopoViolation (x,y)) ->
         printfn "Topo Consistency Violation"
         printfn "Node1: %A" x 
-        printfn "Node2: %A" y
+        printfn "Node2: %A" y *)
+    System.Console.ReadKey () |> ignore
 
     0

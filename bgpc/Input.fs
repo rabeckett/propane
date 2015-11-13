@@ -3,12 +3,33 @@
 open System.IO
 open Microsoft.FSharp.Text.Lexing
 
+let setInitialPos (lexbuf: LexBuffer<_>) fname = 
+    lexbuf.EndPos <- {pos_bol = 0; pos_fname = fname; pos_cnum = 0; pos_lnum = 1}
 
-let readFromString s =
-    let lexbuf = LexBuffer<_>.FromString s
-    Parser.start Lexer.tokenize lexbuf
-
-let readFromFile f =
-    readFromString (File.ReadAllText f)
+let readFromFile fname =
+    let text = File.ReadAllText fname
+    let lexbuf = LexBuffer<_>.FromString text
+    setInitialPos lexbuf fname
+    try Parser.start Lexer.tokenize lexbuf
+    with
+        | Lexer.EofInComment -> 
+            printfn "[Parse Error]: End of file detected in comment"
+            exit 0
+        | Parser.NoPathConstraints -> 
+            printfn "[Parse Error]: No path constraints found"
+            exit 0
+        | Parser.NoScope -> 
+            printfn "[Parse Error]: No top-level scope found"
+            exit 0
+        | Parser.EmptyFile -> 
+            printfn "[Parse Error]: File is empty. Must provide path constraints"
+            exit 0
+        | _ ->
+           let pos = lexbuf.EndPos
+           let line = pos.Line
+           let column = pos.Column
+           printfn "[Parse Error]: Line: %d, Char: %d" line column
+           System.Console.ReadKey () |> ignore
+           exit 0
 
 

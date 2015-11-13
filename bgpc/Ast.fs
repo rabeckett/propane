@@ -4,6 +4,8 @@ open Microsoft.FSharp.Collections
 
 type Re = 
     | Empty
+    | Inside
+    | Outside
     | Loc of string 
     | Concat of Re * Re
     | Union of Re * Re 
@@ -22,7 +24,10 @@ type ControlConstraint =
     | CommunityTag of Prefix.T * Re * Re
     | Ownership of Prefix.T * Re
 
-type T =
-    {Defs: Definition list;
+type Scope =
+    {Name: string;
+     Defs: Definition list;
      PConstraints: PathConstraint list;
      CConstraints: ControlConstraint list}
+
+type T = Scope list

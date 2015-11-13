@@ -2,6 +2,21 @@
 open System
 open Ast
 open Microsoft.FSharp.Collections
+
+exception EmptyFile
+exception NoScope
+exception NoPathConstraints
+
+let addScope s (ds, ps, cs) = 
+    {Name=s;
+    Defs=ds;
+    PConstraints=ps;
+    CConstraints=cs}
+
+let loc l = 
+    if l = "in" then Ast.Inside 
+    else if l = "out" then Ast.Outside 
+    else Ast.Loc l
 %}
 
 %start start
@@ -10,7 +25,7 @@ open Microsoft.FSharp.Collections
 %token <string> ID
 %token <System.Int32> INT
 
-%token EQUAL LPAREN RPAREN LBRACKET RBRACKET LBRACE RBRACE COMMA SLASH COLON SEMICOLON RARROW EOF
+%token EQUAL LPAREN RPAREN LBRACKET RBRACKET LBRACE RBRACE COMMA SLASH COLON SEMICOLON RARROW ROCKET EOF
 %token INTERSECT UNION NOT STAR SHR
 %token DEFINE SCOPE OWNS PATHS ORDERED UNORDERED AGGREGATE COMMUNITY MAXROUTES MULTIPATH INCLUDE
 
@@ -25,49 +40,53 @@ open Microsoft.FSharp.Collections
 %%
 
 start:
-	| pconstrs EOF						{ {Defs=[]; PConstraints=(List.rev $1); CConstraints=[]} }
-	| pconstrs cconstrs EOF				{ {Defs=[]; PConstraints=(List.rev $1); CConstraints=(List.rev $2)} }
-	| definitions pconstrs EOF			{ {Defs=(List.rev $1); PConstraints=(List.rev $2); CConstraints=[]} }
-	| definitions pconstrs cconstrs EOF	{ {Defs=(List.rev $1); PConstraints=(List.rev $2); CConstraints=(List.rev $3)} }
+	| SCOPE ID LBRACE scope RBRACE EOF		{ [addScope $2 $4] }
+	| SCOPE ID LBRACE scope RBRACE start EOF{ (addScope $2 $4) :: $6 }
+
+scope:
+	| pconstrs								{ ([], $1, []) }
+	| pconstrs cconstrs						{ ([], $1, $2) }
+	| definitions pconstrs					{ ($1, $2, []) }
+	| definitions pconstrs cconstrs			{ ($1, $2, $3) }
 
 cconstrs:
-	| cconstr							{ [$1] }
-	| cconstr cconstrs					{ $1 :: $2 }
+	| cconstr								{ [$1] }
+	| cconstr cconstrs						{ $1 :: $2 }
 
 cconstr:
-	| MULTIPATH							{ Ast.Multipath }
-	| MAXROUTES LPAREN INT RPAREN		{ Ast.MaxRoutes $3 }
+	| MULTIPATH								{ Ast.Multipath }
+	| MAXROUTES LPAREN INT RPAREN			{ Ast.MaxRoutes $3 }
 	| AGGREGATE LPAREN prefix COMMA regex RARROW regex RPAREN { Ast.RouteAggregate($3, $5, $7) }
 	| COMMUNITY LPAREN prefix COMMA regex RARROW regex RPAREN { Ast.CommunityTag($3, $5, $7) }
-	| OWNS LPAREN prefix COMMA regex	{ Ast.Ownership($3, $5) }
+	| OWNS LPAREN prefix COMMA regex		{ Ast.Ownership($3, $5) }
 
 pconstrs:
-	| pconstr							{ [$1] }
-	| pconstr pconstrs					{ $1 :: $2 }
+	| pconstr								{ [$1] }
+	| pconstr pconstrs						{ $1 :: $2 }
 
 pconstr:
-	| prefix regexs						{ Ast.Path($1, List.rev $2) }
+	| prefix ROCKET regexs					{ Ast.Path($1, $3) }
 
 regexs:
-	| regex								{ [$1] }
-	| regex SHR regexs					{ $1 :: $3 }
+	| regex									{ [$1] }
+	| regex SHR regexs						{ $1 :: $3 }
 
 regex:
-	| ID								{ Ast.Loc $1 }
-	| LBRACKET RBRACKET					{ Ast.Empty }
-	| regex SEMICOLON regex				{ Ast.Concat ($1, $3) }
-	| regex INTERSECT regex				{ Ast.Inter ($1, $3) }
-	| regex UNION regex					{ Ast.Union ($1, $3) }
-	| NOT regex							{ Ast.Negate $2 }
-	| regex STAR						{ Ast.Star $1 }
-	| LPAREN regex RPAREN				{ $2 }
+	| ID									{ loc $1 }
+	| LBRACKET RBRACKET						{ Ast.Empty }
+	| regex SEMICOLON regex					{ Ast.Concat ($1, $3) }
+	| regex INTERSECT regex					{ Ast.Inter ($1, $3) }
+	| regex UNION regex						{ Ast.Union ($1, $3) }
+	| NOT regex								{ Ast.Negate $2 }
+	| regex STAR							{ Ast.Star $1 }
+	| LPAREN regex RPAREN					{ $2 }
 
 prefix:
-	ID									{ $1 }
+	ID										{ $1 }
 
 definitions:
-	| definition						{ [$1] }
-	| definition definitions			{ $1 :: $2 }
+	| definition							{ [$1] }
+	| definition definitions				{ $1 :: $2 }
 
 definition:
-	| DEFINE ID							{ $2 }
+	| DEFINE ID								{ $2 }

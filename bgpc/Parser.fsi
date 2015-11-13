@@ -29,6 +29,7 @@ type token =
   | COLON
   | SEMICOLON
   | RARROW
+  | ROCKET
   | EOF
   | INT of (System.Int32)
   | ID of (string)
@@ -61,6 +62,7 @@ type tokenId =
     | TOKEN_COLON
     | TOKEN_SEMICOLON
     | TOKEN_RARROW
+    | TOKEN_ROCKET
     | TOKEN_EOF
     | TOKEN_INT
     | TOKEN_ID
@@ -69,6 +71,7 @@ type tokenId =
 type nonTerminalId = 
     | NONTERM__startstart
     | NONTERM_start
+    | NONTERM_scope
     | NONTERM_cconstrs
     | NONTERM_cconstr
     | NONTERM_pconstrs

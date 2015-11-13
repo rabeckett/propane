@@ -5,7 +5,10 @@ open Parser
 open Microsoft.FSharp.Text.Lexing
 
 exception EofInComment
-exception UnrecognizedChar of char
+
+let newline (lexbuf: LexBuffer<_>) =
+    lexbuf.EndPos <- lexbuf.EndPos.NextLine
+
 }
 
 
@@ -34,6 +37,7 @@ rule tokenize = parse
 	| '('					{ LPAREN }
 	| ')'					{ RPAREN }
 	| "->"					{ RARROW }
+	| "=>"					{ ROCKET }
 	| '['					{ LBRACKET }
 	| ']'					{ RBRACKET }
 	| '{'					{ LBRACE }
@@ -44,11 +48,13 @@ rule tokenize = parse
 	| ';'					{ SEMICOLON }
 	| '*'					{ STAR }
 	| ">>"					{ SHR }
-	| [' ' '\t' '\n']		{ tokenize lexbuf }
+	| [' ' '\t' '\r']		{ tokenize lexbuf }
+	| '\n'					{ newline lexbuf; tokenize lexbuf }
 	| eof					{ EOF }
 
 and comments level = parse
 	| "*/"					{ if level = 0 then tokenize lexbuf else comments (level-1) lexbuf }
 	| "/*"					{ comments (level+1) lexbuf }
+	| '\n'					{ newline lexbuf; comments level lexbuf }
 	| _						{ comments level lexbuf }
 	| eof					{ raise EofInComment }

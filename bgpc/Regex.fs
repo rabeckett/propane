@@ -259,6 +259,8 @@ type REBuilder(topo: Topology.T) =
     member __.MakeDFA = makeDFA alphabet
     member this.FromAst r = 
         match r with 
+        | Ast.Inside -> this.Inside 
+        | Ast.Outside -> this.Outside
         | Ast.Loc l -> this.Loc l
         | Ast.Empty -> Empty
         | Ast.Concat(x,y) -> this.Concat (this.FromAst x) (this.FromAst y)
