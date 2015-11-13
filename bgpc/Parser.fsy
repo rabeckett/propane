@@ -25,17 +25,18 @@ let loc l =
 %token <string> ID
 %token <System.Int32> INT
 
-%token EQUAL LPAREN RPAREN LBRACKET RBRACKET LBRACE RBRACE COMMA SLASH COLON SEMICOLON RARROW ROCKET EOF
-%token INTERSECT UNION NOT STAR SHR
+%token EQUAL LPAREN RPAREN LBRACKET RBRACKET LBRACE RBRACE COMMA SLASH COLON SEMICOLON RARROW ROCKET DOT EOF
+%token INTERSECT UNION NOT STAR SHR AND OR TRUE FALSE
 %token DEFINE SCOPE OWNS PATHS ORDERED UNORDERED AGGREGATE COMMUNITY MAXROUTES MULTIPATH INCLUDE
 
 %nonassoc EQUALS
-%left UNION 
-%left INTERSECT
+%left UNION INTERSECT
 %left SEMICOLON
+%left AND OR
 %right NOT
 %left STAR
 %left SHR
+
 
 %%
 
@@ -56,16 +57,16 @@ cconstrs:
 cconstr:
 	| MULTIPATH								{ Ast.Multipath }
 	| MAXROUTES LPAREN INT RPAREN			{ Ast.MaxRoutes $3 }
-	| AGGREGATE LPAREN prefix COMMA regex RARROW regex RPAREN { Ast.RouteAggregate($3, $5, $7) }
-	| COMMUNITY LPAREN prefix COMMA regex RARROW regex RPAREN { Ast.CommunityTag($3, $5, $7) }
-	| OWNS LPAREN prefix COMMA regex		{ Ast.Ownership($3, $5) }
+	| AGGREGATE LPAREN predicate COMMA regex RARROW regex RPAREN { Ast.RouteAggregate($3, $5, $7) }
+	| COMMUNITY LPAREN predicate COMMA regex RARROW regex RPAREN { Ast.CommunityTag($3, $5, $7) }
+	| OWNS LPAREN predicate COMMA regex		{ Ast.Ownership($3, $5) }
 
 pconstrs:
 	| pconstr								{ [$1] }
 	| pconstr pconstrs						{ $1 :: $2 }
 
 pconstr:
-	| prefix ROCKET regexs					{ Ast.Path($1, $3) }
+	| predicate ROCKET regexs				{ Ast.Path($1, $3) }
 
 regexs:
 	| regex									{ [$1] }
@@ -81,8 +82,16 @@ regex:
 	| regex STAR							{ Ast.Star $1 }
 	| LPAREN regex RPAREN					{ $2 }
 
-prefix:
-	ID										{ $1 }
+predicate:
+	| INT DOT INT DOT INT DOT INT			{ Prefix.Prefix($1, $3, $5, $7, None) }
+	| INT DOT INT DOT INT DOT INT SLASH INT	{ Prefix.Prefix($1, $3, $5, $7, Some $9) }
+	| TRUE									{ Prefix.True }
+	| FALSE									{ Prefix.False }
+	| predicate OR predicate				{ Prefix.Or($1, $3) }
+	| predicate AND predicate				{ Prefix.And($1, $3) }
+	| NOT predicate							{ Prefix.Not $2 }
+	| LPAREN predicate RPAREN				{ $2 }
+
 
 definitions:
 	| definition							{ [$1] }

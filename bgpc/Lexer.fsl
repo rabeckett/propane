@@ -8,7 +8,6 @@ exception EofInComment
 
 let newline (lexbuf: LexBuffer<_>) =
     lexbuf.EndPos <- lexbuf.EndPos.NextLine
-
 }
 
 
@@ -31,6 +30,10 @@ rule tokenize = parse
 	| "inter"				{ INTERSECT }
 	| "union"				{ UNION }
 	| "not"					{ NOT }
+	| "and"					{ AND }
+	| "or"					{ OR }
+	| "true"				{ TRUE }
+	| "false"				{ FALSE }
 	| id					{ ID (LexBuffer<char>.LexemeString lexbuf) }
 	| ['0'-'9']+			{ INT (Int32.Parse (LexBuffer<char>.LexemeString lexbuf)) }
 	| '='					{ EQUAL }
@@ -46,6 +49,7 @@ rule tokenize = parse
 	| '/'					{ SLASH }
 	| ':'					{ COLON }
 	| ';'					{ SEMICOLON }
+	| '.'					{ DOT }
 	| '*'					{ STAR }
 	| ">>"					{ SHR }
 	| [' ' '\t' '\r']		{ tokenize lexbuf }

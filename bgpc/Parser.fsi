@@ -17,6 +17,10 @@ type token =
   | NOT
   | STAR
   | SHR
+  | AND
+  | OR
+  | TRUE
+  | FALSE
   | EQUAL
   | LPAREN
   | RPAREN
@@ -30,6 +34,7 @@ type token =
   | SEMICOLON
   | RARROW
   | ROCKET
+  | DOT
   | EOF
   | INT of (System.Int32)
   | ID of (string)
@@ -50,6 +55,10 @@ type tokenId =
     | TOKEN_NOT
     | TOKEN_STAR
     | TOKEN_SHR
+    | TOKEN_AND
+    | TOKEN_OR
+    | TOKEN_TRUE
+    | TOKEN_FALSE
     | TOKEN_EQUAL
     | TOKEN_LPAREN
     | TOKEN_RPAREN
@@ -63,6 +72,7 @@ type tokenId =
     | TOKEN_SEMICOLON
     | TOKEN_RARROW
     | TOKEN_ROCKET
+    | TOKEN_DOT
     | TOKEN_EOF
     | TOKEN_INT
     | TOKEN_ID
@@ -78,7 +88,7 @@ type nonTerminalId =
     | NONTERM_pconstr
     | NONTERM_regexs
     | NONTERM_regex
-    | NONTERM_prefix
+    | NONTERM_predicate
     | NONTERM_definitions
     | NONTERM_definition
 /// This function maps tokens to integer indexes

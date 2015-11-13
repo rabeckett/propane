@@ -1,5 +1,5 @@
 ﻿scope DC {
 	true => in* >> out*
-	aggregate(foo, in -> out)
-	community(foo, in -> out)
+	aggregate(1.2.3.4/16, in -> out)
+	community(1.2.3.4/16, in -> out)
 }
