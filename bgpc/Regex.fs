@@ -257,16 +257,5 @@ type REBuilder(topo: Topology.T) =
     member __.Star = star
     member __.Negate = negate alphabet
     member __.MakeDFA = makeDFA alphabet
-    member this.FromAst r = 
-        match r with 
-        | Ast.Inside -> this.Inside 
-        | Ast.Outside -> this.Outside
-        | Ast.Loc l -> this.Loc l
-        | Ast.Empty -> Empty
-        | Ast.Concat(x,y) -> this.Concat (this.FromAst x) (this.FromAst y)
-        | Ast.Inter(x,y) -> this.Inter (this.FromAst x) (this.FromAst y)
-        | Ast.Union(x,y) -> this.Union (this.FromAst x) (this.FromAst y)
-        | Ast.Negate x -> this.Negate (this.FromAst x)
-        | Ast.Star x -> this.Star (this.FromAst x)
 
     

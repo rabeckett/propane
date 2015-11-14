@@ -41,8 +41,11 @@ let loc l =
 %%
 
 start:
-	| SCOPE ID LBRACE scope RBRACE EOF		{ [addScope $2 $4] }
-	| SCOPE ID LBRACE scope RBRACE start EOF{ (addScope $2 $4) :: $6 }
+	| scopes EOF							{ $1 }
+
+scopes:
+	| SCOPE ID LBRACE scope RBRACE			{ [addScope $2 $4] }
+	| SCOPE ID LBRACE scope RBRACE scopes	{ (addScope $2 $4) :: $6 }
 
 scope:
 	| pconstrs								{ ([], $1, []) }
@@ -66,7 +69,7 @@ pconstrs:
 	| pconstr pconstrs						{ $1 :: $2 }
 
 pconstr:
-	| predicate ROCKET regexs				{ Ast.Path($1, $3) }
+	| predicate ROCKET regexs				{ ($1, $3) }
 
 regexs:
 	| regex									{ [$1] }

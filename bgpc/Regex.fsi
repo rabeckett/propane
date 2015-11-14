@@ -34,4 +34,3 @@ type REBuilder  =
     member Negate: (T -> T)
     member Star: (T -> T)
     member MakeDFA: (T -> Automaton)
-    member FromAst: Ast.Re -> T

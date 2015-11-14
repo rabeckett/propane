@@ -1,6 +1,5 @@
 ﻿module Ast
-open Microsoft.FSharp.Collections
-
+open Topology
 
 type Re = 
     | Empty
@@ -15,7 +14,7 @@ type Re =
 
 type Definition = string
 
-type PathConstraint = Path of Prefix.T * Re list
+type PathConstraint = Prefix.T * (Re list)
 
 type ControlConstraint = 
     | Multipath
@@ -31,3 +30,16 @@ type Scope =
      CConstraints: ControlConstraint list}
 
 type T = Scope list
+
+let rec buildRegex (reb: Regex.REBuilder) (r: Re) : Regex.T = 
+    match r with 
+    | Inside -> reb.Inside
+    | Outside -> reb.Outside 
+    | Loc l -> reb.Loc l 
+    | Empty -> reb.Empty 
+    | Concat(x,y) -> reb.Concat (buildRegex reb x) (buildRegex reb y)
+    | Inter(x,y) -> reb.Inter (buildRegex reb x) (buildRegex reb y)
+    | Union(x,y) -> reb.Union (buildRegex reb x) (buildRegex reb y)
+    | Negate x -> reb.Negate (buildRegex reb x)
+    | Star x -> reb.Star (buildRegex reb x)
+

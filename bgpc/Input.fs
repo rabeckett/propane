@@ -20,7 +20,6 @@ let readFromFile fname =
            let line = pos.Line
            let column = pos.Column
            printfn "[Parse Error]: Line: %d, Char: %d" line column
-           System.Console.ReadKey () |> ignore
            exit 0
 
 

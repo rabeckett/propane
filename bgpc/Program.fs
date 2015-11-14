@@ -1,39 +1,35 @@
 ﻿open Extension.Error
 
 
-let topo = Topology.ExampleUnstable.topo ()
+
+let topo = Topology.Example2.topo ()
 let RE = Regex.REBuilder(topo)
 
 [<EntryPoint>]
 let main argv = 
-    let x = Input.readFromFile "..\..\..\\test\simple1.txt"
+    let options = Args.parse argv
+    let ast = Input.readFromFile options.PolFile
 
-    printfn "%A" x
+    printfn "AST: %A" ast
 
-    (* let inStar = RE.Star RE.Inside
-    let r1 = (RE.Concat (RE.Concat inStar (RE.Loc "X")) inStar)
-    let r2 = (RE.Concat (RE.Concat inStar (RE.Loc "Y")) inStar) *)
-
-    (* let ac = RE.Concat (RE.Loc "A") (RE.Loc "C")
-    let ba = RE.Concat (RE.Loc "B") (RE.Loc "A")
-    let cb = RE.Concat (RE.Loc "C") (RE.Loc "B") *)
-
-
-    (* let r1 = RE.Union (RE.Union ac ba) cb 
-    let r2 = RE.Union (RE.Union (RE.Loc "A") (RE.Loc "B")) (RE.Loc "")
-
-    let dfa1 = RE.MakeDFA (RE.Rev r1)
-    let dfa2 = RE.MakeDFA (RE.Rev r2)
-    
-    let cg = CGraph.build topo [|dfa1; dfa2|] 
-    
-    (* Minimize.pruneHeuristic cg *)
-   
+    let scope1 = ast.Head 
+    let (_, res) = scope1.PConstraints.Head
+    let res = List.map (fun r -> Ast.buildRegex RE r) res
+    let autos = List.map (fun r -> RE.MakeDFA (RE.Rev r)) res |> Array.ofList
+    let cg = CGraph.build topo autos
     Minimize.removeEdgesForDominatedNodes cg
     Minimize.removeNodesNotOnAnySimplePathToEnd cg
+    
+    match options.Format with 
+    | Args.IR -> ()
+    | Args.Template -> ()
+    | Args.Graph ->
+        match options.OutFile with
+        | None -> ()
+        | Some out ->
+            System.IO.File.WriteAllText(out, CGraph.toDot cg)
 
-    (* printfn "%s" (CGraph.toDot cg) *)
-
+    (*
     match Config.compile topo cg with
     | Ok(config) -> Config.print config
     | Err(Consistency.PrefViolation (x,y)) ->
@@ -44,6 +40,5 @@ let main argv =
         printfn "Topo Consistency Violation"
         printfn "Node1: %A" x 
         printfn "Node2: %A" y *)
-    System.Console.ReadKey () |> ignore
 
     0

@@ -8,7 +8,6 @@ type NodeType =
     | Inside 
     | InsideOriginates
 
-
 type State = 
     {Loc: string; 
      Typ: NodeType}

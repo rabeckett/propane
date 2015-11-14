@@ -3,7 +3,7 @@ open QuickGraph
 
 type CgState = 
     {States: int array; 
-     Accept: int option; 
+     Accept: Set<int>; 
      Topo: Topology.State}
 
 type T = 
@@ -26,20 +26,11 @@ let copyReverseGraph (cg: T) : T =
     {Start=cg.Start; Graph=newCG; End=cg.End}
 
 let build (topo: Topology.T) (autos : Regex.Automaton array) : T = 
-    let minPref x y = 
-        match x, y with 
-        | None, None -> None
-        | Some a, None -> Some a
-        | None, Some b -> Some b 
-        | Some a, Some b -> Some (min a b)
     let alphabetIn, alphabetOut = Topology.alphabet(topo)
     let alphabetAll = Set.union alphabetIn alphabetOut
     let graph = AdjacencyGraph<CgState, TaggedEdge<CgState,unit>>()
     let starting = Array.map (fun (x: Regex.Automaton) -> x.q0) autos
-    let newStart = 
-        {States = starting; 
-         Accept = None; 
-         Topo = {Loc="start"; Typ = Topology.Start} }
+    let newStart = {States = starting; Accept = Set.empty; Topo = {Loc="start"; Typ = Topology.Start} }
     graph.AddVertex newStart |> ignore
     let mutable finished = Set.empty
     let mutable todo = Set.singleton newStart
@@ -59,23 +50,20 @@ let build (topo: Topology.T) (autos : Regex.Automaton array) : T =
                 let newState = Map.find key g.trans 
                 let accept = 
                     if (Topology.canOriginateTraffic c) && (Set.contains newState g.F) then 
-                        Some (i+1)
-                    else None
+                        Set.singleton (i+1)
+                    else Set.empty
                 newState, accept
             )
             let nextStates, nextAccept = Array.unzip nextInfo
-            let accept = Array.fold minPref None nextAccept
+            let accept = Array.fold Set.union Set.empty nextAccept
             let state = {States=nextStates; Accept=accept; Topo=c}
             graph.AddEdge(TaggedEdge(currState, state, ())) |> ignore
             if Set.contains state finished then ()
             else todo <- Set.add state todo
         finished <- Set.add currState finished
-    let newEnd = 
-        {States = [||];
-         Accept = None;
-         Topo = {Loc="end"; Typ = Topology.End}}
+    let newEnd = {States = [||]; Accept = Set.empty; Topo = {Loc="end"; Typ = Topology.End}}
     graph.AddVertex newEnd |> ignore
-    let accepting = Seq.filter (fun v -> v.Accept <> None) graph.Vertices
+    let accepting = Seq.filter (fun v -> not (Set.isEmpty v.Accept)) graph.Vertices
     Seq.iter (fun v -> graph.AddEdge(TaggedEdge(v, newEnd, ())) |> ignore) accepting
     {Start=newStart; Graph=graph; End=newEnd}
 
@@ -88,11 +76,10 @@ let toDot (cg: T) : string =
         | Topology.Start -> v.VertexFormatter.Label <- "Start"
         | Topology.End -> v.VertexFormatter.Label <- "End"
         | _ ->
-            match v.Vertex.Accept with 
-            | None -> 
+            if Set.isEmpty v.Vertex.Accept then 
                 v.VertexFormatter.Label <- "(" + states + ", " + location + ")"
-            | Some i ->
-                v.VertexFormatter.Label <- "(" + states + ", " + location + ")" + "\npref=" + (string i)
+            else
+                v.VertexFormatter.Label <- "(" + states + ", " + location + ")" + "\npref=" + (v.Vertex.Accept.ToString ())
                 v.VertexFormatter.Shape <- Graphviz.Dot.GraphvizVertexShape.DoubleCircle
                 v.VertexFormatter.Style <- Graphviz.Dot.GraphvizVertexStyle.Filled
                 v.VertexFormatter.FillColor <- Graphviz.Dot.GraphvizColor.LightYellow

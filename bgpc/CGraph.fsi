@@ -4,7 +4,7 @@ open QuickGraph
 
 type CgState = 
     {States: int array; 
-     Accept: int option; 
+     Accept: Set<int>; 
      Topo: Topology.State}
 
 type T = 

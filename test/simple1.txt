@@ -1,6 +1,5 @@
 ﻿scope DC {
-	true => in* >> out*
-	true => in* >> in*;M;in*
+	true => in*;M;in* >> in*;N;in*
 
 	aggregate(1.2.3.4/16, in -> out)
 	community(1.2.3.4/16, in -> out)

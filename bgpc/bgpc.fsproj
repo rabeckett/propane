@@ -69,13 +69,15 @@
     <Reference Include="System.Numerics" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="Args.fsi" />
+    <Compile Include="Args.fs" />
     <Compile Include="Extension.fs" />
     <Compile Include="Topology.fsi" />
     <Compile Include="Topology.fs" />
     <Compile Include="Prefix.fs" />
-    <Compile Include="Ast.fs" />
     <Compile Include="Regex.fsi" />
     <Compile Include="Regex.fs" />
+    <Compile Include="Ast.fs" />
     <FsLex Include="Lexer.fsl">
       <OtherFlags>--unicode</OtherFlags>
       <Link>Lexer.fsl</Link>

@@ -63,9 +63,7 @@ let src cg src =
 
 let srcAcceptingWithout cg src without = 
     let aux acc cg = 
-        match cg.Accept with 
-        | None -> acc
-        | Some i -> Set.add i acc
+        Set.union cg.Accept acc
     srcWithout cg src without |> Set.fold aux Set.empty
 
 let srcAccepting cg src = 
