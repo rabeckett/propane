@@ -42,9 +42,9 @@ let format (config: T) =
         for rule in kv.Value do
             sb.Append("\n  Match: ") |> ignore
             sb.Append(rule.Import.ToString()) |> ignore
-            sb.Append("\n  Export: ") |> ignore
+            sb.Append("\n    Export: ") |> ignore
             sb.Append(rule.Export.ToString()) |> ignore
-        sb.Append("\n") |> ignore
+        sb.Append("\n\n") |> ignore
     sb.ToString()
 
 let private genConfig (cg: CGraph.T) (ord: Consistency.Ordering) : T =

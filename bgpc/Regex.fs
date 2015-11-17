@@ -89,6 +89,11 @@ let rec concat r1 r2 =
     | _, Concat rs -> Concat (r1::rs)
     | _, _ -> concat (Concat [r1]) r2
 
+let concatAll res =
+    match res with 
+    | [] -> Empty
+    | _ -> Extension.List.fold1 concat res
+
 let rec inter r1 r2 = 
     match r1, r2 with 
     | _, Empty -> Empty
@@ -99,6 +104,11 @@ let rec inter r1 r2 =
     | Inter rs, _ -> Inter (insertOrdered rs r2)
     | _, Inter rs -> Inter (insertOrdered rs r1)
     | _, _ -> inter (Inter [r1]) r2
+
+let interAll res = 
+    match res with 
+    | [] -> Empty
+    | _ -> Extension.List.fold1 inter res
 
 let rec union r1 r2 = 
     match r1, r2 with 
@@ -111,6 +121,11 @@ let rec union r1 r2 =
     | Union rs, _ -> Union (insertOrdered rs r2)
     | _, Union rs -> Union (insertOrdered rs r1)
     | _, _ -> union (Union [r1]) r2
+
+let unionAll res = 
+    match res with 
+    | [] -> Empty
+    | _ -> Extension.List.fold1 union res
 
 /// Check if a regular expression denotes only single characters and 
 /// if so, returns the set of characters it denotes
@@ -254,8 +269,12 @@ type REBuilder(topo: Topology.T) =
     member __.Concat = concat
     member __.Inter = inter
     member __.Union = union
+    member __.ConcatAll = concatAll
+    member __.UnionAll = unionAll
+    member __.InterAll = interAll
     member __.Star = star
     member __.Negate = negate alphabet
     member __.MakeDFA = makeDFA alphabet
+    
 
     

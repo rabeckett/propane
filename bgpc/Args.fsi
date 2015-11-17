@@ -9,7 +9,7 @@ type T =
     {PolFile: string;
      OutFile: string option;
      Format: Format;
-     Debug: bool}
+     Test: bool}
 
 /// Parse command line arguments and return the compiler settings
 /// The default settings are to format with Template, 

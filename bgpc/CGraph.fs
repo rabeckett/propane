@@ -25,7 +25,7 @@ let copyReverseGraph (cg: T) : T =
         newCG.AddEdge e' |> ignore
     {Start=cg.Start; Graph=newCG; End=cg.End}
 
-let build (topo: Topology.T) (autos : Regex.Automaton array) : T = 
+let buildFromAutomata (topo: Topology.T) (autos : Regex.Automaton array) : T = 
     let alphabetIn, alphabetOut = Topology.alphabet(topo)
     let alphabetAll = Set.union alphabetIn alphabetOut
     let graph = AdjacencyGraph<CgState, TaggedEdge<CgState,unit>>()
@@ -74,6 +74,12 @@ let build (topo: Topology.T) (autos : Regex.Automaton array) : T =
     let accepting = Seq.filter (fun v -> not (Set.isEmpty v.Accept)) graph.Vertices
     Seq.iter (fun v -> graph.AddEdge(TaggedEdge(v, newEnd, ())) |> ignore) accepting
     {Start=newStart; Graph=graph; End=newEnd}
+
+let buildFromRegex (topo: Topology.T) (reb: Regex.REBuilder) (res: Regex.T list) : T = 
+    res 
+    |> List.map (fun r -> reb.MakeDFA (reb.Rev r))
+    |> Array.ofList
+    |> buildFromAutomata topo
 
 let inline preferences (cg: T) : Set<int> = 
     let mutable all = Set.empty

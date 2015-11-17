@@ -30,14 +30,11 @@ val canOriginateTraffic: State -> bool
 /// for duplicate names, as well as checking that the inside is fully connected
 val isWellFormed: State -> bool
 
-module Example1 = 
-    val topo: unit -> T
+/// Helper function for building topology
+val addVertices: T -> State list -> unit 
 
-module Example2 = 
-    val topo: unit -> T
+/// Helper function for building topology
+val addEdgesDirected: T -> (State*State) list -> unit
 
-module Example3 = 
-    val topo: unit -> T
-
-module ExampleUnstable = 
-    val topo: unit -> T
+/// Helper function for building topology
+val addEdgesUndirected: T -> (State*State) list -> unit

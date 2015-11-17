@@ -46,140 +46,21 @@ let canOriginateTraffic (t: State) =
 let isWellFormed (t: State) = 
     false
 
-module Example1 = 
-    let topo () = 
-        let g = BidirectionalGraph<State ,TaggedEdge<State,unit>>()
-        let vA = {Loc="A"; Typ=InsideOriginates}
-        let vX = {Loc="X"; Typ=Inside}
-        let vM = {Loc="M"; Typ=Inside}
-        let vN = {Loc="N"; Typ=Inside}
-        let vY = {Loc="Y"; Typ=Inside}
-        let vZ = {Loc="Z"; Typ=Inside}
-        let vB = {Loc="B"; Typ=InsideOriginates}
-        g.AddVertex vA |> ignore 
-        g.AddVertex vX |> ignore 
-        g.AddVertex vM |> ignore 
-        g.AddVertex vN |> ignore 
-        g.AddVertex vY |> ignore 
-        g.AddVertex vZ |> ignore 
-        g.AddVertex vB |> ignore 
-        g.AddEdge (TaggedEdge(vA, vX, ())) |> ignore
-        g.AddEdge (TaggedEdge(vA, vM, ())) |> ignore
-        g.AddEdge (TaggedEdge(vM, vN, ())) |> ignore
-        g.AddEdge (TaggedEdge(vX, vN, ())) |> ignore
-        g.AddEdge (TaggedEdge(vN, vY, ())) |> ignore
-        g.AddEdge (TaggedEdge(vN, vZ, ())) |> ignore
-        g.AddEdge (TaggedEdge(vY, vB, ())) |> ignore
-        g.AddEdge (TaggedEdge(vZ, vB, ())) |> ignore
-        g
+let rec addVertices (topo: T) (vs: State list) = 
+    match vs with 
+    | [] -> ()
+    | v::vs -> 
+        topo.AddVertex v |> ignore
 
-module Example2 = 
-    let topo () = 
-        let g = BidirectionalGraph<State, TaggedEdge<State,unit>>()
-        let vA = {Loc="A"; Typ=InsideOriginates}
-        let vB = {Loc="B"; Typ=InsideOriginates}
-        let vC = {Loc="C"; Typ=InsideOriginates}
-        let vD = {Loc="D"; Typ=InsideOriginates}
-        let vX = {Loc="X"; Typ=Inside}
-        let vY = {Loc="Y"; Typ=Inside}
-        let vM = {Loc="M"; Typ=Inside}
-        let vN = {Loc="N"; Typ=Inside}
-        g.AddVertex vA |> ignore 
-        g.AddVertex vB |> ignore 
-        g.AddVertex vC |> ignore 
-        g.AddVertex vD |> ignore 
-        g.AddVertex vX |> ignore 
-        g.AddVertex vY |> ignore 
-        g.AddVertex vM |> ignore 
-        g.AddVertex vN |> ignore 
-        g.AddEdge (TaggedEdge(vA, vX, ())) |> ignore
-        g.AddEdge (TaggedEdge(vX, vA, ())) |> ignore
-        g.AddEdge (TaggedEdge(vB, vX, ())) |> ignore
-        g.AddEdge (TaggedEdge(vX, vB, ())) |> ignore
-        g.AddEdge (TaggedEdge(vC, vY, ())) |> ignore
-        g.AddEdge (TaggedEdge(vY, vC, ())) |> ignore
-        g.AddEdge (TaggedEdge(vD, vY, ())) |> ignore
-        g.AddEdge (TaggedEdge(vY, vD, ())) |> ignore
-        g.AddEdge (TaggedEdge(vX, vM, ())) |> ignore
-        g.AddEdge (TaggedEdge(vM, vX, ())) |> ignore
-        g.AddEdge (TaggedEdge(vX, vN, ())) |> ignore
-        g.AddEdge (TaggedEdge(vN, vX, ())) |> ignore
-        g.AddEdge (TaggedEdge(vY, vM, ())) |> ignore
-        g.AddEdge (TaggedEdge(vM, vY, ())) |> ignore
-        g.AddEdge (TaggedEdge(vY, vN, ())) |> ignore
-        g.AddEdge (TaggedEdge(vN, vY, ())) |> ignore
-        g
+let rec addEdgesUndirected (topo: T) (es: (State * State) list) = 
+    match es with 
+    | [] -> () 
+    | (x,y)::es -> 
+        topo.AddEdge (TaggedEdge(x,y,())) |> ignore
+        topo.AddEdge (TaggedEdge(y,x,())) |> ignore
 
-module Example3 = 
-    let topo () = 
-        let g = BidirectionalGraph<State, TaggedEdge<State,unit>>()
-        let vA = {Loc="A"; Typ=InsideOriginates}
-        let vB = {Loc="B"; Typ=InsideOriginates}
-        let vC = {Loc="C"; Typ=Inside}
-        let vD = {Loc="D"; Typ=Inside}
-        let vE = {Loc="E"; Typ=InsideOriginates}
-        let vF = {Loc="F"; Typ=InsideOriginates}
-        let vG = {Loc="G"; Typ=Inside}
-        let vH = {Loc="H"; Typ=Inside}
-        let vX = {Loc="X"; Typ=Inside}
-        let vY = {Loc="Y"; Typ=Inside}
-        g.AddVertex vA |> ignore 
-        g.AddVertex vB |> ignore 
-        g.AddVertex vC |> ignore 
-        g.AddVertex vD |> ignore 
-        g.AddVertex vE |> ignore 
-        g.AddVertex vF |> ignore 
-        g.AddVertex vG |> ignore 
-        g.AddVertex vH |> ignore 
-        g.AddVertex vX |> ignore
-        g.AddVertex vY |> ignore
-        g.AddEdge (TaggedEdge(vA, vC, ())) |> ignore
-        g.AddEdge (TaggedEdge(vC, vA, ())) |> ignore
-        g.AddEdge (TaggedEdge(vA, vD, ())) |> ignore
-        g.AddEdge (TaggedEdge(vD, vA, ())) |> ignore
-        g.AddEdge (TaggedEdge(vB, vC, ())) |> ignore
-        g.AddEdge (TaggedEdge(vC, vB, ())) |> ignore
-        g.AddEdge (TaggedEdge(vB, vD, ())) |> ignore
-        g.AddEdge (TaggedEdge(vD, vB, ())) |> ignore
-        g.AddEdge (TaggedEdge(vE, vG, ())) |> ignore
-        g.AddEdge (TaggedEdge(vG, vE, ())) |> ignore
-        g.AddEdge (TaggedEdge(vE, vH, ())) |> ignore
-        g.AddEdge (TaggedEdge(vH, vE, ())) |> ignore
-        g.AddEdge (TaggedEdge(vF, vG, ())) |> ignore
-        g.AddEdge (TaggedEdge(vG, vF, ())) |> ignore
-        g.AddEdge (TaggedEdge(vF, vH, ())) |> ignore
-        g.AddEdge (TaggedEdge(vH, vF, ())) |> ignore
-        g.AddEdge (TaggedEdge(vC, vX, ())) |> ignore
-        g.AddEdge (TaggedEdge(vX, vC, ())) |> ignore
-        g.AddEdge (TaggedEdge(vC, vY, ())) |> ignore
-        g.AddEdge (TaggedEdge(vY, vC, ())) |> ignore
-        g.AddEdge (TaggedEdge(vD, vX, ())) |> ignore
-        g.AddEdge (TaggedEdge(vX, vD, ())) |> ignore
-        g.AddEdge (TaggedEdge(vD, vY, ())) |> ignore
-        g.AddEdge (TaggedEdge(vY, vD, ())) |> ignore
-        g.AddEdge (TaggedEdge(vG, vX, ())) |> ignore
-        g.AddEdge (TaggedEdge(vX, vG, ())) |> ignore
-        g.AddEdge (TaggedEdge(vG, vY, ())) |> ignore
-        g.AddEdge (TaggedEdge(vY, vG, ())) |> ignore
-        g.AddEdge (TaggedEdge(vH, vX, ())) |> ignore
-        g.AddEdge (TaggedEdge(vX, vH, ())) |> ignore
-        g.AddEdge (TaggedEdge(vH, vY, ())) |> ignore
-        g.AddEdge (TaggedEdge(vY, vH, ())) |> ignore
-        g
-
-module ExampleUnstable = 
-    let topo () = 
-        let g = BidirectionalGraph<State, TaggedEdge<State,unit>>()
-        let vA = {Loc="A"; Typ=InsideOriginates}
-        let vB = {Loc="B"; Typ=InsideOriginates}
-        let vC = {Loc="C"; Typ=InsideOriginates}
-        g.AddVertex vA |> ignore 
-        g.AddVertex vB |> ignore 
-        g.AddVertex vC |> ignore 
-        g.AddEdge (TaggedEdge(vA, vB, ())) |> ignore
-        g.AddEdge (TaggedEdge(vB, vA, ())) |> ignore
-        g.AddEdge (TaggedEdge(vB, vC, ())) |> ignore
-        g.AddEdge (TaggedEdge(vC, vB, ())) |> ignore
-        g.AddEdge (TaggedEdge(vA, vC, ())) |> ignore
-        g.AddEdge (TaggedEdge(vC, vA, ())) |> ignore
-        g
+let rec addEdgesDirected (topo: T) (es: (State * State) list) = 
+    match es with 
+    | [] -> () 
+    | (x,y)::es -> 
+        topo.AddEdge (TaggedEdge(x,y,())) |> ignore

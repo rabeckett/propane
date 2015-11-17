@@ -88,6 +88,7 @@
     </FsYacc>
     <Compile Include="Parser.fs" />
     <Compile Include="Lexer.fs" />
+    <Compile Include="Examples.fs" />
     <Compile Include="Input.fsi" />
     <Compile Include="Input.fs" />
     <Compile Include="CGraph.fsi" />
@@ -100,6 +101,7 @@
     <Compile Include="Consistency.fs" />
     <Compile Include="Config.fsi" />
     <Compile Include="Config.fs" />
+    <Compile Include="Test.fs" />
     <Compile Include="Program.fs" />
     <None Include="App.config" />
     <None Include="packages.config" />

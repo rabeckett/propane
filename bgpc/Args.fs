@@ -13,14 +13,14 @@ type T =
     {PolFile: string;
      OutFile: string option;
      Format: Format;
-     Debug: bool}
+     Test: bool}
 
 exception InvalidFormatException of string
 
 let polFile = ref None
 let outFile = ref None
 let format = ref Template
-let debug = ref false
+let test = ref false
 
 let setFormat s = 
     match s with 
@@ -34,7 +34,7 @@ let args =
     [|("-pol", String (fun s -> polFile := Some s), "Policy file");
       ("-out", String (fun s -> outFile := Some s), "Output file");
       ("-format", String (fun s -> setFormat s), "Output format (Template, IR, Graph)");
-      ("--debug", Unit (fun () -> debug := true), "Enable debugging information") |]
+      ("--test", Unit (fun () -> test := true), "Check executable with unit tests") |]
 
 let printHelp () = 
     printfn "%s" usage
@@ -80,7 +80,7 @@ let parse (argv: string[]) : T =
             i <- lookup curr next i
     match !polFile with
     | Some p -> 
-        {PolFile = p; OutFile = !outFile; Format = !format; Debug = !debug}
+        {PolFile = p; OutFile = !outFile; Format = !format; Test = !test}
     | None ->
         printfn "Missing policy input file"
         exit ()

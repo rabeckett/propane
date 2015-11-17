@@ -18,11 +18,15 @@ val copyGraph: T -> T
 /// Make a shallow copy of the graph, and reverses all edges
 val copyReverseGraph: T -> T
 
+/// Constructs a new, product automaton from the topology and a collection 
+/// of DFAs for path expressions
+val buildFromAutomata: Topology.T -> Regex.Automaton array -> T
+
 /// Constructs a new, product automaton from the topology and a 
 /// collection of regular expression automata for different route preferences.
 /// All paths through the product graph a valid topology paths that satisfy
 /// one or more of the regular path constraints.
-val build: Topology.T -> Regex.Automaton array -> T
+val buildFromRegex: Topology.T -> Regex.REBuilder -> Regex.T list -> T
 
 /// Returns the set of reachable preferences
 val inline preferences: T -> Set<int>
