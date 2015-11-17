@@ -9,8 +9,6 @@ let main argv =
     let options = Args.parse argv
     let ast = Input.readFromFile options.PolFile
 
-    printfn "AST: %A" ast
-
     let scope1 = ast.Head 
     let (_, res) = scope1.PConstraints.Head
     let res = List.map (fun r -> Ast.buildRegex RE r) res

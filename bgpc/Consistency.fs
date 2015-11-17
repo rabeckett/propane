@@ -16,7 +16,9 @@ type Ordering = Map<string, Preferences>
 let isPreferred restrict restrictRev x y =
     Set.forall (fun i -> 
         Set.forall (fun j -> 
+            i < j ||
             Set.exists (fun i' ->
+                i' <= j &&
                 Reachable.supersetPaths (Map.find i' restrict, x) (Map.find j restrict, y) || 
                 Reachable.supersetPaths (Map.find i' restrict, x) (Map.find j restrictRev, y)
             ) x.Accept ) y.Accept ) x.Accept
@@ -29,10 +31,13 @@ let findPrefAssignment restrict restrictRev nodes =
     let edges = ref Set.empty
     for x in nodes do 
         for y in nodes do 
-            if x <> y && isPreferred restrict restrictRev x y then 
+            let isPref = isPreferred restrict restrictRev x y
+            if x <> y && isPref then 
+                printfn "%A is preferred to %A" x y
                 edges := Set.add (x,y) !edges
                 edges := Set.add (y,x) !edges
                 g.AddEdge (TaggedEdge(x, y, ())) |> ignore
+
     (* Check for incomparable nodes *)
     for x in g.Vertices do
         for y in g.Vertices do
