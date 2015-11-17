@@ -51,6 +51,7 @@ let rec addVertices (topo: T) (vs: State list) =
     | [] -> ()
     | v::vs -> 
         topo.AddVertex v |> ignore
+        addVertices topo vs
 
 let rec addEdgesUndirected (topo: T) (es: (State * State) list) = 
     match es with 
@@ -58,9 +59,11 @@ let rec addEdgesUndirected (topo: T) (es: (State * State) list) =
     | (x,y)::es -> 
         topo.AddEdge (TaggedEdge(x,y,())) |> ignore
         topo.AddEdge (TaggedEdge(y,x,())) |> ignore
+        addEdgesUndirected topo es
 
 let rec addEdgesDirected (topo: T) (es: (State * State) list) = 
     match es with 
     | [] -> () 
     | (x,y)::es -> 
         topo.AddEdge (TaggedEdge(x,y,())) |> ignore
+        addEdgesDirected topo es

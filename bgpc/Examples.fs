@@ -15,7 +15,7 @@ let topoDiamond () =
     let vB = {Loc="B"; Typ=InsideOriginates}
     Topology.addVertices g [vA; vX; vM; vN; vY; vZ; vB]
     Topology.addEdgesUndirected g [(vA,vX); (vA,vM); (vM,vN); (vX,vN); (vN,vY); (vN,vZ); (vY,vB); (vZ,vB)]
-
+    g
 
 let topoDatacenterSmall () = 
     let g = BidirectionalGraph<State, TaggedEdge<State,unit>>()

@@ -6,7 +6,7 @@ type Format =
     | Graph
 
 type T = 
-    {PolFile: string;
+    {PolFile: string option;
      OutFile: string option;
      Format: Format;
      Test: bool}

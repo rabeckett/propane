@@ -10,7 +10,7 @@ type Format =
     | Graph
 
 type T = 
-    {PolFile: string;
+    {PolFile: string option;
      OutFile: string option;
      Format: Format;
      Test: bool}
@@ -78,9 +78,4 @@ let parse (argv: string[]) : T =
             let curr = argv.[i]
             let next = if (i = Array.length argv - 1) then None else Some argv.[i+1]
             i <- lookup curr next i
-    match !polFile with
-    | Some p -> 
-        {PolFile = p; OutFile = !outFile; Format = !format; Test = !test}
-    | None ->
-        printfn "Missing policy input file"
-        exit ()
+    {PolFile = !polFile; OutFile = !outFile; Format = !format; Test = !test}

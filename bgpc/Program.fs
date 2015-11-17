@@ -1,10 +1,7 @@
 ﻿open Extension.Error
 
 
-let topo = Examples.topoDatacenterSmall()
-let reb = Regex.REBuilder(topo)
-
-let chooseFirst (ast: Ast.T) = 
+let chooseFirst (ast: Ast.T) reb = 
     let scope1 = ast.Head 
     let (_, res) = scope1.PConstraints.Head
     let res = List.map (fun r -> Ast.buildRegex reb r) res
@@ -15,28 +12,34 @@ let main argv =
     let options = Args.parse argv
 
     if options.Test then 
-        Test.init ()
         Test.run ()
     else
-        let ast = Input.readFromFile options.PolFile
-        let res = chooseFirst ast
-        let cg = CGraph.buildFromRegex topo reb res
-        Minimize.pruneHeuristic cg
-    
-        match options.Format with 
-        | Args.IR ->
-            match Config.compile topo cg with 
-            | Ok(config) ->
-                match options.OutFile with 
-                | None -> () 
+        let topo = Examples.topoDatacenterSmall()
+        let reb = Regex.REBuilder(topo)
+
+        match options.PolFile with 
+        | None -> 
+            printfn "No policy file specified"
+            exit 0
+        | Some p ->
+            let ast = Input.readFromFile p
+            let res = chooseFirst ast reb
+            let cg = CGraph.buildFromRegex topo reb res
+            Minimize.pruneHeuristic cg
+            match options.Format with 
+            | Args.IR ->
+                match Config.compile topo cg with 
+                | Ok(config) ->
+                    match options.OutFile with 
+                    | None -> () 
+                    | Some out ->
+                        System.IO.File.WriteAllText(out, Config.format config)
+                | Err((x,y)) -> ()
+            | Args.Template -> ()
+            | Args.Graph ->
+                match options.OutFile with
+                | None -> ()
                 | Some out ->
-                    System.IO.File.WriteAllText(out, Config.format config)
-            | Err((x,y)) -> ()
-        | Args.Template -> ()
-        | Args.Graph ->
-            match options.OutFile with
-            | None -> ()
-            | Some out ->
-                System.IO.File.WriteAllText(out, CGraph.toDot cg)
+                    System.IO.File.WriteAllText(out, CGraph.toDot cg)
 
     0

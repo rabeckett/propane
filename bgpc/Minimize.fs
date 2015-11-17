@@ -29,6 +29,6 @@ let removeNodesNotOnAnySimplePathToEnd (cg: CGraph.T) =
     cg.Graph.RemoveVertexIf (fun v -> not (Set.contains v canReach)) |> ignore
 
 let pruneHeuristic (cg: CGraph.T) = 
-    removeEdgesForDominatedNodes cg 
-    removeNodesNotReachableOnSimplePath cg
     removeNodesThatCantReachEnd cg
+    removeEdgesForDominatedNodes cg
+    removeNodesNotOnAnySimplePathToEnd cg

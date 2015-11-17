@@ -66,14 +66,14 @@ let encodeConstraints cg r nodes =
     let reachMap = getReachabilityMap cg nodes
     addPrefConstraints g r nodes reachMap
 
-let findPrefAssignment cg r nodes = 
+let findPrefAssignment r cg nodes = 
     let g, edges = encodeConstraints cg r nodes
     getOrdering g edges
 
 let addForLabel r cg map l =
     if not (Map.containsKey l map) then 
         let nodes = Seq.filter (fun v -> v.Topo.Loc = l) cg.Graph.Vertices
-        Map.add l (findPrefAssignment cg r nodes) map
+        Map.add l (findPrefAssignment r cg nodes) map
     else map
 
 let restrictedGraphs cg prefs =
@@ -90,6 +90,7 @@ let findOrdering (cg: CGraph.T) : Result<Ordering, CounterExample> =
     (* Map.iter (fun i cg -> System.IO.File.WriteAllText("restricted" + i.ToString() + ".dot", CGraph.toDot cg)) restrict *)
     let labels = 
         cg.Graph.Vertices
+        |> Seq.filter (fun v -> Topology.isTopoNode v.Topo)
         |> Seq.map (fun v -> v.Topo.Loc)
         |> Set.ofSeq 
     try Ok(Set.fold (addForLabel (rs, rsRev) cg) Map.empty labels)

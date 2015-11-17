@@ -5,12 +5,14 @@ type Match =
     | Peer of string 
     | State of int array * string
     | PathRE of Regex.T
+    | NoMatch
 
 type Action = 
     | NoAction
     | SetComm of int array * string
     | SetMed of int
     | SetLP of int
+    | Originate
 
 type Actions = Action list
 

@@ -6,18 +6,21 @@ type Match =
     | Peer of string 
     | State of int array * string
     | PathRE of Regex.T
+    | NoMatch
 
     override this.ToString () = 
         match this with 
         | Peer s -> "Peer=" + s
         | State(is,s) -> "Community=" + is.ToString() + "," + s
-        | PathRE r -> "Regex=" + r.ToString() 
+        | PathRE r -> "Regex=" + r.ToString()
+        | NoMatch -> "--"
 
 type Action = 
     | NoAction
     | SetComm of int array * string
     | SetMed of int
     | SetLP of int
+    | Originate
 
     override this.ToString() = 
         match this with 
@@ -25,6 +28,7 @@ type Action =
         | SetComm(is,s) -> "Community<-" + is.ToString() + "," + s
         | SetMed i -> "MED<-" + i.ToString()
         | SetLP i -> "LP<-" + i.ToString()
+        | Originate -> "Originate"
 
 type Actions = Action list
 
@@ -65,17 +69,15 @@ let private genConfig (cg: CGraph.T) (ord: Consistency.Ordering) : T =
     
     let cgRev = copyReverseGraph cg
     let neighborsIn v = 
-        seq {for e in cgRev.Graph.OutEdges v do 
-                if e.Target.Topo.Typ <> Topology.Start then yield e.Target}
+        seq {for e in cgRev.Graph.OutEdges v do yield e.Target}
     let neighborsOut v = 
-        seq {for e in cg.Graph.OutEdges v do
-                if e.Target.Topo.Typ <> Topology.Start then yield e.Target}
+        seq {for e in cg.Graph.OutEdges v do yield e.Target}
     let mutable config = Map.empty
     for entry in ord do 
         let mutable rules = []
-        let loc = entry.Key 
+        let loc = entry.Key
         let prefs = entry.Value 
-        let prefNeighborsIn = 
+        let prefNeighborsIn =
             prefs
             |> Seq.mapi (fun i v -> (neighborsIn v, i))
             |> Seq.map (fun (ns,i) -> Seq.map (fun n -> (n,i)) ns) 
@@ -97,12 +99,18 @@ let private genConfig (cg: CGraph.T) (ord: Consistency.Ordering) : T =
                 |> Set.filter (fun (x,_) -> x.Topo.Loc = v.Topo.Loc) 
                 |> Set.count 
                 |> ((=) 1)
-            let m = 
-                if unambiguous then Peer v.Topo.Loc 
-                else State (v.States, v.Topo.Loc)
+            let m =
+                match v.Topo.Typ with 
+                | Topology.Start -> NoMatch
+                | _ -> 
+                    if unambiguous then Peer v.Topo.Loc 
+                    else State (v.States, v.Topo.Loc)
             let a = 
-                if lp = 100 then [] 
-                else [SetLP(lp)]
+                match v.Topo.Typ with 
+                | Topology.Start -> [Originate]
+                | _ ->
+                    if lp = 100 then [] 
+                    else [SetLP(lp)]
             rules <- {Import = m; Export = a}::rules
         config <- Map.add loc rules config
     config
