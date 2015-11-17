@@ -11,9 +11,7 @@ type CounterExample = CgState * CgState
 
 type Preferences = seq<CgState>
 
-type Ordering = 
-    Map<string, Preferences>
-
+type Ordering = Map<string, Preferences>
 
 let isPreferred restrict restrictRev x y =
     Set.forall (fun i -> 
@@ -56,6 +54,7 @@ let addForLabel restrict restrictRev cg map l =
 let findOrdering (cg: CGraph.T) : Result<Ordering, CounterExample> =
     let prefs = CGraph.preferences cg 
     let restrict = Set.fold (fun acc i -> Map.add i (CGraph.restrict cg i) acc) Map.empty prefs
+    Map.iter (fun _ cg -> Minimize.removeNodesThatCantReachEnd cg) restrict
     let restrictRev = Map.map (fun _ cg -> CGraph.copyReverseGraph cg) restrict
     let labels = 
         cg.Graph.Vertices

@@ -7,11 +7,24 @@ type Match =
     | State of int array * string
     | PathRE of Regex.T
 
+    override this.ToString () = 
+        match this with 
+        | Peer s -> "Peer=" + s
+        | State(is,s) -> "Community=" + is.ToString() + "," + s
+        | PathRE r -> "Regex=" + r.ToString() 
+
 type Action = 
     | NoAction
     | SetComm of int array * string
     | SetMed of int
     | SetLP of int
+
+    override this.ToString() = 
+        match this with 
+        | NoAction -> ""
+        | SetComm(is,s) -> "Community<-" + is.ToString() + "," + s
+        | SetMed i -> "MED<-" + i.ToString()
+        | SetLP i -> "LP<-" + i.ToString()
 
 type Actions = Action list
 
@@ -21,11 +34,18 @@ type Rule =
 
 type T = Map<string, Rule list>
 
-let print (config: T) = 
+let format (config: T) = 
+    let sb = System.Text.StringBuilder ()
     for kv in config do 
-        printfn "\nRouter %s" kv.Key
-        for rule in kv.Value do 
-            printfn "  Match: (%A), Export: (%A)" rule.Import rule.Export
+        sb.Append("Router ") |> ignore
+        sb.Append(kv.Key) |> ignore
+        for rule in kv.Value do
+            sb.Append("\n  Match: ") |> ignore
+            sb.Append(rule.Import.ToString()) |> ignore
+            sb.Append("\n  Export: ") |> ignore
+            sb.Append(rule.Export.ToString()) |> ignore
+        sb.Append("\n") |> ignore
+    sb.ToString()
 
 let private genConfig (cg: CGraph.T) (ord: Consistency.Ordering) : T =
     let compareLocThenPref (x,i1) (y,i2) = 

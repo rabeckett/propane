@@ -1,7 +1,6 @@
 ﻿open Extension.Error
 
 
-
 let topo = Topology.Example2.topo ()
 let RE = Regex.REBuilder(topo)
 
@@ -22,24 +21,19 @@ let main argv =
     Minimize.removeNodesNotOnAnySimplePathToEnd cg
     
     match options.Format with 
-    | Args.IR -> ()
+    | Args.IR ->
+        match Config.compile topo cg with 
+        | Ok(config) ->
+            match options.OutFile with 
+            | None -> () 
+            | Some out ->
+                System.IO.File.WriteAllText(out, Config.format config)
+        | Err((x,y)) -> ()
     | Args.Template -> ()
     | Args.Graph ->
         match options.OutFile with
         | None -> ()
         | Some out ->
             System.IO.File.WriteAllText(out, CGraph.toDot cg)
-
-    (*
-    match Config.compile topo cg with
-    | Ok(config) -> Config.print config
-    | Err(Consistency.PrefViolation (x,y)) ->
-        printfn "Pref Consistency Violation" 
-        printfn "Node1: %A" x 
-        printfn "Node2: %A" y
-    | Err(Consistency.TopoViolation (x,y)) ->
-        printfn "Topo Consistency Violation"
-        printfn "Node1: %A" x 
-        printfn "Node2: %A" y *)
 
     0

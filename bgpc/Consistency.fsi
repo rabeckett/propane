@@ -10,8 +10,7 @@ type CounterExample = CgState * CgState
 type Preferences = seq<CgState>
 
 /// Preferences for each internal router
-type Ordering = 
-    Map<string, Preferences>
+type Ordering = Map<string, Preferences>
 
 /// Checks if the BGP routers can make local decisions not knowing about failures
 /// based solely on the possibility to satisfy different preferences

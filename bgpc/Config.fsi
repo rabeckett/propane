@@ -21,7 +21,7 @@ type Rule =
 type T = Map<string, Rule list>
 
 /// Debug config output
-val print: T -> unit
+val format: T -> string
 
 /// Generate the BGP match/action rules that are guaranteed to 
 /// implement the user policy under all possible failure scenarios. 
