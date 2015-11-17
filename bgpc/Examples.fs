@@ -60,3 +60,29 @@ let topoBadGadget () =
     Topology.addVertices g [vA; vB; vC]
     Topology.addEdgesUndirected g [(vA,vB); (vB,vC); (vC,vA); (vA,vD); (vB,vD); (vC,vD)]
     g
+
+
+let topoBrokenTriangle () = 
+    let g = BidirectionalGraph<State, TaggedEdge<State,unit>>()
+    let vA = {Loc="A"; Typ=InsideOriginates}
+    let vB = {Loc="B"; Typ=Inside}
+    let vC = {Loc="C"; Typ=InsideOriginates}
+    let vD = {Loc="D"; Typ=InsideOriginates}
+    let vE = {Loc="E"; Typ=Inside}
+    Topology.addVertices g [vA; vB; vC; vD; vE]
+    Topology.addEdgesUndirected g [(vC,vA); (vA,vE); (vA,vB); (vE,vD); (vD,vB)]
+    g
+
+
+let topoBigDipper () = 
+    let g = BidirectionalGraph<State, TaggedEdge<State,unit>>()
+    let vA = {Loc="A"; Typ=InsideOriginates}
+    let vC = {Loc="C"; Typ=InsideOriginates}
+    let vD = {Loc="D"; Typ=InsideOriginates}
+    let vE = {Loc="E"; Typ=Inside}
+    Topology.addVertices g [vA; vC; vD; vE]
+    Topology.addEdgesUndirected g [(vC,vA); (vA,vE); (vA,vD); (vE,vD)]
+    g
+
+
+(* TODO: add examples with external ASes *)
