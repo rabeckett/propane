@@ -17,6 +17,7 @@ let main argv =
     let res = List.map (fun r -> Ast.buildRegex RE r) res
     let autos = List.map (fun r -> RE.MakeDFA (RE.Rev r)) res |> Array.ofList
     let cg = CGraph.build topo autos
+
     Minimize.removeEdgesForDominatedNodes cg
     Minimize.removeNodesNotOnAnySimplePathToEnd cg
     

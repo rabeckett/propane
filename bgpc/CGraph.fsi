@@ -24,6 +24,12 @@ val copyReverseGraph: T -> T
 /// one or more of the regular path constraints.
 val build: Topology.T -> Regex.Automaton array -> T
 
+/// Returns the set of reachable preferences
+val inline preferences: T -> Set<int>
+
+/// Returns a copy of the graph, restricted to nodes for a given preference
+val restrict: T -> int -> T
+
 /// Convert the constraint graph to the DOT format for visualization
 val toDot: T -> string
    

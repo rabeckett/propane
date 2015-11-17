@@ -1,100 +1,68 @@
 ﻿module Consistency
+
 open Extension.Error
 open CGraph
 open QuickGraph
+open QuickGraph.Algorithms
 
-exception PrefConsistencyException of CgState * CgState 
-exception TopoConsistencyException of CgState * CgState
+exception ConsistencyException of CgState * CgState 
 
-type CounterExample = 
-    | PrefViolation of CgState * CgState
-    | TopoViolation of CgState * CgState
+type CounterExample = CgState * CgState
 
-type Preferences = (CgState * Set<int>) list
+type Preferences = seq<CgState>
 
 type Ordering = 
     Map<string, Preferences>
 
+
+let isPreferred restrict restrictRev x y =
+    Set.forall (fun i -> 
+        Set.forall (fun j -> 
+            Set.exists (fun i' ->
+                Reachable.supersetPaths (Map.find i' restrict, x) (Map.find j restrict, y) || 
+                Reachable.supersetPaths (Map.find i' restrict, x) (Map.find j restrictRev, y)
+            ) x.Accept ) y.Accept ) x.Accept
+
+let findPrefAssignment restrict restrictRev nodes = 
+    let g = BidirectionalGraph<CgState ,TaggedEdge<CgState,unit>>()
+    for n in nodes do 
+        g.AddVertex n |> ignore
+    (* Build a graph capturing preference constraints *)
+    let edges = ref Set.empty
+    for x in nodes do 
+        for y in nodes do 
+            if x <> y && isPreferred restrict restrictRev x y then 
+                edges := Set.add (x,y) !edges
+                edges := Set.add (y,x) !edges
+                g.AddEdge (TaggedEdge(x, y, ())) |> ignore
+    (* Check for incomparable nodes *)
+    for x in g.Vertices do
+        for y in g.Vertices do
+            if x <> y then
+                if not (Set.contains (x,y) !edges || Set.contains (y,x) !edges) then 
+                    raise (ConsistencyException(x,y))
+    (* Remove edges that don't constrain our choice *)
+    let both = Set.filter (fun (x,y) -> Set.exists (fun (a,b) -> x=b && y=a) !edges) !edges
+    g.RemoveEdgeIf (fun e -> Set.contains (e.Source, e.Target) both) |> ignore
+    (* Pick an ordering that respects the contraints *)
+    g.TopologicalSort ()
+
+let addForLabel restrict restrictRev cg map l =
+    if Map.containsKey l map then map
+    else
+        let nodes = Seq.filter (fun v -> v.Topo.Loc = l) cg.Graph.Vertices
+        Map.add l (findPrefAssignment restrict restrictRev nodes) map
+
 let findOrdering (cg: CGraph.T) : Result<Ordering, CounterExample> =
-    let compareByMinThenRange (_,x) (_,y) = 
-        let minx, maxx = Set.minElement x, Set.maxElement x
-        let miny, maxy = Set.minElement y, Set.maxElement y
-        let cmp = compare minx miny
-        if cmp = 0 then 
-            compare (maxx - minx) (maxy - miny)
-        else cmp
-    let rec wfPrefRanges ls = 
-        match ls with
-        | [] | [_] -> ls
-        | ((vx,x) as hd)::(( (vy,y)::_) as tl) ->
-            let maxx = Set.maxElement x 
-            let miny = Set.minElement y
-            if maxx > miny then
-                printfn "x: %A" x
-                printfn "y: %A" y
-                raise (PrefConsistencyException (vx, vy))
-            else  hd :: (wfPrefRanges tl)
-    let mutable acc = Map.empty
-    for v in cg.Graph.Vertices do 
-        let loc = v.Topo.Loc
-        let ins = if Map.containsKey loc acc then Map.find loc acc else []
-        let accepting = Reachable.srcAccepting cg v
-        acc <- Map.add loc ((v, accepting)::ins) acc 
-    let check _ v = wfPrefRanges (List.sortWith compareByMinThenRange v)
-    try Ok (Map.map check acc)
-    with PrefConsistencyException (x,y) ->
-        Err (PrefViolation (x,y))
-
-let checkFailures (cg: CGraph.T) (ord: Ordering) : Result<unit, CounterExample> =
-    let cgRev = copyReverseGraph cg
-    let subsumes x y = 
-        (Reachable.supersetPaths (cg, x) (cg, y)) ||
-        (Reachable.supersetPaths (cg, x) (cgRev, y)) || 
-        (Reachable.supersetPaths (cgRev, x) (cg, y)) || 
-        (Reachable.supersetPaths (cgRev, x) (cgRev, y))
-    (* TODO: Is this check needed if they have equal prefs? *)
-    let rec checkAll name prefs = 
-        match prefs with 
-        | [] | [_] -> ()
-        | (x,is)::(((y,js)::_) as tl) -> 
-            if not (subsumes x y) then 
-                raise (TopoConsistencyException (x,y))
-            checkAll name tl
-    try Ok (Map.iter checkAll ord)
-    with TopoConsistencyException(x,y) -> 
-        Err (TopoViolation(x,y))
-
-let failedGraph (cg: CGraph.T) (failures: Topology.Failure.FailType list) : CGraph.T = 
-    let failed = CGraph.copyGraph cg
-    let rec aux acc fs =
-        let (vs,es) = acc 
-        match fs with 
-        | [] -> acc
-        | (Topology.Failure.NodeFailure s)::tl -> 
-            aux (s.Loc::vs, es) tl
-        | (Topology.Failure.LinkFailure s)::tl -> 
-            aux (vs, (s.Source.Loc, s.Target.Loc)::(s.Target.Loc, s.Source.Loc)::es) tl
-    let (failedNodes, failedEdges) = aux ([],[]) failures
-    failed.Graph.RemoveVertexIf (fun v -> List.exists ((=) v.Topo.Loc) failedNodes) |> ignore
-    failed.Graph.RemoveEdgeIf (fun e -> List.exists ((=) (e.Source.Topo.Loc, e.Target.Topo.Loc)) failedEdges) |> ignore
-    failed
-
-let checkFailuresByEnumerating (n:int) (topo: Topology.T) (cg: CGraph.T) (ord: Ordering) : Result<unit, CounterExample> = 
-    let aux () = 
-        let failCombos = Topology.Failure.allFailures n topo
-        for fails in failCombos do 
-            let cgFailed1 = failedGraph cg fails
-            let cgFailed2 = copyGraph cgFailed1
-            Minimize.removeNodesNotOnAnySimplePathToEnd cgFailed1
-            Minimize.removeNodesNotReachableOnSimplePath cgFailed2
-            for v in cgFailed1.Graph.Vertices do 
-                match Seq.tryFind (fun v' -> v'=v) cgFailed2.Graph.Vertices with 
-                | Some _ -> ()
-                | None -> 
-                    match Seq.tryFind (fun v' -> v'.Topo.Loc = v.Topo.Loc && v'<>v) cgFailed2.Graph.Vertices with
-                    | None -> ()
-                    | Some v' -> raise (TopoConsistencyException (v,v'))
-    try Ok (aux ()) 
-    with TopoConsistencyException(v,u) -> 
-        Err (TopoViolation(v,u))
-
+    let prefs = CGraph.preferences cg 
+    let restrict = Set.fold (fun acc i -> Map.add i (CGraph.restrict cg i) acc) Map.empty prefs
+    let restrictRev = Map.map (fun _ cg -> CGraph.copyReverseGraph cg) restrict
+    let labels = 
+        cg.Graph.Vertices
+        |> Seq.map (fun v -> v.Topo.Loc)
+        |> Set.ofSeq 
+    let map = ref Map.empty
+    try 
+        Ok(Set.fold (addForLabel restrict restrictRev cg) Map.empty labels)
+    with ConsistencyException(x,y) ->
+        Err( (x,y) )

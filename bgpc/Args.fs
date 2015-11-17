@@ -33,7 +33,7 @@ let usage = "Usage: bgpc.exe [options]"
 let args = 
     [|("-pol", String (fun s -> polFile := Some s), "Policy file");
       ("-out", String (fun s -> outFile := Some s), "Output file");
-      ("-format", String (fun s -> setFormat s), "Output intermediate");
+      ("-format", String (fun s -> setFormat s), "Output format (Template, IR, Graph)");
       ("--debug", Unit (fun () -> debug := true), "Enable debugging information") |]
 
 let printHelp () = 

@@ -42,7 +42,10 @@ let build (topo: Topology.T) (autos : Regex.Automaton array) : T =
         let neighbors = 
             if t.Typ = Topology.Start then 
                 Set.filter Topology.canOriginateTraffic alphabetAll 
-            else topo.OutEdges t |> Seq.map (fun e -> e.Target) |> Set.ofSeq
+            else 
+                topo.OutEdges t 
+                |> Seq.map (fun e -> e.Target)
+                |> Set.ofSeq 
         for c in Set.intersect alphabetAll neighbors do
             let nextInfo = Array.init autos.Length (fun i -> 
                 let g, v = autos.[i], ss.[i]
@@ -56,16 +59,36 @@ let build (topo: Topology.T) (autos : Regex.Automaton array) : T =
             )
             let nextStates, nextAccept = Array.unzip nextInfo
             let accept = Array.fold Set.union Set.empty nextAccept
-            let state = {States=nextStates; Accept=accept; Topo=c}
-            graph.AddEdge(TaggedEdge(currState, state, ())) |> ignore
-            if Set.contains state finished then ()
-            else todo <- Set.add state todo
+            let isValid = c.Typ = Topology.InsideOriginates && (Set.isEmpty accept)
+            let notInitial = (currState.Topo.Typ <> Topology.Start)
+            if isValid && notInitial then ()
+            else
+                let state = {States=nextStates; Accept=accept; Topo=c}
+                graph.AddEdge(TaggedEdge(currState, state, ())) |> ignore
+                if Set.contains state finished then ()
+                else 
+                    todo <- Set.add state todo
         finished <- Set.add currState finished
     let newEnd = {States = [||]; Accept = Set.empty; Topo = {Loc="end"; Typ = Topology.End}}
     graph.AddVertex newEnd |> ignore
     let accepting = Seq.filter (fun v -> not (Set.isEmpty v.Accept)) graph.Vertices
     Seq.iter (fun v -> graph.AddEdge(TaggedEdge(v, newEnd, ())) |> ignore) accepting
     {Start=newStart; Graph=graph; End=newEnd}
+
+let inline preferences (cg: T) : Set<int> = 
+    let mutable all = Set.empty
+    for v in cg.Graph.Vertices do 
+        all <- Set.union all v.Accept
+    all
+
+let restrict (cg: T) (i: int) : T = 
+    if Set.contains i (preferences cg) then 
+        let copy = copyGraph cg
+        copy.Graph.RemoveVertexIf (fun v -> 
+            not (Set.isEmpty v.Accept) && not (Set.contains i v.Accept)
+        ) |> ignore
+        copy
+    else cg
 
 let toDot (cg: T) : string = 
     let onFormatEdge(e: Graphviz.FormatEdgeEventArgs<CgState, TaggedEdge<CgState,unit>>) = ()

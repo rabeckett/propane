@@ -25,9 +25,43 @@ let loc l =
 %token <string> ID
 %token <System.Int32> INT
 
-%token EQUAL LPAREN RPAREN LBRACKET RBRACKET LBRACE RBRACE COMMA SLASH COLON SEMICOLON RARROW ROCKET DOT EOF
-%token INTERSECT UNION NOT STAR SHR AND OR TRUE FALSE
-%token DEFINE SCOPE OWNS PATHS ORDERED UNORDERED AGGREGATE COMMUNITY MAXROUTES MULTIPATH INCLUDE
+%token EQUAL 
+%token LPAREN 
+%token RPAREN 
+%token LBRACKET 
+%token RBRACKET 
+%token LBRACE 
+%token RBRACE 
+%token COMMA 
+%token SLASH 
+%token COLON 
+%token SEMICOLON 
+%token RARROW 
+%token ROCKET 
+%token DOT 
+%token EOF
+
+%token INTERSECT 
+%token UNION 
+%token NOT 
+%token STAR 
+%token SHR 
+%token AND 
+%token OR 
+%token TRUE 
+%token FALSE
+
+%token DEFINE 
+%token SCOPE 
+%token OWNS 
+%token PATHS 
+%token ORDERED 
+%token UNORDERED 
+%token AGGREGATE 
+%token COMMUNITY 
+%token MAXROUTES 
+%token MULTIPATH 
+%token INCLUDE
 
 %nonassoc EQUALS
 %left UNION INTERSECT

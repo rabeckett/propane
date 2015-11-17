@@ -25,12 +25,12 @@ let print (config: T) =
     for kv in config do 
         printfn "\nRouter %s" kv.Key
         for rule in kv.Value do 
-            printfn "  Match: (%A), Update: (%A)" rule.Import rule.Export
+            printfn "  Match: (%A), Export: (%A)" rule.Import rule.Export
 
-let private genConfig (cg: CGraph.T) (ord: Consistency.Ordering) : T =     
+let private genConfig (cg: CGraph.T) (ord: Consistency.Ordering) : T =
     let compareLocThenPref (x,i1) (y,i2) = 
         let cmp = compare i1 i2
-        if cmp = 0 then 
+        if cmp = 0 then
             compare x.Topo.Loc y.Topo.Loc
         else cmp
 
@@ -57,8 +57,8 @@ let private genConfig (cg: CGraph.T) (ord: Consistency.Ordering) : T =
         let prefs = entry.Value 
         let prefNeighborsIn = 
             prefs
-            |> List.mapi (fun i (v,_) -> (neighborsIn v, i))
-            |> List.map (fun (ns,i) -> Seq.map (fun n -> (n,i)) ns) 
+            |> Seq.mapi (fun i v -> (neighborsIn v, i))
+            |> Seq.map (fun (ns,i) -> Seq.map (fun n -> (n,i)) ns) 
             |> Seq.fold Seq.append Seq.empty 
             |> List.ofSeq
             |> List.sortWith compareLocThenPref
@@ -89,15 +89,8 @@ let private genConfig (cg: CGraph.T) (ord: Consistency.Ordering) : T =
 
 let compile (topo: Topology.T) (cg: CGraph.T) : Result<T, Consistency.CounterExample> =
     match Consistency.findOrdering cg with 
-    | Ok ord ->
-        match Consistency.checkFailures cg ord with 
-        | Ok _ -> Ok (genConfig cg ord)
-        | Err(tc) -> Err(tc)
-            (* let nFailures = 1
-            match Consistency.checkFailuresByEnumerating nFailures topo cg ord with 
-            | Ok _ -> Ok (genConfig cg ord)
-            | Err(tc) -> Err(tc) *)
-    | Err(pc) -> Err(pc)
+    | Ok ord -> Ok (genConfig cg ord)
+    | Err(x) -> Err(x)
 
 
 (* Generate templates 

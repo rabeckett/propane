@@ -46,22 +46,6 @@ let canOriginateTraffic (t: State) =
 let isWellFormed (t: State) = 
     false
 
-module Failure = 
-
-    type FailType = 
-        | NodeFailure of State 
-        | LinkFailure of TaggedEdge<State,unit>
-
-    let allFailures n (topo: T) : seq<FailType list> = 
-        let fvs = topo.Vertices |> Seq.filter isInside |> Seq.map NodeFailure
-        let fes = 
-            topo.Edges 
-            |> Seq.filter (fun e -> isInside e.Source || isInside e.Target) 
-            |> Seq.map LinkFailure 
-        Seq.append fes fvs 
-        |> Seq.toList 
-        |> Extension.List.combinations n
-
 module Example1 = 
     let topo () = 
         let g = BidirectionalGraph<State ,TaggedEdge<State,unit>>()

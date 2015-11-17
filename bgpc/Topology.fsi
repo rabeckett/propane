@@ -30,15 +30,6 @@ val canOriginateTraffic: State -> bool
 /// for duplicate names, as well as checking that the inside is fully connected
 val isWellFormed: State -> bool
 
-/// Helper module for enumerating and constructing topology failure scenarios
-module Failure =
-
-    type FailType = 
-        | NodeFailure of State 
-        | LinkFailure of TaggedEdge<State,unit>
-    
-    val allFailures: int -> T -> seq<FailType list>
-
 module Example1 = 
     val topo: unit -> T
 
