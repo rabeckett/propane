@@ -11,7 +11,7 @@ type Match =
     override this.ToString () = 
         match this with 
         | Peer s -> "Peer=" + s
-        | State(is,s) -> "Community=" + is.ToString() + "," + s
+        | State(is,s) -> "Community=" + (List.ofArray is).ToString() + "," + s
         | PathRE r -> "Regex=" + r.ToString()
         | NoMatch -> "--"
 

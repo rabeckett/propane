@@ -52,7 +52,6 @@ let addPrefConstraints (g: Constraints) r nodes reachMap =
             let reachY = Map.find y reachMap
             let isPref = isPreferred r (x,y) (reachX,reachY)
             if x <> y && isPref then
-                printfn "%A is preferred to %A" x y
                 edges <- Set.add (x,y) edges
                 g.AddEdge (TaggedEdge(x, y, ())) |> ignore
     g, edges
