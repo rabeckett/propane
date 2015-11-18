@@ -28,7 +28,7 @@ let main argv =
             Minimize.pruneHeuristic cg
             match options.Format with 
             | Args.IR ->
-                match Config.compile topo cg with 
+                match Config.compile cg with 
                 | Ok(config) ->
                     match options.OutFile with 
                     | None -> () 

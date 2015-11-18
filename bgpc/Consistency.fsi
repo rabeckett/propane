@@ -14,4 +14,4 @@ type Ordering = Map<string, Preferences>
 
 /// Checks if the BGP routers can make local decisions not knowing about failures
 /// based solely on the possibility to satisfy different preferences
-val findOrdering: T -> Result<Ordering, CounterExample>
+val findOrdering: CGraph.T -> Result<Ordering, CounterExample>

@@ -77,14 +77,14 @@ let simplePathSrc cg src =
         explored := !explored + 1
         cantReach := Set.remove v !cantReach
         (* Stop if no unmarked node reachable without repeating location *)
-        let exclude = (fun node -> node <> v && Set.contains node.Topo.Loc seen)
+        let exclude = (fun node -> node <> v && Set.contains node.Node.Loc seen)
         let reachable = srcWithout cg v exclude
         let relevant = Set.exists (fun x -> Set.contains x reachable) !cantReach 
         if relevant then
             for e in cg.Graph.OutEdges v do
                 let u = e.Target 
-                if not (Set.contains u.Topo.Loc seen) then 
-                    search u (Set.add u.Topo.Loc seen)
+                if not (Set.contains u.Node.Loc seen) then 
+                    search u (Set.add u.Node.Loc seen)
     search src Set.empty
     Set.difference allNodes !cantReach
 
@@ -97,7 +97,7 @@ let alongSimplePathSrcDst cg src dst =
         if v = cg.End then 
             cantReach := Set.difference !cantReach seenNodes
         (* Stop if can't reach the end state *)
-        let exclude = (fun node -> node <> v && Set.contains node.Topo.Loc seenLocations)
+        let exclude = (fun node -> node <> v && Set.contains node.Node.Loc seenLocations)
         let reachable = srcWithout cg v exclude
         let seenUnmarked = not (Set.isEmpty (Set.intersect !cantReach seenNodes))
         let canReachUnmarked = Set.exists (fun v -> Set.contains v !cantReach) reachable
@@ -106,9 +106,9 @@ let alongSimplePathSrcDst cg src dst =
             if canReachDst then
                 for e in cg.Graph.OutEdges v do
                     let u = e.Target 
-                    let notInPath = not (Set.contains u.Topo.Loc seenLocations)
+                    let notInPath = not (Set.contains u.Node.Loc seenLocations)
                     if notInPath then 
-                        search u (Set.add u.Topo.Loc seenLocations) (Set.add u seenNodes)
+                        search u (Set.add u.Node.Loc seenLocations) (Set.add u seenNodes)
     search src Set.empty (Set.singleton cg.Start)
     Set.difference allNodes !cantReach
 
@@ -126,30 +126,30 @@ let supersetPaths (cg1, n1) (cg2, n2) : bool =
     let remainsSuperset b = 
         Map.fold (fun acc k v -> 
             acc && not (Map.exists (fun k' v' -> 
-                (k.Topo.Loc = k'.Topo.Loc && k <> k') &&
+                (k.Node.Loc = k'.Node.Loc && k <> k') &&
                 (Set.intersect v v' |> Set.isEmpty |> not) ) b)) true b
 
     let stepNodeNode n1 n2 = 
         let neighbors1 = 
             cg1.Graph.OutEdges n1 
             |> Seq.map (fun e -> e.Target) 
-            |> Seq.filter (fun v -> Topology.isTopoNode v.Topo)
+            |> Seq.filter (fun v -> Topology.isTopoNode v.Node)
             |> Set.ofSeq
         let neighbors2 = 
             cg2.Graph.OutEdges n2 
             |> Seq.map (fun e -> e.Target) 
-            |> Seq.filter (fun v -> Topology.isTopoNode v.Topo)
+            |> Seq.filter (fun v -> Topology.isTopoNode v.Node)
             |> Set.ofSeq
-        let nchars1 = Set.map (fun v -> v.Topo.Loc) neighbors1
-        let nchars2 = Set.map (fun v -> v.Topo.Loc) neighbors2
+        let nchars1 = Set.map (fun v -> v.Node.Loc) neighbors1
+        let nchars2 = Set.map (fun v -> v.Node.Loc) neighbors2
         if not (Set.isSuperset nchars1 nchars2) then 
             None
         else
             let newBisim = ref Map.empty
             let common = Set.intersect nchars1 nchars2 
             Set.iter (fun c ->
-                let v1 = Set.filter (fun v -> v.Topo.Loc = c) neighbors1 |> Set.minElement
-                let v2 = Set.filter (fun v -> v.Topo.Loc = c) neighbors2 |> Set.minElement
+                let v1 = Set.filter (fun v -> v.Node.Loc = c) neighbors1 |> Set.minElement
+                let v2 = Set.filter (fun v -> v.Node.Loc = c) neighbors2 |> Set.minElement
                 newBisim := add v1 v2 !newBisim
             ) common
             Some !newBisim
@@ -177,7 +177,7 @@ let supersetPaths (cg1, n1) (cg2, n2) : bool =
             | None -> false
             | Some b -> iter (n-1) b
 
-    if n1.Topo.Loc <> n2.Topo.Loc then false 
+    if n1.Node.Loc <> n2.Node.Loc then false 
     else
         let bisim = Map.add n1 (Set.singleton n2) Map.empty
         let steps = max cg1.Graph.VertexCount cg2.Graph.VertexCount 

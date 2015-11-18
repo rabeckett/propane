@@ -17,14 +17,11 @@ type Constraints = BidirectionalGraph<CgState ,TaggedEdge<CgState,unit>>
 
 
 let isPreferred (restrict,restrictRev) (x,y) (reachX,reachY) =
-    Set.forall (fun i -> 
-        Set.forall (fun j -> 
-            i < j ||
-            Set.exists (fun i' ->
-                i' <= j &&
-                (Reachable.supersetPaths (Map.find i' restrict, x) (Map.find j restrict, y) || 
-                 Reachable.supersetPaths (Map.find i' restrict, x) (Map.find j restrictRev, y))
-            ) reachX) reachY) reachX
+    let subsumes i' j =
+        (Reachable.supersetPaths (Map.find i' restrict, x) (Map.find j restrict, y) || 
+         Reachable.supersetPaths (Map.find i' restrict, x) (Map.find j restrictRev, y))
+    Set.forall (fun j -> 
+        (Set.exists (fun i' -> i' <= j && subsumes i' j) reachX) ) reachY
 
 let checkIncomparableNodes (g: Constraints) edges = 
     for x in g.Vertices do
@@ -55,6 +52,7 @@ let addPrefConstraints (g: Constraints) r nodes reachMap =
             let reachY = Map.find y reachMap
             let isPref = isPreferred r (x,y) (reachX,reachY)
             if x <> y && isPref then
+                printfn "%A is preferred to %A" x y
                 edges <- Set.add (x,y) edges
                 g.AddEdge (TaggedEdge(x, y, ())) |> ignore
     g, edges
@@ -72,7 +70,7 @@ let findPrefAssignment r cg nodes =
 
 let addForLabel r cg map l =
     if not (Map.containsKey l map) then 
-        let nodes = Seq.filter (fun v -> v.Topo.Loc = l) cg.Graph.Vertices
+        let nodes = Seq.filter (fun v -> v.Node.Loc = l) cg.Graph.Vertices
         Map.add l (findPrefAssignment r cg nodes) map
     else map
 
@@ -90,8 +88,8 @@ let findOrdering (cg: CGraph.T) : Result<Ordering, CounterExample> =
     (* Map.iter (fun i cg -> System.IO.File.WriteAllText("restricted" + i.ToString() + ".dot", CGraph.toDot cg)) restrict *)
     let labels = 
         cg.Graph.Vertices
-        |> Seq.filter (fun v -> Topology.isTopoNode v.Topo)
-        |> Seq.map (fun v -> v.Topo.Loc)
+        |> Seq.filter (fun v -> Topology.isTopoNode v.Node)
+        |> Seq.map (fun v -> v.Node.Loc)
         |> Set.ofSeq 
     try Ok(Set.fold (addForLabel (rs, rsRev) cg) Map.empty labels)
     with ConsistencyException(x,y) ->

@@ -5,12 +5,13 @@ open QuickGraph
 type CgState = 
     {States: int array; 
      Accept: Set<int>; 
-     Topo: Topology.State}
+     Node: Topology.State}
 
 type T = 
     {Start: CgState;
      End: CgState;
-     Graph: AdjacencyGraph<CgState, TaggedEdge<CgState, unit>>}
+     Graph: AdjacencyGraph<CgState, TaggedEdge<CgState, unit>>;
+     Topo: Topology.T}
 
 /// Make a shallow copy of the graph. Does not clone node values.
 val copyGraph: T -> T

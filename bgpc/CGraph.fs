@@ -4,18 +4,19 @@ open QuickGraph
 type CgState = 
     {States: int array; 
      Accept: Set<int>; 
-     Topo: Topology.State}
+     Node: Topology.State}
 
 type T = 
     {Start: CgState;
      End: CgState;
-     Graph: AdjacencyGraph<CgState, TaggedEdge<CgState, unit>>}
+     Graph: AdjacencyGraph<CgState, TaggedEdge<CgState, unit>>
+     Topo: Topology.T}
 
 let copyGraph (cg: T) : T = 
     let newCG = QuickGraph.AdjacencyGraph() 
     for v in cg.Graph.Vertices do newCG.AddVertex v |> ignore
     for e in cg.Graph.Edges do newCG.AddEdge e |> ignore
-    {Start=cg.Start; Graph=newCG; End=cg.End}
+    {Start=cg.Start; Graph=newCG; End=cg.End; Topo=cg.Topo}
 
 let copyReverseGraph (cg: T) : T = 
     let newCG = QuickGraph.AdjacencyGraph() 
@@ -23,14 +24,14 @@ let copyReverseGraph (cg: T) : T =
     for e in cg.Graph.Edges do
         let e' = TaggedEdge(e.Target, e.Source, ())
         newCG.AddEdge e' |> ignore
-    {Start=cg.Start; Graph=newCG; End=cg.End}
+    {Start=cg.Start; Graph=newCG; End=cg.End; Topo=cg.Topo}
 
 let buildFromAutomata (topo: Topology.T) (autos : Regex.Automaton array) : T = 
     let alphabetIn, alphabetOut = Topology.alphabet(topo)
     let alphabetAll = Set.union alphabetIn alphabetOut
     let graph = AdjacencyGraph<CgState, TaggedEdge<CgState,unit>>()
     let starting = Array.map (fun (x: Regex.Automaton) -> x.q0) autos
-    let newStart = {States = starting; Accept = Set.empty; Topo = {Loc="start"; Typ = Topology.Start} }
+    let newStart = {States = starting; Accept = Set.empty; Node = {Loc="start"; Typ = Topology.Start} }
     graph.AddVertex newStart |> ignore
     let mutable finished = Set.empty
     let mutable todo = Set.singleton newStart
@@ -38,7 +39,7 @@ let buildFromAutomata (topo: Topology.T) (autos : Regex.Automaton array) : T =
         let currState = Set.minElement todo 
         todo <- Set.remove currState todo
         graph.AddVertex currState |> ignore
-        let {States=ss; Topo=t} = currState
+        let {States=ss; Node=t} = currState
         let neighbors = 
             if t.Typ = Topology.Start then 
                 Set.filter Topology.canOriginateTraffic alphabetAll 
@@ -60,20 +61,20 @@ let buildFromAutomata (topo: Topology.T) (autos : Regex.Automaton array) : T =
             let nextStates, nextAccept = Array.unzip nextInfo
             let accept = Array.fold Set.union Set.empty nextAccept
             let isValid = c.Typ = Topology.InsideOriginates && (Set.isEmpty accept)
-            let notInitial = (currState.Topo.Typ <> Topology.Start)
+            let notInitial = (currState.Node.Typ <> Topology.Start)
             if isValid && notInitial then ()
             else
-                let state = {States=nextStates; Accept=accept; Topo=c}
+                let state = {States=nextStates; Accept=accept; Node=c}
                 graph.AddEdge(TaggedEdge(currState, state, ())) |> ignore
                 if Set.contains state finished then ()
                 else 
                     todo <- Set.add state todo
         finished <- Set.add currState finished
-    let newEnd = {States = [||]; Accept = Set.empty; Topo = {Loc="end"; Typ = Topology.End}}
+    let newEnd = {States = [||]; Accept = Set.empty; Node = {Loc="end"; Typ = Topology.End}}
     graph.AddVertex newEnd |> ignore
     let accepting = Seq.filter (fun v -> not (Set.isEmpty v.Accept)) graph.Vertices
     Seq.iter (fun v -> graph.AddEdge(TaggedEdge(v, newEnd, ())) |> ignore) accepting
-    {Start=newStart; Graph=graph; End=newEnd}
+    {Start=newStart; Graph=graph; End=newEnd; Topo=topo}
 
 let buildFromRegex (topo: Topology.T) (reb: Regex.REBuilder) (res: Regex.T list) : T = 
     res 
@@ -100,8 +101,8 @@ let toDot (cg: T) : string =
     let onFormatEdge(e: Graphviz.FormatEdgeEventArgs<CgState, TaggedEdge<CgState,unit>>) = ()
     let onFormatVertex(v: Graphviz.FormatVertexEventArgs<CgState>) = 
         let states = Array.map string v.Vertex.States |> String.concat ", "
-        let location = v.Vertex.Topo.Loc.ToString()
-        match v.Vertex.Topo.Typ with 
+        let location = v.Vertex.Node.Loc.ToString()
+        match v.Vertex.Node.Typ with 
         | Topology.Start -> v.VertexFormatter.Label <- "Start"
         | Topology.End -> v.VertexFormatter.Label <- "End"
         | _ ->

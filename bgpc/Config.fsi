@@ -28,4 +28,4 @@ val format: T -> string
 /// Generate the BGP match/action rules that are guaranteed to 
 /// implement the user policy under all possible failure scenarios. 
 /// This function returns an intermediate representation (IR) for BGP policies
-val compile: Topology.T -> CGraph.T -> Result<T, Consistency.CounterExample>
+val compile: CGraph.T -> Result<T, Consistency.CounterExample>

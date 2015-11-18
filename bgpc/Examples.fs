@@ -57,7 +57,7 @@ let topoBadGadget () =
     let vB = {Loc="B"; Typ=InsideOriginates}
     let vC = {Loc="C"; Typ=InsideOriginates}
     let vD = {Loc="D"; Typ=InsideOriginates}
-    Topology.addVertices g [vA; vB; vC]
+    Topology.addVertices g [vA; vB; vC; vD]
     Topology.addEdgesUndirected g [(vA,vB); (vB,vC); (vC,vA); (vA,vD); (vB,vD); (vC,vD)]
     g
 
