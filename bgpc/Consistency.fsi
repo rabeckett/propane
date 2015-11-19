@@ -12,6 +12,8 @@ type Preferences = seq<CgState>
 /// Preferences for each internal router
 type Ordering = Map<string, Preferences>
 
-/// Checks if the BGP routers can make local decisions not knowing about failures
-/// based solely on the possibility to satisfy different preferences
-val findOrdering: CGraph.T -> Result<Ordering, CounterExample>
+/// Conservative check if the BGP routers can make local decisions not knowing about failures
+val findOrderingConservative: (CGraph.T -> Result<Ordering, CounterExample>)
+
+/// Exact check if BGP routes can make local decisions by enumerating failures
+val findOrderingEnumerate: int -> (CGraph.T -> Result<Ordering, CounterExample>)

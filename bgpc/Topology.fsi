@@ -38,3 +38,10 @@ val addEdgesDirected: T -> (State*State) list -> unit
 
 /// Helper function for building topology
 val addEdgesUndirected: T -> (State*State) list -> unit
+
+/// Helper module for generating topology failures
+module Failure = 
+    type FailType =
+        | NodeFailure of State
+        | LinkFailure of TaggedEdge<State,unit>
+    val allFailures: int -> T -> seq<FailType list>

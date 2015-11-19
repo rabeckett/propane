@@ -114,7 +114,7 @@ let private genConfig (cg: CGraph.T) (ord: Consistency.Ordering) : T =
     config
 
 let compile (cg: CGraph.T) : Result<T, Consistency.CounterExample> =
-    match Consistency.findOrdering cg with 
+    match Consistency.findOrderingEnumerate 1 cg with 
     | Ok ord -> Ok (genConfig cg ord)
     | Err(x) -> Err(x)
 

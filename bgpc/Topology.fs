@@ -67,3 +67,24 @@ let rec addEdgesDirected (topo: T) (es: (State * State) list) =
     | (x,y)::es -> 
         topo.AddEdge (TaggedEdge(x,y,())) |> ignore
         addEdgesDirected topo es
+
+
+module Failure =
+    type FailType =
+        | NodeFailure of State
+        | LinkFailure of TaggedEdge<State,unit>
+        
+        override this.ToString() = 
+            match this with 
+            | NodeFailure n -> "Node(" + n.Loc + ")"
+            | LinkFailure e -> "Link(" + e.Source.Loc + "," + e.Target.Loc + ")"
+  
+    let allFailures n (topo: T) : seq<FailType list> =
+        let fvs = topo.Vertices |> Seq.filter isInside |> Seq.map NodeFailure
+        let fes =
+            topo.Edges
+            |> Seq.filter (fun e -> isInside e.Source || isInside e.Target) 
+            |> Seq.map LinkFailure 
+        Seq.append fes fvs 
+        |> Seq.toList
+        |> Extension.List.combinations n

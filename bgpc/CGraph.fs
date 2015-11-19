@@ -5,6 +5,8 @@ type CgState =
     {States: int array; 
      Accept: Set<int>; 
      Node: Topology.State}
+     override this.ToString() = 
+        "(State=" + (List.ofArray this.States).ToString() + ", Loc=" + this.Node.Loc + ")"
 
 type T = 
     {Start: CgState;

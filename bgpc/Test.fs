@@ -94,6 +94,15 @@ let rDatacenterSmall3 (reb: Regex.REBuilder) =
 let rDatacenterMedium1 (reb: Regex.REBuilder) =
     [reb.Star reb.Inside]
 
+let rDatacenterMedium2 (reb: Regex.REBuilder) =
+    [reb.ConcatAll [reb.Star reb.Inside; reb.Loc "X"; reb.Star reb.Inside; reb.Loc "F"]]
+
+let rDatacenterMedium3 (reb: Regex.REBuilder) =
+    let re1 = reb.ConcatAll [reb.Star reb.Inside; reb.Loc "X"; reb.Star reb.Inside; reb.Loc "F"] 
+    let re2 = reb.ConcatAll [reb.Star reb.Inside; reb.Loc "Y"; reb.Star reb.Inside; reb.Loc "F"]
+    [re1; re2]
+
+
 let tests = [
 
     {Name= "Diamond1";
@@ -134,13 +143,19 @@ let tests = [
 
     {Name= "DCmedium1";
      Topo= tDatacenterMedium;
-     Rf= rDatacenterSmall3; 
+     Rf= rDatacenterMedium1; 
      Receive= Some [];
      Originate = Some [];
      Prefs = Some []};
 
+    {Name= "DCmedium2";
+     Topo= tDatacenterMedium;
+     Rf= rDatacenterMedium2; 
+     Receive= Some [];
+     Originate = Some [];
+     Prefs = Some []};
 ]
-
+ 
 let run () =
     let mutable ntests = 0
     let mutable nfailed = 0
@@ -150,16 +165,19 @@ let run () =
         Minimize.pruneHeuristic cg
         System.IO.File.WriteAllText(test.Name + ".dot", CGraph.toDot cg)
         match Config.compile cg with 
-        | Err _ -> 
+        | Err (x,y) ->
             ntests <- ntests + 1
             if (Option.isSome test.Receive || 
                 Option.isSome test.Originate || 
                 Option.isSome test.Prefs) then 
                 nfailed <- nfailed + 1
-                printfn "[Failed]: (%s) Should compile but did not" test.Name
+                printfn "[Failed]: (%s) Should compile but did not, ambiguous choice at router %s" test.Name x.Node.Loc 
+                printfn "  CounterExample: %s, %s" (x.ToString()) (y.ToString())
         | Ok config -> 
             System.IO.File.WriteAllText(test.Name + ".config", Config.format config)
-            if Option.isNone test.Receive || Option.isNone test.Originate || Option.isNone test.Prefs then 
+            if (Option.isNone test.Receive || 
+                Option.isNone test.Originate || 
+                Option.isNone test.Prefs) then 
                 nfailed <- nfailed + 1
                 printfn "[Failed]: (%s) Should not compile but did" test.Name
                 System.IO.File.WriteAllText(test.Name + ".config", Config.format config)
