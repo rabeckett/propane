@@ -1,5 +1,11 @@
-﻿module Config
+﻿module IR
+open CGraph
 open Extension.Error
+
+type CounterExample = 
+    | UnusedPreferences of Map<int, Regex.T>
+    | NoPathForRouters of Set<string>
+    | InconsistentPrefs of CgState * CgState
 
 type Match = 
     | Peer of string 
@@ -28,4 +34,4 @@ val format: T -> string
 /// Generate the BGP match/action rules that are guaranteed to 
 /// implement the user policy under all possible failure scenarios. 
 /// This function returns an intermediate representation (IR) for BGP policies
-val compile: CGraph.T -> Result<T, Consistency.CounterExample>
+val compileToIR: Topology.T -> Regex.REBuilder -> Regex.T list -> string option -> Result<T, CounterExample>

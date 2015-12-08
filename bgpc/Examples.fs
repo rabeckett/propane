@@ -31,7 +31,6 @@ let topoDatacenterSmall () =
     Topology.addEdgesUndirected g [(vA,vX); (vB,vX); (vC,vY); (vD,vY); (vX,vM); (vX,vN); (vY,vM); (vY,vN)]
     g
 
-
 let topoDatacenterMedium () = 
     let g = BidirectionalGraph<State, TaggedEdge<State,unit>>()
     let vA = {Loc="A"; Typ=InsideOriginates}
@@ -50,7 +49,6 @@ let topoDatacenterMedium () =
          (vC,vX); (vC,vY); (vD,vX); (vD,vY); (vG,vX); (vG,vY); (vH,vX); (vH,vY)]
     g
 
-
 let topoBadGadget () = 
     let g = BidirectionalGraph<State, TaggedEdge<State,unit>>()
     let vA = {Loc="A"; Typ=InsideOriginates}
@@ -60,7 +58,6 @@ let topoBadGadget () =
     Topology.addVertices g [vA; vB; vC; vD]
     Topology.addEdgesUndirected g [(vA,vB); (vB,vC); (vC,vA); (vA,vD); (vB,vD); (vC,vD)]
     g
-
 
 let topoBrokenTriangle () = 
     let g = BidirectionalGraph<State, TaggedEdge<State,unit>>()
@@ -72,7 +69,6 @@ let topoBrokenTriangle () =
     Topology.addVertices g [vA; vB; vC; vD; vE]
     Topology.addEdgesUndirected g [(vC,vA); (vA,vE); (vA,vB); (vE,vD); (vD,vB)]
     g
-
 
 let topoBigDipper () = 
     let g = BidirectionalGraph<State, TaggedEdge<State,unit>>()

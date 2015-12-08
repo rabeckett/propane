@@ -1,6 +1,11 @@
-﻿module Config
+﻿module IR
 open Extension.Error
 open CGraph
+
+type CounterExample = 
+    | UnusedPreferences of Map<int, Regex.T>
+    | NoPathForRouters of Set<string>
+    | InconsistentPrefs of CgState * CgState
 
 type Match = 
     | Peer of string 
@@ -101,7 +106,7 @@ let private genConfig (cg: CGraph.T) (ord: Consistency.Ordering) : T =
                 match v.Node.Typ with 
                 | Topology.Start -> NoMatch
                 | _ -> 
-                    if unambiguous then Peer v.Node.Loc 
+                    if unambiguous then Peer v.Node.Loc
                     else State (v.States, v.Node.Loc)
             let a = 
                 match v.Node.Typ with 
@@ -113,12 +118,31 @@ let private genConfig (cg: CGraph.T) (ord: Consistency.Ordering) : T =
         config <- Map.add loc rules config
     config
 
-let compile (cg: CGraph.T) : Result<T, Consistency.CounterExample> =
-    match Consistency.findOrderingEnumerate 1 cg with 
-    | Ok ord -> Ok (genConfig cg ord)
-    | Err(x) -> Err(x)
+let compileToIR (topo: Topology.T) (reb: Regex.REBuilder) (res: Regex.T list) (outFile: string option) : Result<T, CounterExample> =
+    let cgOrig = CGraph.buildFromRegex topo reb res
+    let cg = CGraph.copyGraph cgOrig
+    CGraph.Minimize.pruneHeuristic cg
+    (* Save graphs to file *)
+    match outFile with
+    | None -> ()
+    | Some name -> 
+        System.IO.File.WriteAllText(name + ".dot", CGraph.toDot cgOrig)
+        System.IO.File.WriteAllText(name + "-min.dot", CGraph.toDot cg)
+    (* Check for errors *)
+    let locsOrig = CGraph.acceptingLocations cgOrig
+    let locsPruned = CGraph.acceptingLocations cg
+    let lost = Set.difference locsOrig locsPruned
+    if not (Set.isEmpty lost) then 
+        Err(NoPathForRouters(lost))
+    else
+        let numberedRegexes = seq {for i in 1.. List.length res do yield i}  |> Set.ofSeq
+        let prefs = CGraph.preferences cg
+        let unusedPrefs = Set.difference numberedRegexes prefs
+        if not (Set.isEmpty unusedPrefs) then
+            let cexamples = Set.fold (fun acc p -> Map.add p (List.nth res (p-1)) acc) Map.empty unusedPrefs
+            Err(UnusedPreferences(cexamples))
+        else
+            match Consistency.findOrderingConservative cg with 
+            | Ok ord -> Ok (genConfig cg ord)
+            | Err((x,y)) -> Err(InconsistentPrefs(x,y))
 
-
-(* Generate templates 
-let generateTemplates (config: T) (path: string) = 
-    failwith "todo" *)

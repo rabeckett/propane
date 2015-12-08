@@ -87,17 +87,17 @@ let negate r =
     let bar = if a = x then [(y,b)] else []
     foo @ bar
 
-let rec negateAll rs = 
+let rec negateAll rs =
     match rs with 
     | [] -> [wholeRange]
-    | r::tl -> 
+    | r::tl ->
         interAll (negate r) (negateAll tl)
 
 let rangeOfPrefix (a,b,c,d) bits = 
     let lowermask = 0xffffffff <<< (32 - bits)
-    let uppermask = 0xffffffff >>> bits
+    let upper = 0xffffffff >>> bits
     let value = ((a <<< 24) + (b <<< 16) + (c <<< 8) + d) &&& lowermask
-    (value, value + uppermask)
+    (value, value + upper)
 
 let rec asRanges (p: T) : Ranges = 
     match p with 
@@ -106,7 +106,7 @@ let rec asRanges (p: T) : Ranges =
     | And(a,b) -> interAll (asRanges a) (asRanges b)
     | Or(a,b) -> unionAll (asRanges a) (asRanges b)
     | Not a -> negateAll (asRanges a)
-    | Prefix(a,b,c,d,bits) -> 
-        match bits with 
+    | Prefix(a,b,c,d,bits) ->
+        match bits with
         | None -> [rangeOfPrefix (a,b,c,d) 32]
         | Some bits -> [rangeOfPrefix (a,b,c,d) bits]

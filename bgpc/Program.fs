@@ -25,16 +25,12 @@ let main argv =
             let ast = Input.readFromFile p
             let res = chooseFirst ast reb
             let cg = CGraph.buildFromRegex topo reb res
-            Minimize.pruneHeuristic cg
+            CGraph.Minimize.pruneHeuristic cg
             match options.Format with 
             | Args.IR ->
-                match Config.compile cg with 
-                | Ok(config) ->
-                    match options.OutFile with 
-                    | None -> () 
-                    | Some out ->
-                        System.IO.File.WriteAllText(out, Config.format config)
-                | Err((x,y)) -> ()
+                match IR.compileToIR topo reb res options.OutFile with 
+                | Ok(config) -> ()
+                | Err(_) -> ()
             | Args.Template -> ()
             | Args.Graph ->
                 match options.OutFile with

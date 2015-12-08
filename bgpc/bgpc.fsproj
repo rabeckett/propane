@@ -93,14 +93,10 @@
     <Compile Include="Input.fs" />
     <Compile Include="CGraph.fsi" />
     <Compile Include="CGraph.fs" />
-    <Compile Include="Reachable.fsi" />
-    <Compile Include="Reachable.fs" />
-    <Compile Include="Minimize.fsi" />
-    <Compile Include="Minimize.fs" />
     <Compile Include="Consistency.fsi" />
     <Compile Include="Consistency.fs" />
-    <Compile Include="Config.fsi" />
-    <Compile Include="Config.fs" />
+    <Compile Include="IR.fsi" />
+    <Compile Include="IR.fs" />
     <Compile Include="Test.fs" />
     <Compile Include="Program.fs" />
     <None Include="App.config" />

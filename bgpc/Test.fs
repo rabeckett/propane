@@ -1,10 +1,7 @@
 ﻿module Test
-
+open IR
+open CGraph
 open Extension.Error
-
-let canImplement cg =
-    isOk (Config.compile cg)
-
 
 (********************************************* 
  *  Config helpers
@@ -12,12 +9,12 @@ let canImplement cg =
 
 let isPeer x rule = 
     match rule with 
-    | Config.Peer y -> x = y
-    | Config.State(_,y) -> x = y
+    | IR.Peer y -> x = y
+    | IR.State(_,y) -> x = y
     | _ -> false
 
-let getLP (r : Config.Rule) =
-    let aux act =  match act with Config.SetLP i -> Some i | _ -> None
+let getLP (r : Rule) =
+    let aux act =  match act with SetLP i -> Some i | _ -> None
     match List.tryPick aux r.Export with 
     | None -> 100
     | Some x -> x
@@ -25,8 +22,8 @@ let getLP (r : Config.Rule) =
 let prefersPeer config x (a,b) =
     try 
         let rules = Map.find x config 
-        let r1 = List.find (fun (rule: Config.Rule) -> isPeer a rule.Import) rules
-        let r2 = List.find (fun (rule: Config.Rule) -> isPeer b rule.Import) rules
+        let r1 = List.find (fun (rule: Rule) -> isPeer a rule.Import) rules
+        let r2 = List.find (fun (rule: Rule) -> isPeer b rule.Import) rules
         let lp1 = getLP r1
         let lp2 = getLP r2
         lp1 < lp2
@@ -35,13 +32,13 @@ let prefersPeer config x (a,b) =
 let receiveFrom config x y = 
     try 
         let rules = Map.find x config 
-        List.exists (fun (rule: Config.Rule) -> isPeer y rule.Import) rules
+        List.exists (fun (rule: Rule) -> isPeer y rule.Import) rules
     with _ -> false
 
-let originate (rule: Config.Rule) = 
+let originate (rule: Rule) = 
     List.exists (fun act -> 
         match act with 
-        | Config.Originate -> true 
+        | Originate -> true 
         | _ -> false
     ) rule.Export
 
@@ -51,14 +48,13 @@ let originates config x =
         |> List.exists originate 
     with _ -> false
 
-
-
 (********************************************* 
  *  Regular expression queries
  *********************************************)
 
 type Test = 
     {Name: string;
+     Explanation: string;
      Topo: Topology.T;
      Rf: Regex.REBuilder -> Regex.T list;
      Receive: (string*string) list option;
@@ -91,6 +87,12 @@ let rDatacenterSmall3 (reb: Regex.REBuilder) =
     let re2 = reb.ConcatAll [reb.Star reb.Inside; reb.Loc "N"; reb.Star reb.Inside]
     [re1; re2]
 
+let rDatacenterSmall4 (reb: Regex.REBuilder) =
+    [reb.ConcatAll [reb.Star reb.Inside; reb.Loc "A"]]
+
+let rDatacenterSmall5 (reb: Regex.REBuilder) =
+    [reb.ConcatAll [reb.Star reb.Inside; reb.Loc "M"; reb.Star reb.Inside; reb.Loc "A"]]
+
 let rDatacenterMedium1 (reb: Regex.REBuilder) =
     [reb.Star reb.Inside]
 
@@ -102,10 +104,16 @@ let rDatacenterMedium3 (reb: Regex.REBuilder) =
     let re2 = reb.ConcatAll [reb.Star reb.Inside; reb.Loc "Y"; reb.Star reb.Inside; reb.Loc "F"]
     [re1; re2]
 
+let rBrokenTriangle1 (reb: Regex.REBuilder) =
+    [reb.Union 
+        (reb.ConcatAll [reb.Loc "C"; reb.Loc "A"; reb.Loc "E"; reb.Loc "D"]) 
+        (reb.ConcatAll [reb.Loc "A"; reb.Loc "B"; reb.Loc "D"])]
+
 
 let tests = [
 
     {Name= "Diamond1";
+     Explanation="A simple path";
      Topo= tDiamond;
      Rf= rDiamond1; 
      Receive= Some [("Y", "B"); ("N","Y"); ("X","N"); ("A","X")];
@@ -113,6 +121,7 @@ let tests = [
      Prefs = Some []};
 
     {Name= "Diamond2";
+     Explanation="Impossible Backup (should fail)";
      Topo= tDiamond;
      Rf= rDiamond2; 
      Receive= None;
@@ -120,6 +129,7 @@ let tests = [
      Prefs = None};
 
     {Name= "DCsmall1";
+     Explanation="Shortest paths routing";
      Topo= tDatacenterSmall;
      Rf= rDatacenterSmall1; 
      Receive= Some [];
@@ -127,6 +137,7 @@ let tests = [
      Prefs = Some []};
    
     {Name= "DCsmall2";
+     Explanation="Waypoint through spine";
      Topo= tDatacenterSmall;
      Rf= rDatacenterSmall2; 
      Receive= Some [("M","X"); ("M","Y"); ("A","X"); ("B","X"); ("X", "A"); ("X", "B"); ("X", "M")];
@@ -134,6 +145,7 @@ let tests = [
      Prefs = Some []};
 
     {Name= "DCsmall3";
+     Explanation="Prefer one spine over another";
      Topo= tDatacenterSmall;
      Rf= rDatacenterSmall3; 
      Receive= Some [("M","X"); ("M","Y"); ("N","X"); ("N","Y"); ("A","X"); 
@@ -141,7 +153,24 @@ let tests = [
      Originate = Some ["A"; "B"; "C"; "D"];
      Prefs = Some [("X", "M", "N"); ("Y", "M","N")]};
 
+    {Name= "DCsmall4";
+     Explanation="End at single location";
+     Topo= tDatacenterSmall;
+     Rf= rDatacenterSmall4; 
+     Receive= Some [("X", "A"); ("M","X"); ("N", "X"); ("Y", "M"); ("Y", "N"); ("C", "Y"); ("D", "Y")];
+     Originate = Some ["A"];
+     Prefs = Some []};
+
+    {Name= "DCsmall5";
+     Explanation="Waypoint through spine to single location (should fail)";
+     Topo= tDatacenterSmall;
+     Rf= rDatacenterSmall5; 
+     Receive= None;
+     Originate = None;
+     Prefs = None};
+
     {Name= "DCmedium1";
+     Explanation="Shortest paths routing";
      Topo= tDatacenterMedium;
      Rf= rDatacenterMedium1; 
      Receive= Some [];
@@ -149,64 +178,54 @@ let tests = [
      Prefs = Some []};
 
     {Name= "DCmedium2";
+     Explanation="Waypoint through spine (should fail)";
      Topo= tDatacenterMedium;
      Rf= rDatacenterMedium2; 
-     Receive= Some [];
-     Originate = Some [];
-     Prefs = Some []};
+     Receive= None;
+     Originate = None;
+     Prefs = None}; 
+
+    {Name= "BrokenTriangle1";
+     Explanation="Inconsistent path suffixes (should fail)";
+     Topo= tBrokenTriangle;
+     Rf= rBrokenTriangle1; 
+     Receive= None;
+     Originate = None;
+     Prefs = None};
 ]
- 
+
 let run () =
-    let mutable ntests = 0
-    let mutable nfailed = 0
     for test in tests do
+        printfn "Testing %s ..." test.Name
         let reb = Regex.REBuilder test.Topo
-        let cg = CGraph.buildFromRegex test.Topo reb (test.Rf reb)
-        Minimize.pruneHeuristic cg
-        System.IO.File.WriteAllText(test.Name + ".dot", CGraph.toDot cg)
-        match Config.compile cg with 
-        | Err (x,y) ->
-            ntests <- ntests + 1
+        match IR.compileToIR test.Topo reb (test.Rf reb) (Some test.Name) with 
+        | Err(_) ->
             if (Option.isSome test.Receive || 
                 Option.isSome test.Originate || 
                 Option.isSome test.Prefs) then 
-                nfailed <- nfailed + 1
-                printfn "[Failed]: (%s) Should compile but did not, ambiguous choice at router %s" test.Name x.Node.Loc 
-                printfn "  CounterExample: %s, %s" (x.ToString()) (y.ToString())
-        | Ok config -> 
-            System.IO.File.WriteAllText(test.Name + ".config", Config.format config)
+                printfn "[Failed]:\n  Name: %s\n  Message: Should compile but did not\n" test.Name
+        | Ok(config) -> 
             if (Option.isNone test.Receive || 
                 Option.isNone test.Originate || 
                 Option.isNone test.Prefs) then 
-                nfailed <- nfailed + 1
                 printfn "[Failed]: (%s) Should not compile but did" test.Name
-                System.IO.File.WriteAllText(test.Name + ".config", Config.format config)
             else
                 (* Check receiving from peers *)
                 let rs = Option.get test.Receive
                 for (x,y) in rs do 
-                    ntests <- ntests + 1
                     if not (receiveFrom config x y) then 
-                        nfailed <- nfailed + 1
                         printfn "[Failed]: (%s) %s should receive from %s but did not" test.Name x y
                 
                 (* Check originating routes *)
                 let os = Option.get test.Originate
                 for x in os do 
-                    ntests <- ntests + 1
                     if not (originates config x) then 
-                        nfailed <- nfailed + 1 
                         printfn "[Failed]: (%s) %s should originate a route but did not" test.Name x
 
                 (* Test preferences *)
                 let ps = Option.get test.Prefs
                 for (x,a,b) in ps do
-                    ntests <- ntests + 1
                     if not (prefersPeer config x (a,b)) then 
-                        nfailed <- nfailed + 1
                         printfn "[Failed]: (%s) %s should prefer %s to %s but did not" test.Name x a b
-
-
-    printfn "Tests: (%d/%d) successful" (ntests-nfailed) ntests
 
     
