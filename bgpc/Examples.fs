@@ -1,8 +1,6 @@
 ﻿module Examples
-
 open QuickGraph
 open Topology
-
 
 let topoDiamond () = 
     let g = BidirectionalGraph<State ,TaggedEdge<State,unit>>()
@@ -80,5 +78,16 @@ let topoBigDipper () =
     Topology.addEdgesUndirected g [(vC,vA); (vA,vE); (vA,vD); (vE,vD)]
     g
 
+let topoSeesaw () = 
+    let g = BidirectionalGraph<State, TaggedEdge<State,unit>>()
+    let vM = {Loc="M"; Typ=InsideOriginates}
+    let vN = {Loc="N"; Typ=Inside}
+    let vO = {Loc="O"; Typ=Inside}
+    let vX = {Loc="X"; Typ=InsideOriginates}
+    let vA = {Loc="A"; Typ=InsideOriginates}
+    let vB = {Loc="B"; Typ=InsideOriginates}
+    Topology.addVertices g [vM; vN; vO; vX; vA; vB]
+    Topology.addEdgesUndirected g [(vM, vN); (vM, vO); (vO, vX); (vN, vX); (vX, vA); (vX, vB)]
+    g
 
 (* TODO: add examples with external ASes *)

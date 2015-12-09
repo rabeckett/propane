@@ -329,25 +329,34 @@ module Minimize =
                 cantReachAccepting || startCantReach
         ) |> ignore
 
+
+
     let removeNodesThatCantReachEnd (cg: T) = 
-        cg.Graph.RemoveVertexIf(fun v -> not (Reachable.srcDst cg v cg.End)) |> ignore
+        cg.Graph.RemoveVertexIf(fun v -> Topology.isTopoNode v.Node && not (Reachable.srcDst cg v cg.End)) |> ignore
 
     let removeNodesNotReachableOnSimplePath (cg: T) =
         let canReach = Reachable.simplePathSrc cg cg.Start
-        cg.Graph.RemoveVertexIf (fun v -> not (Set.contains v canReach)) |> ignore
+        cg.Graph.RemoveVertexIf (fun v -> Topology.isTopoNode v.Node && not (Set.contains v canReach)) |> ignore
 
     let removeNodesNotOnAnySimplePathToEnd (cg: T) = 
         let canReach = Reachable.alongSimplePathSrcDst cg cg.Start cg.End
-        cg.Graph.RemoveVertexIf (fun v -> not (Set.contains v canReach)) |> ignore
+        cg.Graph.RemoveVertexIf (fun v -> Topology.isTopoNode v.Node && not (Set.contains v canReach)) |> ignore
 
     let pruneHeuristic (cg: T) =
         (* TODO: Need good story on single starting node *)
         let starting = neighbors cg cg.Start
-        cg.Graph.RemoveVertexIf (fun v -> v.Node.Typ = Topology.InsideOriginates && v.Accept.IsEmpty && not (Set.contains v starting)) |> ignore
+        cg.Graph.RemoveVertexIf (fun v -> 
+            v.Node.Typ = Topology.InsideOriginates && 
+            v.Accept.IsEmpty && 
+            not (Set.contains v starting)
+        ) |> ignore
         (* Remove useless edges and nodes *)
+        System.IO.File.WriteAllText("temp.dot", toDot cg)
+
         removeEdgesForDominatedNodes cg
         removeNodesNotReachableOnSimplePath cg 
         removeNodesThatCantReachEnd cg
+        
         removeNodesNotOnAnySimplePathToEnd cg
 
 

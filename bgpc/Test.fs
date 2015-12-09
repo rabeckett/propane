@@ -67,6 +67,7 @@ let tDatacenterMedium = Examples.topoDatacenterMedium ()
 let tBrokenTriangle = Examples.topoBrokenTriangle ()
 let tBigDipper = Examples.topoBigDipper () 
 let tBadGadget = Examples.topoBadGadget ()
+let tSeesaw = Examples.topoSeesaw ()
 
 let rDiamond1 (reb: Regex.REBuilder) = 
     [reb.ConcatAll (List.map reb.Loc ["A"; "X"; "N"; "Y"; "B"])]
@@ -135,6 +136,14 @@ let rBadGadget2 (reb: Regex.REBuilder) =
     let op6 = reb.ConcatAll [reb.Loc "C"; reb.Loc "D"]
     [reb.UnionAll [op1; op2; op3; op4; op5; op6]]
 
+let rSeesaw1 (reb: Regex.REBuilder) = 
+    let op1 = reb.ConcatAll [reb.Loc "A"; reb.Loc "X"; reb.Loc "N"; reb.Loc "M"]
+    let op2 = reb.ConcatAll [reb.Loc "B"; reb.Loc "X"; reb.Loc "N"; reb.Loc "M"]
+    let op3 = reb.ConcatAll [reb.Loc "A"; reb.Loc "X"; reb.Loc "O"; reb.Loc "M"]
+    let op4 = reb.ConcatAll [reb.Loc "X"; reb.Loc "O"; reb.Loc "M"]
+    let pref1 = reb.UnionAll [op1; op2; op3; op4]
+    let pref2 = reb.ConcatAll [reb.Loc "X"; reb.Loc "N"; reb.Loc "M"]
+    [pref1; pref2]
 
 let tests = [
 
@@ -239,9 +248,17 @@ let tests = [
      Explanation="Must find correct total ordering";
      Topo= tBadGadget;
      Rf= rBadGadget2; 
-     Receive= Some [];
-     Originate = Some [];
+     Receive= Some [("A", "D"); ("B", "D"); ("C", "D")];
+     Originate = Some ["D"];
      Prefs = Some [("A", "D", "C"); ("B", "D", "A"); ("C", "D", "B")]};
+
+    {Name= "Seesaw1";
+     Explanation="Must get all best preferences (should fail)";
+     Topo= tSeesaw;
+     Rf= rSeesaw1; 
+     Receive= None;
+     Originate = None;
+     Prefs = None};
 ]
 
 let run () =
