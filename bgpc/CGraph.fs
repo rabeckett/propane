@@ -97,7 +97,7 @@ let acceptingLocations (cg: T) : Set<string> =
     acceptingStates cg
     |> Set.map (fun v -> v.Node.Loc)
 
-let neighbors (cg: T) (state: CgState) : Set<CgState> = 
+let neighbors (cg: T) (state: CgState) : Set<CgState> =
     cg.Graph.OutEdges state
     |> Seq.map (fun e -> e.Target) 
     |> Seq.filter (fun v -> Topology.isTopoNode v.Node)
@@ -107,7 +107,7 @@ let restrict (cg: T) (i: int) : T =
     if Set.contains i (preferences cg) then 
         let copy = copyGraph cg
         copy.Graph.RemoveVertexIf (fun v -> 
-            not (Set.isEmpty v.Accept) && not (Set.contains i v.Accept)
+            not v.Accept.IsEmpty && not (Set.contains i v.Accept)
         ) |> ignore
         copy
     else cg
@@ -245,6 +245,7 @@ module Reachable =
         search src Set.empty (Set.singleton cg.Start)
         Set.difference allNodes !cantReach
 
+    /// Checks if n1 in graph cg1 simulates n2 in cg2
     let supersetPaths (cg1, n1) (cg2, n2) : bool =
         let add k v map = 
             match Map.tryFind k map with 
@@ -299,6 +300,7 @@ module Reachable =
                 if Map.isEmpty bisim then true else
                 if not (remainsSuperset bisim) then false else 
                 let b = Map.fold updateBisim (Some Map.empty) bisim
+                (* printfn "New map: %A" b *)
                 match b with 
                 | None -> false
                 | Some b -> iter (n-1) b
@@ -311,6 +313,7 @@ module Reachable =
 
 
 module Minimize =
+
     (* TODO: use faster algorithms for this *)
     let removeEdgesForDominatedNodes (cg: T) = 
         let cgRev = copyReverseGraph cg
@@ -338,7 +341,7 @@ module Minimize =
         cg.Graph.RemoveVertexIf (fun v -> not (Set.contains v canReach)) |> ignore
 
     let pruneHeuristic (cg: T) =
-        (* Need good story on single starting node *)
+        (* TODO: Need good story on single starting node *)
         let starting = neighbors cg cg.Start
         cg.Graph.RemoveVertexIf (fun v -> v.Node.Typ = Topology.InsideOriginates && v.Accept.IsEmpty && not (Set.contains v starting)) |> ignore
         (* Remove useless edges and nodes *)
@@ -421,18 +424,24 @@ module Consistency =
     let simulate _ (restrict, restrictRev) (x,y) (i,j) =
         let restrict_i = copyGraph (Map.find i restrict)
         let restrict_j = copyGraph (Map.find j restrict)
-        let restrict_irev = copyGraph (Map.find i restrictRev)
-        let restrict_jrev = copyGraph (Map.find j restrictRev)
-        (* Remove same labelled nodes *)
-        restrict_i.Graph.RemoveVertexIf (fun v -> v.Node.Loc = x.Node.Loc && v <> x) |> ignore
-        restrict_irev.Graph.RemoveVertexIf (fun v -> v.Node.Loc = x.Node.Loc && v <> x) |> ignore
-        restrict_j.Graph.RemoveVertexIf (fun v -> v.Node.Loc = y.Node.Loc && v <> y) |> ignore
-        restrict_jrev.Graph.RemoveVertexIf (fun v -> v.Node.Loc = y.Node.Loc && v <> y) |> ignore
-        (* Remove nodes that appear 'above' for the more preferred, to avoid considering simple paths *)
-        let reach = Reachable.src restrict_irev x |> Set.map (fun v -> v.Node.Loc)
-        restrict_i.Graph.RemoveVertexIf (fun v -> v <> x && Set.contains v.Node.Loc reach) |> ignore
-        (* Check if the more preferred simulates the less preferred *)
-        (Reachable.supersetPaths (restrict_i, x) (restrict_j, y) || Reachable.supersetPaths (restrict_i, x) (restrict_jrev, y))
+        (* Check if the restricted graph contains the node we care about *)
+        if not (restrict_i.Graph.ContainsVertex x && restrict_j.Graph.ContainsVertex y) then 
+            false
+        else
+            let restrict_irev = copyGraph (Map.find i restrictRev)
+            let restrict_jrev = copyGraph (Map.find j restrictRev)
+            (* Remove same labelled nodes *)
+            restrict_i.Graph.RemoveVertexIf (fun v -> v.Node.Loc = x.Node.Loc && v <> x) |> ignore
+            restrict_irev.Graph.RemoveVertexIf (fun v -> v.Node.Loc = x.Node.Loc && v <> x) |> ignore
+            restrict_j.Graph.RemoveVertexIf (fun v -> v.Node.Loc = y.Node.Loc && v <> y) |> ignore
+            restrict_jrev.Graph.RemoveVertexIf (fun v -> v.Node.Loc = y.Node.Loc && v <> y) |> ignore
+            (* Remove nodes that appear 'above' for the more preferred, to avoid considering simple paths *)
+            let reach = Reachable.src restrict_irev x |> Set.map (fun v -> v.Node.Loc)
+            restrict_i.Graph.RemoveVertexIf (fun v -> v <> x && Set.contains v.Node.Loc reach) |> ignore
+            (* Check if the more preferred simulates the less preferred *)
+            (Reachable.supersetPaths (restrict_i, x) (restrict_j, y) || 
+             Reachable.supersetPaths (restrict_i, x) (restrict_jrev, y))
+
 
     let failedGraph (cg: T) (failures: Topology.Failure.FailType list) : T =
         let failed = copyGraph cg

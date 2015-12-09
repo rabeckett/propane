@@ -135,6 +135,7 @@ let compileToIR (topo: Topology.T) (reb: Regex.REBuilder) (res: Regex.T list) (o
     if not (Set.isEmpty lost) then 
         Err(NoPathForRouters(lost))
     else
+        (* Find unused preferences *)
         let numberedRegexes = seq {for i in 1.. List.length res do yield i}  |> Set.ofSeq
         let prefs = CGraph.preferences cg
         let unusedPrefs = Set.difference numberedRegexes prefs

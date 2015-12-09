@@ -109,6 +109,32 @@ let rBrokenTriangle1 (reb: Regex.REBuilder) =
         (reb.ConcatAll [reb.Loc "C"; reb.Loc "A"; reb.Loc "E"; reb.Loc "D"]) 
         (reb.ConcatAll [reb.Loc "A"; reb.Loc "B"; reb.Loc "D"])]
 
+let rBigDipper1 (reb: Regex.REBuilder) =
+    let op1 = reb.ConcatAll [reb.Loc "C"; reb.Loc "A"; reb.Loc "E"; reb.Loc "D"]
+    let op2 = reb.ConcatAll [reb.Loc "A"; reb.Loc "E"; reb.Loc "D"]
+    let op3 = reb.ConcatAll [reb.Loc "A"; reb.Loc "D"]
+    [reb.UnionAll [op1; op2; op3]]
+
+let rBadGadget1 (reb: Regex.REBuilder) =
+    let op1 = reb.ConcatAll [reb.Loc "A"; reb.Loc "C"; reb.Loc "D"]
+    let op2 = reb.ConcatAll [reb.Loc "B"; reb.Loc "A"; reb.Loc "D"]
+    let op3 = reb.ConcatAll [reb.Loc "C"; reb.Loc "B"; reb.Loc "D"]
+    let pref1 = reb.UnionAll [op1; op2; op3]
+    let op4 = reb.ConcatAll [reb.Loc "A"; reb.Loc "D"]
+    let op5 = reb.ConcatAll [reb.Loc "B"; reb.Loc "D"]
+    let op6 = reb.ConcatAll [reb.Loc "C"; reb.Loc "D"]
+    let pref2 = reb.UnionAll [op4; op5; op6]
+    [pref1; pref2]
+
+let rBadGadget2 (reb: Regex.REBuilder) =
+    let op1 = reb.ConcatAll [reb.Loc "A"; reb.Loc "C"; reb.Loc "D"]
+    let op2 = reb.ConcatAll [reb.Loc "B"; reb.Loc "A"; reb.Loc "D"]
+    let op3 = reb.ConcatAll [reb.Loc "C"; reb.Loc "B"; reb.Loc "D"]
+    let op4 = reb.ConcatAll [reb.Loc "A"; reb.Loc "D"]
+    let op5 = reb.ConcatAll [reb.Loc "B"; reb.Loc "D"]
+    let op6 = reb.ConcatAll [reb.Loc "C"; reb.Loc "D"]
+    [reb.UnionAll [op1; op2; op3; op4; op5; op6]]
+
 
 let tests = [
 
@@ -192,40 +218,64 @@ let tests = [
      Receive= None;
      Originate = None;
      Prefs = None};
+
+    {Name= "BigDipper1";
+     Explanation="Must choose the correct preference";
+     Topo= tBigDipper;
+     Rf= rBigDipper1; 
+     Receive= Some [("E", "D"); ("A", "E"); ("C", "A")];
+     Originate = Some ["D"];
+     Prefs = Some [("A","E","D")]};
+
+    {Name= "BadGadget1";
+     Explanation="Total ordering prevents instability (should fail)";
+     Topo= tBadGadget;
+     Rf= rBadGadget1; 
+     Receive= None;
+     Originate = None;
+     Prefs = None};
+
+    {Name= "BadGadget2";
+     Explanation="Must find correct total ordering";
+     Topo= tBadGadget;
+     Rf= rBadGadget2; 
+     Receive= Some [];
+     Originate = Some [];
+     Prefs = Some [("A", "D", "C"); ("B", "D", "A"); ("C", "D", "B")]};
 ]
 
 let run () =
     for test in tests do
-        printfn "Testing %s ..." test.Name
+        printfn "Testing %s - %s ..." test.Name test.Explanation
         let reb = Regex.REBuilder test.Topo
         match IR.compileToIR test.Topo reb (test.Rf reb) (Some test.Name) with 
         | Err(_) ->
             if (Option.isSome test.Receive || 
                 Option.isSome test.Originate || 
                 Option.isSome test.Prefs) then 
-                printfn "[Failed]:\n  Name: %s\n  Message: Should compile but did not\n" test.Name
+                printfn "\n[Failed]:\n  Name: %s\n  Message: Should compile but did not\n" test.Name
         | Ok(config) -> 
             if (Option.isNone test.Receive || 
                 Option.isNone test.Originate || 
                 Option.isNone test.Prefs) then 
-                printfn "[Failed]: (%s) Should not compile but did" test.Name
+                printfn "\n[Failed]: (%s) Should not compile but did" test.Name
             else
                 (* Check receiving from peers *)
                 let rs = Option.get test.Receive
                 for (x,y) in rs do 
                     if not (receiveFrom config x y) then 
-                        printfn "[Failed]: (%s) %s should receive from %s but did not" test.Name x y
+                        printfn "\n[Failed]: (%s) %s should receive from %s but did not" test.Name x y
                 
                 (* Check originating routes *)
                 let os = Option.get test.Originate
                 for x in os do 
                     if not (originates config x) then 
-                        printfn "[Failed]: (%s) %s should originate a route but did not" test.Name x
+                        printfn "\n[Failed]: (%s) %s should originate a route but did not" test.Name x
 
                 (* Test preferences *)
                 let ps = Option.get test.Prefs
                 for (x,a,b) in ps do
                     if not (prefersPeer config x (a,b)) then 
-                        printfn "[Failed]: (%s) %s should prefer %s to %s but did not" test.Name x a b
+                        printfn "\n[Failed]: (%s) %s should prefer %s to %s but did not" test.Name x a b
 
     

@@ -1,4 +1,4 @@
-define external		= out+
+﻿define external		= out+
 define internal	 	= in+
 define through_me 	= out* internal
 define leaving_me	= internal external
@@ -24,9 +24,9 @@ define DCR 	= ...
 scope {
 	paths ordered {
 		block => {}
-		pfx1 => through_me
-		pfx2 => through_me
-		pfx3 => through_me
+		pfx1 => through_me and endsAt(X)
+		pfx2 => through_me and endsAt(Y)
+		pfx3 => through_me and endsAt(Z)
 		...
 		true => leaving_me
 	}

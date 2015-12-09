@@ -93,8 +93,6 @@
     <Compile Include="Input.fs" />
     <Compile Include="CGraph.fsi" />
     <Compile Include="CGraph.fs" />
-    <Compile Include="Consistency.fsi" />
-    <Compile Include="Consistency.fs" />
     <Compile Include="IR.fsi" />
     <Compile Include="IR.fs" />
     <Compile Include="Test.fs" />
