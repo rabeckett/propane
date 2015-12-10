@@ -363,7 +363,11 @@ module Minimize =
         ) |> ignore
 
     let removeNodesThatCantReachEnd (cg: T) = 
-        cg.Graph.RemoveVertexIf(fun v -> Topology.isTopoNode v.Node && not (Reachable.srcDst cg v cg.End)) |> ignore
+        let cgRev = copyReverseGraph cg
+        let canReach = Reachable.src cgRev cg.End
+        cg.Graph.RemoveVertexIf(fun v -> 
+            Topology.isTopoNode v.Node && not (Set.contains v canReach)
+        ) |> ignore
 
     let removeNodesNotReachableOnSimplePath (cg: T) =
         let canReach = Reachable.simplePathSrc cg cg.Start
