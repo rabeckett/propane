@@ -1,6 +1,6 @@
 ﻿module CGraph
 open QuickGraph
-open Extension.Error
+open Common.Error
 
 type CgState = 
     {States: int array; 

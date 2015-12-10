@@ -1,8 +1,8 @@
 ﻿module CGraph
 open QuickGraph
 open QuickGraph.Algorithms
-open Extension.Error
-open Extension.Debug
+open Common.Error
+open Common.Debug
 
 type CgState = 
     {States: int array; 
@@ -482,7 +482,6 @@ module Consistency =
         let prefs = preferences cg 
         let rs = restrictedGraphs cg prefs
         let rsRev = Map.map (fun _ cg -> copyReverseGraph cg) rs
-        (* Map.iter (fun i cg -> System.IO.File.WriteAllText("restricted" + i.ToString() + ".dot", CGraph.toDot cg)) restrict *)
         let labels = 
             cg.Graph.Vertices
             |> Seq.filter (fun v -> Topology.isTopoNode v.Node)

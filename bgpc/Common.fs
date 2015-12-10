@@ -1,11 +1,11 @@
-﻿module Extension
+﻿module Common
 
 
 module Debug =
 
-    /// run a function if in debug mode    
+    /// run a function if in debug mode
     let debug f = 
-        if false then 
+        if !Options.debug then 
             f ()
 
     /// Generate a string header for a debugging section

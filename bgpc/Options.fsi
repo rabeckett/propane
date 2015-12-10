@@ -1,4 +1,4 @@
-﻿module Args
+﻿module Options
 
 type Format = 
     | IR 
@@ -10,6 +10,9 @@ type T =
      OutFile: string option;
      Format: Format;
      Test: bool}
+
+/// If we are in debug mode
+val debug: bool ref
 
 /// Parse command line arguments and return the compiler settings
 /// The default settings are to format with Template, 

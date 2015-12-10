@@ -1,4 +1,4 @@
-﻿module Args
+﻿module Options
 
 type Spec = 
     | Unit of (unit -> unit)
@@ -21,6 +21,7 @@ let polFile = ref None
 let outFile = ref None
 let format = ref Template
 let test = ref false
+let debug = ref false
 
 let setFormat s = 
     match s with 
@@ -34,7 +35,8 @@ let args =
     [|("-pol", String (fun s -> polFile := Some s), "Policy file");
       ("-out", String (fun s -> outFile := Some s), "Output file");
       ("-format", String (fun s -> setFormat s), "Output format (Template, IR, Graph)");
-      ("-test", Unit (fun () -> test := true), "Run unit tests") |]
+      ("-test", Unit (fun () -> test := true), "Run unit tests");
+      ("-debug", Unit (fun () -> debug := true), "Extra debugging information") |]
 
 let printHelp () = 
     printfn "\n%s" usage

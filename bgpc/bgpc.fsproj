@@ -70,9 +70,9 @@
     <Reference Include="System.Numerics" />
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="Args.fsi" />
-    <Compile Include="Args.fs" />
-    <Compile Include="Extension.fs" />
+    <Compile Include="Options.fsi" />
+    <Compile Include="Options.fs" />
+    <Compile Include="Common.fs" />
     <Compile Include="Topology.fsi" />
     <Compile Include="Topology.fs" />
     <Compile Include="Prefix.fs" />

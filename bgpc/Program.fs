@@ -1,4 +1,4 @@
-﻿open Extension.Error
+﻿open Common.Error
 
 
 let chooseFirst (ast: Ast.T) reb = 
@@ -9,15 +9,15 @@ let chooseFirst (ast: Ast.T) reb =
 
 [<EntryPoint>]
 let main argv =
-    let options = Args.parse argv
+    let opts = Options.parse argv
 
-    if options.Test then 
+    if opts.Test then 
         Test.run ()
     else
         let topo = Examples.topoDatacenterSmall()
         let reb = Regex.REBuilder(topo)
 
-        match options.PolFile with 
+        match opts.PolFile with 
         | None -> 
             printfn "No policy file specified"
             exit 0
@@ -26,14 +26,14 @@ let main argv =
             let res = chooseFirst ast reb
             let cg = CGraph.buildFromRegex topo reb res
             CGraph.Minimize.pruneHeuristic cg
-            match options.Format with 
-            | Args.IR ->
-                match IR.compileToIR topo reb res options.OutFile with 
+            match opts.Format with 
+            | Options.IR ->
+                match IR.compileToIR topo reb res opts.OutFile with 
                 | Ok(config) -> ()
                 | Err(_) -> ()
-            | Args.Template -> ()
-            | Args.Graph ->
-                match options.OutFile with
+            | Options.Template -> ()
+            | Options.Graph ->
+                match opts.OutFile with
                 | None -> ()
                 | Some out ->
                     System.IO.File.WriteAllText(out, CGraph.toDot cg)

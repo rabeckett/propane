@@ -21,4 +21,4 @@ Other:
 	Generalize syntax in parser for better error messages
 	More detailed counterexamples (include exact failure scenario)
 
-	Allow specifying speed/expressiveness of policies allowed (e.g., change which nodes to remove in simulation based on this)
+	Allow specifying speed/expressiveness of policis allowed (e.g., change which nodes to remove in simulation based on this)

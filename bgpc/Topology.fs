@@ -87,4 +87,4 @@ module Failure =
             |> Seq.map LinkFailure 
         Seq.append fes fvs 
         |> Seq.toList
-        |> Extension.List.combinations n
+        |> Common.List.combinations n

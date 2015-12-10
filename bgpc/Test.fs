@@ -1,7 +1,9 @@
 ﻿module Test
 open IR
 open CGraph
-open Extension.Error
+open Common.Error
+
+let TEST_DIR = "tests/"
 
 (********************************************* 
  *  Config helpers
@@ -262,10 +264,13 @@ let tests = [
 ]
 
 let run () =
+    if not (System.IO.Directory.Exists TEST_DIR) then 
+        System.IO.Directory.CreateDirectory(TEST_DIR).Create()
+
     for test in tests do
         printfn "Testing %s - %s ..." test.Name test.Explanation
         let reb = Regex.REBuilder test.Topo
-        match IR.compileToIR test.Topo reb (test.Rf reb) (Some test.Name) with 
+        match IR.compileToIR test.Topo reb (test.Rf reb) (Some (TEST_DIR + test.Name)) with 
         | Err(x) ->
             if (Option.isSome test.Receive || 
                 Option.isSome test.Originate || 
@@ -276,24 +281,24 @@ let run () =
             if (Option.isNone test.Receive || 
                 Option.isNone test.Originate || 
                 Option.isNone test.Prefs) then 
-                printfn "\n[Failed]: (%s) Should not compile but did" test.Name
+                printfn "\n[Failed]:\n  Name: %s\n  Message: Should not compile but did\n" test.Name
             else
                 (* Check receiving from peers *)
                 let rs = Option.get test.Receive
                 for (x,y) in rs do 
                     if not (receiveFrom config x y) then 
-                        printfn "\n[Failed]: (%s) %s should receive from %s but did not" test.Name x y
+                        printfn "\n[Failed]: (%s) - %s should receive from %s but did not" test.Name x y
                 
                 (* Check originating routes *)
                 let os = Option.get test.Originate
                 for x in os do 
                     if not (originates config x) then 
-                        printfn "\n[Failed]: (%s) %s should originate a route but did not" test.Name x
+                        printfn "\n[Failed]: (%s) - %s should originate a route but did not" test.Name x
 
                 (* Test preferences *)
                 let ps = Option.get test.Prefs
                 for (x,a,b) in ps do
                     if not (prefersPeer config x (a,b)) then 
-                        printfn "\n[Failed]: (%s) %s should prefer %s to %s but did not" test.Name x a b
+                        printfn "\n[Failed]: (%s) - %s should prefer %s to %s but did not" test.Name x a b
 
     

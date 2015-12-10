@@ -1,6 +1,6 @@
 ﻿module IR
-open Extension.Error
 open CGraph
+open Common.Error
 
 type CounterExample = 
     | UnusedPreferences of Map<int, Regex.T>

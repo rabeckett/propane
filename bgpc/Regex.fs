@@ -1,5 +1,5 @@
 ﻿module Regex
-open Extension
+open Common
 
 /// Extended regular expressions with negation and intersection 
 /// Characters classes are modelled using sets of locations
@@ -92,7 +92,7 @@ let rec concat r1 r2 =
 let concatAll res =
     match res with 
     | [] -> Empty
-    | _ -> Extension.List.fold1 concat res
+    | _ -> Common.List.fold1 concat res
 
 let rec inter r1 r2 = 
     match r1, r2 with 
@@ -108,7 +108,7 @@ let rec inter r1 r2 =
 let interAll res = 
     match res with 
     | [] -> Empty
-    | _ -> Extension.List.fold1 inter res
+    | _ -> Common.List.fold1 inter res
 
 let rec union r1 r2 = 
     match r1, r2 with 
@@ -125,7 +125,7 @@ let rec union r1 r2 =
 let unionAll res = 
     match res with 
     | [] -> Empty
-    | _ -> Extension.List.fold1 union res
+    | _ -> Common.List.fold1 union res
 
 /// Check if a regular expression denotes only single characters and 
 /// if so, returns the set of characters it denotes
@@ -139,10 +139,10 @@ let rec singleLocations alphabet r =
     | Locs s -> Some s
     | Inter rs ->
         List.map (singleLocations alphabet) rs |> 
-        Extension.List.fold1 (aux Set.intersect)
+        Common.List.fold1 (aux Set.intersect)
     | Union rs -> 
         List.map (singleLocations alphabet) rs |>
-        Extension.List.fold1 (aux Set.union)
+        Common.List.fold1 (aux Set.union)
     | Negate r ->
         Option.map (Set.difference alphabet) (singleLocations alphabet r)
     | _ -> None
