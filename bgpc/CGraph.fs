@@ -1,8 +1,10 @@
 ﻿module CGraph
-open QuickGraph
-open QuickGraph.Algorithms
+
 open Common.Error
 open Common.Debug
+open QuickGraph
+open QuickGraph.Algorithms
+open QuickGraph.Algorithms
 
 type CgState = 
     {States: int array; 
@@ -102,6 +104,11 @@ let neighbors (cg: T) (state: CgState) : Set<CgState> =
     cg.Graph.OutEdges state
     |> Seq.map (fun e -> e.Target) 
     |> Seq.filter (fun v -> Topology.isTopoNode v.Node)
+    |> Set.ofSeq
+
+let neighborsAll (cg: T) (state: CgState) : Set<CgState> =
+    cg.Graph.OutEdges state
+    |> Seq.map (fun e -> e.Target) 
     |> Set.ofSeq
 
 let restrict (cg: T) (i: int) : T = 
@@ -312,19 +319,47 @@ module Reachable =
 
 module Minimize =
 
-    (* TODO: use faster algorithms for this *)
-    let removeEdgesForDominatedNodes (cg: T) = 
+    let dfs (cg: T) (start: CgState) : seq<CgState> =
+        let dfs = Search.DepthFirstSearchAlgorithm<CgState, TaggedEdge<CgState, unit>>(cg.Graph)
+        let nodes = ref Seq.empty
+        dfs.add_DiscoverVertex (fun v -> nodes := Seq.append !nodes (Seq.singleton v))
+        dfs.Compute()
+        dfs.Visit(start)
+        !nodes
+
+    type DominationSet = Map<CgState, Set<CgState>>
+
+    let dominators (cg: T) : DominationSet =
         let cgRev = copyReverseGraph cg
+        let dom = ref Map.empty
+        let nodes = dfs cg cg.Start
+        for n in nodes do 
+            dom := Map.add n (Set.ofSeq nodes) !dom
+        let mutable changed = true 
+        while changed do 
+            changed <- false 
+            for n in nodes do
+                let preds = neighborsAll cgRev n
+                let preds = seq {for p in preds do yield Map.find p !dom}
+                let interAll = if Seq.isEmpty preds then Set.empty else Set.intersectMany preds
+                let newSet = Set.union (Set.singleton n) interAll
+                if (newSet <> Map.find n !dom) then 
+                    dom := Map.add n newSet !dom 
+                    changed <- true
+        !dom
+
+    let removeEdgesForDominatedNodes (cg: T) = 
+        let dom = dominators cg
         cg.Graph.RemoveEdgeIf (fun (e: TaggedEdge<CgState,unit>) -> 
-            let oes = cg.Graph.OutEdges e.Source
-            let ies = cgRev.Graph.OutEdges e.Source
-            let ie = Seq.tryFind (fun (ie: TaggedEdge<CgState,unit>) -> ie.Target = e.Target) ies
-            match ie with 
+            let ies = cg.Graph.OutEdges e.Target
+            match Seq.tryFind (fun (ie: TaggedEdge<CgState,unit>) -> ie.Target = e.Source) ies with 
             | None -> false 
             | Some ie ->
-                let cantReachAccepting = not (Reachable.srcDstWithout cg e.Target cg.End ((=) e.Source))
-                let startCantReach = not (Reachable.srcDstWithout cg cg.Start e.Source ((=) e.Target))
-                cantReachAccepting || startCantReach
+                assert (ie.Source = e.Target)
+                assert (ie.Target = e.Source)
+                match Map.tryFind e.Source dom with
+                | None -> false
+                | Some s -> Set.contains e.Target s
         ) |> ignore
 
     let removeNodesThatCantReachEnd (cg: T) = 

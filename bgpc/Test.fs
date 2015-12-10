@@ -163,7 +163,7 @@ let rSeesaw1 (reb: Regex.REBuilder) =
     [pref1; pref2]
 
 let tests = [
-
+(*
     {Name= "Diamond1";
      Explanation="A simple path";
      Topo= tDiamond;
@@ -194,7 +194,7 @@ let tests = [
      Rf= rDatacenterSmall2; 
      Receive= None;
      Originate = None;
-     Prefs = None};
+     Prefs = None}; *)
 
     {Name= "DCsmall3";
      Explanation="Waypoint through spine with backup";
@@ -298,7 +298,7 @@ let tests = [
      Rf= rSeesaw1; 
      Receive= None;
      Originate = None;
-     Prefs = None};
+     Prefs = None}; 
 
 ]
 
@@ -314,8 +314,8 @@ let run () =
             if (Option.isSome test.Receive || 
                 Option.isSome test.Originate || 
                 Option.isSome test.Prefs) then 
-                printfn "\n[Failed]:\n  Name: %s\n  Message: Should compile but did not\n" test.Name
-                printfn "Error: %A" x
+                printfn "\n[Failed]:\n  Name: %s\n  Message: Should compile but did not" test.Name
+                printfn "Error: %A\n" x
         | Ok(config) -> 
             if (Option.isNone test.Receive || 
                 Option.isNone test.Originate || 
