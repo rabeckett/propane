@@ -47,6 +47,27 @@ let topoDatacenterMedium () =
          (vC,vX); (vC,vY); (vD,vX); (vD,vY); (vG,vX); (vG,vY); (vH,vX); (vH,vY)]
     g
 
+let topoDatacenterLarge () = 
+    let g = BidirectionalGraph<State, TaggedEdge<State,unit>>()
+    let vA = {Loc="A"; Typ=InsideOriginates}
+    let vB = {Loc="B"; Typ=InsideOriginates}
+    let vC = {Loc="C"; Typ=InsideOriginates}
+    let vD = {Loc="D"; Typ=InsideOriginates}
+    let vE = {Loc="E"; Typ=InsideOriginates}
+    let vF = {Loc="F"; Typ=InsideOriginates}
+    let vM = {Loc="M"; Typ=Inside}
+    let vN = {Loc="N"; Typ=Inside}
+    let vO = {Loc="O"; Typ=Inside}
+    let vX = {Loc="X"; Typ=Inside}
+    let vY = {Loc="Y"; Typ=Inside}
+    let vZ = {Loc="Z"; Typ=Inside}
+    Topology.addVertices g [vA; vB; vC; vD; vE; vF; vM; vN; vO; vX; vY; vZ]
+    Topology.addEdgesUndirected g 
+        [(vA, vX); (vB, vX); (vC, vY); (vD, vY); (vE, vZ); (vF, vZ); 
+         (vX, vM); (vX, vN); (vX, vO); (vY, vM); (vY, vN); (vY, vO);
+         (vZ, vM); (vZ, vN); (vZ, vO)]
+    g
+
 let topoBadGadget () = 
     let g = BidirectionalGraph<State, TaggedEdge<State,unit>>()
     let vA = {Loc="A"; Typ=InsideOriginates}

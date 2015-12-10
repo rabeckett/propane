@@ -65,7 +65,8 @@ type Test =
  
 let tDiamond = Examples.topoDiamond () 
 let tDatacenterSmall = Examples.topoDatacenterSmall ()
-let tDatacenterMedium = Examples.topoDatacenterMedium () 
+let tDatacenterMedium = Examples.topoDatacenterMedium ()
+let tDatacenterLarge = Examples.topoDatacenterLarge ()
 let tBrokenTriangle = Examples.topoBrokenTriangle ()
 let tBigDipper = Examples.topoBigDipper () 
 let tBadGadget = Examples.topoBadGadget ()
@@ -106,6 +107,20 @@ let rDatacenterMedium3 (reb: Regex.REBuilder) =
     let re1 = reb.ConcatAll [reb.Star reb.Inside; reb.Loc "X"; reb.Star reb.Inside; reb.Loc "F"] 
     let re2 = reb.ConcatAll [reb.Star reb.Inside; reb.Loc "Y"; reb.Star reb.Inside; reb.Loc "F"]
     [re1; re2]
+
+let rDatacenterLarge1 (reb: Regex.REBuilder) =
+    [reb.ConcatAll [reb.Star reb.Inside; reb.Loc "M"; reb.Star reb.Inside; reb.Loc "A"]]
+
+let rDatacenterLarge2 (reb: Regex.REBuilder) =
+    let pref1 = reb.ConcatAll [reb.Star reb.Inside; reb.Loc "M"; reb.Star reb.Inside; reb.Loc "A"]
+    let pref2 = reb.ConcatAll [reb.Star reb.Inside; reb.Loc "A"]
+    [pref1; pref2]
+
+let rDatacenterLarge3 (reb: Regex.REBuilder) =
+    let pref1 = reb.ConcatAll [reb.Star reb.Inside; reb.Loc "M"; reb.Star reb.Inside; reb.Loc "A"]
+    let pref2 = reb.ConcatAll [reb.Star reb.Inside; reb.Loc "N"; reb.Star reb.Inside; reb.Loc "A"]
+    let pref3 = reb.ConcatAll [reb.Star reb.Inside; reb.Loc "A"]
+    [pref1; pref2; pref3]
 
 let rBrokenTriangle1 (reb: Regex.REBuilder) =
     [reb.Union 
@@ -219,7 +234,31 @@ let tests = [
      Rf= rDatacenterMedium2; 
      Receive= None;
      Originate = None;
-     Prefs = None}; 
+     Prefs = None};
+
+    {Name= "DClarge1";
+     Explanation="Waypoint through spine (should fail)";
+     Topo= tDatacenterLarge;
+     Rf= rDatacenterLarge1; 
+     Receive= None;
+     Originate = None;
+     Prefs = None};
+
+    {Name= "DClarge2";
+     Explanation="Waypoint through spine with backup (should fail due to valleys)";
+     Topo= tDatacenterLarge;
+     Rf= rDatacenterLarge2; 
+     Receive= None;
+     Originate = None;
+     Prefs = None};
+
+    {Name= "DClarge3";
+     Explanation="Waypoint through spines with preference and backup (should fail due to valleys)";
+     Topo= tDatacenterLarge;
+     Rf= rDatacenterLarge3; 
+     Receive= None;
+     Originate = None;
+     Prefs = None};
 
     {Name= "BrokenTriangle1";
      Explanation="Inconsistent path suffixes (should fail)";
