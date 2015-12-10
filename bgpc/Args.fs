@@ -34,13 +34,13 @@ let args =
     [|("-pol", String (fun s -> polFile := Some s), "Policy file");
       ("-out", String (fun s -> outFile := Some s), "Output file");
       ("-format", String (fun s -> setFormat s), "Output format (Template, IR, Graph)");
-      ("--test", Unit (fun () -> test := true), "Check executable with unit tests") |]
+      ("-test", Unit (fun () -> test := true), "Run unit tests") |]
 
 let printHelp () = 
-    printfn "%s" usage
+    printfn "\n%s" usage
     for (param, _, descr) in args do 
         printfn "%s  %s" param descr
-    printfn "--help  Display this message"
+    printfn "-help  Display this message"
 
 let exit () = 
     printHelp () 
@@ -70,7 +70,7 @@ let parse (argv: string[]) : T =
         exit () 
     else
     try 
-        Array.find (fun s -> s = "--help") argv |> ignore
+        Array.find (fun s -> s = "-help") argv |> ignore
         exit ()
     with _ -> 
         let mutable i = 0

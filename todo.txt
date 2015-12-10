@@ -1,136 +1,24 @@
+﻿Interdomain Routing:
+	Interdomain routing set MEDs
+	Interdomain routing dealing with unknown locations
+	Conversion from product graph to regex for preferences on border routers
 
-List of possible constraints:
-	path(p, regex)							# Allowed paths
-	
-	aggregate(p, locs → locs)				# Aggregation requirements
-	community(p, locs → locs, TAG)			# Additional community tagging
-	
-	del_private(locs → locs)				# Remove private as numbers (unsafe)
-	allow_as_in(locs)						# Allow as repeats (unsafe)
+Aggregation:
+	Adding aggregation constaints
+	Checking aggregation never black holdes according to k failure scenario
+	Automatically insert aggregation when ok
 
-	multipath 								# Send over all equal paths (safe)
+Well-formedness:
+	Ensure topology is well formed (connected)
+	Reject routes not matching out* in+ out*
+	Disallow aggregation on external locations
+	Deal with regexes with locations that don't match topology
 
-	max_routes(locs → locs, n)				# Limit the number of routes from a peer (safe)
-	max_as_path_length(locs → locs, n)		# Limit the maximum as path length allowed (unsafe)
-	
-	include("commands")						# Insert arbitrary commands (unsafe)
+Other:
+	Dealing with multiple sinks for originating traffic
+	Infer which routers we care about in the product graph based on policy
+	More efficient BFS in constrained path problem
+	Generalize syntax in parser for better error messages
+	More detailed counterexamples (include exact failure scenario)
 
-
-Challenges:
-
-	(1)	Set communities explicitly
-		community(p₀, in → out)
-
-	(2) Aggregation on outgoing advertisements
-		aggregate(block, in → out)
-
-	(3)	Both aggregate and advertise more specific address
-		Normally you would only advertise specific addresses for backups
-
-		Current setup: 
-			- T3 routers advertise aggregate blocks and tag w/AGGREGATE
-			- T3 routers advertise specific addresses and tag w/REGIONAL
-			- DCR avoids failures by picking entry point w/specific address
-			- DCR exports AGGREGATE routes to the outside world
-
-		In other words - if the DCR is considered internal, then we want to 
-		advertise specific prefixes to all internal locations, and advertise an 
-		aggregate to the outside world
-
-		aggregate( 10.0.0.0/8, in → out)
-		community( 10.x.x.x, AGGREGATE, in → out)
-		community( !(10.0.0.0/8), REGIONAL, in → out )
-
-		There is a subtle difference between matching the set of ip
-		addresses denoted by a prefix, and matching the set of prefixes.
-		For example: 
-			10.0.0.0/8 matches ips  10.0.0.0, 10.0.0.1, 10.0.0.2, ...
-			10.0.0.0/8 matches pfxs 10.0.0.0/32, ... 10.0.0.0/8
-
-		Viewed as a prefix, it matches all sub-prefixes 
-		Viewed as an ip address, it matches all ips for that prefix
-
-		We probably have to take the prefix view?
-
-
-Example:
-
-	define external		= out+
-	define internal	 	= in+
-	define through_me 	= out* internal
-	define leaving_me	= internal external
-	define enter_in(X) 	= out+ (X inter in) in* out*
-	define enter_out(X)	= out* (X inter out) in+ out*
-	define exit_in(X)	= out* in* (X inter in) out+
-	define exit_out(X)	= out* in+ (X inter out) out*
-
-	define AGGREGATE = 8075:420
-	define REGIONAL	 = 8075:61000
-
-	define blocks 	= ...
-	define pfx1		= 10.0.0.0/8
-	define pfx2		= 127.0.0.1/24
-	define pfx3		= 15.6.7.8/16
-
-	define T0 	= (A + B + C + D + ...)  	# if from DB, then maybe: {X | X.tier = T0}
-	define T1 	= ...
-	define T2 	= ...
-	define T3 	= ...
-	define DCR 	= ...
-
-	scope {
-		paths ordered {
-			block => {}
-			pfx1 => through_me
-			pfx2 => through_me
-			pfx3 => through_me
-			...
-			true => leaving_me
-		}
-
-		aggregate(pfx1, in → DCR)
-		aggregate(pfx2, in → DCR)
-		aggregate(pfx3, in → DCR)
-		...
-
-		community(pfx1[exact], in → DCR, AGGREGATE)		# same as pfx1[8..8] in this case
-		community(pfx2[exact], in → DCR, AGGREGATE)
-		...
-		community(true , in → DCR, REGIONAL)			
-	
-		max_routes(T1 → T0, 12000)
-		max_routes(T0 → T1, 150)
-		...
-
-		allow_as_in(T0)
-		del_private(in → out)
-		multipath
-	}
-
-	include("
-		snmp commands
-		access lists 
-		etc...
-	")
-
-
-
-
-
-
-
-
-
-
-	p1   => enter_in(SEA) >> out . through_me
-	p2   => enter_in(NY)  >> out . through_me
-	p0 	 => out through_me
-
-	# not implementable since we don't know if an aggregate will cover us on other
-	# entrances. p0 means there should be a path for advertisements matching p0, but does 
-	# not guarantee that there will be one for exactly p0 until we add the following command
-	# With this command, we know that whenever we have a path for p1 to its destination, 
-	# if there is a path from p1 to NY, then the aggregate will be active, and will serve as 
-	# a backup. In other words, it guarantees the existence of an active route.
-
-	aggregate(p0!, in → out)
+	Allow specifying speed/expressiveness of policies allowed (e.g., change which nodes to remove in simulation based on this)

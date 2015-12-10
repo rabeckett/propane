@@ -8,7 +8,7 @@ let chooseFirst (ast: Ast.T) reb =
     res
 
 [<EntryPoint>]
-let main argv = 
+let main argv =
     let options = Args.parse argv
 
     if options.Test then 

@@ -1,5 +1,20 @@
 ﻿module Extension
 
+
+module Debug =
+
+    /// run a function if in debug mode    
+    let debug f = 
+        if false then 
+            f ()
+
+    /// Generate a string header for a debugging section
+    let header x = 
+        let len = String.length x
+        let bar = String.replicate (len + 2) "="
+        bar + "\n" + x + "\n" + bar
+
+
 module List = 
 
     /// A faster, inline version of fold

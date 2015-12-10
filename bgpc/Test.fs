@@ -81,12 +81,12 @@ let rDatacenterSmall1 (reb: Regex.REBuilder) =
     [reb.Star reb.Inside]
 
 let rDatacenterSmall2 (reb: Regex.REBuilder) = 
-    [reb.ConcatAll [reb.Star reb.Inside; reb.Loc "M"; reb.Star reb.Inside]]
+    [reb.ConcatAll [reb.Star reb.Inside; reb.Loc "M"; reb.Star reb.Inside; reb.Loc "A"]]
 
 let rDatacenterSmall3 (reb: Regex.REBuilder) =
-    let re1 = reb.ConcatAll [reb.Star reb.Inside; reb.Loc "M"; reb.Star reb.Inside] 
-    let re2 = reb.ConcatAll [reb.Star reb.Inside; reb.Loc "N"; reb.Star reb.Inside]
-    [re1; re2]
+    let pref1 = reb.ConcatAll [reb.Star reb.Inside; reb.Loc "M"; reb.Star reb.Inside; reb.Loc "A"]
+    let pref2 = reb.ConcatAll [reb.Star reb.Inside; reb.Loc "A"]
+    [pref1; pref2]
 
 let rDatacenterSmall4 (reb: Regex.REBuilder) =
     [reb.ConcatAll [reb.Star reb.Inside; reb.Loc "A"]]
@@ -172,21 +172,20 @@ let tests = [
      Prefs = Some []};
    
     {Name= "DCsmall2";
-     Explanation="Waypoint through spine";
+     Explanation="Waypoint through spine no backup (should fail)";
      Topo= tDatacenterSmall;
      Rf= rDatacenterSmall2; 
-     Receive= Some [("M","X"); ("M","Y"); ("A","X"); ("B","X"); ("X", "A"); ("X", "B"); ("X", "M")];
-     Originate = Some ["A"; "B"; "C"; "D"];
-     Prefs = Some []};
+     Receive= None;
+     Originate = None;
+     Prefs = None};
 
     {Name= "DCsmall3";
-     Explanation="Prefer one spine over another";
+     Explanation="Waypoint through spine with backup";
      Topo= tDatacenterSmall;
      Rf= rDatacenterSmall3; 
-     Receive= Some [("M","X"); ("M","Y"); ("N","X"); ("N","Y"); ("A","X"); 
-                    ("B","X"); ("X", "A"); ("X", "B"); ("X","N"); ("X", "M")];
-     Originate = Some ["A"; "B"; "C"; "D"];
-     Prefs = Some [("X", "M", "N"); ("Y", "M","N")]};
+     Receive= Some [("X", "A"); ("M", "X"); ("N", "X"); ("B", "X"); ("Y", "M"); ("Y", "N"); ("C", "Y"); ("D", "Y")];
+     Originate = Some ["A"];
+     Prefs = Some [("Y", "M", "N")]};
 
     {Name= "DCsmall4";
      Explanation="End at single location";
@@ -259,6 +258,7 @@ let tests = [
      Receive= None;
      Originate = None;
      Prefs = None};
+
 ]
 
 let run () =
@@ -266,11 +266,12 @@ let run () =
         printfn "Testing %s - %s ..." test.Name test.Explanation
         let reb = Regex.REBuilder test.Topo
         match IR.compileToIR test.Topo reb (test.Rf reb) (Some test.Name) with 
-        | Err(_) ->
+        | Err(x) ->
             if (Option.isSome test.Receive || 
                 Option.isSome test.Originate || 
                 Option.isSome test.Prefs) then 
                 printfn "\n[Failed]:\n  Name: %s\n  Message: Should compile but did not\n" test.Name
+                printfn "Error: %A" x
         | Ok(config) -> 
             if (Option.isNone test.Receive || 
                 Option.isNone test.Originate || 

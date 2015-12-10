@@ -2,6 +2,7 @@
 open QuickGraph
 open QuickGraph.Algorithms
 open Extension.Error
+open Extension.Debug
 
 type CgState = 
     {States: int array; 
@@ -107,7 +108,7 @@ let restrict (cg: T) (i: int) : T =
     if Set.contains i (preferences cg) then 
         let copy = copyGraph cg
         copy.Graph.RemoveVertexIf (fun v -> 
-            not v.Accept.IsEmpty && not (Set.contains i v.Accept)
+            not v.Accept.IsEmpty && not (Set.exists (fun i' -> i' <= i) v.Accept)
         ) |> ignore
         copy
     else cg
@@ -268,7 +269,6 @@ module Reachable =
             let nchars1 = Set.map (fun v -> v.Node.Loc) neighbors1
             let nchars2 = Set.map (fun v -> v.Node.Loc) neighbors2
             if not (Set.isSuperset nchars1 nchars2) then
-                (* printfn "PROBLEM" *)
                 None
             else
                 let newBisim = ref Map.empty
@@ -293,14 +293,12 @@ module Reachable =
             | Some b, Some x -> Some (merge b x)
 
         let rec iter n bisim = 
-            (* printfn "Bisimulation step %d: %A" n bisim *)
             match n with 
             | 0 -> true
             | _ ->
                 if Map.isEmpty bisim then true else
                 if not (remainsSuperset bisim) then false else 
                 let b = Map.fold updateBisim (Some Map.empty) bisim
-                (* printfn "New map: %A" b *)
                 match b with 
                 | None -> false
                 | Some b -> iter (n-1) b
@@ -329,8 +327,6 @@ module Minimize =
                 cantReachAccepting || startCantReach
         ) |> ignore
 
-
-
     let removeNodesThatCantReachEnd (cg: T) = 
         cg.Graph.RemoveVertexIf(fun v -> Topology.isTopoNode v.Node && not (Reachable.srcDst cg v cg.End)) |> ignore
 
@@ -344,6 +340,8 @@ module Minimize =
 
     let pruneHeuristic (cg: T) =
         (* TODO: Need good story on single starting node *)
+
+        (* Remove nodes that originate traffic but don't aren't accepting *)
         let starting = neighbors cg cg.Start
         cg.Graph.RemoveVertexIf (fun v -> 
             v.Node.Typ = Topology.InsideOriginates && 
@@ -351,12 +349,9 @@ module Minimize =
             not (Set.contains v starting)
         ) |> ignore
         (* Remove useless edges and nodes *)
-        System.IO.File.WriteAllText("temp.dot", toDot cg)
-
         removeEdgesForDominatedNodes cg
         removeNodesNotReachableOnSimplePath cg 
         removeNodesThatCantReachEnd cg
-        
         removeNodesNotOnAnySimplePathToEnd cg
 
 
@@ -368,7 +363,7 @@ module Consistency =
     type Ordering = Map<string, Preferences>
     type Constraints = BidirectionalGraph<CgState ,TaggedEdge<CgState,unit>>
 
-    let isPreferred f cg (restrict,restrictRev) (x,y) (reachX,reachY) =
+    let isPreferred f cg (restrict,restrictRev) (x,y) (reachX, reachY) =
         let subsumes i j =
             f cg (restrict, restrictRev) (x,y) (i,j)
         Set.forall (fun j -> 
@@ -402,8 +397,11 @@ module Consistency =
                 let reachX = Map.find x reachMap
                 let reachY = Map.find y reachMap
                 if x <> y && (isPreferred f cg r (x,y) (reachX,reachY)) then
+                    debug (fun () -> printfn "%s is preferred to %s" (x.ToString()) (y.ToString()))
                     edges <- Set.add (x,y) edges
                     g.AddEdge (TaggedEdge(x, y, ())) |> ignore
+                else if x <> y then
+                    debug (fun () -> printfn "%s is NOT preferred to %s" (x.ToString()) (y.ToString()))
         g, edges
 
     let encodeConstraints f cg r nodes =
@@ -433,24 +431,24 @@ module Consistency =
     let simulate _ (restrict, restrictRev) (x,y) (i,j) =
         let restrict_i = copyGraph (Map.find i restrict)
         let restrict_j = copyGraph (Map.find j restrict)
-        (* Check if the restricted graph contains the node we care about *)
-        if not (restrict_i.Graph.ContainsVertex x && restrict_j.Graph.ContainsVertex y) then 
+        restrict_i.Graph.RemoveVertexIf (fun v -> v.Node.Loc = x.Node.Loc && v <> x) |> ignore
+        restrict_j.Graph.RemoveVertexIf (fun v -> v.Node.Loc = y.Node.Loc && v <> y) |> ignore
+        Minimize.removeNodesThatCantReachEnd restrict_i
+        Minimize.removeNodesThatCantReachEnd restrict_j
+        (* If x is not in the restricted graph for pref i, it does not subsume y *)
+        if not (restrict_i.Graph.ContainsVertex x) then 
             false
+        (* If y is not in the restricted graph for pref j, then we shouldn't consider this preference *)
+        else if not (restrict_j.Graph.ContainsVertex y) then
+            true
         else
-            let restrict_irev = copyGraph (Map.find i restrictRev)
-            let restrict_jrev = copyGraph (Map.find j restrictRev)
-            (* Remove same labelled nodes *)
-            restrict_i.Graph.RemoveVertexIf (fun v -> v.Node.Loc = x.Node.Loc && v <> x) |> ignore
-            restrict_irev.Graph.RemoveVertexIf (fun v -> v.Node.Loc = x.Node.Loc && v <> x) |> ignore
-            restrict_j.Graph.RemoveVertexIf (fun v -> v.Node.Loc = y.Node.Loc && v <> y) |> ignore
-            restrict_jrev.Graph.RemoveVertexIf (fun v -> v.Node.Loc = y.Node.Loc && v <> y) |> ignore
             (* Remove nodes that appear 'above' for the more preferred, to avoid considering simple paths *)
+            let restrict_irev = copyGraph (Map.find i restrictRev)
+            restrict_irev.Graph.RemoveVertexIf (fun v -> v.Node.Loc = x.Node.Loc && v <> x) |> ignore
             let reach = Reachable.src restrict_irev x |> Set.map (fun v -> v.Node.Loc)
             restrict_i.Graph.RemoveVertexIf (fun v -> v <> x && Set.contains v.Node.Loc reach) |> ignore
             (* Check if the more preferred simulates the less preferred *)
-            (Reachable.supersetPaths (restrict_i, x) (restrict_j, y) || 
-             Reachable.supersetPaths (restrict_i, x) (restrict_jrev, y))
-
+            Reachable.supersetPaths (restrict_i, x) (restrict_j, y) 
 
     let failedGraph (cg: T) (failures: Topology.Failure.FailType list) : T =
         let failed = copyGraph cg
@@ -480,6 +478,7 @@ module Consistency =
         ) failCombos
          
     let findOrdering f (cg: T) : Result<Ordering, CounterExample> =
+        debug (fun () -> printfn "%s" (header "Check Consistency:"))
         let prefs = preferences cg 
         let rs = restrictedGraphs cg prefs
         let rsRev = Map.map (fun _ cg -> copyReverseGraph cg) rs
