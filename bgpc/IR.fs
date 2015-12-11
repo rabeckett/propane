@@ -121,7 +121,8 @@ let private genConfig (cg: CGraph.T) (ord: Consistency.Ordering) : T =
 let compileToIR (topo: Topology.T) (reb: Regex.REBuilder) (res: Regex.T list) (outFile: string option) : Result<T, CounterExample> =
     let cgOrig = CGraph.buildFromRegex topo reb res
     let cg = CGraph.copyGraph cgOrig
-    CGraph.Minimize.pruneHeuristic cg
+    CGraph.Minimize.delMissingSuffixPaths cg
+    CGraph.Minimize.minimizeO3 cg
     (* Save graphs to file *)
     match outFile with
     | None -> ()

@@ -25,7 +25,6 @@ let main argv =
             let ast = Input.readFromFile p
             let res = chooseFirst ast reb
             let cg = CGraph.buildFromRegex topo reb res
-            CGraph.Minimize.pruneHeuristic cg
             match opts.Format with 
             | Options.IR ->
                 match IR.compileToIR topo reb res opts.OutFile with 

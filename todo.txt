@@ -23,7 +23,6 @@ Other:
 
 
 Performance:
-	Dominated edges should be faster
 	Avoid copying graph all the time (use bidirectional edges instead)
 	Use mutable data structures instead of Set, Map, etc
 	Allow specifying speed/expressiveness of policies allowed (e.g., change which nodes to remove in simulation based on this)
