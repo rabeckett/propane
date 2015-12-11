@@ -7,7 +7,6 @@ type Spec =
 type Format = 
     | IR 
     | Template
-    | Graph
 
 type T = 
     {PolFile: string option;
@@ -21,22 +20,29 @@ let polFile = ref None
 let outFile = ref None
 let format = ref Template
 let test = ref false
-let debug = ref false
+let debug = ref 0
+let debugDir = ref "debug/"
+
+let cleanDir dir = 
+    if System.IO.Directory.Exists dir then
+        System.IO.Directory.Delete(dir, true)
+    System.IO.Directory.CreateDirectory(dir).Create()
 
 let setFormat s = 
     match s with 
     | "IR" -> format := IR 
     | "Template" -> format := Template
-    | "Graph" -> format := Graph
     | _ -> raise (InvalidFormatException s)
 
 let usage = "Usage: bgpc.exe [options]"
 let args = 
     [|("-pol", String (fun s -> polFile := Some s), "Policy file");
-      ("-out", String (fun s -> outFile := Some s), "Output file");
+      ("-o", String (fun s -> outFile := Some s), "Output file");
       ("-format", String (fun s -> setFormat s), "Output format (Template, IR, Graph)");
       ("-test", Unit (fun () -> test := true), "Run unit tests");
-      ("-debug", Unit (fun () -> debug := true), "Extra debugging information") |]
+      ("-debug", String (fun s -> debug := int s), "Print debugging information (level 0-3)");
+      ("-debug-dir", String (fun s -> debugDir := s), "Set the directory where debug info is output (default debug/)") |]
+
 
 let printHelp () = 
     printfn "\n%s" usage
@@ -80,4 +86,5 @@ let parse (argv: string[]) : T =
             let curr = argv.[i]
             let next = if (i = Array.length argv - 1) then None else Some argv.[i+1]
             i <- lookup curr next i
+    cleanDir !debugDir
     {PolFile = !polFile; OutFile = !outFile; Format = !format; Test = !test}

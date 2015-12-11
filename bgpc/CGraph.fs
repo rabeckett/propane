@@ -2,10 +2,12 @@
 
 open Common.Error
 open Common.Debug
+open System
+open System.Collections.Generic
+open System.Diagnostics
 open QuickGraph
 open QuickGraph.Algorithms
 open QuickGraph.Algorithms
-open System.Collections.Generic
 
 type CgState = 
     {States: int array; 
@@ -149,6 +151,16 @@ let toDot (cg: T) : string =
     graphviz.FormatVertex.Add(onFormatVertex)
     graphviz.Generate()
 
+let generatePNG (cg: T) (file: string) : unit =
+    System.IO.File.WriteAllText(file + ".dot", toDot cg)
+    let p = new Process()
+    p.StartInfo.FileName <- "dot"
+    p.StartInfo.UseShellExecute <- false
+    p.StartInfo.Arguments <- "-Tpng " + file + ".dot -o " + file + ".png" 
+    p.StartInfo.CreateNoWindow <- true
+    p.Start() |> ignore
+    p.WaitForExit();
+
 
 module Reachable =
 
@@ -278,6 +290,7 @@ module Reachable =
                     (Set.intersect v v' |> Set.isEmpty |> not) ) b)) b
 
         let stepNodeNode n1 n2 =
+            logInfo3 (String.Format("Simulate: {0} -- {1}", n1.ToString(), n2.ToString()) ) 
             let neighbors1 = neighbors cg1 n1 |> Set.ofSeq
             let neighbors2 = neighbors cg2 n2 |> Set.ofSeq
             let nchars1 = Set.map (fun v -> v.Node.Loc) neighbors1
@@ -388,13 +401,16 @@ module Minimize =
 
     let minimizeO0 (cg: T) =
         removeNodesThatCantReachEnd cg
+        removeNodesThatStartCantReach cg
       
     let minimizeO1 (cg: T) =
         removeNodesThatCantReachEnd cg
+        removeNodesThatStartCantReach cg
         removeEdgesForDominatedNodes cg
 
     let minimizeO2 (cg: T) = 
         removeNodesThatCantReachEnd cg
+        removeNodesThatStartCantReach cg
         removeEdgesForDominatedNodes cg
         removeNodesNotReachableOnSimplePath cg
 
@@ -402,6 +418,7 @@ module Minimize =
         let count cg = cg.Graph.VertexCount + cg.Graph.EdgeCount
         let prune () = 
             removeNodesThatCantReachEnd cg
+            removeNodesThatStartCantReach cg
             removeEdgesForDominatedNodes cg
             removeNodesNotReachableOnSimplePath cg 
         let mutable sum = count cg
@@ -454,11 +471,11 @@ module Consistency =
                 let reachX = Map.find x reachMap
                 let reachY = Map.find y reachMap
                 if x <> y && (isPreferred f cg r (x,y) (reachX,reachY)) then
-                    debug (fun () -> printfn "%s is preferred to %s" (x.ToString()) (y.ToString()))
+                    logInfo1 (String.Format("{0} is preferred to {1}", x.ToString(), y.ToString()))
                     edges <- Set.add (x,y) edges
                     g.AddEdge (TaggedEdge(x, y, ())) |> ignore
                 else if x <> y then
-                    debug (fun () -> printfn "%s is NOT preferred to %s" (x.ToString()) (y.ToString()))
+                    logInfo1 (String.Format("{0} is NOT preferred to {1}", x.ToString(), y.ToString()))
         g, edges
 
     let encodeConstraints f cg r nodes =
@@ -490,8 +507,17 @@ module Consistency =
         let restrict_j = copyGraph (Map.find j restrict)
         restrict_i.Graph.RemoveVertexIf (fun v -> v.Node.Loc = x.Node.Loc && v <> x) |> ignore
         restrict_j.Graph.RemoveVertexIf (fun v -> v.Node.Loc = y.Node.Loc && v <> y) |> ignore
-        Minimize.minimizeO0 restrict_i
-        Minimize.minimizeO0 restrict_j
+        Minimize.removeNodesThatCantReachEnd restrict_i
+        Minimize.removeNodesThatCantReachEnd restrict_j
+        (* if restrict_i.Graph.ContainsVertex x then
+            let canReach = Reachable.alongSimplePathSrcDst restrict_i x restrict_i.End Reachable.Down
+            restrict_i.Graph.RemoveVertexIf (fun v -> v <> x && not (canReach.Contains v) ) |> ignore 
+        if restrict_j.Graph.ContainsVertex y then
+            let canReach = Reachable.alongSimplePathSrcDst restrict_j y restrict_j.End Reachable.Down
+            restrict_j.Graph.RemoveVertexIf (fun v -> v <> y && not (canReach.Contains v) ) |> ignore *)
+
+        (* Minimize.removeNodesThatCantReachEnd restrict_i
+        Minimize.removeNodesThatCantReachEnd restrict_j *)
         (* If x is not in the restricted graph for pref i, it does not subsume y *)
         if not (restrict_i.Graph.ContainsVertex x) then 
             false
@@ -535,7 +561,7 @@ module Consistency =
         ) failCombos
          
     let findOrdering f (cg: T) : Result<Ordering, CounterExample> =
-        debug (fun () -> printfn "%s" (header "Check Consistency:"))
+        logHeader1 ("Check Consistency")
         let prefs = preferences cg 
         let rs = restrictedGraphs cg prefs
         let labels = 

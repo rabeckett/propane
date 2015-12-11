@@ -3,16 +3,43 @@
 
 module Debug =
 
+    let logFile = !Options.debugDir + "debug.log"
+
     /// run a function if in debug mode
-    let debug f = 
-        if !Options.debug then 
+    let debug n f =
+        if !Options.debug >= n then
             f ()
 
+    let debug0 f = debug 0 f
+    let debug1 f = debug 1 f
+    let debug2 f = debug 2 f
+    let debug3 f = debug 3 f
+
+    /// Log information to a file
+    let logInfo n str = 
+        let indent = String.replicate n "\t"
+        if !Options.debug >= n then
+            System.IO.File.AppendAllText(logFile, indent + str + "\n")
+
+    let logInfo0 f = logInfo 0 f
+    let logInfo1 f = logInfo 1 f
+    let logInfo2 f = logInfo 2 f
+    let logInfo3 f = logInfo 3 f
+
     /// Generate a string header for a debugging section
-    let header x = 
+    let logHeader n x = 
+        let indent = String.replicate n "\t"
         let len = String.length x
-        let bar = String.replicate (len + 2) "="
-        bar + "\n" + x + "\n" + bar
+        let y = String.replicate (len + 2) "="
+        let x = indent + x
+        let y = indent + y
+        if !Options.debug >= n then
+            System.IO.File.AppendAllText(logFile, y + "\n" + x + "\n" + y + "\n")
+
+    let logHeader0 x = logHeader 0 x
+    let logHeader1 x = logHeader 1 x 
+    let logHeader2 x = logHeader 2 x 
+    let logHeader3 x = logHeader 3 x 
 
 
 module List = 

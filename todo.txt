@@ -15,14 +15,11 @@ Well-formedness:
 	Deal with regexes with locations that don't match topology
 
 Other:
-	Dealing with multiple sinks for originating traffic
 	Infer which routers we care about in the product graph based on policy
-	More efficient BFS in constrained path problem
 	Generalize syntax in parser for better error messages
 	More detailed counterexamples (include exact failure scenario)
 
 
 Performance:
-	Avoid copying graph all the time (use bidirectional edges instead)
 	Use mutable data structures instead of Set, Map, etc
 	Allow specifying speed/expressiveness of policies allowed (e.g., change which nodes to remove in simulation based on this)

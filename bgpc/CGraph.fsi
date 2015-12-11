@@ -46,6 +46,10 @@ val restrict: T -> int -> T
 
 /// Convert the constraint graph to the DOT format for visualization
 val toDot: T -> string
+
+/// Generate a png file for the constraint graph (requires graphviz dot utility)
+val generatePNG: T -> string -> unit
+
   
 
 module Reachable =

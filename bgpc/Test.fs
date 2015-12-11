@@ -1,9 +1,9 @@
 ﻿module Test
 open IR
 open CGraph
+open System
+open Common.Debug
 open Common.Error
-
-let TEST_DIR = "tests/"
 
 (********************************************* 
  *  Config helpers
@@ -302,42 +302,50 @@ let tests = [
 
 ]
 
-let run () =
-    if not (System.IO.Directory.Exists TEST_DIR) then 
-        System.IO.Directory.CreateDirectory(TEST_DIR).Create()
-
+let run debug_dir =
     for test in tests do
-        printfn "Testing %s - %s ..." test.Name test.Explanation
+        let msg = String.Format("Testing {0} - {1} ...", test.Name, test.Explanation)
+        printfn "%s" msg
+        logInfo0(msg)
         let reb = Regex.REBuilder test.Topo
-        match IR.compileToIR test.Topo reb (test.Rf reb) (Some (TEST_DIR + test.Name)) with 
+        match IR.compileToIR test.Topo reb (test.Rf reb) (Some (debug_dir + test.Name)) with 
         | Err(x) ->
             if (Option.isSome test.Receive || 
                 Option.isSome test.Originate || 
                 Option.isSome test.Prefs) then 
-                printfn "\n[Failed]:\n  Name: %s\n  Message: Should compile but did not" test.Name
-                printfn "Error: %A\n" x
+                let msg = String.Format("\n[Failed]:\n  Name: {0}\n  Message: Should compile but did not\nError: {1}\n", test.Name, x)
+                printfn "%s" msg
+                logInfo0(msg)
         | Ok(config) -> 
             if (Option.isNone test.Receive || 
                 Option.isNone test.Originate || 
-                Option.isNone test.Prefs) then 
-                printfn "\n[Failed]:\n  Name: %s\n  Message: Should not compile but did\n" test.Name
+                Option.isNone test.Prefs) then
+                let msg = String.Format("\n[Failed]:\n  Name: {0}\n  Message: Should not compile but did\n", test.Name)
+                printfn "%s" msg
+                logInfo0(msg)
             else
                 (* Check receiving from peers *)
                 let rs = Option.get test.Receive
                 for (x,y) in rs do 
-                    if not (receiveFrom config x y) then 
-                        printfn "\n[Failed]: (%s) - %s should receive from %s but did not" test.Name x y
+                    if not (receiveFrom config x y) then
+                        let msg = String.Format("\n[Failed]: ({0}) - {1} should receive from {2} but did not\n", test.Name, x, y)
+                        printfn "%s" msg
+                        logInfo0(msg)
                 
                 (* Check originating routes *)
                 let os = Option.get test.Originate
                 for x in os do 
                     if not (originates config x) then 
-                        printfn "\n[Failed]: (%s) - %s should originate a route but did not" test.Name x
+                        let msg = String.Format("\n[Failed]: ({0}) - {1} should originate a route but did not", test.Name, x)
+                        printfn "%s" msg
+                        logInfo0(msg)
 
                 (* Test preferences *)
                 let ps = Option.get test.Prefs
                 for (x,a,b) in ps do
                     if not (prefersPeer config x (a,b)) then 
-                        printfn "\n[Failed]: (%s) - %s should prefer %s to %s but did not" test.Name x a b
+                        let msg = String.Format("\n[Failed]: ({0}) - {1} should prefer {2} to {3} but did not", test.Name, x, a, b)
+                        printfn "%s" msg
+                        logInfo0(msg)
 
     

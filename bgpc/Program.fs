@@ -1,5 +1,6 @@
 ﻿open Common.Error
 
+let DEBUG_DIR = "debug/"
 
 let chooseFirst (ast: Ast.T) reb = 
     let scope1 = ast.Head 
@@ -12,7 +13,7 @@ let main argv =
     let opts = Options.parse argv
 
     if opts.Test then 
-        Test.run ()
+        Test.run DEBUG_DIR
     else
         let topo = Examples.topoDatacenterSmall()
         let reb = Regex.REBuilder(topo)
@@ -31,10 +32,5 @@ let main argv =
                 | Ok(config) -> ()
                 | Err(_) -> ()
             | Options.Template -> ()
-            | Options.Graph ->
-                match opts.OutFile with
-                | None -> ()
-                | Some out ->
-                    System.IO.File.WriteAllText(out, CGraph.toDot cg)
 
     0

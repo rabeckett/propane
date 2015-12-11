@@ -3,7 +3,6 @@
 type Format = 
     | IR 
     | Template
-    | Graph
 
 type T = 
     {PolFile: string option;
@@ -11,8 +10,11 @@ type T =
      Format: Format;
      Test: bool}
 
-/// If we are in debug mode
-val debug: bool ref
+/// Debug level 0-3 (default 0, no information)
+val debug: int ref
+
+/// Debug directory 
+val debugDir: string ref
 
 /// Parse command line arguments and return the compiler settings
 /// The default settings are to format with Template, 

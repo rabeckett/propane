@@ -1,5 +1,6 @@
 ﻿module IR
 open CGraph
+open Common.Debug
 open Common.Error
 
 type CounterExample = 
@@ -126,9 +127,10 @@ let compileToIR (topo: Topology.T) (reb: Regex.REBuilder) (res: Regex.T list) (o
     (* Save graphs to file *)
     match outFile with
     | None -> ()
-    | Some name -> 
-        System.IO.File.WriteAllText(name + ".dot", CGraph.toDot cgOrig)
-        System.IO.File.WriteAllText(name + "-min.dot", CGraph.toDot cg)
+    | Some name ->
+        
+        debug1 (fun () -> CGraph.generatePNG cgOrig name)
+        debug1 (fun () -> CGraph.generatePNG cg (name + "-min"))
     (* Check for errors *)
     let locsOrig = CGraph.acceptingLocations cgOrig
     let locsPruned = CGraph.acceptingLocations cg
