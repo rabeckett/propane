@@ -5,6 +5,7 @@ open Common.Debug
 open QuickGraph
 open QuickGraph.Algorithms
 open QuickGraph.Algorithms
+open System.Collections.Generic
 
 type CgState = 
     {States: int array; 
@@ -100,16 +101,14 @@ let acceptingLocations (cg: T) : Set<string> =
     acceptingStates cg
     |> Set.map (fun v -> v.Node.Loc)
 
-let neighbors (cg: T) (state: CgState) : Set<CgState> =
+let neighbors (cg: T) (state: CgState) =
     cg.Graph.OutEdges state
     |> Seq.map (fun e -> e.Target) 
     |> Seq.filter (fun v -> Topology.isTopoNode v.Node)
-    |> Set.ofSeq
 
-let neighborsAll (cg: T) (state: CgState) : Set<CgState> =
+let neighborsAll (cg: T) (state: CgState) =
     cg.Graph.OutEdges state
     |> Seq.map (fun e -> e.Target) 
-    |> Set.ofSeq
 
 let restrict (cg: T) (i: int) : T = 
     if Set.contains i (preferences cg) then 
@@ -161,7 +160,7 @@ module Reachable =
         member this.Cg = cg
         member this.ReachInfo = reachability
 
-    let srcDstWithout (cg: T) src dst without =
+(*    let srcDstWithout (cg: T) src dst without =
         if without src || without dst then false 
         else if src = dst then true 
         else
@@ -175,12 +174,9 @@ module Reachable =
             | null -> false 
             | _ ->
                 let weight = Seq.fold (fun acc e -> acc + weight e) 0.0 !path
-                weight <= numNodes
+                weight <= numNodes *)
 
-    let srcDst cg src dst = 
-        srcDstWithout cg src dst (fun _ -> false)
-
-    let srcWithout (cg: T) src without =
+    (* let srcWithout (cg: T) src without =
         if without src then Set.empty
         else
             let numNodes = float cg.Graph.VertexCount
@@ -197,10 +193,41 @@ module Reachable =
                     let weight = Seq.fold (fun acc e -> acc + weight e) 0.0 !path
                     if weight <= numNodes then
                         reachable <- Set.add v reachable
-            reachable
+            reachable *)
 
-    let src cg src = 
-        srcWithout cg src (fun _ -> false)
+    let dfs (cg: T) (source: CgState) : seq<CgState> = seq { 
+        let s = Stack()
+        let marked = ref Set.empty
+        s.Push source
+        while s.Count > 0 do 
+            let v = s.Pop()
+            if not (Set.contains v !marked) then 
+                marked := Set.add v !marked
+                yield v
+                for w in neighbors cg v do 
+                    s.Push w }
+
+    let srcWithout (cg: T) source without = 
+        let s = Stack()
+        let mutable marked = Set.empty
+        s.Push source
+        while s.Count > 0 do 
+            let v = s.Pop()
+            if not (marked.Contains v) && not (without v) then 
+                marked <- Set.add v marked
+                for w in neighborsAll cg v do 
+                    s.Push w
+        marked
+
+    let srcDstWithout (cg: T) source sink without = 
+        if without sink then false
+        else Set.contains sink (srcWithout cg source without)
+
+    let src (cg: T) (source: CgState) : Set<CgState> =
+        srcWithout cg source (fun _ -> false)
+
+    let srcDst (cg: T) source sink = 
+        srcDstWithout cg source sink (fun _ -> false)
 
     let srcAcceptingWithout cg src without = 
         let aux acc cg = 
@@ -271,8 +298,8 @@ module Reachable =
                     (Set.intersect v v' |> Set.isEmpty |> not) ) b)) b
 
         let stepNodeNode n1 n2 = 
-            let neighbors1 = neighbors cg1 n1
-            let neighbors2 = neighbors cg2 n2
+            let neighbors1 = neighbors cg1 n1 |> Set.ofSeq
+            let neighbors2 = neighbors cg2 n2 |> Set.ofSeq
             let nchars1 = Set.map (fun v -> v.Node.Loc) neighbors1
             let nchars2 = Set.map (fun v -> v.Node.Loc) neighbors2
             if not (Set.isSuperset nchars1 nchars2) then
@@ -319,22 +346,15 @@ module Reachable =
 
 module Minimize =
 
-    let dfs (cg: T) (start: CgState) : seq<CgState> =
-        let dfs = Search.DepthFirstSearchAlgorithm<CgState, TaggedEdge<CgState, unit>>(cg.Graph)
-        let nodes = ref Seq.empty
-        dfs.add_DiscoverVertex (fun v -> nodes := Seq.append !nodes (Seq.singleton v))
-        dfs.Compute()
-        dfs.Visit(start)
-        !nodes
-
     type DominationSet = Map<CgState, Set<CgState>>
 
     let dominators (cg: T) : DominationSet =
         let cgRev = copyReverseGraph cg
         let dom = ref Map.empty
-        let nodes = dfs cg cg.Start
-        for n in nodes do 
-            dom := Map.add n (Set.ofSeq nodes) !dom
+        let nodes = Reachable.dfs cg cg.Start
+        let allNodes = cg.Graph.Vertices |> Set.ofSeq
+        for n in allNodes do 
+            dom := Map.add n allNodes !dom
         let mutable changed = true 
         while changed do 
             changed <- false 
@@ -381,7 +401,7 @@ module Minimize =
         (* TODO: Need good story on single starting node *)
 
         (* Remove nodes that originate traffic but don't aren't accepting *)
-        let starting = neighbors cg cg.Start
+        let starting = neighbors cg cg.Start |> Set.ofSeq
         cg.Graph.RemoveVertexIf (fun v -> 
             v.Node.Typ = Topology.InsideOriginates && 
             v.Accept.IsEmpty && 
@@ -389,9 +409,13 @@ module Minimize =
         ) |> ignore
         (* Remove useless edges and nodes *)
         removeEdgesForDominatedNodes cg
+        System.IO.File.WriteAllText("temp1.dot", toDot cg)
         removeNodesNotReachableOnSimplePath cg 
+        System.IO.File.WriteAllText("temp2.dot", toDot cg)
         removeNodesThatCantReachEnd cg
+        System.IO.File.WriteAllText("temp3.dot", toDot cg)
         removeNodesNotOnAnySimplePathToEnd cg
+        System.IO.File.WriteAllText("temp4.dot", toDot cg)
 
 
 module Consistency = 

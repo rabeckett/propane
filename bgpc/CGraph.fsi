@@ -39,7 +39,7 @@ val acceptingStates: T -> Set<CgState>
 val acceptingLocations: T -> Set<string>
 
 /// Returns the (outgoing) neighbors of a state in the graph
-val neighbors: T -> CgState -> Set<CgState> 
+val neighbors: T -> CgState -> seq<CgState> 
 
 /// Returns a copy of the graph, restricted to nodes for a given preference
 val restrict: T -> int -> T

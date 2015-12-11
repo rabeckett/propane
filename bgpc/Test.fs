@@ -163,7 +163,7 @@ let rSeesaw1 (reb: Regex.REBuilder) =
     [pref1; pref2]
 
 let tests = [
-(*
+
     {Name= "Diamond1";
      Explanation="A simple path";
      Topo= tDiamond;
@@ -194,7 +194,7 @@ let tests = [
      Rf= rDatacenterSmall2; 
      Receive= None;
      Originate = None;
-     Prefs = None}; *)
+     Prefs = None};
 
     {Name= "DCsmall3";
      Explanation="Waypoint through spine with backup";
