@@ -298,7 +298,7 @@ let tests = [
      Rf= rSeesaw1; 
      Receive= None;
      Originate = None;
-     Prefs = None}; 
+     Prefs = None};
 
 ]
 

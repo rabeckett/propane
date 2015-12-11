@@ -359,8 +359,7 @@ module Minimize =
         while changed do 
             changed <- false 
             for n in nodes do
-                let preds = neighborsAll cgRev n
-                let preds = seq {for p in preds do yield Map.find p !dom}
+                let preds = seq {for p in (neighborsAll cgRev n) do yield Map.find p !dom}
                 let interAll = if Seq.isEmpty preds then Set.empty else Set.intersectMany preds
                 let newSet = Set.union (Set.singleton n) interAll
                 if (newSet <> Map.find n !dom) then 
@@ -377,9 +376,7 @@ module Minimize =
             | Some ie ->
                 assert (ie.Source = e.Target)
                 assert (ie.Target = e.Source)
-                match Map.tryFind e.Source dom with
-                | None -> false
-                | Some s -> Set.contains e.Target s
+                Set.contains e.Target (Map.find e.Source dom)
         ) |> ignore
 
     let removeNodesThatCantReachEnd (cg: T) = 
@@ -407,15 +404,21 @@ module Minimize =
             v.Accept.IsEmpty && 
             not (Set.contains v starting)
         ) |> ignore
-        (* Remove useless edges and nodes *)
-        removeEdgesForDominatedNodes cg
-        System.IO.File.WriteAllText("temp1.dot", toDot cg)
-        removeNodesNotReachableOnSimplePath cg 
-        System.IO.File.WriteAllText("temp2.dot", toDot cg)
-        removeNodesThatCantReachEnd cg
-        System.IO.File.WriteAllText("temp3.dot", toDot cg)
+
+        (* Remove useless edges and nodes until no change *)
+        let prune () = 
+            removeNodesThatCantReachEnd cg
+            removeEdgesForDominatedNodes cg
+            removeNodesNotReachableOnSimplePath cg 
+
+        let mutable sum = cg.Graph.VertexCount + cg.Graph.EdgeCount
+        prune() 
+        while cg.Graph.VertexCount + cg.Graph.EdgeCount <> sum do
+            sum <- cg.Graph.VertexCount + cg.Graph.EdgeCount
+            prune ()
         removeNodesNotOnAnySimplePathToEnd cg
-        System.IO.File.WriteAllText("temp4.dot", toDot cg)
+
+
 
 
 module Consistency = 
