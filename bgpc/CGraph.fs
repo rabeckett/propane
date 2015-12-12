@@ -36,7 +36,8 @@ let copyReverseGraph (cg: T) : T =
         newCG.AddEdge e' |> ignore
     {Start=cg.Start; Graph=newCG; End=cg.End; Topo=cg.Topo}
 
-let buildFromAutomata (topo: Topology.T) (autos : Regex.Automaton array) : T = 
+let buildFromAutomata (topo: Topology.T) (autos : Regex.Automaton array) : T =
+    printfn "Automata: %A" autos
     let alphabetIn, alphabetOut = Topology.alphabet(topo)
     let alphabetAll = Set.union alphabetIn alphabetOut
     let graph = BidirectionalGraph<CgState, TaggedEdge<CgState,unit>>()
@@ -82,7 +83,12 @@ let buildFromAutomata (topo: Topology.T) (autos : Regex.Automaton array) : T =
     Seq.iter (fun v -> graph.AddEdge(TaggedEdge(v, newEnd, ())) |> ignore) accepting
     {Start=newStart; Graph=graph; End=newEnd; Topo=topo}
 
-let buildFromRegex (topo: Topology.T) (reb: Regex.REBuilder) (res: Regex.T list) : T = 
+let buildFromRegex (topo: Topology.T) (reb: Regex.REBuilder) (res: Regex.T list) : T =
+    (*let revs = List.map (fun r -> reb.Rev r) res
+    let slocsFwd = List.fold (fun acc r -> Set.union (reb.StartingLocs r) acc) Set.empty res
+    let slocsRev = List.fold (fun acc r -> Set.union (reb.StartingLocs r) acc) Set.empty revs
+    let slocs = Set.union slocsFwd slocsRev
+    let topo = Topology.setOriginators topo slocs *)
     res 
     |> List.map (fun r -> reb.MakeDFA (reb.Rev r))
     |> Array.ofList
@@ -125,7 +131,8 @@ let restrict (cg: T) (i: int) : T =
     if Set.contains i (preferences cg) then 
         let copy = copyGraph cg
         copy.Graph.RemoveVertexIf (fun v -> 
-            not v.Accept.IsEmpty && not (Set.exists (fun i' -> i' <= i) v.Accept)
+            not (v.Accept.IsEmpty) && 
+            not (Set.exists (fun i' -> i' <= i) v.Accept)
         ) |> ignore
         copy
     else cg
@@ -560,10 +567,13 @@ module Consistency =
                (Set.contains y (Reachable.alongSimplePathSrcDst failedY cg.Start cg.End Reachable.Down)))
         ) failCombos
          
-    let findOrdering f (cg: T) : Result<Ordering, CounterExample> =
-        logHeader1 ("Check Consistency")
+    let findOrdering f (cg: T) outFile : Result<Ordering, CounterExample> =
         let prefs = preferences cg 
         let rs = restrictedGraphs cg prefs
+        match outFile with 
+        | None -> () 
+        | Some name ->
+            Map.iter (fun i g -> debug2 (fun () -> generatePNG g (name + "-min-restricted" + string i))) rs
         let labels = 
             cg.Graph.Vertices
             |> Seq.filter (fun v -> Topology.isTopoNode v.Node)
@@ -573,6 +583,6 @@ module Consistency =
         with ConsistencyException(x,y) ->
             Err((x,y) )
 
-    let findOrderingEnumerate n = findOrdering (enumerate n)
+    let findOrderingEnumerate n outFile = findOrdering (enumerate n) outFile
 
-    let findOrderingConservative = findOrdering simulate
+    let findOrderingConservative outFile = findOrdering simulate outFile

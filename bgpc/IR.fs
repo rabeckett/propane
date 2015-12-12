@@ -122,19 +122,28 @@ let private genConfig (cg: CGraph.T) (ord: Consistency.Ordering) : T =
 let compileToIR (topo: Topology.T) (reb: Regex.REBuilder) (res: Regex.T list) (outFile: string option) : Result<T, CounterExample> =
     let cgOrig = CGraph.buildFromRegex topo reb res
     let cg = CGraph.copyGraph cgOrig
+    (* Ensure the path suffix property for nodes that can originate traffic *)
     CGraph.Minimize.delMissingSuffixPaths cg
     CGraph.Minimize.minimizeO3 cg
     (* Save graphs to file *)
     match outFile with
     | None -> ()
     | Some name ->
-        
         debug1 (fun () -> CGraph.generatePNG cgOrig name)
         debug1 (fun () -> CGraph.generatePNG cg (name + "-min"))
     (* Check for errors *)
-    let locsOrig = CGraph.acceptingLocations cgOrig
-    let locsPruned = CGraph.acceptingLocations cg
-    let lost = Set.difference locsOrig locsPruned
+    let originators = 
+        CGraph.neighbors cg cg.Start
+        |> Seq.map (fun v -> v.Node.Loc)
+        |> Set.ofSeq
+    let mutable pathFrom = Set.empty
+    for v in cg.Topo.Vertices do 
+        if v.Typ = Topology.InsideOriginates then 
+            pathFrom <- Set.add v.Loc pathFrom
+
+    let locsThatNeedPath = Set.difference pathFrom originators
+    let locsThatGetPath = CGraph.acceptingLocations cg
+    let lost = Set.difference locsThatNeedPath locsThatGetPath
     if not (Set.isEmpty lost) then 
         Err(NoPathForRouters(lost))
     else
@@ -146,7 +155,7 @@ let compileToIR (topo: Topology.T) (reb: Regex.REBuilder) (res: Regex.T list) (o
             let cexamples = Set.fold (fun acc p -> Map.add p (List.nth res (p-1)) acc) Map.empty unusedPrefs
             Err(UnusedPreferences(cexamples))
         else
-            match Consistency.findOrderingConservative cg with 
+            match Consistency.findOrderingConservative cg outFile with 
             | Ok ord -> Ok (genConfig cg ord)
             | Err((x,y)) -> Err(InconsistentPrefs(x,y))
 

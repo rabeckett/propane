@@ -14,7 +14,7 @@ type T =
 val debug: int ref
 
 /// Debug directory 
-val debugDir: string ref
+val debugDir: string
 
 /// Parse command line arguments and return the compiler settings
 /// The default settings are to format with Template, 

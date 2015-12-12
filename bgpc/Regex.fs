@@ -18,7 +18,10 @@ type T =
         match this with 
         | Empty -> "{}"
         | Epsilon -> ""
-        | Locs S ->  "[" + (Set.toList S |> List.joinBy ",") + "]"
+        | Locs S -> 
+            if Set.toList S = [] then "[]"
+            else
+             "[" + (Set.toList S |> List.joinBy ",") + "]"
         | Concat rs -> List.map (fun r -> r.ToString()) rs |> List.joinBy ";" |> addParens
         | Inter rs -> List.map (fun r -> r.ToString()) rs |> List.joinBy " and " |> addParens
         | Union rs -> List.map (fun r -> r.ToString()) rs |> List.joinBy " or " |> addParens
@@ -126,6 +129,7 @@ let unionAll res =
     match res with 
     | [] -> Empty
     | _ -> Common.List.fold1 union res
+
 
 /// Check if a regular expression denotes only single characters and 
 /// if so, returns the set of characters it denotes
@@ -251,6 +255,7 @@ let makeDFA alphabet r =
     let (q0', Q', F', trans') = indexStates (q0, Q, F, trans)
     {q0=q0'; Q=Q'; F=F'; trans=trans'}
 
+
 /// Parameterize regular expression by an alphabet. Since f# does 
 /// not support ML-style functors, different objects can use different 
 /// alphabets. Client code must ensure a single object is used
@@ -259,8 +264,8 @@ type REBuilder(topo: Topology.T) =
     let inside = Set.map (fun (s: Topology.State) -> s.Loc) inStates
     let outside = Set.map (fun (s: Topology.State) -> s.Loc) outStates
     let alphabet = Set.union inside outside
-    member __.Inside = locs inside
-    member __.Outside = locs outside
+    member __.Inside = if Set.isEmpty inside then empty else locs inside
+    member __.Outside = if Set.isEmpty outside then empty else locs outside
     member __.Rev = rev
     member __.Empty = empty
     member __.Epsilon = epsilon
@@ -275,6 +280,48 @@ type REBuilder(topo: Topology.T) =
     member __.Star = star
     member __.Negate = negate alphabet
     member __.MakeDFA = makeDFA alphabet
-    
+
+    /// Given an alphabet, find all significant starting characters using derivatives
+    member __.StartingLocs r =
+        Set.fold (fun acc a -> 
+            if derivative alphabet a r <> Empty 
+            then Set.add a acc 
+            else acc 
+        ) Set.empty alphabet
+
+    member this.MaybeOutside() =
+        this.Star this.Outside
+
+    member this.MaybeInside() = 
+        this.Star this.Inside
+
+    member this.Internal() =
+        this.Concat this.Inside (this.Star this.Inside)
+
+    member this.External() =
+        this.Concat this.Outside (this.Star this.Outside)
+
+    member this.Any() =
+        this.ConcatAll [this.MaybeOutside(); this.Internal(); this.MaybeOutside()]
+
+    member this.Waypoint(x) =
+        this.ConcatAll [this.MaybeOutside(); this.MaybeInside(); this.Loc x; this.MaybeInside(); this.MaybeOutside()]
+
+    member this.EndsAt(x) =
+        if inside.Contains x then
+            this.ConcatAll [this.MaybeOutside(); this.MaybeInside(); this.Loc x]
+        else if outside.Contains x then
+            this.ConcatAll [this.MaybeOutside(); this.Internal(); this.MaybeOutside(); this.Loc x]
+        else failwith ("[Constraint Error]: Location " + x + " is not a valid topology location" )
+
+    (* Relies on ill-formedness of (x out+ in+) when x is an internal location *)
+    member this.StartsAt(x) = 
+        if inside.Contains x then
+            this.ConcatAll [this.Loc x;  this.Internal(); this.MaybeOutside()]
+        else if outside.Contains x then 
+            this.ConcatAll [this.Loc x;  this.MaybeOutside(); this.Internal() ;this.MaybeOutside()]
+        else failwith ("[Constraint Error]: Location " + x + " is not a valid topology location" )
+
+
 
     

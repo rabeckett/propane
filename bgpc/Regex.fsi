@@ -37,3 +37,11 @@ type REBuilder  =
     member Negate: (T -> T)
     member Star: (T -> T)
     member MakeDFA: (T -> Automaton)
+    member StartingLocs: T -> Set<string>
+    (* Constraint-based builders *)
+    member Internal: unit -> T
+    member External: unit -> T
+    member Any: unit -> T
+    member Waypoint: string -> T
+    member EndsAt: string -> T
+    member StartsAt: string -> T

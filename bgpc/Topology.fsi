@@ -17,6 +17,10 @@ type T = BidirectionalGraph<State,TaggedEdge<State,unit>>
 /// Build the internal and external alphabet from a topology
 val alphabet: T -> Set<State> * Set<State> 
 
+/// Set the originator nodes in the topology based
+/// on information available later from the policy
+val setOriginators: T -> Set<string> -> T
+
 /// Check if a node is a valid topology node
 val isTopoNode: State -> bool
 

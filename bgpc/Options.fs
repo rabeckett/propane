@@ -21,7 +21,7 @@ let outFile = ref None
 let format = ref Template
 let test = ref false
 let debug = ref 0
-let debugDir = ref "debug/"
+let debugDir = "debug/"
 
 let cleanDir dir = 
     if System.IO.Directory.Exists dir then
@@ -40,8 +40,7 @@ let args =
       ("-o", String (fun s -> outFile := Some s), "Output file");
       ("-format", String (fun s -> setFormat s), "Output format (Template, IR, Graph)");
       ("-test", Unit (fun () -> test := true), "Run unit tests");
-      ("-debug", String (fun s -> debug := int s), "Print debugging information (level 0-3)");
-      ("-debug-dir", String (fun s -> debugDir := s), "Set the directory where debug info is output (default debug/)") |]
+      ("-debug", String (fun s -> debug := int s), "Print debugging information (level 0-3)") |]
 
 
 let printHelp () = 
@@ -86,5 +85,5 @@ let parse (argv: string[]) : T =
             let curr = argv.[i]
             let next = if (i = Array.length argv - 1) then None else Some argv.[i+1]
             i <- lookup curr next i
-    cleanDir !debugDir
+    cleanDir debugDir
     {PolFile = !polFile; OutFile = !outFile; Format = !format; Test = !test}

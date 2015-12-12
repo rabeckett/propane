@@ -1,5 +1,6 @@
 ﻿module Topology
 open QuickGraph
+open QuickGraph.Algorithms
 
 type NodeType = 
     | Start
@@ -13,6 +14,28 @@ type State =
      Typ: NodeType}
 
 type T = BidirectionalGraph<State,TaggedEdge<State,unit>>
+
+let setOriginators (topo: T) (orig: Set<string>) : T =
+    let mutable conv = Map.empty
+    let newTopo = BidirectionalGraph()
+    for v in topo.Vertices do 
+        if orig.Contains v.Loc then
+            match v.Typ with 
+            | Inside | InsideOriginates ->
+                let nv = {Loc=v.Loc; Typ=InsideOriginates} 
+                newTopo.AddVertex nv |> ignore
+                conv <- Map.add v nv conv
+            | _ ->
+                failwith ("[Topology Error]: cannot set location: " + v.Loc + " to be internal")
+        else 
+            newTopo.AddVertex v |> ignore
+            conv <- Map.add v v conv
+
+    for e in topo.Edges do 
+        let v = Map.find e.Source conv
+        let u = Map.find e.Target conv
+        newTopo.AddEdge (TaggedEdge<State,unit>(v,u,())) |> ignore
+    newTopo
 
 let alphabet (topo: T) : Set<State> * Set<State> = 
     let mutable ain = Set.empty 

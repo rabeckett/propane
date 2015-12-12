@@ -3,7 +3,7 @@
 
 module Debug =
 
-    let logFile = !Options.debugDir + "debug.log"
+    let logFile = Options.debugDir + "debug.log"
 
     /// run a function if in debug mode
     let debug n f =

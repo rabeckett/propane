@@ -54,6 +54,10 @@ let originates config x =
  *  Regular expression queries
  *********************************************)
 
+type FailReason = 
+    | InconsistentPrefs
+    | NoPathForRouters
+
 type Test = 
     {Name: string;
      Explanation: string;
@@ -61,7 +65,8 @@ type Test =
      Rf: Regex.REBuilder -> Regex.T list;
      Receive: (string*string) list option;
      Originate: string list option;
-     Prefs: (string*string*string) list option}
+     Prefs: (string*string*string) list option
+     Fail: FailReason option}
  
 let tDiamond = Examples.topoDiamond () 
 let tDatacenterSmall = Examples.topoDatacenterSmall ()
@@ -87,8 +92,12 @@ let rDatacenterSmall2 (reb: Regex.REBuilder) =
     [reb.ConcatAll [reb.Star reb.Inside; reb.Loc "M"; reb.Star reb.Inside; reb.Loc "A"]]
 
 let rDatacenterSmall3 (reb: Regex.REBuilder) =
-    let pref1 = reb.ConcatAll [reb.Star reb.Inside; reb.Loc "M"; reb.Star reb.Inside; reb.Loc "A"]
-    let pref2 = reb.ConcatAll [reb.Star reb.Inside; reb.Loc "A"]
+    let pref1 = reb.InterAll [reb.Waypoint "M"; reb.EndsAt "A"]
+    let pref2 = reb.InterAll [reb.Internal(); reb.EndsAt "A"]
+    (*let pref1 = reb.ConcatAll [reb.Star reb.Inside; reb.Loc "M"; reb.Star reb.Inside; reb.Loc "A"]
+    let pref2 = reb.ConcatAll [reb.Star reb.Inside; reb.Loc "A"] *)
+    printfn "pref1: %A" (pref1)
+    printfn "pref2: %A" (pref2)
     [pref1; pref2]
 
 let rDatacenterSmall4 (reb: Regex.REBuilder) =
@@ -163,14 +172,15 @@ let rSeesaw1 (reb: Regex.REBuilder) =
     [pref1; pref2]
 
 let tests = [
-
+(*
     {Name= "Diamond1";
      Explanation="A simple path";
      Topo= tDiamond;
      Rf= rDiamond1; 
      Receive= Some [("Y", "B"); ("N","Y"); ("X","N"); ("A","X")];
      Originate = Some ["B"];
-     Prefs = Some []};
+     Prefs = Some [];
+     Fail = None};
 
     {Name= "Diamond2";
      Explanation="Impossible Backup (should fail)";
@@ -178,7 +188,8 @@ let tests = [
      Rf= rDiamond2; 
      Receive= None;
      Originate = None;
-     Prefs = None};
+     Prefs = None; 
+     Fail = Some InconsistentPrefs};
 
     {Name= "DCsmall1";
      Explanation="Shortest paths routing";
@@ -186,7 +197,8 @@ let tests = [
      Rf= rDatacenterSmall1; 
      Receive= Some [];
      Originate = Some ["A"; "B"; "C"; "D"];
-     Prefs = Some []};
+     Prefs = Some [];
+     Fail = None};
    
     {Name= "DCsmall2";
      Explanation="Waypoint through spine no backup (should fail)";
@@ -194,7 +206,8 @@ let tests = [
      Rf= rDatacenterSmall2; 
      Receive= None;
      Originate = None;
-     Prefs = None};
+     Prefs = None; 
+     Fail = Some NoPathForRouters}; *)
 
     {Name= "DCsmall3";
      Explanation="Waypoint through spine with backup";
@@ -202,15 +215,17 @@ let tests = [
      Rf= rDatacenterSmall3; 
      Receive= Some [("X", "A"); ("M", "X"); ("N", "X"); ("B", "X"); ("Y", "M"); ("Y", "N"); ("C", "Y"); ("D", "Y")];
      Originate = Some ["A"];
-     Prefs = Some [("Y", "M", "N")]};
+     Prefs = Some [("Y", "M", "N")]; 
+     Fail = None};
 
-    {Name= "DCsmall4";
+ (*   {Name= "DCsmall4";
      Explanation="End at single location";
      Topo= tDatacenterSmall;
      Rf= rDatacenterSmall4; 
      Receive= Some [("X", "A"); ("M","X"); ("N", "X"); ("Y", "M"); ("Y", "N"); ("C", "Y"); ("D", "Y")];
      Originate = Some ["A"];
-     Prefs = Some []};
+     Prefs = Some []; 
+     Fail = None };
 
     {Name= "DCsmall5";
      Explanation="Waypoint through spine to single location (should fail)";
@@ -218,7 +233,8 @@ let tests = [
      Rf= rDatacenterSmall5; 
      Receive= None;
      Originate = None;
-     Prefs = None};
+     Prefs = None; 
+     Fail = Some NoPathForRouters};
 
     {Name= "DCmedium1";
      Explanation="Shortest paths routing";
@@ -226,7 +242,8 @@ let tests = [
      Rf= rDatacenterMedium1; 
      Receive= Some [];
      Originate = Some [];
-     Prefs = Some []};
+     Prefs = Some [];
+     Fail = None};
 
     {Name= "DCmedium2";
      Explanation="Waypoint through spine (should fail)";
@@ -234,7 +251,8 @@ let tests = [
      Rf= rDatacenterMedium2; 
      Receive= None;
      Originate = None;
-     Prefs = None};
+     Prefs = None;
+     Fail = Some InconsistentPrefs};
 
     {Name= "DClarge1";
      Explanation="Waypoint through spine (should fail)";
@@ -242,7 +260,8 @@ let tests = [
      Rf= rDatacenterLarge1; 
      Receive= None;
      Originate = None;
-     Prefs = None};
+     Prefs = None;
+     Fail = Some NoPathForRouters};
 
     {Name= "DClarge2";
      Explanation="Waypoint through spine with backup (should fail due to valleys)";
@@ -250,7 +269,8 @@ let tests = [
      Rf= rDatacenterLarge2; 
      Receive= None;
      Originate = None;
-     Prefs = None};
+     Prefs = None;
+     Fail = Some InconsistentPrefs};
 
     {Name= "DClarge3";
      Explanation="Waypoint through spines with preference and backup (should fail due to valleys)";
@@ -258,7 +278,8 @@ let tests = [
      Rf= rDatacenterLarge3; 
      Receive= None;
      Originate = None;
-     Prefs = None};
+     Prefs = None;
+     Fail = Some InconsistentPrefs};
 
     {Name= "BrokenTriangle1";
      Explanation="Inconsistent path suffixes (should fail)";
@@ -266,7 +287,8 @@ let tests = [
      Rf= rBrokenTriangle1; 
      Receive= None;
      Originate = None;
-     Prefs = None};
+     Prefs = None;
+     Fail = Some NoPathForRouters};
 
     {Name= "BigDipper1";
      Explanation="Must choose the correct preference";
@@ -274,7 +296,8 @@ let tests = [
      Rf= rBigDipper1; 
      Receive= Some [("E", "D"); ("A", "E"); ("C", "A")];
      Originate = Some ["D"];
-     Prefs = Some [("A","E","D")]};
+     Prefs = Some [("A","E","D")];
+     Fail = None};
 
     {Name= "BadGadget1";
      Explanation="Total ordering prevents instability (should fail)";
@@ -282,7 +305,8 @@ let tests = [
      Rf= rBadGadget1; 
      Receive= None;
      Originate = None;
-     Prefs = None};
+     Prefs = None;
+     Fail = Some InconsistentPrefs};
 
     {Name= "BadGadget2";
      Explanation="Must find correct total ordering";
@@ -290,7 +314,8 @@ let tests = [
      Rf= rBadGadget2; 
      Receive= Some [("A", "D"); ("B", "D"); ("C", "D")];
      Originate = Some ["D"];
-     Prefs = Some [("A", "D", "C"); ("B", "D", "A"); ("C", "D", "B")]};
+     Prefs = Some [("A", "D", "C"); ("B", "D", "A"); ("C", "D", "B")];
+     Fail = None};
 
     {Name= "Seesaw1";
      Explanation="Must get all best preferences (should fail)";
@@ -298,7 +323,8 @@ let tests = [
      Rf= rSeesaw1; 
      Receive= None;
      Originate = None;
-     Prefs = None};
+     Prefs = None;
+     Fail = Some InconsistentPrefs}; *)
 
 ]
 
@@ -306,20 +332,29 @@ let run debug_dir =
     for test in tests do
         let msg = String.Format("Testing {0} - {1} ...", test.Name, test.Explanation)
         printfn "%s" msg
-        logInfo0(msg)
+        logInfo0("\n" + msg)
         let reb = Regex.REBuilder test.Topo
         match IR.compileToIR test.Topo reb (test.Rf reb) (Some (debug_dir + test.Name)) with 
         | Err(x) ->
             if (Option.isSome test.Receive || 
                 Option.isSome test.Originate || 
-                Option.isSome test.Prefs) then 
+                Option.isSome test.Prefs || 
+                Option.isNone test.Fail) then 
                 let msg = String.Format("\n[Failed]:\n  Name: {0}\n  Message: Should compile but did not\nError: {1}\n", test.Name, x)
+                printfn "%s" msg
+                logInfo0(msg)
+            match test.Fail, x with 
+            | Some NoPathForRouters, IR.NoPathForRouters _ -> ()
+            | Some InconsistentPrefs, IR.InconsistentPrefs _ -> ()
+            | _ ->
+                let msg = String.Format("\n[Failed]:\n  Name: {0}\n  Message: Expected Error {1}\n", test.Name, test.Fail)
                 printfn "%s" msg
                 logInfo0(msg)
         | Ok(config) -> 
             if (Option.isNone test.Receive || 
                 Option.isNone test.Originate || 
-                Option.isNone test.Prefs) then
+                Option.isNone test.Prefs || 
+                Option.isSome test.Fail) then
                 let msg = String.Format("\n[Failed]:\n  Name: {0}\n  Message: Should not compile but did\n", test.Name)
                 printfn "%s" msg
                 logInfo0(msg)
