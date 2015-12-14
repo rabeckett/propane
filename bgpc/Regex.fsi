@@ -46,3 +46,4 @@ type REBuilder  =
     member Waypoint: string -> T
     member EndsAt: string -> T
     member StartsAt: string -> T
+    member ValleyFree: seq<string list> -> T

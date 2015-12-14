@@ -313,6 +313,9 @@ type REBuilder(topo: Topology.T) =
     member this.Waypoint(x) =
         this.ConcatAll [this.MaybeOutside(); this.MaybeInside(); this.Loc x; this.MaybeInside(); this.MaybeOutside()]
 
+    member this.Avoid(x) =
+        this.Negate (this.ConcatAll [this.MaybeOutside(); this.MaybeInside(); this.Loc x; this.MaybeInside(); this.MaybeOutside()])
+
     member this.EndsAt(x) =
         if inside.Contains x then
             this.ConcatAll [this.MaybeOutside(); this.MaybeInside(); this.Loc x]
@@ -328,6 +331,17 @@ type REBuilder(topo: Topology.T) =
             this.ConcatAll [this.Loc x;  this.MaybeOutside(); this.Internal() ;this.MaybeOutside()]
         else failwith ("[Constraint Error]: Location " + x + " is not a valid topology location" )
 
-
+    member this.ValleyFree(xs) =
+        let _, pol = 
+            List.fold (fun (last, acc) x ->
+                let tierx = this.UnionAll (List.map this.Loc x)
+                match last with
+                | None -> (Some tierx, acc)
+                | Some last ->
+                    let bad = this.ConcatAll [last; tierx; last]
+                    let avoid = this.Negate (this.ConcatAll [this.MaybeOutside(); this.MaybeInside(); bad; this.MaybeInside(); this.MaybeOutside()])
+                    (Some tierx, this.Inter acc avoid)
+            ) (None, this.Any()) xs
+        pol
 
     
