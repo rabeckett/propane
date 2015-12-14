@@ -174,7 +174,7 @@ let rSeesaw1 (reb: Regex.REBuilder) =
     [pref1; pref2]
 
 let tests = [
-(*
+
     {Name= "Diamond1";
      Explanation="A simple path";
      Topo= tDiamond;
@@ -263,7 +263,7 @@ let tests = [
      Receive= None;
      Originate = None;
      Prefs = None;
-     Fail = Some InconsistentPrefs};  *)
+     Fail = Some InconsistentPrefs}; 
 
     {Name= "DCmedium4";
      Explanation="Waypoint through spine, valley free with simple backup";
@@ -277,7 +277,6 @@ let tests = [
      Prefs = Some [("C", "X", "Y"); ("D", "X", "Y"); ("G", "F", "X"); ("G", "F", "Y"); ("H", "F", "X"); ("H", "F", "Y")];
      Fail = None};
 
-(*
     {Name= "DClarge1";
      Explanation="Waypoint through spine (should fail)";
      Topo= tDatacenterLarge;
@@ -348,7 +347,7 @@ let tests = [
      Receive= None;
      Originate = None;
      Prefs = None;
-     Fail = Some InconsistentPrefs}; *)
+     Fail = Some InconsistentPrefs};
 
 ]
 

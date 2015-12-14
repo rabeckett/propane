@@ -1,4 +1,6 @@
 ﻿module IR
+
+open System
 open CGraph
 open Common.Debug
 open Common.Error
@@ -72,7 +74,7 @@ let rec removeAdjacentLocs sorted =
         if x.Node.Loc = y.Node.Loc then removeAdjacentLocs (hd1::z)
         else hd1 :: (removeAdjacentLocs tl)
 
-let private genConfig (cg: CGraph.T) (ord: Consistency.Ordering) : T =
+let genConfig (cg: CGraph.T) (ord: Consistency.Ordering) : T =
     let cgRev = copyReverseGraph cg
     let neighborsIn v = seq {for e in cgRev.Graph.OutEdges v do yield e.Target}
     let neighborsOut v = seq {for e in cg.Graph.OutEdges v do yield e.Target}
@@ -124,25 +126,28 @@ let compileToIR (topo: Topology.T) (reb: Regex.REBuilder) (res: Regex.T list) (o
     let cg = CGraph.copyGraph cgOrig
     (* Ensure the path suffix property for nodes that can originate traffic *)
     CGraph.Minimize.delMissingSuffixPaths cg
+    (* Ensure we don't consider simple paths *)
     CGraph.Minimize.minimizeO3 cg
     (* Save graphs to file *)
-    match outFile with
-    | None -> ()
-    | Some name ->
+    Option.iter (fun name -> 
         debug1 (fun () -> CGraph.generatePNG cgOrig name)
         debug1 (fun () -> CGraph.generatePNG cg (name + "-min"))
+    ) outFile
     (* Check for errors *)
+    let startingLocs = List.fold (fun acc r -> Set.union (reb.StartingLocs r) acc) Set.empty res
     let originators = 
         CGraph.neighbors cg cg.Start
         |> Seq.map (fun v -> v.Node.Loc)
         |> Set.ofSeq
-    let mutable pathFrom = Set.empty
-    for v in cg.Topo.Vertices do 
-        if v.Typ = Topology.InsideOriginates then 
-            pathFrom <- Set.add v.Loc pathFrom
-
-    let locsThatNeedPath = Set.difference pathFrom originators
+    let canOriginate = 
+        cg.Topo.Vertices 
+        |> Seq.filter Topology.canOriginateTraffic 
+        |> Seq.map (fun v -> v.Loc) 
+        |> Set.ofSeq
+    let locsThatNeedPath = Set.difference (Set.intersect startingLocs canOriginate) originators
     let locsThatGetPath = CGraph.acceptingLocations cg
+    logInfo1(String.Format("Locations that need path: {0}", locsThatNeedPath.ToString()))
+    logInfo1(String.Format("Locations that get path: {0}", locsThatGetPath.ToString()))
     let lost = Set.difference locsThatNeedPath locsThatGetPath
     if not (Set.isEmpty lost) then 
         Err(NoPathForRouters(lost))
@@ -156,6 +161,9 @@ let compileToIR (topo: Topology.T) (reb: Regex.REBuilder) (res: Regex.T list) (o
             Err(UnusedPreferences(cexamples))
         else
             match Consistency.findOrderingConservative cg outFile with 
-            | Ok ord -> Ok (genConfig cg ord)
+            | Ok ord ->
+                let config = genConfig cg ord
+                Option.iter (fun n -> debug1 (fun () -> System.IO.File.WriteAllText(n + ".ir", format config)) ) outFile
+                Ok (config)
             | Err((x,y)) -> Err(InconsistentPrefs(x,y))
 
