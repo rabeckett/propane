@@ -108,6 +108,17 @@ let rDatacenterMedium1 (reb: Regex.REBuilder) =
 let rDatacenterMedium2 (reb: Regex.REBuilder) =
     [reb.InterAll [reb.Waypoint("X"); reb.EndsAt("F")]]
 
+let rDatacenterMedium3 (reb: Regex.REBuilder) =
+    let vf = reb.ValleyFree([["A";"B";"E";"F"]; ["C";"D";"G";"H"]; ["X";"Y"]])
+    [reb.InterAll [reb.Waypoint("X"); reb.EndsAt("F"); vf]]
+
+let rDatacenterMedium4 (reb: Regex.REBuilder) =
+    let vf = reb.ValleyFree([["A";"B";"E";"F"]; ["C";"D";"G";"H"]; ["X";"Y"]])
+    let start = reb.StartsAtAny(["A"; "B"])
+    let pref1 = reb.InterAll [start; reb.Waypoint("X"); reb.EndsAt("F"); vf]
+    let pref2 = reb.InterAll [reb.EndsAt("F"); vf]
+    [pref1; pref2]
+
 let rDatacenterLarge1 (reb: Regex.REBuilder) =
     [reb.InterAll [reb.Waypoint("M"); reb.EndsAt("A")]]
 
@@ -163,7 +174,7 @@ let rSeesaw1 (reb: Regex.REBuilder) =
     [pref1; pref2]
 
 let tests = [
-
+(*
     {Name= "Diamond1";
      Explanation="A simple path";
      Topo= tDiamond;
@@ -243,8 +254,30 @@ let tests = [
      Receive= None;
      Originate = None;
      Prefs = None;
-     Fail = Some InconsistentPrefs};
+     Fail = Some InconsistentPrefs}; 
 
+    {Name= "DCmedium3";
+     Explanation="Waypoint through spine, valley free (should fail)";
+     Topo= tDatacenterMedium;
+     Rf= rDatacenterMedium3; 
+     Receive= None;
+     Originate = None;
+     Prefs = None;
+     Fail = Some InconsistentPrefs};  *)
+
+    {Name= "DCmedium4";
+     Explanation="Waypoint through spine, valley free with simple backup";
+     Topo= tDatacenterMedium;
+     Rf= rDatacenterMedium4; 
+     Receive= Some [("G", "F"); ("H", "F"); ("E","G"); ("E","H"); ("X", "G"); 
+                    ("X","H"); ("Y","G"); ("Y", "H"); ("C","X"); ("C","Y"); 
+                    ("D","X"); ("D","Y"); ("A","C"); ("A","D"); ("B","C"); ("B", "D"); 
+                    ("H","X"); ("H","Y"); ("G","X"); ("G","Y")]; (* Strange, but safe *)
+     Originate = Some ["F"];
+     Prefs = Some [("C", "X", "Y"); ("D", "X", "Y"); ("G", "F", "X"); ("G", "F", "Y"); ("H", "F", "X"); ("H", "F", "Y")];
+     Fail = None};
+
+(*
     {Name= "DClarge1";
      Explanation="Waypoint through spine (should fail)";
      Topo= tDatacenterLarge;
@@ -315,7 +348,7 @@ let tests = [
      Receive= None;
      Originate = None;
      Prefs = None;
-     Fail = Some InconsistentPrefs};
+     Fail = Some InconsistentPrefs}; *)
 
 ]
 

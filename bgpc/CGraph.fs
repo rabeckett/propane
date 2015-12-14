@@ -400,32 +400,33 @@ module Minimize =
 
     let minimizeO0 (cg: T) =
         removeNodesThatCantReachEnd cg
-        removeNodesThatStartCantReach cg
       
     let minimizeO1 (cg: T) =
         removeNodesThatCantReachEnd cg
-        removeNodesThatStartCantReach cg
         removeEdgesForDominatedNodes cg
 
     let minimizeO2 (cg: T) = 
         removeNodesThatCantReachEnd cg
-        removeNodesThatStartCantReach cg
         removeEdgesForDominatedNodes cg
         removeNodesNotReachableOnSimplePath cg
 
     let minimizeO3 (cg: T) =
         let count cg = cg.Graph.VertexCount + cg.Graph.EdgeCount
+        logInfo1(String.Format("Node count: {0}", cg.Graph.VertexCount))
         let prune () = 
             removeNodesThatCantReachEnd cg
-            removeNodesThatStartCantReach cg
+            logInfo1(String.Format("Node count - after O1: {0}", cg.Graph.VertexCount))
             removeEdgesForDominatedNodes cg
             removeNodesNotReachableOnSimplePath cg 
+            logInfo1(String.Format("Node count - after O2: {0}", cg.Graph.VertexCount))
+
         let mutable sum = count cg
         prune() 
         while count cg <> sum do
             sum <- count cg
             prune ()
         removeNodesNotOnAnySimplePathToEnd cg
+        logInfo1(String.Format("Node count - after O3: {0}", cg.Graph.VertexCount))
 
 
 module Consistency = 

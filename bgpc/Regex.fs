@@ -19,8 +19,8 @@ type T =
         | Empty -> "{}"
         | Epsilon -> ""
         | Locs S -> "[" + (Set.toList S |> List.joinBy ",") + "]"
-        | Concat rs -> "concat " + (List.map (fun r -> r.ToString()) rs |> List.joinBy ";" |> addParens)
-        | Inter rs -> "inter " + (List.map (fun r -> r.ToString()) rs |> List.joinBy " and " |> addParens)
+        | Concat rs -> List.map (fun r -> r.ToString()) rs |> List.joinBy ";" |> addParens
+        | Inter rs -> List.map (fun r -> r.ToString()) rs |> List.joinBy " and " |> addParens
         | Union rs -> List.map (fun r -> r.ToString()) rs |> List.joinBy " or " |> addParens
         | Negate r -> "!(" + r.ToString() + ")"
         | Star r -> (r.ToString() |> addParens) + "*"
@@ -331,17 +331,25 @@ type REBuilder(topo: Topology.T) =
             this.ConcatAll [this.Loc x;  this.MaybeOutside(); this.Internal() ;this.MaybeOutside()]
         else failwith ("[Constraint Error]: Location " + x + " is not a valid topology location" )
 
+    (* TODO: use character classes to split by inside/outside (more efficient) *)
+    member this.EndsAtAny(xs) =
+        this.UnionAll (List.map this.EndsAt xs)
+
+    (* TODO: use character classes to split by inside/outside (more efficient) *)
+    member this.StartsAtAny(xs) =
+        this.UnionAll (List.map this.StartsAt xs)
+
     member this.ValleyFree(xs) =
-        let _, pol = 
-            List.fold (fun (last, acc) x ->
-                let tierx = this.UnionAll (List.map this.Loc x)
-                match last with
-                | None -> (Some tierx, acc)
-                | Some last ->
-                    let bad = this.ConcatAll [last; tierx; last]
-                    let avoid = this.Negate (this.ConcatAll [this.MaybeOutside(); this.MaybeInside(); bad; this.MaybeInside(); this.MaybeOutside()])
-                    (Some tierx, this.Inter acc avoid)
-            ) (None, this.Any()) xs
-        pol
+        List.fold (fun (last, acc) x ->
+            let tierx = this.UnionAll (List.map this.Loc x)
+            match last with
+            | None -> (Some tierx, acc)
+            | Some last ->
+                let bad = this.ConcatAll [tierx; last; tierx]
+                let sq = [this.MaybeOutside(); this.MaybeInside(); bad; this.MaybeInside(); this.MaybeOutside()]
+                let avoid = this.Negate (this.ConcatAll sq)
+                (Some tierx, this.Inter acc avoid)
+        ) (None, this.Any()) xs
+        |> snd
 
     
