@@ -13,6 +13,10 @@ type T =
      Graph: BidirectionalGraph<CgState, TaggedEdge<CgState, unit>>;
      Topo: Topology.T}
 
+/// Direction of search. We often need to search in the reverse graph,
+/// yet do not want to make a copy of the graph every time
+type Direction = Up | Down
+
 /// Make a shallow copy of the graph. Does not clone node values.
 val copyGraph: T -> T
 
@@ -41,6 +45,9 @@ val acceptingLocations: T -> Set<string>
 /// Returns the (outgoing) neighbors of a state in the graph
 val neighbors: T -> CgState -> seq<CgState> 
 
+/// Returns the (incoming) neighbors of a state in the graph
+val neighborsIn: T -> CgState -> seq<CgState> 
+
 /// Returns a copy of the graph, restricted to nodes for a given preference
 val restrict: T -> int -> T
 
@@ -55,10 +62,6 @@ val generatePNG: T -> string -> unit
 module Reachable =
     /// All pairs reachability in the constraint graph
     val floydWarshall: T -> Map<CgState, Set<CgState>>
-
-    /// Direction of search. We often need to search in the reverse graph,
-    /// yet do not want to make a copy of the graph every time
-    type Direction = Up | Down
 
     /// Object to wrap the constraint graph and provide reachability info
     type AnnotatedCG =

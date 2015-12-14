@@ -86,93 +86,84 @@ let rDiamond2 (reb: Regex.REBuilder) =
     [re1; re2]
 
 let rDatacenterSmall1 (reb: Regex.REBuilder) = 
-    [reb.Star reb.Inside]
+    [reb.Internal()]
 
 let rDatacenterSmall2 (reb: Regex.REBuilder) = 
-    [reb.ConcatAll [reb.Star reb.Inside; reb.Loc "M"; reb.Star reb.Inside; reb.Loc "A"]]
+    [reb.InterAll [reb.Waypoint("M"); reb.EndsAt("A")]]
 
 let rDatacenterSmall3 (reb: Regex.REBuilder) =
     let pref1 = reb.InterAll [reb.Waypoint "M"; reb.EndsAt "A"]
     let pref2 = reb.InterAll [reb.Internal(); reb.EndsAt "A"]
-    (*let pref1 = reb.ConcatAll [reb.Star reb.Inside; reb.Loc "M"; reb.Star reb.Inside; reb.Loc "A"]
-    let pref2 = reb.ConcatAll [reb.Star reb.Inside; reb.Loc "A"] *)
-    printfn "pref1: %A" (pref1)
-    printfn "pref2: %A" (pref2)
     [pref1; pref2]
 
 let rDatacenterSmall4 (reb: Regex.REBuilder) =
-    [reb.ConcatAll [reb.Star reb.Inside; reb.Loc "A"]]
+    [reb.EndsAt("A")]
 
 let rDatacenterSmall5 (reb: Regex.REBuilder) =
-    [reb.ConcatAll [reb.Star reb.Inside; reb.Loc "M"; reb.Star reb.Inside; reb.Loc "A"]]
+    [reb.InterAll [reb.Waypoint("M"); reb.EndsAt("A")]]
 
 let rDatacenterMedium1 (reb: Regex.REBuilder) =
-    [reb.Star reb.Inside]
+    [reb.Internal()]
 
 let rDatacenterMedium2 (reb: Regex.REBuilder) =
-    [reb.ConcatAll [reb.Star reb.Inside; reb.Loc "X"; reb.Star reb.Inside; reb.Loc "F"]]
-
-let rDatacenterMedium3 (reb: Regex.REBuilder) =
-    let re1 = reb.ConcatAll [reb.Star reb.Inside; reb.Loc "X"; reb.Star reb.Inside; reb.Loc "F"] 
-    let re2 = reb.ConcatAll [reb.Star reb.Inside; reb.Loc "Y"; reb.Star reb.Inside; reb.Loc "F"]
-    [re1; re2]
+    [reb.InterAll [reb.Waypoint("X"); reb.EndsAt("F")]]
 
 let rDatacenterLarge1 (reb: Regex.REBuilder) =
-    [reb.ConcatAll [reb.Star reb.Inside; reb.Loc "M"; reb.Star reb.Inside; reb.Loc "A"]]
+    [reb.InterAll [reb.Waypoint("M"); reb.EndsAt("A")]]
 
 let rDatacenterLarge2 (reb: Regex.REBuilder) =
-    let pref1 = reb.ConcatAll [reb.Star reb.Inside; reb.Loc "M"; reb.Star reb.Inside; reb.Loc "A"]
-    let pref2 = reb.ConcatAll [reb.Star reb.Inside; reb.Loc "A"]
+    let pref1 = reb.InterAll [reb.Waypoint("M"); reb.EndsAt("A")]
+    let pref2 = reb.EndsAt("A")
     [pref1; pref2]
 
 let rDatacenterLarge3 (reb: Regex.REBuilder) =
-    let pref1 = reb.ConcatAll [reb.Star reb.Inside; reb.Loc "M"; reb.Star reb.Inside; reb.Loc "A"]
-    let pref2 = reb.ConcatAll [reb.Star reb.Inside; reb.Loc "N"; reb.Star reb.Inside; reb.Loc "A"]
-    let pref3 = reb.ConcatAll [reb.Star reb.Inside; reb.Loc "A"]
+    let pref1 = reb.InterAll [reb.Waypoint("M"); reb.EndsAt("A")]
+    let pref2 = reb.InterAll [reb.Waypoint("N"); reb.EndsAt("A")]
+    let pref3 = reb.EndsAt("A")
     [pref1; pref2; pref3]
 
 let rBrokenTriangle1 (reb: Regex.REBuilder) =
-    [reb.Union 
-        (reb.ConcatAll [reb.Loc "C"; reb.Loc "A"; reb.Loc "E"; reb.Loc "D"]) 
-        (reb.ConcatAll [reb.Loc "A"; reb.Loc "B"; reb.Loc "D"])]
+    [reb.Union
+        (reb.Path(["C"; "A"; "E"; "D"]))
+        (reb.Path(["A"; "B"; "D"])) ]
 
 let rBigDipper1 (reb: Regex.REBuilder) =
-    let op1 = reb.ConcatAll [reb.Loc "C"; reb.Loc "A"; reb.Loc "E"; reb.Loc "D"]
-    let op2 = reb.ConcatAll [reb.Loc "A"; reb.Loc "E"; reb.Loc "D"]
-    let op3 = reb.ConcatAll [reb.Loc "A"; reb.Loc "D"]
+    let op1 = reb.Path(["C"; "A"; "E"; "D"])
+    let op2 = reb.Path(["A"; "E"; "D"])
+    let op3 = reb.Path(["A"; "D"])
     [reb.UnionAll [op1; op2; op3]]
 
 let rBadGadget1 (reb: Regex.REBuilder) =
-    let op1 = reb.ConcatAll [reb.Loc "A"; reb.Loc "C"; reb.Loc "D"]
-    let op2 = reb.ConcatAll [reb.Loc "B"; reb.Loc "A"; reb.Loc "D"]
-    let op3 = reb.ConcatAll [reb.Loc "C"; reb.Loc "B"; reb.Loc "D"]
+    let op1 = reb.Path(["A"; "C"; "D"])
+    let op2 = reb.Path(["B"; "A"; "D"])
+    let op3 = reb.Path(["C"; "B"; "D"])
     let pref1 = reb.UnionAll [op1; op2; op3]
-    let op4 = reb.ConcatAll [reb.Loc "A"; reb.Loc "D"]
-    let op5 = reb.ConcatAll [reb.Loc "B"; reb.Loc "D"]
-    let op6 = reb.ConcatAll [reb.Loc "C"; reb.Loc "D"]
+    let op4 = reb.Path(["A"; "D"]) 
+    let op5 = reb.Path(["B"; "D"])
+    let op6 = reb.Path(["C"; "D"])
     let pref2 = reb.UnionAll [op4; op5; op6]
     [pref1; pref2]
 
 let rBadGadget2 (reb: Regex.REBuilder) =
-    let op1 = reb.ConcatAll [reb.Loc "A"; reb.Loc "C"; reb.Loc "D"]
-    let op2 = reb.ConcatAll [reb.Loc "B"; reb.Loc "A"; reb.Loc "D"]
-    let op3 = reb.ConcatAll [reb.Loc "C"; reb.Loc "B"; reb.Loc "D"]
-    let op4 = reb.ConcatAll [reb.Loc "A"; reb.Loc "D"]
-    let op5 = reb.ConcatAll [reb.Loc "B"; reb.Loc "D"]
-    let op6 = reb.ConcatAll [reb.Loc "C"; reb.Loc "D"]
+    let op1 = reb.Path(["A"; "C"; "D"])
+    let op2 = reb.Path(["B"; "A"; "D"])
+    let op3 = reb.Path(["C"; "B"; "D"])
+    let op4 = reb.Path(["A"; "D"]) 
+    let op5 = reb.Path(["B"; "D"])
+    let op6 = reb.Path(["C"; "D"])
     [reb.UnionAll [op1; op2; op3; op4; op5; op6]]
 
 let rSeesaw1 (reb: Regex.REBuilder) = 
-    let op1 = reb.ConcatAll [reb.Loc "A"; reb.Loc "X"; reb.Loc "N"; reb.Loc "M"]
-    let op2 = reb.ConcatAll [reb.Loc "B"; reb.Loc "X"; reb.Loc "N"; reb.Loc "M"]
-    let op3 = reb.ConcatAll [reb.Loc "A"; reb.Loc "X"; reb.Loc "O"; reb.Loc "M"]
-    let op4 = reb.ConcatAll [reb.Loc "X"; reb.Loc "O"; reb.Loc "M"]
+    let op1 = reb.Path(["A"; "X"; "N"; "M"])
+    let op2 = reb.Path(["B"; "X"; "N"; "M"])
+    let op3 = reb.Path(["A"; "X"; "O"; "M"])
+    let op4 = reb.Path(["X"; "O"; "M"])
     let pref1 = reb.UnionAll [op1; op2; op3; op4]
-    let pref2 = reb.ConcatAll [reb.Loc "X"; reb.Loc "N"; reb.Loc "M"]
+    let pref2 = reb.Path(["X"; "N"; "M"])
     [pref1; pref2]
 
 let tests = [
-(*
+
     {Name= "Diamond1";
      Explanation="A simple path";
      Topo= tDiamond;
@@ -207,7 +198,7 @@ let tests = [
      Receive= None;
      Originate = None;
      Prefs = None; 
-     Fail = Some NoPathForRouters}; *)
+     Fail = Some NoPathForRouters};
 
     {Name= "DCsmall3";
      Explanation="Waypoint through spine with backup";
@@ -218,7 +209,7 @@ let tests = [
      Prefs = Some [("Y", "M", "N")]; 
      Fail = None};
 
- (*   {Name= "DCsmall4";
+   {Name= "DCsmall4";
      Explanation="End at single location";
      Topo= tDatacenterSmall;
      Rf= rDatacenterSmall4; 
@@ -324,7 +315,7 @@ let tests = [
      Receive= None;
      Originate = None;
      Prefs = None;
-     Fail = Some InconsistentPrefs}; *)
+     Fail = Some InconsistentPrefs};
 
 ]
 

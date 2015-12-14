@@ -26,21 +26,6 @@ module Debug =
     let logInfo2 f = logInfo 2 f
     let logInfo3 f = logInfo 3 f
 
-    /// Generate a string header for a debugging section
-    let logHeader n x = 
-        let indent = String.replicate n "\t"
-        let len = String.length x
-        let y = String.replicate (len + 2) "="
-        let x = indent + x
-        let y = indent + y
-        if !Options.debug >= n then
-            System.IO.File.AppendAllText(logFile, y + "\n" + x + "\n" + y + "\n")
-
-    let logHeader0 x = logHeader 0 x
-    let logHeader1 x = logHeader 1 x 
-    let logHeader2 x = logHeader 2 x 
-    let logHeader3 x = logHeader 3 x 
-
 
 module List = 
 

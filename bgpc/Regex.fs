@@ -18,12 +18,9 @@ type T =
         match this with 
         | Empty -> "{}"
         | Epsilon -> ""
-        | Locs S -> 
-            if Set.toList S = [] then "[]"
-            else
-             "[" + (Set.toList S |> List.joinBy ",") + "]"
-        | Concat rs -> List.map (fun r -> r.ToString()) rs |> List.joinBy ";" |> addParens
-        | Inter rs -> List.map (fun r -> r.ToString()) rs |> List.joinBy " and " |> addParens
+        | Locs S -> "[" + (Set.toList S |> List.joinBy ",") + "]"
+        | Concat rs -> "concat " + (List.map (fun r -> r.ToString()) rs |> List.joinBy ";" |> addParens)
+        | Inter rs -> "inter " + (List.map (fun r -> r.ToString()) rs |> List.joinBy " and " |> addParens)
         | Union rs -> List.map (fun r -> r.ToString()) rs |> List.joinBy " or " |> addParens
         | Negate r -> "!(" + r.ToString() + ")"
         | Star r -> (r.ToString() |> addParens) + "*"
@@ -97,7 +94,9 @@ let concatAll res =
     | [] -> Empty
     | _ -> Common.List.fold1 concat res
 
+(* TODO: negate empty == alphabet check for locs *)
 let rec inter r1 r2 = 
+    if r1 = r2 then r1 else
     match r1, r2 with 
     | _, Empty -> Empty
     | Empty, _ -> Empty
@@ -113,7 +112,8 @@ let interAll res =
     | [] -> Empty
     | _ -> Common.List.fold1 inter res
 
-let rec union r1 r2 = 
+let rec union r1 r2 =
+    if r1 = r2 then r1 else
     match r1, r2 with 
     | _, Empty -> r1
     | Empty, _ -> r2
@@ -199,14 +199,17 @@ let rec dclasses alphabet r =
 let rec derivative alphabet a r = 
     match r with 
     | Epsilon | Empty -> empty
-    | Locs s -> if Set.contains a s then epsilon else empty
+    | Locs s -> if s.Contains(a) then epsilon else empty
     | Concat rs -> 
         match rs with 
         | [] | [_] -> failwith "impossible"
         | x::y::tl ->
             let y = if List.isEmpty tl then y else Concat (y::tl)
             union (concat (derivative alphabet a x) y) (concat (nullable x) (derivative alphabet a y))
-    | Inter rs -> List.fold (fun acc r -> inter acc (derivative alphabet a r)) empty rs
+    | Inter rs -> 
+        rs
+        |> List.map (fun r -> derivative alphabet a r)
+        |> List.fold1 inter
     | Union rs -> List.fold (fun acc r -> union acc (derivative alphabet a r)) empty rs
     | Negate r' -> negate alphabet (derivative alphabet a r')
     | Star r' -> concat (derivative alphabet a r') r
@@ -251,7 +254,7 @@ let indexStates (q0, Q, F, trans) =
 let makeDFA alphabet r = 
     let q0 = r
     let (Q, trans) = explore alphabet (Set.singleton q0) Map.empty q0
-    let F = Set.filter (fun q -> nullable q = epsilon) Q 
+    let F = Set.filter (fun q -> nullable q = epsilon) Q
     let (q0', Q', F', trans') = indexStates (q0, Q, F, trans)
     {q0=q0'; Q=Q'; F=F'; trans=trans'}
 
@@ -288,6 +291,9 @@ type REBuilder(topo: Topology.T) =
             then Set.add a acc 
             else acc 
         ) Set.empty alphabet
+
+    member this.Path(ls) =
+        this.ConcatAll (List.map this.Loc ls)
 
     member this.MaybeOutside() =
         this.Star this.Outside

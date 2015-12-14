@@ -22,6 +22,8 @@ type T =
      Graph: BidirectionalGraph<CgState, TaggedEdge<CgState, unit>>
      Topo: Topology.T}
 
+type Direction = Up | Down
+
 let copyGraph (cg: T) : T = 
     let newCG = QuickGraph.BidirectionalGraph() 
     for v in cg.Graph.Vertices do newCG.AddVertex v |> ignore
@@ -37,7 +39,6 @@ let copyReverseGraph (cg: T) : T =
     {Start=cg.Start; Graph=newCG; End=cg.End; Topo=cg.Topo}
 
 let buildFromAutomata (topo: Topology.T) (autos : Regex.Automaton array) : T =
-    printfn "Automata: %A" autos
     let alphabetIn, alphabetOut = Topology.alphabet(topo)
     let alphabetAll = Set.union alphabetIn alphabetOut
     let graph = BidirectionalGraph<CgState, TaggedEdge<CgState,unit>>()
@@ -50,14 +51,14 @@ let buildFromAutomata (topo: Topology.T) (autos : Regex.Automaton array) : T =
         let currState = Set.minElement todo 
         todo <- Set.remove currState todo
         let {States=ss; Node=t} = currState
-        let neighbors = 
+        let adj = 
             if t.Typ = Topology.Start then 
                 Set.filter Topology.canOriginateTraffic alphabetAll 
             else 
                 topo.OutEdges t 
                 |> Seq.map (fun e -> e.Target)
                 |> Set.ofSeq 
-        for c in Set.intersect alphabetAll neighbors do
+        for c in Set.intersect alphabetAll adj do
             let nextInfo = Array.init autos.Length (fun i -> 
                 let g, v = autos.[i], ss.[i]
                 let key = Map.findKey (fun (q,S) _ -> q = v && Set.contains c.Loc S) g.trans
@@ -109,23 +110,16 @@ let acceptingLocations (cg: T) : Set<string> =
     acceptingStates cg
     |> Set.map (fun v -> v.Node.Loc)
 
+let isRealNode (state: CgState) : bool =
+    Topology.isTopoNode state.Node
+
 let neighbors (cg: T) (state: CgState) =
     cg.Graph.OutEdges state
     |> Seq.map (fun e -> e.Target) 
-    |> Seq.filter (fun v -> Topology.isTopoNode v.Node)
 
 let neighborsIn (cg: T) (state: CgState) = 
     cg.Graph.InEdges state
     |> Seq.map (fun e -> e.Source)
-    |> Seq.filter (fun v -> Topology.isTopoNode v.Node)
-
-let neighborsAll (cg: T) (state: CgState) =
-    cg.Graph.OutEdges state
-    |> Seq.map (fun e -> e.Target)
-
-let neighborsAllIn (cg: T) (state: CgState) =
-    cg.Graph.InEdges state
-    |> Seq.map (fun e -> e.Source) 
 
 let restrict (cg: T) (i: int) : T = 
     if Set.contains i (preferences cg) then 
@@ -188,9 +182,8 @@ module Reachable =
         member this.Cg = cg
         member this.ReachInfo = reachability
 
-    type Direction = Up | Down
-
-    let dfs (cg: T) (source: CgState) : seq<CgState> = seq { 
+    let dfs (cg: T) (source: CgState) direction : seq<CgState> = seq { 
+        let f = if direction = Up then neighborsIn else neighbors
         let s = Stack()
         let marked = ref Set.empty
         s.Push source
@@ -199,14 +192,11 @@ module Reachable =
             if not (Set.contains v !marked) then 
                 marked := Set.add v !marked
                 yield v
-                for w in neighbors cg v do 
+                for w in f cg v do 
                     s.Push w }
 
     let srcWithout (cg: T) source without direction =
-        let f = 
-            match direction with 
-            | Up -> neighborsAllIn
-            | Down -> neighborsAll
+        let f = if direction = Up then neighborsIn else  neighbors
         let s = Stack()
         let mutable marked = Set.empty
         s.Push source
@@ -237,7 +227,7 @@ module Reachable =
         srcAcceptingWithout cg src (fun _ -> false) direction
 
     let simplePathSrc cg src direction =
-        let f = if direction = Up then neighborsAllIn else neighborsAll 
+        let f = if direction = Up then neighborsIn else neighbors 
         let explored = ref 0
         let allNodes = cg.Graph.Vertices |> Set.ofSeq
         let cantReach = ref allNodes
@@ -256,7 +246,7 @@ module Reachable =
         Set.difference allNodes !cantReach
 
     let alongSimplePathSrcDst cg src dst direction = 
-        let f = if direction = Up then neighborsAllIn else neighborsAll 
+        let f = if direction = Up then neighborsIn else neighbors
         let num_explored = ref 0
         let allNodes = cg.Graph.Vertices |> Set.ofSeq
         let cantReach = ref allNodes
@@ -298,8 +288,8 @@ module Reachable =
 
         let stepNodeNode n1 n2 =
             logInfo3 (String.Format("Simulate: {0} -- {1}", n1.ToString(), n2.ToString()) ) 
-            let neighbors1 = neighbors cg1 n1 |> Set.ofSeq
-            let neighbors2 = neighbors cg2 n2 |> Set.ofSeq
+            let neighbors1 = neighbors cg1 n1 |> Seq.filter isRealNode |> Set.ofSeq
+            let neighbors2 = neighbors cg2 n2 |> Seq.filter isRealNode |> Set.ofSeq
             let nchars1 = Set.map (fun v -> v.Node.Loc) neighbors1
             let nchars2 = Set.map (fun v -> v.Node.Loc) neighbors2
             if not (Set.isSuperset nchars1 nchars2) then
@@ -348,9 +338,10 @@ module Minimize =
 
     type DominationSet = Map<CgState, Set<CgState>>
 
-    let dominators (cg: T) : DominationSet =
+    let dominators (cg: T) root direction : DominationSet =
+        let f = if direction = Up then neighbors else neighborsIn
         let dom = ref Map.empty
-        let nodes = Reachable.dfs cg cg.Start
+        let nodes = Reachable.dfs cg root direction
         let allNodes = cg.Graph.Vertices |> Set.ofSeq
         for n in allNodes do 
             dom := Map.add n allNodes !dom
@@ -358,7 +349,7 @@ module Minimize =
         while changed do 
             changed <- false 
             for n in nodes do
-                let preds = seq {for p in (neighborsAllIn cg n) do yield Map.find p !dom}
+                let preds = seq {for p in (f cg n) do yield Map.find p !dom}
                 let interAll = if Seq.isEmpty preds then Set.empty else Set.intersectMany preds
                 let newSet = Set.union (Set.singleton n) interAll
                 if (newSet <> Map.find n !dom) then 
@@ -367,7 +358,8 @@ module Minimize =
         !dom
 
     let removeEdgesForDominatedNodes (cg: T) = 
-        let dom = dominators cg
+        let dom = dominators cg cg.Start Down
+        let domRev = dominators cg cg.End Up
         cg.Graph.RemoveEdgeIf (fun (e: TaggedEdge<CgState,unit>) -> 
             let ies = cg.Graph.OutEdges e.Target
             match Seq.tryFind (fun (ie: TaggedEdge<CgState,unit>) -> ie.Target = e.Source) ies with 
@@ -375,31 +367,31 @@ module Minimize =
             | Some ie ->
                 assert (ie.Source = e.Target)
                 assert (ie.Target = e.Source)
-                Set.contains e.Target (Map.find e.Source dom)
+                Set.contains e.Target (Map.find e.Source dom) || Set.contains e.Source (Map.find e.Target domRev)
         ) |> ignore
 
     let removeNodesThatCantReachEnd (cg: T) = 
-        let canReach = Reachable.src cg cg.End Reachable.Up
+        let canReach = Reachable.src cg cg.End Up
         cg.Graph.RemoveVertexIf(fun v -> 
             Topology.isTopoNode v.Node && not (Set.contains v canReach)
         ) |> ignore
 
     let removeNodesThatStartCantReach (cg: T) = 
-        let canReach = Reachable.src cg cg.Start Reachable.Down
+        let canReach = Reachable.src cg cg.Start Down
         cg.Graph.RemoveVertexIf(fun v -> 
             Topology.isTopoNode v.Node && not (Set.contains v canReach)
         ) |> ignore
 
     let removeNodesNotReachableOnSimplePath (cg: T) =
-        let canReach = Reachable.simplePathSrc cg cg.Start Reachable.Down
+        let canReach = Reachable.simplePathSrc cg cg.Start Down
         cg.Graph.RemoveVertexIf (fun v -> Topology.isTopoNode v.Node && not (Set.contains v canReach)) |> ignore
 
     let removeNodesNotOnAnySimplePathToEnd (cg: T) = 
-        let canReach = Reachable.alongSimplePathSrcDst cg cg.Start cg.End Reachable.Down
+        let canReach = Reachable.alongSimplePathSrcDst cg cg.Start cg.End Down
         cg.Graph.RemoveVertexIf (fun v -> Topology.isTopoNode v.Node && not (Set.contains v canReach)) |> ignore
 
     let delMissingSuffixPaths (cg: T) =
-        let starting = neighbors cg cg.Start |> Set.ofSeq
+        let starting = neighbors cg cg.Start |> Seq.filter isRealNode |> Set.ofSeq
         cg.Graph.RemoveVertexIf (fun v -> 
             v.Node.Typ = Topology.InsideOriginates && 
             v.Accept.IsEmpty && 
@@ -468,7 +460,7 @@ module Consistency =
     let getReachabilityMap cg nodes = 
         let mutable reachMap = Map.empty
         for n in nodes do
-            reachMap <- Map.add n (Reachable.srcAccepting cg n Reachable.Down) reachMap
+            reachMap <- Map.add n (Reachable.srcAccepting cg n Down) reachMap
         reachMap
 
     let addPrefConstraints f cg (g: Constraints) r nodes reachMap =
@@ -535,7 +527,7 @@ module Consistency =
             (* Remove nodes that appear 'above' for the more preferred, to avoid considering simple paths *)
             (* cheaper approximation of simple paths - can do better at cost of speed *)
             let exclude = (fun v -> v.Node.Loc = x.Node.Loc && v <> x)
-            let reach = Reachable.srcWithout restrict_i x exclude Reachable.Up |> Set.map (fun v -> v.Node.Loc)
+            let reach = Reachable.srcWithout restrict_i x exclude Up |> Set.map (fun v -> v.Node.Loc)
             restrict_i.Graph.RemoveVertexIf (fun v -> v <> x && Set.contains v.Node.Loc reach) |> ignore
             (* Check if the more preferred simulates the less preferred *)
             Reachable.supersetPaths (restrict_i, x) (restrict_j, y) 
@@ -562,9 +554,9 @@ module Consistency =
         Seq.forall (fun fails ->
             let failedX = failedGraph gx fails
             let failedY = failedGraph gy fails
-            not((Set.contains x (Reachable.simplePathSrc failedX cg.Start Reachable.Down)) &&
-               (not ( Set.contains x (Reachable.alongSimplePathSrcDst failedX cg.Start cg.End Reachable.Down))) &&
-               (Set.contains y (Reachable.alongSimplePathSrcDst failedY cg.Start cg.End Reachable.Down)))
+            not((Set.contains x (Reachable.simplePathSrc failedX cg.Start Down)) &&
+               (not ( Set.contains x (Reachable.alongSimplePathSrcDst failedX cg.Start cg.End Down))) &&
+               (Set.contains y (Reachable.alongSimplePathSrcDst failedY cg.Start cg.End Down)))
         ) failCombos
          
     let findOrdering f (cg: T) outFile : Result<Ordering, CounterExample> =
