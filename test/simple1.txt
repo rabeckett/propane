@@ -1,8 +1,8 @@
 ﻿scope DC {
-	true => in*;M;in* >> in*;N;in*
+	true => waypoint(M) inter end(A) >> waypoint(N) inter end(A) >> internal inter end(A)
 
-	aggregate(1.2.3.4/16, in -> out)
+	/* aggregate(1.2.3.4/16, in -> out)
 	community(1.2.3.4/16, in -> out)
 	maxroutes(100)
-	owns(1.2.3.4/10, M)
+	owns(1.2.3.4/10, M) */
 }

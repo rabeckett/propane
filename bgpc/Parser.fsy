@@ -103,7 +103,7 @@ pconstr:
 
 regexes:
 	| regex									{ [$1] }
-	| regex COMMA regexes					{ $1 :: $3 }
+	| regex SHR regexes						{ $1 :: $3 }
 
 regex:
 	| ID									{ Ast.Ident ($1, []) }

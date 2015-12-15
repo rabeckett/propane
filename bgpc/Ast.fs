@@ -75,7 +75,8 @@ let rec buildRegex (reb: Regex.REBuilder) (r: Re) : Regex.T =
             let hd = buildRegex reb (List.head args)
             match Regex.singleLocations (reb.Alphabet) hd with
             | None -> failwith "[Error]: Bar"
-            | Some ls -> reb.EndsAtAny(Set.toList ls)
+            | Some ls ->
+                reb.EndsAtAny(Set.toList ls)
         | "waypoint", 1 ->
             let hd = buildRegex reb (List.head args)
             match Regex.singleLocations (reb.Alphabet) hd with

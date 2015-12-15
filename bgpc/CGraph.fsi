@@ -138,8 +138,8 @@ module Consistency =
 
     /// Conservative check if the BGP routers can make local decisions not knowing about failures
     /// Takes an optional file name for debugging intermediate information
-    val findOrderingConservative: (T -> string option -> Result<Ordering, CounterExample>)
+    val findOrderingConservative: (T -> string -> Result<Ordering, CounterExample>)
 
     /// Exact check if BGP routes can make local decisions by enumerating failures
     /// Takes an optional file name for debugging intermediate information
-    val findOrderingEnumerate: int -> (T -> string option -> Result<Ordering, CounterExample>)
+    val findOrderingEnumerate: int -> (T -> string -> Result<Ordering, CounterExample>)

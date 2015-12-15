@@ -12,13 +12,10 @@ Well-formedness:
 	Ensure topology is well formed (connected)
 	Reject routes not matching out* in+ out*
 	Disallow aggregation on external locations
-	Deal with regexes with locations that don't match topology
 
 Other:
 	Infer which routers we care about in the product graph based on policy
-	Generalize syntax in parser for better error messages
 	More detailed counterexamples (include exact failure scenario)
-
 
 Performance:
 	Use mutable data structures instead of Set, Map, etc

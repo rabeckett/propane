@@ -263,13 +263,11 @@ let makeDFA alphabet r =
 /// not support ML-style functors, different objects can use different 
 /// alphabets. Client code must ensure a single object is used
 type REBuilder(topo: Topology.T) = 
-    
     let (inStates, outStates) = Topology.alphabet topo
     let inside = Set.map (fun (s: Topology.State) -> s.Loc) inStates
     let outside = Set.map (fun (s: Topology.State) -> s.Loc) outStates
     let alphabet = Set.union inside outside
     
-    (* Check that a location is valid given the topology *)
     let check alphabet l = 
         if not (Set.contains l alphabet) then
             failwith ("[Topology Error]: " + l + " is not a valid topology location") 
@@ -334,17 +332,15 @@ type REBuilder(topo: Topology.T) =
     member this.EndsAt(x) =
         if inside.Contains x then
             this.ConcatAll [this.MaybeOutside(); this.MaybeInside(); this.Loc x]
-        else if outside.Contains x then
+        else
             this.ConcatAll [this.MaybeOutside(); this.Internal(); this.MaybeOutside(); this.Loc x]
-        else failwith ("[Constraint Error]: Location " + x + " is not a valid topology location" )
 
     (* Relies on ill-formedness of (x out+ in+) when x is an internal location *)
     member this.StartsAt(x) = 
         if inside.Contains x then
             this.ConcatAll [this.Loc x;  this.Internal(); this.MaybeOutside()]
-        else if outside.Contains x then 
+        else
             this.ConcatAll [this.Loc x;  this.MaybeOutside(); this.Internal() ;this.MaybeOutside()]
-        else failwith ("[Constraint Error]: Location " + x + " is not a valid topology location" )
 
     (* TODO: use character classes to split by inside/outside (more efficient) *)
     member this.EndsAtAny(xs) =
@@ -365,5 +361,3 @@ type REBuilder(topo: Topology.T) =
                 let avoid = this.Negate (this.ConcatAll sq)
                 (Some tierx, this.Inter acc avoid)
         List.fold aux (None, this.Any()) xs |> snd
-
-    

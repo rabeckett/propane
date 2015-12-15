@@ -351,13 +351,14 @@ let tests = [
 
 ]
 
-let run debug_dir =
+let run () =
+    let settings = Args.getSettings ()
     for test in tests do
         let msg = String.Format("Testing {0} - {1} ...", test.Name, test.Explanation)
         printfn "%s" msg
         logInfo0("\n" + msg)
         let reb = Regex.REBuilder test.Topo
-        match IR.compileToIR test.Topo reb (test.Rf reb) (Some (debug_dir + test.Name)) with 
+        match IR.compileToIR test.Topo reb (test.Rf reb) (settings.DebugDir + test.Name) with 
         | Err(x) ->
             if (Option.isSome test.Receive || 
                 Option.isSome test.Originate || 

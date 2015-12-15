@@ -121,18 +121,14 @@ let genConfig (cg: CGraph.T) (ord: Consistency.Ordering) : T =
         config <- Map.add loc rules config
     config
 
-let compileToIR (topo: Topology.T) (reb: Regex.REBuilder) (res: Regex.T list) (outFile: string option) : Result<T, CounterExample> =
-    let cgOrig = CGraph.buildFromRegex topo reb res
-    let cg = CGraph.copyGraph cgOrig
-    (* Ensure the path suffix property for nodes that can originate traffic *)
+let compileToIR (topo: Topology.T) (reb: Regex.REBuilder) (res: Regex.T list) (debugName: string) : Result<T, CounterExample> =
+    let cg = CGraph.buildFromRegex topo reb res
+    debug1 (fun () -> CGraph.generatePNG cg debugName)
+    (* Ensure the path suffix property and dont conside simple paths *)
     CGraph.Minimize.delMissingSuffixPaths cg
-    (* Ensure we don't consider simple paths *)
     CGraph.Minimize.minimizeO3 cg
     (* Save graphs to file *)
-    Option.iter (fun name -> 
-        debug1 (fun () -> CGraph.generatePNG cgOrig name)
-        debug1 (fun () -> CGraph.generatePNG cg (name + "-min"))
-    ) outFile
+    debug1 (fun () -> CGraph.generatePNG cg (debugName + "-min"))
     (* Check for errors *)
     let startingLocs = List.fold (fun acc r -> Set.union (reb.StartingLocs r) acc) Set.empty res
     let originators = 
@@ -160,9 +156,9 @@ let compileToIR (topo: Topology.T) (reb: Regex.REBuilder) (res: Regex.T list) (o
             let cexamples = Set.fold (fun acc p -> Map.add p (List.nth res (p-1)) acc) Map.empty unusedPrefs
             Err(UnusedPreferences(cexamples))
         else
-            match Consistency.findOrderingConservative cg outFile with 
+            match Consistency.findOrderingConservative cg debugName with 
             | Ok ord ->
                 let config = genConfig cg ord
-                Option.iter (fun n -> debug1 (fun () -> System.IO.File.WriteAllText(n + ".ir", format config)) ) outFile
+                debug1 (fun () -> System.IO.File.WriteAllText(debugName + ".ir", format config))
                 Ok (config)
             | Err((x,y)) -> Err(InconsistentPrefs(x,y))

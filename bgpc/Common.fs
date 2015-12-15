@@ -3,11 +3,10 @@
 
 module Debug =
 
-    let logFile = Options.debugDir + "debug.log"
-
     /// run a function if in debug mode
     let debug n f =
-        if !Options.debug >= n then
+        let settings = Args.getSettings ()
+        if settings.Debug >= n then
             f ()
 
     let debug0 f = debug 0 f
@@ -16,9 +15,11 @@ module Debug =
     let debug3 f = debug 3 f
 
     /// Log information to a file
-    let logInfo n str = 
+    let logInfo n str =
+        let settings = Args.getSettings ()
+        let logFile = settings.DebugDir + "debug.log"
         let indent = String.replicate n "\t"
-        if !Options.debug >= n then
+        if settings.Debug >= n then
             System.IO.File.AppendAllText(logFile, indent + str + "\n")
 
     let logInfo0 f = logInfo 0 f

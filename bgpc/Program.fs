@@ -1,7 +1,5 @@
 ﻿open Common.Error
 
-let DEBUG_DIR = "debug/"
-
 let chooseFirst (ast: Ast.T) reb = 
     let scope1 = ast.Head 
     let (_, res) = scope1.PConstraints.Head
@@ -10,15 +8,18 @@ let chooseFirst (ast: Ast.T) reb =
 
 [<EntryPoint>]
 let main argv =
-    let opts = Options.parse argv
-
-    if opts.Test then 
-        Test.run DEBUG_DIR
+    let opts = Args.parse argv
+    let settings = Args.getSettings ()
+    if settings.Test then 
+        Test.run () 
     else
+        let debugName = 
+            match settings.OutFile with 
+            | None -> settings.DebugDir + string System.IO.Path.DirectorySeparatorChar + "temp" 
+            | Some n -> settings.DebugDir + string System.IO.Path.DirectorySeparatorChar + n
         let topo = Examples.topoDatacenterSmall()
         let reb = Regex.REBuilder(topo)
-
-        match opts.PolFile with 
+        match settings.PolFile with 
         | None -> 
             printfn "No policy file specified"
             exit 0
@@ -26,11 +27,27 @@ let main argv =
             let ast = Input.readFromFile p
             let res = chooseFirst ast reb
             let cg = CGraph.buildFromRegex topo reb res
-            match opts.Format with 
-            | Options.IR ->
-                match IR.compileToIR topo reb res opts.OutFile with 
-                | Ok(config) -> ()
-                | Err(_) -> ()
-            | Options.Template -> ()
+            match settings.Format with 
+            | Args.IR ->
+                match IR.compileToIR topo reb res debugName with 
+                | Ok(config) -> 
+                    match settings.OutFile with
+                    | None -> ()
+                    | Some out ->
+                        System.IO.File.WriteAllText(out, IR.format config)
+                | Err(x) -> 
+                    match x with
+                    | IR.UnusedPreferences m -> 
+                        printfn "Error: Unused preferences %A" m
+                        exit 0
+                    | IR.NoPathForRouters rs -> 
+                        printfn "Error: Unable to find a path for routers: %A" rs
+                        exit 0
+                    | IR.InconsistentPrefs(x,y) -> 
+                        printfn "Error: Unable to implement in BGP. Can not choose between:"
+                        printfn "%s" (x.ToString()) 
+                        printfn "%s" (y.ToString())
+                        exit 0
+            | Args.Template -> ()
 
     0
