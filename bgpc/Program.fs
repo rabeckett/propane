@@ -13,9 +13,9 @@ let main argv =
     if settings.Test then 
         Test.run () 
     else
-        let debugName = 
+        let outName = 
             match settings.OutFile with 
-            | None -> settings.DebugDir + string System.IO.Path.DirectorySeparatorChar + "temp" 
+            | None -> settings.DebugDir + string System.IO.Path.DirectorySeparatorChar + "output" 
             | Some n -> settings.DebugDir + string System.IO.Path.DirectorySeparatorChar + n
         let topo = Examples.topoDatacenterSmall()
         let reb = Regex.REBuilder(topo)
@@ -29,12 +29,12 @@ let main argv =
             let cg = CGraph.buildFromRegex topo reb res
             match settings.Format with 
             | Args.IR ->
-                match IR.compileToIR topo reb res debugName with 
+                match IR.compileToIR topo reb res outName with 
                 | Ok(config) -> 
                     match settings.OutFile with
                     | None -> ()
                     | Some out ->
-                        System.IO.File.WriteAllText(out, IR.format config)
+                        System.IO.File.WriteAllText(out + ".ir", IR.format config)
                 | Err(x) -> 
                     match x with
                     | IR.UnusedPreferences m -> 

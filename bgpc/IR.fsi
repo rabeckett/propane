@@ -17,16 +17,18 @@ type Action =
     | NoAction
     | SetComm of int array * string
     | SetMed of int
-    | SetLP of int
-    | Originate
+    | PrependPath of int
 
-type Actions = Action list
+type LocalPref = int
+type Peer = string option
 
-type Rule =
-    {Import: Match;
-     Export: Actions}
+type DeviceConfig =
+    {(* Prefix: Prefix.T; *)
+     Originates: bool;
+     Imports: (Match * LocalPref) list;
+     Exports: (Peer * Action list) list}
 
-type T = Map<string, Rule list>
+type T = Map<string, DeviceConfig>
 
 /// Debug config output
 val format: T -> string

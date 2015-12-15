@@ -9,46 +9,27 @@ open Common.Error
  *  Config helpers
  *********************************************)
 
-let isPeer x rule = 
-    match rule with 
+let isPeer x m = 
+    match m with 
     | IR.Peer y -> x = y
     | IR.State(_,y) -> x = y
     | _ -> false
 
-let getLP (r : Rule) =
-    let aux act =  match act with SetLP i -> Some i | _ -> None
-    match List.tryPick aux r.Export with 
-    | None -> 100
-    | Some x -> x
-
 let prefersPeer config x (a,b) =
     try 
-        let rules = Map.find x config 
-        let r1 = List.find (fun (rule: Rule) -> isPeer a rule.Import) rules
-        let r2 = List.find (fun (rule: Rule) -> isPeer b rule.Import) rules
-        let lp1 = getLP r1
-        let lp2 = getLP r2
+        let deviceConfig = Map.find x config 
+        let (_,lp1) = List.find (fun (m,_) -> isPeer a m) deviceConfig.Imports
+        let (_,lp2) = List.find (fun (m,_) -> isPeer b m) deviceConfig.Imports
         lp1 < lp2
     with _ -> false
 
 let receiveFrom config x y = 
-    try 
-        let rules = Map.find x config 
-        List.exists (fun (rule: Rule) -> isPeer y rule.Import) rules
-    with _ -> false
+    let deviceConf = Map.find x config 
+    List.exists (fun (m,_) -> isPeer y m) deviceConf.Imports
 
-let originate (rule: Rule) = 
-    List.exists (fun act -> 
-        match act with 
-        | Originate -> true 
-        | _ -> false
-    ) rule.Export
-
-let originates config x =
-    try
-        Map.find x config
-        |> List.exists originate 
-    with _ -> false
+let originates (config: IR.T) x =
+    let deviceConfig = Map.find x config
+    deviceConfig.Originates
 
 (********************************************* 
  *  Regular expression queries

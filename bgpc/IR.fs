@@ -27,44 +27,53 @@ type Action =
     | NoAction
     | SetComm of int array * string
     | SetMed of int
-    | SetLP of int
-    | Originate
+    | PrependPath of int
 
     override this.ToString() = 
         match this with 
         | NoAction -> ""
         | SetComm(is,s) -> "Community<-" + is.ToString() + "," + s
         | SetMed i -> "MED<-" + i.ToString()
-        | SetLP i -> "LP<-" + i.ToString()
-        | Originate -> "Originate"
+        | PrependPath i -> "Prepend path " + i.ToString() + " times"
 
-type Actions = Action list
+type LocalPref = int
+type Peer = string option
 
-type Rule =
-    {Import: Match;
-     Export: Actions}
+type DeviceConfig =
+    {(* Prefix: Prefix.T; *)
+     Originates: bool;
+     Imports: (Match * LocalPref) list;
+     Exports: (Peer * Action list) list}
 
-type T = Map<string, Rule list>
+type T = Map<string, DeviceConfig>
 
 let format (config: T) = 
     let sb = System.Text.StringBuilder ()
     for kv in config do 
         sb.Append("Router ") |> ignore
         sb.Append(kv.Key) |> ignore
-        for rule in kv.Value do
-            sb.Append("\n  Match: ") |> ignore
-            sb.Append(rule.Import.ToString()) |> ignore
-            sb.Append("\n    Actions: ") |> ignore
-            sb.Append(rule.Export.ToString()) |> ignore
+        let deviceConf = kv.Value
+        for (m, lp) in deviceConf.Imports do
+            sb.Append("\n  Import: ") |> ignore
+            sb.Append(m.ToString()) |> ignore
+            sb.Append(" with local-pref=" + lp.ToString()) |> ignore
+        for peer, acts in deviceConf.Exports do
+            sb.Append("\n  Export: ") |> ignore
+            sb.Append(acts.ToString()) |> ignore
+            match peer with
+            | None -> sb.Append(" to *") |> ignore
+            | Some p -> sb.Append(" to " + p) |> ignore
         sb.Append("\n\n") |> ignore
     sb.ToString()
 
-let compareLocThenPref (x,i1) (y,i2) = 
+(* Order config by router name, and then preference *)
+let comparePrefThenLoc (x,i1) (y,i2) = 
     let cmp = compare i1 i2
     if cmp = 0 then
         compare x.Node.Loc y.Node.Loc
     else cmp
 
+(* If we prefer X back to back from two different states, either way we will choose X *)
 let rec removeAdjacentLocs sorted = 
     match sorted with 
     | [] | [_] -> sorted
@@ -74,22 +83,27 @@ let rec removeAdjacentLocs sorted =
         if x.Node.Loc = y.Node.Loc then removeAdjacentLocs (hd1::z)
         else hd1 :: (removeAdjacentLocs tl)
 
+
+(* TODO: compress by topology *)
 let genConfig (cg: CGraph.T) (ord: Consistency.Ordering) : T =
-    let cgRev = copyReverseGraph cg
-    let neighborsIn v = seq {for e in cgRev.Graph.OutEdges v do yield e.Target}
-    let neighborsOut v = seq {for e in cg.Graph.OutEdges v do yield e.Target}
     let mutable config = Map.empty
     for entry in ord do 
         let mutable rules = []
         let loc = entry.Key
         let prefs = entry.Value 
+        
+        let mutable originates = false
+        let mutable imports = []
+        let mutable exports = []
+
+        (* Generate import filters *)
         let prefNeighborsIn =
             prefs
-            |> Seq.mapi (fun i v -> (neighborsIn v, i))
+            |> Seq.mapi (fun i v -> (neighborsIn cg v, i))
             |> Seq.map (fun (ns,i) -> Seq.map (fun n -> (n,i)) ns) 
             |> Seq.fold Seq.append Seq.empty 
             |> List.ofSeq
-            |> List.sortWith compareLocThenPref
+            |> List.sortWith comparePrefThenLoc
             |> removeAdjacentLocs
         let mutable lp = 99
         let mutable lastPref = None
@@ -106,29 +120,35 @@ let genConfig (cg: CGraph.T) (ord: Consistency.Ordering) : T =
                 |> Set.count 
                 |> ((=) 1)
             let m =
-                match v.Node.Typ with 
-                | Topology.Start -> NoMatch
-                | _ -> 
+                if Topology.isTopoNode v.Node then 
                     if unambiguous then Peer v.Node.Loc
                     else State (v.States, v.Node.Loc)
-            let a = 
-                match v.Node.Typ with 
-                | Topology.Start -> [Originate]
-                | _ ->
-                    if lp = 100 then [] 
-                    else [SetLP(lp)]
-            rules <- {Import = m; Export = a}::rules
-        config <- Map.add loc rules config
+                else NoMatch
+            imports <- (m,lp) :: imports
+            originates <- v.Node.Typ = Topology.Start
+(*
+        (* Generate export filters *)
+        let prefNeighborsOut =
+            prefs
+            |> Seq.mapi (fun i v -> (neighbors cg v, i))
+            |> Seq.map (fun (ns,i) -> Seq.map (fun n -> (n,i)) ns) 
+            |> Seq.fold Seq.append Seq.empty 
+            |> List.ofSeq
+            |> List.sortWith comparePrefThenLoc
+            |> removeAdjacentLocs *)
+ 
+        let deviceConf = {Originates=originates; Imports=imports; Exports=exports}
+        config <- Map.add loc deviceConf config
     config
 
-let compileToIR (topo: Topology.T) (reb: Regex.REBuilder) (res: Regex.T list) (debugName: string) : Result<T, CounterExample> =
+let compileToIR (topo: Topology.T) (reb: Regex.REBuilder) (res: Regex.T list) (outName: string) : Result<T, CounterExample> =
     let cg = CGraph.buildFromRegex topo reb res
-    debug1 (fun () -> CGraph.generatePNG cg debugName)
+    debug1 (fun () -> CGraph.generatePNG cg outName)
     (* Ensure the path suffix property and dont conside simple paths *)
     CGraph.Minimize.delMissingSuffixPaths cg
     CGraph.Minimize.minimizeO3 cg
     (* Save graphs to file *)
-    debug1 (fun () -> CGraph.generatePNG cg (debugName + "-min"))
+    debug1 (fun () -> CGraph.generatePNG cg (outName + "-min"))
     (* Check for errors *)
     let startingLocs = List.fold (fun acc r -> Set.union (reb.StartingLocs r) acc) Set.empty res
     let originators = 
@@ -156,9 +176,9 @@ let compileToIR (topo: Topology.T) (reb: Regex.REBuilder) (res: Regex.T list) (d
             let cexamples = Set.fold (fun acc p -> Map.add p (List.nth res (p-1)) acc) Map.empty unusedPrefs
             Err(UnusedPreferences(cexamples))
         else
-            match Consistency.findOrderingConservative cg debugName with 
+            match Consistency.findOrderingConservative cg outName with 
             | Ok ord ->
                 let config = genConfig cg ord
-                debug1 (fun () -> System.IO.File.WriteAllText(debugName + ".ir", format config))
+                debug1 (fun () -> System.IO.File.WriteAllText(outName + ".ir", format config))
                 Ok (config)
             | Err((x,y)) -> Err(InconsistentPrefs(x,y))

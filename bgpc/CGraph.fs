@@ -555,10 +555,10 @@ module Consistency =
                (Set.contains y (Reachable.alongSimplePathSrcDst failedY cg.Start cg.End Down)))
         ) failCombos
          
-    let findOrdering f (cg: T) debugName : Result<Ordering, CounterExample> =
+    let findOrdering f (cg: T) outName : Result<Ordering, CounterExample> =
         let prefs = preferences cg 
         let rs = restrictedGraphs cg prefs
-        debug2 (fun () -> Map.iter (fun i g -> generatePNG g (debugName + "-min-restricted" + string i)) rs)
+        debug2 (fun () -> Map.iter (fun i g -> generatePNG g (outName + "-min-restricted" + string i)) rs)
         let labels = 
             cg.Graph.Vertices
             |> Seq.filter (fun v -> Topology.isTopoNode v.Node)
