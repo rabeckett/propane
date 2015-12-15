@@ -15,18 +15,19 @@ type Match =
 
 type Action = 
     | NoAction
-    | SetComm of int array * string
+    | SetComm of int array
     | SetMed of int
     | PrependPath of int
 
 type LocalPref = int
-type Peer = string option
+type Peer = string
+type Import = Match * LocalPref
+type Export = Peer * Action list
 
 type DeviceConfig =
     {(* Prefix: Prefix.T; *)
      Originates: bool;
-     Imports: (Match * LocalPref) list;
-     Exports: (Peer * Action list) list}
+     Filters: (Import * Export list) list}
 
 type T = Map<string, DeviceConfig>
 

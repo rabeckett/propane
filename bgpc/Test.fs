@@ -18,14 +18,14 @@ let isPeer x m =
 let prefersPeer config x (a,b) =
     try 
         let deviceConfig = Map.find x config 
-        let (_,lp1) = List.find (fun (m,_) -> isPeer a m) deviceConfig.Imports
-        let (_,lp2) = List.find (fun (m,_) -> isPeer b m) deviceConfig.Imports
+        let ((_,lp1), _) = List.find (fun ((m,_), _) -> isPeer a m) deviceConfig.Filters
+        let ((_,lp2), _) = List.find (fun ((m,_), _) -> isPeer b m) deviceConfig.Filters
         lp1 < lp2
     with _ -> false
 
 let receiveFrom config x y = 
     let deviceConf = Map.find x config 
-    List.exists (fun (m,_) -> isPeer y m) deviceConf.Imports
+    List.exists (fun ((m,_), _) -> isPeer y m) deviceConf.Filters
 
 let originates (config: IR.T) x =
     let deviceConfig = Map.find x config
