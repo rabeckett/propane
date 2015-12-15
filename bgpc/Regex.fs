@@ -263,17 +263,25 @@ let makeDFA alphabet r =
 /// not support ML-style functors, different objects can use different 
 /// alphabets. Client code must ensure a single object is used
 type REBuilder(topo: Topology.T) = 
+    
     let (inStates, outStates) = Topology.alphabet topo
     let inside = Set.map (fun (s: Topology.State) -> s.Loc) inStates
     let outside = Set.map (fun (s: Topology.State) -> s.Loc) outStates
     let alphabet = Set.union inside outside
+    
+    (* Check that a location is valid given the topology *)
+    let check alphabet l = 
+        if not (Set.contains l alphabet) then
+            failwith ("[Topology Error]: " + l + " is not a valid topology location") 
+
+    member __.Alphabet = alphabet
     member __.Inside = if Set.isEmpty inside then empty else locs inside
     member __.Outside = if Set.isEmpty outside then empty else locs outside
     member __.Rev = rev
     member __.Empty = empty
     member __.Epsilon = epsilon
-    member __.Loc = loc
-    member __.Locs = locs
+    member __.Loc x = check alphabet x; loc x
+    member __.Locs xs = Set.iter (check alphabet) xs; locs xs
     member __.Concat = concat
     member __.Inter = inter
     member __.Union = union
@@ -284,7 +292,6 @@ type REBuilder(topo: Topology.T) =
     member __.Negate = negate alphabet
     member __.MakeDFA = makeDFA alphabet
 
-    /// Given an alphabet, find all significant starting characters using derivatives
     member __.StartingLocs r =
         Set.fold (fun acc a -> 
             if derivative alphabet a r <> Empty 
@@ -313,8 +320,16 @@ type REBuilder(topo: Topology.T) =
     member this.Waypoint(x) =
         this.ConcatAll [this.MaybeOutside(); this.MaybeInside(); this.Loc x; this.MaybeInside(); this.MaybeOutside()]
 
+    (* TODO: more efficient with character classes *)
+    member this.WaypointAny(xs) =
+        this.UnionAll (List.map this.Waypoint xs)
+
     member this.Avoid(x) =
-        this.Negate (this.ConcatAll [this.MaybeOutside(); this.MaybeInside(); this.Loc x; this.MaybeInside(); this.MaybeOutside()])
+        this.Negate (this.Waypoint(x))
+
+    (* TODO: more efficient with character classes *)
+    member this.AvoidAny(xs) =
+        this.UnionAll (List.map this.Avoid xs)
 
     member this.EndsAt(x) =
         if inside.Contains x then
@@ -340,7 +355,7 @@ type REBuilder(topo: Topology.T) =
         this.UnionAll (List.map this.StartsAt xs)
 
     member this.ValleyFree(xs) =
-        List.fold (fun (last, acc) x ->
+        let aux (last, acc) x =
             let tierx = this.UnionAll (List.map this.Loc x)
             match last with
             | None -> (Some tierx, acc)
@@ -349,7 +364,6 @@ type REBuilder(topo: Topology.T) =
                 let sq = [this.MaybeOutside(); this.MaybeInside(); bad; this.MaybeInside(); this.MaybeOutside()]
                 let avoid = this.Negate (this.ConcatAll sq)
                 (Some tierx, this.Inter acc avoid)
-        ) (None, this.Any()) xs
-        |> snd
+        List.fold aux (None, this.Any()) xs |> snd
 
     

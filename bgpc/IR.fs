@@ -141,7 +141,7 @@ let compileToIR (topo: Topology.T) (reb: Regex.REBuilder) (res: Regex.T list) (o
         |> Set.ofSeq
     let canOriginate = 
         cg.Topo.Vertices 
-        |> Seq.filter Topology.canOriginateTraffic 
+        |> Seq.filter Topology.canOriginateTraffic
         |> Seq.map (fun v -> v.Loc) 
         |> Set.ofSeq
     let locsThatNeedPath = Set.difference (Set.intersect startingLocs canOriginate) originators
@@ -166,4 +166,3 @@ let compileToIR (topo: Topology.T) (reb: Regex.REBuilder) (res: Regex.T list) (o
                 Option.iter (fun n -> debug1 (fun () -> System.IO.File.WriteAllText(n + ".ir", format config)) ) outFile
                 Ok (config)
             | Err((x,y)) -> Err(InconsistentPrefs(x,y))
-

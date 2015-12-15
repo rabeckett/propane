@@ -21,13 +21,14 @@ type Automaton =
 /// alphabets. Client code must ensure a single builder object is used
 type REBuilder  = 
     new: Topology.T -> REBuilder
+    member Alphabet: Set<string>
     member Inside: T
     member Outside: T
     member Rev: (T -> T)
     member Empty: T
     member Epsilon: T
-    member Loc: (string -> T)
-    member Locs: (Set<string> -> T)
+    member Loc: string -> T
+    member Locs: Set<string> -> T
     member Concat: (T -> T -> T)
     member Inter: (T -> T -> T)
     member Union: (T -> T -> T)
@@ -44,8 +45,11 @@ type REBuilder  =
     member External: unit -> T
     member Any: unit -> T
     member Waypoint: string -> T
+    member WaypointAny: string list -> T
+    member Avoid: string -> T 
+    member AvoidAny: string list -> T
     member EndsAt: string -> T
-    member StartsAt: string -> T
     member EndsAtAny: string list -> T
+    member StartsAt: string -> T
     member StartsAtAny: string list -> T
     member ValleyFree: seq<string list> -> T

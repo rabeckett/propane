@@ -2,13 +2,7 @@
 
 (* TODO: make these 16 bits *)
 
-type T =
-    | Prefix of int * int * int * int * int option
-    | True
-    | False
-    | Or of T * T
-    | And of T * T
-    | Not of T
+type T = int * int * int * int * int option
 
 type Ranges = (int * int) list
 
@@ -98,15 +92,3 @@ let rangeOfPrefix (a,b,c,d) bits =
     let upper = 0xffffffff >>> bits
     let value = ((a <<< 24) + (b <<< 16) + (c <<< 8) + d) &&& lowermask
     (value, value + upper)
-
-let rec asRanges (p: T) : Ranges = 
-    match p with 
-    | True -> [wholeRange]
-    | False -> [] 
-    | And(a,b) -> interAll (asRanges a) (asRanges b)
-    | Or(a,b) -> unionAll (asRanges a) (asRanges b)
-    | Not a -> negateAll (asRanges a)
-    | Prefix(a,b,c,d,bits) ->
-        match bits with
-        | None -> [rangeOfPrefix (a,b,c,d) 32]
-        | Some bits -> [rangeOfPrefix (a,b,c,d) bits]

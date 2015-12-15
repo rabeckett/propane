@@ -21,12 +21,6 @@ rule tokenize = parse
 	| "paths"				{ PATHS }
 	| "ordered"				{ ORDERED }
 	| "unordered"			{ UNORDERED }
-	| "aggregate"			{ AGGREGATE }
-	| "community"			{ COMMUNITY }
-	| "maxroutes"			{ MAXROUTES }
-	| "multipath"			{ MULTIPATH }
-	| "owns"				{ OWNS }
-	| "include"				{ INCLUDE }
 	| "inter"				{ INTERSECT }
 	| "union"				{ UNION }
 	| "not"					{ NOT }

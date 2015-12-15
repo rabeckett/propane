@@ -220,7 +220,7 @@ let tests = [
      Prefs = Some [("Y", "M", "N")]; 
      Fail = None};
 
-   {Name= "DCsmall4";
+    {Name= "DCsmall4";
      Explanation="End at single location";
      Topo= tDatacenterSmall;
      Rf= rDatacenterSmall4; 
