@@ -362,7 +362,14 @@ module Minimize =
             | Some ie ->
                 assert (ie.Source = e.Target)
                 assert (ie.Target = e.Source)
-                Set.contains e.Target (Map.find e.Source dom) || Set.contains e.Source (Map.find e.Target domRev)
+                Set.contains e.Target (Map.find e.Source dom) || 
+                Set.contains e.Source (Map.find e.Target domRev)
+        ) |> ignore
+
+    let removeDeadEdgesHeuristic (cg: T) =
+        cg.Graph.RemoveEdgeIf (fun (e: TaggedEdge<CgState,unit>) -> 
+            let x = e.Target
+            not (Reachable.srcDstWithout cg x cg.End (fun v -> v <> x && v.Node.Loc = e.Source.Node.Loc) Down)
         ) |> ignore
 
     let removeNodesThatCantReachEnd (cg: T) = 
@@ -404,6 +411,7 @@ module Minimize =
         removeNodesThatCantReachEnd cg
         removeEdgesForDominatedNodes cg
         removeNodesNotReachableOnSimplePath cg
+        removeDeadEdgesHeuristic cg
 
     let minimizeO3 (cg: T) =
         let count cg = cg.Graph.VertexCount + cg.Graph.EdgeCount
@@ -421,6 +429,7 @@ module Minimize =
             sum <- count cg
             prune ()
         removeNodesNotOnAnySimplePathToEnd cg
+        removeDeadEdgesHeuristic cg
         logInfo1(String.Format("Node count - after O3: {0}", cg.Graph.VertexCount))
 
 
@@ -502,8 +511,10 @@ module Consistency =
         let restrict_j = copyGraph (Map.find j restrict)
         restrict_i.Graph.RemoveVertexIf (fun v -> v.Node.Loc = x.Node.Loc && v <> x) |> ignore
         restrict_j.Graph.RemoveVertexIf (fun v -> v.Node.Loc = y.Node.Loc && v <> y) |> ignore
-        Minimize.removeNodesThatCantReachEnd restrict_i
-        Minimize.removeNodesThatCantReachEnd restrict_j
+        
+        (* Minimize.removeNodesThatCantReachEnd restrict_i
+        Minimize.removeNodesThatCantReachEnd restrict_j *)
+        
         (* if restrict_i.Graph.ContainsVertex x then
             let canReach = Reachable.alongSimplePathSrcDst restrict_i x restrict_i.End Reachable.Down
             restrict_i.Graph.RemoveVertexIf (fun v -> v <> x && not (canReach.Contains v) ) |> ignore 
