@@ -254,20 +254,17 @@ let compressIsomorphicImports (cg: CGraph.T) (config: T) : T =
         let loc = kv.Key
         let deviceConf = kv.Value 
         let mByPeer = longestSequenceCommMatchesByPeer deviceConf
-        printfn "longest sequence match for loc:%s is %A" loc mByPeer
         let mutable newDC = deviceConf
         for kv in mByPeer do
             let peer = kv.Key
             let states = 
                 kv.Value
                 |> List.map (fun c -> (peer,c))
-            printfn "States: %A" states
             let nodes = 
                 states
                 |> List.map (findVertex cg)
                 |> List.map (fun v -> Seq.filter (fun v' -> v'.Node.Loc = loc) (neighbors cg v) |> Seq.head)
             if (List.length nodes) > 1 && (areAllIsomorphic cg nodes) then
-                printfn "all are isomorphic: %A" nodes
                 newDC <- removeCommFiltersForStates states newDC
         newConfig <- Map.add loc newDC newConfig
     newConfig
@@ -294,24 +291,35 @@ let compressIdenticalImports (config: T) : T =
     newConfig
 
 (* Avoids tagging with a community from A to B, when B never
-   needs to distinguish based on the community value *)
+   needs to distinguish based on that particular community value *)
 let compressTaggingWhenNotImported (config: T) : T =
-    let importCommNeeded = ref Set.empty 
+    let importCommNeeded = ref Map.empty 
     for kv in config do 
         let loc = kv.Key 
         let deviceConf = kv.Value 
         for ((m,_), _) in deviceConf.Filters do
             match m with 
-            | Match.State(_,x) -> 
-                importCommNeeded := Set.add (loc,x) !importCommNeeded
+            | Match.State(is,x) ->
+                let edge = (loc,x)
+                match Map.tryFind edge !importCommNeeded with
+                | None -> importCommNeeded := Map.add (loc,x) (Set.singleton is) !importCommNeeded
+                | Some iss -> importCommNeeded := Map.add (loc,x) (Set.add is iss) !importCommNeeded
             | _ -> ()
     Map.map (fun loc dc ->
         let filters' = 
-            List.map (fun ((m,lp), es) -> 
+            List.map (fun ((m,lp), es) ->
                 let es' = 
-                    List.map (fun (peer,acts) -> 
-                        if Set.contains (peer, loc) !importCommNeeded then (peer,acts)
-                        else (peer, List.filter (isCommunityTag >> not) acts)
+                    List.map (fun (peer,acts) ->
+                        let acts' = 
+                            List.filter (fun a ->
+                                match a with
+                                | SetComm is ->
+                                    !importCommNeeded
+                                    |> Map.find (peer,loc)
+                                    |> Set.contains is
+                                | _ -> true
+                            ) acts
+                        (peer,acts')
                     ) es
                 ((m,lp), es')
             ) dc.Filters
@@ -359,7 +367,8 @@ let compressAllExports (cg: CGraph.T) (config: T) : T =
         newConfig <- Map.add loc newDC newConfig
     newConfig
 
-
+(* Make a config smaller (e.g., number of route maps) and more human-readable
+   by removing community tagging information when possible *)
 let compress (cg: CGraph.T) (config: T) (outName: string) : T =
     let config1 = compressUniquePairs cg config
     let config2 = compressIsomorphicImports cg config1
@@ -374,6 +383,8 @@ let compress (cg: CGraph.T) (config: T) (outName: string) : T =
     debug1 (fun () -> System.IO.File.WriteAllText(outName + "-min5.ir", format config5))
     config5
 
+(* Given a topology and a policy, generate a low-level configuration in an intermediate
+   byte-code-like, vendor-independent representation for BGP  *)
 let compileToIR (topo: Topology.T) (reb: Regex.REBuilder) (res: Regex.T list) (outName: string) : Result<T, CounterExample> =
     let cg = CGraph.buildFromRegex topo reb res
     debug1 (fun () -> CGraph.generatePNG cg outName)
