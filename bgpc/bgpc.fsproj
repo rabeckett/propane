@@ -37,7 +37,7 @@
     <PlatformTarget>AnyCPU</PlatformTarget>
     <DocumentationFile>bin\Release\bgpc.XML</DocumentationFile>
     <Prefer32Bit>true</Prefer32Bit>
-    <StartArguments>-test</StartArguments>
+    <StartArguments>--test --debug:1</StartArguments>
   </PropertyGroup>
   <ItemGroup>
     <Reference Include="FSharp.Core">

@@ -522,8 +522,6 @@ module Consistency =
             let canReach = Reachable.alongSimplePathSrcDst restrict_j y restrict_j.End Reachable.Down
             restrict_j.Graph.RemoveVertexIf (fun v -> v <> y && not (canReach.Contains v) ) |> ignore *)
 
-        (* Minimize.removeNodesThatCantReachEnd restrict_i
-        Minimize.removeNodesThatCantReachEnd restrict_j *)
         (* If x is not in the restricted graph for pref i, it does not subsume y *)
         if not (restrict_i.Graph.ContainsVertex x) then 
             false
