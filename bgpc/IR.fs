@@ -65,7 +65,8 @@ let format (config: T) =
         sb.Append("\n\n") |> ignore
     sb.ToString()
 
-(* Order config by router name, and then preference *)
+(* Order config by preference and then router name. 
+   This makes it easier to minimize the config *)
 let comparePrefThenLoc (x,i1) (y,i2) = 
     let cmp = compare i1 i2
     if cmp = 0 then
@@ -175,8 +176,8 @@ let compressUniquePairs (cg: CGraph.T) (config: T) : T =
     newConfig
 
 (* Find the longest consecutive sequence of imports for each peer. 
-   When there is more than 1, and their subgraphs are identical, 
-   we can remove the community tag *)
+   Only imports where the community is matched are counted towards the sequence.
+   This makes a single pass over the list to find the largest sequence for each peer *)
 let longestSequenceCommMatchesByPeer (dc: DeviceConfig) : Map<string, (int array) list> =
     let rec aux filters sequence bestCounts count (last,lastEs) mapping =
         match filters with
@@ -197,17 +198,21 @@ let longestSequenceCommMatchesByPeer (dc: DeviceConfig) : Map<string, (int array
             if Option.isNone peer then aux fs [] bestCounts 0 (None, None) mapping else
             let peer = Option.get peer
             if (Option.isNone last || (Option.get last = peer && Option.get lastEs = es)) then
-                let sequence' =
+                let sequence', inc =
                     match is with 
-                    | None -> sequence
-                    | Some is' -> is'::sequence
-                aux fs sequence' bestCounts (count + 1) (Some peer, Some es) mapping
+                    | None -> sequence, 0
+                    | Some is' -> (is'::sequence), 1
+                aux fs sequence' bestCounts (count + inc) (Some peer, Some es) mapping
             else
                 let lastPeer = Option.get last
                 let existing = Map.tryFind lastPeer bestCounts
+                let sequence' =
+                    match is with 
+                    | None -> []
+                    | Some is' -> [is']
                 if Option.isNone existing || Option.get existing < count then
-                    aux fs [] (Map.add lastPeer count bestCounts) 0 (Some peer, Some es) (Map.add lastPeer sequence mapping)
-                else aux fs [] bestCounts 0 (None, None) mapping
+                    aux fs sequence' (Map.add lastPeer count bestCounts) 0 (Some peer, Some es) (Map.add lastPeer sequence mapping)
+                else aux fs sequence' bestCounts 0 (Some peer, Some es) mapping
 
     aux dc.Filters [] Map.empty 0 (None, None) Map.empty
 
@@ -223,14 +228,16 @@ let areAllIsomorphic cg (nodes: CGraph.CgState list) : bool =
         | x::((y::z) as tl) -> (Reachable.supersetPaths (cg, x) (cg, y)) && (aux fst (y::z))
     match nodes with
     | [] -> true
-    | [x] -> false
+    | [x] -> true
     | x::y::z -> aux x nodes
 
-let removeCommFiltersForPeer (peer: string) (dc: DeviceConfig) : DeviceConfig =
+let removeCommFiltersForStates (states: (string * int array) list) (dc: DeviceConfig) : DeviceConfig =
+    let relevant x = 
+        List.exists ((=) x ) states
     let replace arg =
         let ((m,lp), es) = arg
         match m with
-        | Match.State(is,x) when x = peer -> ((Match.Peer(x),lp), es)
+        | Match.State(is,x) when relevant (x,is) -> ((Match.Peer(x),lp), es)
         | _ -> arg
     let newFilters = List.map replace dc.Filters
     {Originates=dc.Originates; Filters=newFilters}
@@ -247,15 +254,21 @@ let compressIsomorphicImports (cg: CGraph.T) (config: T) : T =
         let loc = kv.Key
         let deviceConf = kv.Value 
         let mByPeer = longestSequenceCommMatchesByPeer deviceConf
+        printfn "longest sequence match for loc:%s is %A" loc mByPeer
         let mutable newDC = deviceConf
         for kv in mByPeer do
             let peer = kv.Key
-            let nodes = 
+            let states = 
                 kv.Value
-                |> List.map (fun c -> findVertex cg (peer,c))
+                |> List.map (fun c -> (peer,c))
+            printfn "States: %A" states
+            let nodes = 
+                states
+                |> List.map (findVertex cg)
                 |> List.map (fun v -> Seq.filter (fun v' -> v'.Node.Loc = loc) (neighbors cg v) |> Seq.head)
-            if areAllIsomorphic cg nodes then
-                newDC <- removeCommFiltersForPeer peer newDC
+            if (List.length nodes) > 1 && (areAllIsomorphic cg nodes) then
+                printfn "all are isomorphic: %A" nodes
+                newDC <- removeCommFiltersForStates states newDC
         newConfig <- Map.add loc newDC newConfig
     newConfig
 
@@ -308,22 +321,58 @@ let compressTaggingWhenNotImported (config: T) : T =
 (* Whenever we export identical routes to all peers, we can replace
    this with a simpler route export of the form: (Export: * ) for readability *)
 let compressAllExports (cg: CGraph.T) (config: T) : T =
-    
-    
-    
-    failwith "TODO"
+    let mutable newConfig = Map.empty
+    for kv in config do
+        let loc = kv.Key 
+        let deviceConf = kv.Value
+        let filters = deviceConf.Filters
+        let mutable newFilters = []
+        let topoNode = 
+            cg.Topo.Vertices
+            |> Seq.find (fun v -> v.Loc = loc)
+        for f in filters do 
+            let ((m,lp), es) = f 
+            let topoPeers = 
+                cg.Topo.OutEdges topoNode
+                |> Seq.map (fun e -> e.Target.Loc)
+            let eqActions =
+                es
+                |> List.map (fun (_,acts) -> acts) 
+                |> Set.ofList
+                |> Set.count
+                |> ((=) 1)
+            let import = 
+                match m with 
+                | Match.Peer(x) -> Some x
+                | Match.State(_,x) -> Some x
+                | _ -> None
+            let coversPeer p = 
+                (Option.isSome import && p = Option.get import) || 
+                (List.exists (fun  (peer,_) -> peer = p) es)
+            let allPeers = 
+                topoPeers
+                |> Seq.forall coversPeer
+            if eqActions && allPeers then 
+                newFilters <- ((m,lp), []) :: newFilters
+            else newFilters <- f :: newFilters
+        let newDC = {Originates=deviceConf.Originates; Filters=List.rev newFilters}
+        newConfig <- Map.add loc newDC newConfig
+    newConfig
 
 
 let compress (cg: CGraph.T) (config: T) (outName: string) : T =
-    let configMin =
-        config
-        |> compressUniquePairs cg
-        |> compressIsomorphicImports cg
-        |> compressIdenticalImports
-        |> compressTaggingWhenNotImported
-    debug1 (fun () -> System.IO.File.WriteAllText(outName + ".ir", format config))
-    debug1 (fun () -> System.IO.File.WriteAllText(outName + "-min.ir", format configMin))
-    configMin
+    let config1 = compressUniquePairs cg config
+    let config2 = compressIsomorphicImports cg config1
+    let config3 = compressIdenticalImports config2
+    let config4 = compressTaggingWhenNotImported config3
+    let config5 = compressAllExports cg config4
+    debug1 (fun () -> System.IO.File.WriteAllText(outName + "-raw.ir", format config))
+    debug2 (fun () -> System.IO.File.WriteAllText(outName + "-min1.ir", format config1))
+    debug2 (fun () -> System.IO.File.WriteAllText(outName + "-min2.ir", format config2))
+    debug2 (fun () -> System.IO.File.WriteAllText(outName + "-min3.ir", format config3))
+    debug2 (fun () -> System.IO.File.WriteAllText(outName + "-min4.ir", format config4))
+    debug1 (fun () -> System.IO.File.WriteAllText(outName + "-min5.ir", format config5))
+    config5
 
 let compileToIR (topo: Topology.T) (reb: Regex.REBuilder) (res: Regex.T list) (outName: string) : Result<T, CounterExample> =
     let cg = CGraph.buildFromRegex topo reb res
