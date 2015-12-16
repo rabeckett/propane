@@ -135,8 +135,10 @@ let rec getTag (actions: Action list) : (int array) option =
         | SetComm is -> Some is 
         | _ -> getTag tl
 
+(* For each pair of (X,Y) edges in the product graph
+   if the pair is unique, then there is no need to 
+   match/tag on the community, so we can remove it *)
 let compressUniquePairs (cg: CGraph.T) (config: T) : T =
-    (* Count of edges from a to b in product graph *)
     let pairCount = 
         cg.Graph.Vertices
         |> Seq.map ((fun v -> (v, neighbors cg v)) >> (fun (v, ns) -> Seq.map (fun n -> (v,n)) ns))
@@ -144,9 +146,10 @@ let compressUniquePairs (cg: CGraph.T) (config: T) : T =
         |> Seq.groupBy (fun (a,b) -> (a.Node.Loc, b.Node.Loc))
         |> Seq.map (fun (k,sq) -> (k, Seq.length sq))
         |> Map.ofSeq
+
     let uniquePair (a,b) = 
         Map.find (a,b) pairCount = 1 
-    (* Remove community matching/tagging for unique pairs *)
+
     let mutable newConfig = Map.empty
     for kv in config do
         let loc = kv.Key
@@ -171,7 +174,9 @@ let compressUniquePairs (cg: CGraph.T) (config: T) : T =
         newConfig <- Map.add loc newDeviceConf newConfig
     newConfig
 
-
+(* Find the longest consecutive sequence of imports for each peer. 
+   When there is more than 1, and their subgraphs are identical, 
+   we can remove the community tag *)
 let longestSequenceCommMatchesByPeer (dc: DeviceConfig) : Map<string, (int array) list> =
     let rec aux filters sequence bestCounts count (last,lastEs) mapping =
         match filters with
@@ -206,7 +211,6 @@ let longestSequenceCommMatchesByPeer (dc: DeviceConfig) : Map<string, (int array
 
     aux dc.Filters [] Map.empty 0 (None, None) Map.empty
 
-
 let findVertex cg (loc, states) = 
     cg.Graph.Vertices 
     |> Seq.find (fun v -> v.States = states && v.Node.Loc = loc)
@@ -231,6 +235,12 @@ let removeCommFiltersForPeer (peer: string) (dc: DeviceConfig) : DeviceConfig =
     let newFilters = List.map replace dc.Filters
     {Originates=dc.Originates; Filters=newFilters}
 
+(* Removes redundant community matches when ultimately nobody else
+   will ever care about the difference in community value.
+   We have to be careful to avoid removing the community match when
+   preferences are separated by an intermediate preference since the community 
+   may be used to distinguish between these.
+   Uses longestSequenceCommMatchesByPeer to ensure this property. *)
 let compressIsomorphicImports (cg: CGraph.T) (config: T) : T =
     let mutable newConfig = Map.empty
     for kv in config do
@@ -249,18 +259,29 @@ let compressIsomorphicImports (cg: CGraph.T) (config: T) : T =
         newConfig <- Map.add loc newDC newConfig
     newConfig
 
+
+(* Removes less preferred, but otherwise identical imports.
+   These can never occur unless they are back-to-back in the configuration. *)
 let compressIdenticalImports (config: T) : T =
+    let rec aux filters acc = 
+        match filters with
+        | [] -> acc
+        | (((m,lp), es) as f)::fs ->
+            let cleaned = List.filter (fun ((m',_),_) -> m' <> m) fs
+            aux cleaned (f::acc)
+    let mutable newConfig = Map.empty
     for kv in config do
         let loc = kv.Key 
         let deviceConf = kv.Value
-        let foo =deviceConf.Filters
-        
-        ()
+        let filters = deviceConf.Filters
+        let mutable newFilters = []
+        let newFilters = aux (List.rev deviceConf.Filters) []
+        let newDeviceConf = {Originates=deviceConf.Originates; Filters=newFilters}
+        newConfig <- Map.add loc newDeviceConf newConfig
+    newConfig
 
-    failwith ""
-
-
-
+(* Avoids tagging with a community from A to B, when B never
+   needs to distinguish based on the community value *)
 let compressTaggingWhenNotImported (config: T) : T =
     let importCommNeeded = ref Set.empty 
     for kv in config do 
@@ -284,6 +305,13 @@ let compressTaggingWhenNotImported (config: T) : T =
         {Originates=dc.Originates; Filters=filters'}
     ) config
 
+(* Whenever we export identical routes to all peers, we can replace
+   this with a simpler route export of the form: (Export: * ) for readability *)
+let compressAllExports (cg: CGraph.T) (config: T) : T =
+    
+    
+    
+    failwith "TODO"
 
 
 let compress (cg: CGraph.T) (config: T) (outName: string) : T =
@@ -291,6 +319,7 @@ let compress (cg: CGraph.T) (config: T) (outName: string) : T =
         config
         |> compressUniquePairs cg
         |> compressIsomorphicImports cg
+        |> compressIdenticalImports
         |> compressTaggingWhenNotImported
     debug1 (fun () -> System.IO.File.WriteAllText(outName + ".ir", format config))
     debug1 (fun () -> System.IO.File.WriteAllText(outName + "-min.ir", format configMin))
