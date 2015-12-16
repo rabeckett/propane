@@ -345,14 +345,13 @@ let compressAllExports (cg: CGraph.T) (config: T) : T =
                 |> Seq.map (fun e -> e.Target.Loc)
             let eqActions =
                 es
-                |> List.map (fun (_,acts) -> acts) 
+                |> List.map snd 
                 |> Set.ofList
                 |> Set.count
                 |> ((=) 1)
             let import = 
                 match m with 
                 | Match.Peer(x) -> Some x
-                | Match.State(_,x) -> Some x
                 | _ -> None
             let coversPeer p = 
                 (Option.isSome import && p = Option.get import) || 
@@ -361,7 +360,7 @@ let compressAllExports (cg: CGraph.T) (config: T) : T =
                 topoPeers
                 |> Seq.forall coversPeer
             if eqActions && allPeers then 
-                newFilters <- ((m,lp), []) :: newFilters
+                newFilters <- ((m,lp), [("*", [])]) :: newFilters
             else newFilters <- f :: newFilters
         let newDC = {Originates=deviceConf.Originates; Filters=List.rev newFilters}
         newConfig <- Map.add loc newDC newConfig
