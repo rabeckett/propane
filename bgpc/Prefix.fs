@@ -39,7 +39,7 @@ let touch r1 r2 =
     assert (wfRange r2)
     let (a,b) = r1
     let (c,d) = r2
-    (b = c-1u) || (d = a-1u)
+    ((b = c-1u) && c <> 0u) || ((d = a-1u) && a <> 0u)
 
 let isSmaller r1 r2 = 
     assert (wfRange r1)
@@ -72,8 +72,7 @@ let rec union r rs =
             union (mergeUnion r s) tl
         else if touch r s then 
             union (mergeUnion r s) tl
-        else if isSmaller r s then 
-            r::rs
+        else if isSmaller r s then r::rs
         else s::(union r tl)
 
 let rec unionAll rs1 rs2 = 
@@ -113,7 +112,9 @@ let rec negateAll rs =
     match rs with 
     | [] -> [wholeRange]
     | r::tl ->
-        interAll (negate r) (negateAll tl)
+        let x = negate r 
+        let y = negateAll tl 
+        interAll x y
 
 let inline shr x bits = 
     if bits >= 32 then 0u else x >>> bits
