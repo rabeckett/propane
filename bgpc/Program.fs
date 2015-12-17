@@ -5,8 +5,11 @@ let fromAst (ast: Ast.T) reb =
     let pathConstraints = scope1.PConstraints
     printfn "max: %A" (System.UInt32.MaxValue) 
     for (pred, res) in pathConstraints do
-        printfn "pred: %A" pred
-        printfn "  range: %A" (Ast.asRanges pred)
+        printfn "\npred: %A\n" pred
+        let ranges = Ast.asRanges pred
+        printfn "\nrange: %A" ranges
+        for range in ranges do
+            printfn "Back to prefixes: %s" ((Prefix.prefixesOfRange range).ToString())
 
 let chooseFirst (ast: Ast.T) reb = 
     let scope1 = ast.Head 

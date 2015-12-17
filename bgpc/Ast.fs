@@ -16,9 +16,9 @@ type Re =
 type Definition = string
 
 type Predicate =
-    | Prefix of Prefix.T 
     | True
     | False
+    | Prefix of uint32 * uint32 * uint32 * uint32 * uint32 option 
     | Or of Predicate * Predicate
     | And of Predicate * Predicate
     | Not of Predicate
@@ -112,6 +112,7 @@ let rec asRanges (p: Predicate) : Prefix.Ranges =
             match bits with
             | None -> 32u
             | Some x -> x
+        let p = Prefix.T(a,b,c,d,adjustedBits)
         if (a > 255u || b > 255u || c > 255u || d > 255u || adjustedBits > 32u) then
-            raise (InvalidPrefixException (a,b,c,d,bits))
-        [rangeOfPrefix (a,b,c,d) adjustedBits]
+            raise (InvalidPrefixException p)
+        [rangeOfPrefix p]
