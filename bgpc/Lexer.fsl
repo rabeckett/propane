@@ -29,7 +29,7 @@ rule tokenize = parse
 	| "true"				{ TRUE }
 	| "false"				{ FALSE }
 	| id					{ ID (LexBuffer<char>.LexemeString lexbuf) }
-	| ['0'-'9']+			{ INT (Int32.Parse (LexBuffer<char>.LexemeString lexbuf)) }
+	| ['0'-'9']+			{ INT (UInt32.Parse (LexBuffer<char>.LexemeString lexbuf)) }
 	| '='					{ EQUAL }
 	| '('					{ LPAREN }
 	| ')'					{ RPAREN }

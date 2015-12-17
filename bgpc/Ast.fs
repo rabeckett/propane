@@ -24,7 +24,7 @@ type Predicate =
 type Expr =
     | PredicateExpr of Predicate
     | LinkExpr of Re * Re
-    | IntLiteral of int
+    | IntLiteral of uint32
     | IdentExpr of string
 
 type PathConstraint = Predicate * (Re list)
@@ -107,5 +107,5 @@ let rec asRanges (p: Predicate) : Prefix.Ranges =
     | Not a -> negateAll (asRanges a)
     | Prefix(a,b,c,d,bits) ->
         match bits with
-        | None -> [rangeOfPrefix (a,b,c,d) 32]
+        | None -> [rangeOfPrefix (a,b,c,d) 32u]
         | Some bits -> [rangeOfPrefix (a,b,c,d) bits]

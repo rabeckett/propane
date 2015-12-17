@@ -1,8 +1,17 @@
 ﻿open Common.Error
 
+let fromAst (ast: Ast.T) reb =
+    let scope1 = ast.Head 
+    let pathConstraints = scope1.PConstraints
+    printfn "max: %A" (System.UInt32.MaxValue) 
+    for (pred, res) in pathConstraints do
+        printfn "pred: %A" pred
+        printfn "  range: %A" (Ast.asRanges pred)
+
 let chooseFirst (ast: Ast.T) reb = 
     let scope1 = ast.Head 
-    let (_, res) = scope1.PConstraints.Head
+    let (x, res) = scope1.PConstraints.Head
+    printfn "x:%A" x
     let res = List.map (fun r -> Ast.buildRegex reb r) res
     res
 
@@ -25,6 +34,8 @@ let main argv =
             exit 0
         | Some p ->
             let ast = Input.readFromFile p
+            fromAst ast reb
+
             let res = chooseFirst ast reb
             let cg = CGraph.buildFromRegex topo reb res
             match settings.Format with 

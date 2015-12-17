@@ -19,7 +19,7 @@ let addScope s (ds, ps, cs) =
 %type <Ast.T> start
 
 %token <string> ID
-%token <System.Int32> INT
+%token <System.UInt32> INT
 
 %token EQUAL 
 %token LPAREN 

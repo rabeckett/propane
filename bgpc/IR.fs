@@ -58,10 +58,11 @@ let format (config: T) =
             sb.Append("\n  Import: ") |> ignore
             sb.Append(m.ToString()) |> ignore
             if (not deviceConf.Originates) && lp <> 100 then
-                sb.Append(" (lp=" + lp.ToString() + ")") |> ignore
+                sb.Append(" (LP=" + lp.ToString() + ")") |> ignore
             for (peer, acts) in es do
                 sb.Append("\n    Export to: " + peer) |> ignore
-                sb.Append(", " + acts.ToString()) |> ignore
+                if acts <> [] then
+                    sb.Append(", " + acts.ToString()) |> ignore
         sb.Append("\n\n") |> ignore
     sb.ToString()
 
@@ -314,6 +315,7 @@ let compressTaggingWhenNotImported (config: T) : T =
                             List.filter (fun a ->
                                 match a with
                                 | SetComm is ->
+                                    Map.containsKey (peer,loc) !importCommNeeded &&
                                     !importCommNeeded
                                     |> Map.find (peer,loc)
                                     |> Set.contains is
@@ -359,28 +361,80 @@ let compressAllExports (cg: CGraph.T) (config: T) : T =
             let allPeers = 
                 topoPeers
                 |> Seq.forall coversPeer
-            if eqActions && allPeers then 
+            if eqActions && allPeers && List.length es <= Seq.length topoPeers then 
                 newFilters <- ((m,lp), [("*", [])]) :: newFilters
             else newFilters <- f :: newFilters
         let newDC = {Originates=deviceConf.Originates; Filters=List.rev newFilters}
         newConfig <- Map.add loc newDC newConfig
     newConfig
 
+(* Whenever import identical routes from all peers, we can replace
+   this with a simpler route import of the form: (Import: * ) for readability *)
+let compressAllImports (cg: CGraph.T) (config: T) : T =
+    let mutable newConfig = Map.empty
+    for kv in config do
+        let loc = kv.Key 
+        let deviceConf = kv.Value
+        let filters = deviceConf.Filters
+        let mutable newFilters = []
+        let topoNode = 
+            cg.Topo.Vertices
+            |> Seq.find (fun v -> v.Loc = loc)
+        let topoPeers = 
+            cg.Topo.OutEdges topoNode
+            |> Seq.map (fun e -> e.Target.Loc)
+        let eqActions =
+            filters
+            |> List.map snd 
+            |> Set.ofList
+            |> Set.count
+            |> ((=) 1)
+        let eqLP = 
+            filters
+            |> List.map (fst >> snd)
+            |> Set.ofList
+            |> Set.count
+            |> ((=) 1)
+        let noComms = 
+            filters
+            |> List.map (fst >> fst)
+            |> List.forall (fun x -> match x with Match.Peer _ -> true | _ -> false)
+        let coversPeer p = 
+            List.exists (fun  ((m,lp),es) -> 
+                match m with
+                | Match.Peer(x) -> x = p
+                | _ -> false
+            ) filters
+        let allPeers = 
+            topoPeers
+            |> Seq.forall coversPeer
+        let allSame = eqActions && eqLP && noComms && allPeers
+        let newFilters = 
+            if allSame && List.length filters = Seq.length topoPeers && not (List.isEmpty filters)
+            then
+                let ((m,lp),es) = List.head filters 
+                [((Match.Peer("*"), lp), es)]
+            else filters
+        let newDC = {Originates=deviceConf.Originates; Filters=newFilters}
+        newConfig <- Map.add loc newDC newConfig
+    newConfig
+
 (* Make a config smaller (e.g., number of route maps) and more human-readable
    by removing community tagging information when possible *)
 let compress (cg: CGraph.T) (config: T) (outName: string) : T =
-    let config1 = compressUniquePairs cg config
-    let config2 = compressIsomorphicImports cg config1
-    let config3 = compressIdenticalImports config2
-    let config4 = compressTaggingWhenNotImported config3
-    let config5 = compressAllExports cg config4
     debug1 (fun () -> System.IO.File.WriteAllText(outName + "-raw.ir", format config))
-    debug2 (fun () -> System.IO.File.WriteAllText(outName + "-min1.ir", format config1))
-    debug2 (fun () -> System.IO.File.WriteAllText(outName + "-min2.ir", format config2))
-    debug2 (fun () -> System.IO.File.WriteAllText(outName + "-min3.ir", format config3))
-    debug2 (fun () -> System.IO.File.WriteAllText(outName + "-min4.ir", format config4))
-    debug1 (fun () -> System.IO.File.WriteAllText(outName + "-min5.ir", format config5))
-    config5
+    let config = compressUniquePairs cg config
+    debug2 (fun () -> System.IO.File.WriteAllText(outName + "-min1.ir", format config))
+    let config = compressIsomorphicImports cg config
+    debug2 (fun () -> System.IO.File.WriteAllText(outName + "-min2.ir", format config))
+    let config = compressIdenticalImports config
+    debug2 (fun () -> System.IO.File.WriteAllText(outName + "-min3.ir", format config))
+    let config = compressTaggingWhenNotImported config
+    debug2 (fun () -> System.IO.File.WriteAllText(outName + "-min4.ir", format config))
+    let config = compressAllExports cg config
+    let config = compressAllImports cg config
+    debug1 (fun () -> System.IO.File.WriteAllText(outName + "-min5.ir", format config))
+    config
 
 (* Given a topology and a policy, generate a low-level configuration in an intermediate
    byte-code-like, vendor-independent representation for BGP  *)

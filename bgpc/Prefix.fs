@@ -2,12 +2,12 @@
 
 (* TODO: make these 16 bits *)
 
-type T = int * int * int * int * int option
+type T = uint32 * uint32 * uint32 * uint32 * uint32 option
 
-type Ranges = (int * int) list
+type Ranges = (uint32 * uint32) list
 
 
-let wholeRange = (System.Int32.MinValue, System.Int32.MaxValue)
+let wholeRange = (uint32 0, System.UInt32.MaxValue)
 
 let wfRange (x,y) = 
     x <= y
@@ -87,8 +87,13 @@ let rec negateAll rs =
     | r::tl ->
         interAll (negate r) (negateAll tl)
 
-let rangeOfPrefix (a,b,c,d) bits = 
-    let lowermask = 0xffffffff <<< (32 - bits)
-    let upper = 0xffffffff >>> bits
-    let value = ((a <<< 24) + (b <<< 16) + (c <<< 8) + d) &&& lowermask
-    (value, value + upper)
+let rangeOfPrefix ((a,b,c,d): uint32*uint32*uint32*uint32) (bits: uint32) = 
+    printfn "bits: %A" bits
+    let lowermask = if bits = 0u then 0u else (0xffffffffu <<< (32 - int bits))
+    printfn "lowermask: %A" (lowermask)
+    let upper = if bits = 32u then 0u else 0xffffffffu <<< (int bits)
+    printfn "upper: %A" upper
+    let value = ((a <<< 24) + (b <<< 16) + (c <<< 8) + d) 
+    printfn "value: %A" value
+    let value = value &&& uint32 lowermask
+    (value, value + uint32 upper)

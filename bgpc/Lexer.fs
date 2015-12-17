@@ -276,7 +276,7 @@ and _fslex_tokenize  _fslex_state lexbuf =
           )
   | 14 -> ( 
 # 32 "Lexer.fsl"
-                                 INT (Int32.Parse (LexBuffer<char>.LexemeString lexbuf)) 
+                                 INT (UInt32.Parse (LexBuffer<char>.LexemeString lexbuf)) 
 # 280 "Lexer.fs"
           )
   | 15 -> ( 

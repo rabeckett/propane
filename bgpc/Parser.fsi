@@ -30,7 +30,7 @@ type token =
   | RPAREN
   | LPAREN
   | EQUAL
-  | INT of (System.Int32)
+  | INT of (System.UInt32)
   | ID of (string)
 type tokenId = 
     | TOKEN_UNORDERED
