@@ -5,6 +5,8 @@ open System
 open Common.Debug
 open Common.Error
 
+let numRandomTests = 50000
+
 (********************************************* 
  *  Config helpers
  *********************************************)
@@ -332,10 +334,31 @@ let tests = [
 
 ]
 
-let run () =
+let testPrefixes () =
+    printfn ""
+    printfn "Testing prefix ops..."
+
+    let r = System.Random()
+    for i = 1 to numRandomTests do 
+        let lo = uint32 (r.Next ())
+        let hi = uint32 (r.Next ()) + lo
+        let ps = Prefix.prefixesOfRange (lo,hi)
+        let rs = 
+            List.map Prefix.rangeOfPrefix ps
+            |> List.fold (fun acc r -> Prefix.union r acc) []
+        if List.length rs <> 1 || List.head rs <> (lo,hi) then
+            printfn "[Failed]: expected: %A, but got %A" (lo,hi) (List.head rs)
+
+let testCompilation() =
+    printfn ""
+    printfn "Testing compilation..."
+    printfn "----------------------------------------------------------"
     let settings = Args.getSettings ()
+    let longest = List.maxBy (fun t -> t.Name.Length) tests
+    let longest = longest.Name.Length
     for test in tests do
-        let msg = String.Format("Testing {0} - {1} ...", test.Name, test.Explanation)
+        let spaces = String.replicate (longest - test.Name.Length + 3) " "
+        let msg = String.Format("{0}{1}{2}", test.Name, spaces, test.Explanation)
         printfn "%s" msg
         logInfo0("\n" + msg)
         let reb = Regex.REBuilder test.Topo
@@ -345,7 +368,7 @@ let run () =
                 Option.isSome test.Originate || 
                 Option.isSome test.Prefs || 
                 Option.isNone test.Fail) then 
-                let msg = String.Format("\n[Failed]:\n  Name: {0}\n  Message: Should compile but did not\nError: {1}\n", test.Name, x)
+                let msg = String.Format("\n[Failed]:\n  Name: {0}\n  Message: Should compile but did not\n  Error: {1}\n", test.Name, x)
                 printfn "%s" msg
                 logInfo0(msg)
             match test.Fail, x with 
@@ -376,7 +399,7 @@ let run () =
                 let os = Option.get test.Originate
                 for x in os do 
                     if not (originates config x) then 
-                        let msg = String.Format("\n[Failed]: ({0}) - {1} should originate a route but did not", test.Name, x)
+                        let msg = String.Format("\n  [Failed]: ({0}) - {1} should originate a route but did not", test.Name, x)
                         printfn "%s" msg
                         logInfo0(msg)
 
@@ -387,5 +410,11 @@ let run () =
                         let msg = String.Format("\n[Failed]: ({0}) - {1} should prefer {2} to {3} but did not", test.Name, x, a, b)
                         printfn "%s" msg
                         logInfo0(msg)
+
+
+let run () =
+    testPrefixes ()
+    testCompilation ()
+
 
     

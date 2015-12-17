@@ -151,23 +151,14 @@ let inline firstNBits x n =
     x &&& (shl 0xffffffffu (32 - int n))
 
 let rec prefixesOfRange (r: Range) : T list =
-    printfn "called with: %A" r
     let without p =
-        printfn "  Without: %A" p
         let r' = rangeOfPrefix p
-        printfn "  Range: %A" r'
-        printfn "  Negation: %A" (negate r')
-        printfn "  Range Orig: %A" r
         let remaining = interAll (negate r') [r]
-        printfn "  Remaining: %A" remaining
         remaining
         |> List.map prefixesOfRange
         |> List.collect id
-
     assert (wfRange r)
     let (a,b) = r
-    printfn "a: %s" (binaryStr a)
-    printfn "b: %s" (binaryStr b)
     let mutable lastOneA = None
     let mutable lastZeroB = None
     let mutable lastOneB = None
@@ -181,20 +172,16 @@ let rec prefixesOfRange (r: Range) : T list =
     match lastOneA, lastZeroB with
     | None, None -> [T(0u,0u,0u,0u,0u)] 
     | None, Some i -> 
-        printfn "  case 1"
         if i <> 31 then 
-            printfn "  case <> 32"
             let j = uint32 i + 1u
             let (a,b,c,d) = dotted (firstNBits b j)
             let rng = T(a,b,c,d,j)
             rng :: without rng
         else
-            printfn "  case = 32"
             let (a,b,c,d) = dotted b
             let rng = T(a,b,c,d,32u) 
             rng :: without rng
     | Some i, None ->
-        printfn "  case 2"
         let (a,b,c,d) = dotted a
         let j = uint32 i + 1u
         let rng = T(a,b,c,d,j)
@@ -202,12 +189,8 @@ let rec prefixesOfRange (r: Range) : T list =
     | Some i, Some j ->
         (* everything after i in a is 000000s *)
         (* everything after j in b is 111111s *)
-        printfn "  case 3"
         let k = max i j
-        printfn "k: %A" k
         let slash = uint32 k + 1u
-        printfn "slash: %A" slash
         let (a,b,c,d) = dotted (firstNBits (if i >= j then a else b) slash)
         let rng = T(a,b,c,d,slash)
-        printfn "Range: %s" (rng.ToString())
         rng :: without rng
