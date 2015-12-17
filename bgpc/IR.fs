@@ -145,8 +145,7 @@ let compressUniquePairs (cg: CGraph.T) (config: T) : T =
         cg.Graph.Vertices
         |> Seq.map ((fun v -> (v, neighbors cg v)) >> (fun (v, ns) -> Seq.map (fun n -> (v,n)) ns))
         |> Seq.fold Seq.append Seq.empty 
-        |> Seq.groupBy (fun (a,b) -> (a.Node.Loc, b.Node.Loc))
-        |> Seq.map (fun (k,sq) -> (k, Seq.length sq))
+        |> Seq.countBy (fun (a,b) -> (a.Node.Loc, b.Node.Loc))
         |> Map.ofSeq
 
     let uniquePair (a,b) = 

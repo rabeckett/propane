@@ -1,5 +1,7 @@
 ﻿module Ast
+
 open Topology
+open Prefix
 
 (* Inside/Outside, Loc are part of single identifier definition *)
 type Re = 
@@ -46,6 +48,8 @@ type Scope =
      CConstraints: ControlConstraint list}
 
 type T = Scope list
+
+exception InvalidPrefixException of Prefix.T
 
 
 let rec buildRegex (reb: Regex.REBuilder) (r: Re) : Regex.T = 
@@ -96,8 +100,6 @@ let rec buildRegex (reb: Regex.REBuilder) (r: Re) : Regex.T =
         | _, _ -> failwith ("[Error]: Unknown definition: " + id)
 
 
-open Prefix
-
 let rec asRanges (p: Predicate) : Prefix.Ranges = 
     match p with 
     | True -> [wholeRange]
@@ -106,6 +108,10 @@ let rec asRanges (p: Predicate) : Prefix.Ranges =
     | Or(a,b) -> unionAll (asRanges a) (asRanges b)
     | Not a -> negateAll (asRanges a)
     | Prefix(a,b,c,d,bits) ->
-        match bits with
-        | None -> [rangeOfPrefix (a,b,c,d) 32u]
-        | Some bits -> [rangeOfPrefix (a,b,c,d) bits]
+        let adjustedBits = 
+            match bits with
+            | None -> 32u
+            | Some x -> x
+        if (a > 255u || b > 255u || c > 255u || d > 255u || adjustedBits > 32u) then
+            raise (InvalidPrefixException (a,b,c,d,bits))
+        [rangeOfPrefix (a,b,c,d) adjustedBits]

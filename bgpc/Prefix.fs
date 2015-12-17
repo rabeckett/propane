@@ -87,13 +87,20 @@ let rec negateAll rs =
     | r::tl ->
         interAll (negate r) (negateAll tl)
 
-let rangeOfPrefix ((a,b,c,d): uint32*uint32*uint32*uint32) (bits: uint32) = 
+let inline shr x bits = 
+    if bits >= 32 then 0u else x >>> bits
+
+let inline shl x bits =
+    if bits >= 32 then 0u else x <<< bits
+
+let rangeOfPrefix ((a,b,c,d): uint32*uint32*uint32*uint32) (bits: uint32) =
     printfn "bits: %A" bits
-    let lowermask = if bits = 0u then 0u else (0xffffffffu <<< (32 - int bits))
+    let lowermask = shl 0xffffffffu (32 - int bits)
     printfn "lowermask: %A" (lowermask)
-    let upper = if bits = 32u then 0u else 0xffffffffu <<< (int bits)
+    let upper = shr 0xffffffffu (int bits)
     printfn "upper: %A" upper
-    let value = ((a <<< 24) + (b <<< 16) + (c <<< 8) + d) 
+    let value = (shl a 24) + (shl b 16) + (shl c 8) + d 
     printfn "value: %A" value
+    printfn "Max: %A" System.UInt32.MaxValue
     let value = value &&& uint32 lowermask
     (value, value + uint32 upper)
