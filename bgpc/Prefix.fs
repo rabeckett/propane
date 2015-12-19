@@ -21,7 +21,7 @@ type T =
 type Range = (uint32 * uint32)
 type Ranges = Range list
 
-let wholeRange = (uint32 0, System.UInt32.MaxValue)
+let wholeRange : Range = (uint32 0, System.UInt32.MaxValue)
 
 let wfRange (x,y) = 
     x <= y
@@ -140,6 +140,9 @@ let rangeOfPrefix (p: T) : Range =
     let value = value &&& uint32 lowermask
     (value, value + uint32 uppermask)
 
+let rangeOfPrefixes (ps: T list) : Ranges =
+    List.map rangeOfPrefix ps
+
 let inline dotted x = 
     let a = shr x 24
     let b = shr (shl x 8) 24
@@ -194,3 +197,8 @@ let rec prefixesOfRange (r: Range) : T list =
         let (a,b,c,d) = dotted (firstNBits (if i >= j then a else b) slash)
         let rng = T(a,b,c,d,slash)
         rng :: without rng
+
+let prefixesOfRanges (rs: Ranges) : T list =
+    rs
+    |> List.map prefixesOfRange
+    |> List.concat

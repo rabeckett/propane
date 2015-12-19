@@ -1,9 +1,18 @@
 ﻿module Ast
 
 open Topology
-open Prefix
+
 
 (* Inside/Outside, Loc are part of single identifier definition *)
+
+type Predicate =
+    | True
+    | False
+    | Prefix of uint32 * uint32 * uint32 * uint32 * uint32 option 
+    | Or of Predicate * Predicate
+    | And of Predicate * Predicate
+    | Not of Predicate
+
 type Re = 
     | Empty
     | Concat of Re * Re
@@ -15,14 +24,6 @@ type Re =
 
 type Definition = string
 
-type Predicate =
-    | True
-    | False
-    | Prefix of uint32 * uint32 * uint32 * uint32 * uint32 option 
-    | Or of Predicate * Predicate
-    | And of Predicate * Predicate
-    | Not of Predicate
-
 type Expr =
     | PredicateExpr of Predicate
     | LinkExpr of Re * Re
@@ -30,24 +31,23 @@ type Expr =
     | IdentExpr of string
 
 type PathConstraint = Predicate * (Re list)
+type PathConstraints = PathConstraint list
+
+type ConcretePathConstraint = Prefix.T list * Re list
+type ConcretePathConstraints = ConcretePathConstraint list
 
 type ControlConstraint = string * Expr list
-
-(*
-type ControlConstraint = 
-    | Multipath
-    | MaxRoutes of int
-    | RouteAggregate of Predicate * Re * Re
-    | CommunityTag of Predicate * Re * Re
-    | Ownership of Predicate * Re *)
+type ControlConstraints = ControlConstraint list
 
 type Scope =
     {Name: string;
-     Defs: Definition list;
-     PConstraints: PathConstraint list;
-     CConstraints: ControlConstraint list}
+     PConstraints: PathConstraints;
+     CConstraints: ControlConstraints}
 
-type T = Scope list
+type T = 
+    {Defs: Definition list;
+     Scopes: Scope list;
+     Policy: Re}
 
 exception InvalidPrefixException of Prefix.T
 
@@ -99,14 +99,13 @@ let rec buildRegex (reb: Regex.REBuilder) (r: Re) : Regex.T =
         | l, 0 -> reb.Loc l
         | _, _ -> failwith ("[Error]: Unknown definition: " + id)
 
-
 let rec asRanges (p: Predicate) : Prefix.Ranges = 
     match p with 
-    | True -> [wholeRange]
+    | True -> [Prefix.wholeRange]
     | False -> [] 
-    | And(a,b) -> interAll (asRanges a) (asRanges b)
-    | Or(a,b) -> unionAll (asRanges a) (asRanges b)
-    | Not a -> negateAll (asRanges a)
+    | And(a,b) -> Prefix.interAll (asRanges a) (asRanges b)
+    | Or(a,b) -> Prefix.unionAll (asRanges a) (asRanges b)
+    | Not a -> Prefix.negateAll (asRanges a)
     | Prefix(a,b,c,d,bits) ->
         let adjustedBits = 
             match bits with
@@ -115,4 +114,98 @@ let rec asRanges (p: Predicate) : Prefix.Ranges =
         let p = Prefix.T(a,b,c,d,adjustedBits)
         if (a > 255u || b > 255u || c > 255u || d > 255u || adjustedBits > 32u) then
             raise (InvalidPrefixException p)
-        [rangeOfPrefix p]
+        [Prefix.rangeOfPrefix p]
+
+let makeDisjointPairs (pcs: PathConstraints) reb : ConcretePathConstraints =
+    try 
+        let mutable rollingPred = [Prefix.wholeRange]
+        let mutable disjointPairs = []
+        for (pred, res) in pcs do
+            let ranges = Prefix.interAll (asRanges pred) rollingPred
+            rollingPred <- Prefix.interAll rollingPred (Prefix.negateAll ranges)
+            let options = List.map Prefix.prefixesOfRange ranges |> List.concat
+            disjointPairs <- (options, res) :: disjointPairs
+        List.rev disjointPairs
+    with InvalidPrefixException p -> 
+        printfn "[Prefix Error]: Invalid prefix: %s" (p.ToString())
+        exit 0
+
+type BinOp = OConcat | OInter | OUnion
+
+let applyOp r1 r2 op = 
+    match op with
+    | OConcat -> Re.Concat(r1,r2)
+    | OInter -> Re.Inter(r1,r2)
+    | OUnion -> Re.Union(r1,r2)
+
+
+let combineRegexes (rs1: Re list) (rs2: Re list) (op: BinOp) : Re list =
+    let len1 = List.length rs1 
+    let len2 = List.length rs2
+    assert (len1 > 0)
+    assert (len2 > 0)
+    if len1 > 1 && len2 > 1 then 
+        let opStr = 
+            match op with
+            | OConcat -> ";"
+            | OInter -> " and "
+            | OUnion -> " + "
+        printfn 
+            "[Macro Error]: Cannot combine multiple preferences in: (%s)%s(%s)" 
+            (rs1.ToString()) 
+            opStr 
+            (rs2.ToString())
+        exit 0
+    if len1 >= len2 then 
+        let r2 = rs2.Head
+        List.map (fun r1 -> applyOp r1 r2 op) rs1
+    else
+        let r1 = rs1.Head
+        List.map (fun r2 -> applyOp r1 r2 op) rs2
+
+let combineConstraints (pcs1: ConcretePathConstraints) (pcs2: ConcretePathConstraints) (op: BinOp) =
+    let mutable combined = []
+    for (ps, res) in pcs1 do 
+        for (ps', res') in pcs2 do 
+            let rs = Prefix.rangeOfPrefixes ps
+            let rs' = Prefix.rangeOfPrefixes ps'
+            let conj = Prefix.interAll rs rs'
+            let asPref = Prefix.prefixesOfRanges conj
+            let both = (asPref, combineRegexes res res' op)
+            combined <- both :: combined
+    combined
+    |> List.filter (fun (x,_) -> not (List.isEmpty x))
+    |> List.rev
+
+let rec mergeScopes (re: Re) disjoints : ConcretePathConstraints =
+    match re with
+    | Empty -> failwith "todo"
+    | Concat(x,y) -> combineConstraints (mergeScopes x disjoints) (mergeScopes y disjoints) OConcat
+    | Union(x,y) -> combineConstraints (mergeScopes x disjoints) (mergeScopes y disjoints) OUnion
+    | Inter(x,y) -> combineConstraints (mergeScopes x disjoints) (mergeScopes y disjoints) OInter
+    | Negate x ->
+        printfn "[Parse Error]: Negation not allowed in main policy definition, in expression: %s" (x.ToString())
+        exit 0
+    | Star x -> 
+        printfn "[Parse Error]: Star operator not allowed in main policy definition, in expression: %s" (x.ToString())
+        exit 0
+    | Ident(x,res) -> 
+        if not (List.isEmpty res) then 
+            printfn "[Parse Error]: parameters given for identifier %s in main policy definition" x
+        Map.find x disjoints
+
+let makePolicyPairs (ast: T) reb : (Prefix.T list * Regex.T list) list =
+    let names = List.map (fun s -> s.Name) ast.Scopes
+    let unqNames = Set.ofList names
+    if unqNames.Count <> names.Length then
+        let dups =
+            names 
+            |> Seq.ofList
+            |> Seq.countBy id
+            |> Seq.filter (fun (_,i) -> i > 1)
+            |> Seq.map fst
+        printfn "[Name Error]: duplicate named policies: %s" (dups.ToString())
+        exit 0
+    let disjoints = List.fold (fun acc s -> Map.add s.Name (makeDisjointPairs s.PConstraints reb) acc) Map.empty ast.Scopes
+    let allPCs = mergeScopes ast.Policy disjoints
+    List.map (fun (prefixes, res) -> (prefixes, List.map (buildRegex reb) res)) allPCs

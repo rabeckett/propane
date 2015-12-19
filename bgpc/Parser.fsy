@@ -7,9 +7,8 @@ exception EmptyFile
 exception NoScope
 exception NoPathConstraints
 
-let addScope s (ds, ps, cs) = 
+let addScope s (ps, cs) = 
     {Name=s;
-    Defs=ds;
     PConstraints=ps;
     CConstraints=cs}
 
@@ -64,17 +63,16 @@ let addScope s (ds, ps, cs) =
 %%
 
 start:
-	| scopes EOF							{ $1 }
+	| scopes regex EOF						{ {Defs=[]; Scopes=$1; Policy=$2} }
+	| definitions scopes regex EOF			{ {Defs=$1; Scopes=$2; Policy=$3} }
 
 scopes:
 	| SCOPE ID LBRACE scope RBRACE			{ [addScope $2 $4] }
 	| SCOPE ID LBRACE scope RBRACE scopes	{ (addScope $2 $4) :: $6 }
 
 scope:
-	| pconstrs								{ ([], $1, []) }
-	| pconstrs cconstrs						{ ([], $1, $2) }
-	| definitions pconstrs					{ ($1, $2, []) }
-	| definitions pconstrs cconstrs			{ ($1, $2, $3) }
+	| pconstrs								{ ($1, []) }
+	| pconstrs cconstrs						{ ($1, $2) }
 
 cconstrs:
 	| cconstr								{ [$1] }

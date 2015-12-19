@@ -1,27 +1,13 @@
-﻿open Common.Error
+﻿open System
+open Common.Debug
+open Common.Error
 
-let fromAst (ast: Ast.T) reb =
-    let scope1 = ast.Head 
-    let pathConstraints = scope1.PConstraints
-    printfn "max: %A" (System.UInt32.MaxValue) 
-    for (pred, res) in pathConstraints do
-        printfn "\npred: %A\n" pred
-        let ranges = Ast.asRanges pred
-        printfn "\nrange: %A" ranges
-        for range in ranges do
-            printfn "Back to prefixes: %s" ((Prefix.prefixesOfRange range).ToString())
-
-let chooseFirst (ast: Ast.T) reb = 
-    let scope1 = ast.Head 
-    let (x, res) = scope1.PConstraints.Head
-    printfn "x:%A" x
-    let res = List.map (fun r -> Ast.buildRegex reb r) res
-    res
 
 [<EntryPoint>]
 let main argv =
     let opts = Args.parse argv
     let settings = Args.getSettings ()
+    logInfo0(String.Format("Got settings: {0}", settings))
     if settings.Test then 
         Test.run () 
     else
@@ -37,9 +23,10 @@ let main argv =
             exit 0
         | Some p ->
             let ast = Input.readFromFile p
-            fromAst ast reb
+            
+            let pairs = Ast.makePolicyPairs ast reb
+            let (prefixes,res) = pairs.Head
 
-            let res = chooseFirst ast reb
             let cg = CGraph.buildFromRegex topo reb res
             match settings.Format with 
             | Args.IR ->

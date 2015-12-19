@@ -1,9 +1,22 @@
-﻿scope DC {
-	true => waypoint(M) inter end(A) >> waypoint(N) inter end(A) >> internal inter end(A)
-	1.1.1.0/24 and 1.1.1.1/32 => in*
-
-	/* aggregate(1.2.3.4/16, in -> out)
-	community(1.2.3.4/16, in -> out)
-	maxroutes(100)
-	owns(1.2.3.4/10, M) */
+﻿scope Routing {
+    10.10.10.0/24 => waypoint(M) >> waypoint(N) >> any
+    10.10.9.0/24  => any
 }
+
+scope Ownership {
+    10.10.10.0/24 => end(A)
+    10.10.9.0/24  => end(B)
+}
+
+scope Network {
+    true => internal
+}
+
+Routing inter Ownership inter Network
+
+/* 
+ aggregate(1.2.3.4/16, in -> out)
+ community(1.2.3.4/16, in -> out)
+ maxroutes(100)
+ owns(1.2.3.4/10, M) 
+*/
