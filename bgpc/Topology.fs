@@ -1,4 +1,5 @@
 ﻿module Topology
+
 open QuickGraph
 open QuickGraph.Algorithms
 
@@ -15,6 +16,7 @@ type State =
 
 type T = BidirectionalGraph<State,TaggedEdge<State,unit>>
 
+(*
 let setOriginators (topo: T) (orig: Set<string>) : T =
     let mutable conv = Map.empty
     let newTopo = BidirectionalGraph()
@@ -35,7 +37,7 @@ let setOriginators (topo: T) (orig: Set<string>) : T =
         let v = Map.find e.Source conv
         let u = Map.find e.Target conv
         newTopo.AddEdge (TaggedEdge<State,unit>(v,u,())) |> ignore
-    newTopo
+    newTopo *)
 
 let alphabet (topo: T) : Set<State> * Set<State> = 
     let mutable ain = Set.empty 

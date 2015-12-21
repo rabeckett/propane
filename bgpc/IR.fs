@@ -74,54 +74,55 @@ let comparePrefThenLoc (x,i1) (y,i2) =
         compare x.Node.Loc y.Node.Loc
     else cmp
 
+(* Generate the configuration given preference-based ordering 
+   that satisfies our completeness/fail resistance properties *)
 let genConfig (cg: CGraph.T) (ord: Consistency.Ordering) : T =
+    let (ain, _) = Topology.alphabet cg.Topo
+    let ain = Set.map (fun (v: Topology.State) -> v.Loc) ain
     let mutable config = Map.empty
     for entry in ord do 
         let mutable rules = []
         let loc = entry.Key
         let prefs = entry.Value 
-        
-        let mutable originates = false
-        let mutable filters = []
-
-        let prefNeighborsIn =
-            prefs
-            |> Seq.mapi (fun i v -> (neighborsIn cg v, i))
-            |> Seq.map (fun (ns,i) -> Seq.map (fun n -> (n,i)) ns) 
-            |> Seq.fold Seq.append Seq.empty 
-            |> List.ofSeq
-            |> List.sortWith comparePrefThenLoc
-
-        (* Generate filters *)
-        let mutable lp = 99
-        let mutable lastPref = None
-        for v, pref in prefNeighborsIn do 
-            match lastPref with 
-            | Some p when pref = p -> () 
-            | _ ->
-                lastPref <- Some pref 
-                lp <- lp + 1
-            let m =
-                if Topology.isTopoNode v.Node 
-                then Match.State(v.States, v.Node.Loc)
-                else NoMatch
-            let node = 
-                neighbors cg v
-                |> Seq.filter (fun x -> x.Node.Loc = loc) 
-                |> Seq.head
-            let exports =
-                node
-                |> neighbors cg
-                |> Seq.filter (fun x -> Topology.isTopoNode x.Node)
-                |> Seq.filter (fun x -> x.Node.Loc <> v.Node.Loc)
-                |> Seq.toList
-                |> List.map (fun x -> (x.Node.Loc, [SetComm(node.States)] ))
-
-            filters <- ((m,lp), exports) :: filters
-            originates <- v.Node.Typ = Topology.Start
-
-        let deviceConf = {Originates=originates; Filters=filters}
-        config <- Map.add loc deviceConf config
+        (* Only generate config for internal locations *)
+        if ain.Contains loc then
+            let mutable originates = false
+            let mutable filters = []
+            let prefNeighborsIn =
+                prefs
+                |> Seq.mapi (fun i v -> (neighborsIn cg v, i))
+                |> Seq.map (fun (ns,i) -> Seq.map (fun n -> (n,i)) ns) 
+                |> Seq.fold Seq.append Seq.empty 
+                |> List.ofSeq
+                |> List.sortWith comparePrefThenLoc
+            (* Generate filters *)
+            let mutable lp = 99
+            let mutable lastPref = None
+            for v, pref in prefNeighborsIn do 
+                match lastPref with 
+                | Some p when pref = p -> () 
+                | _ ->
+                    lastPref <- Some pref 
+                    lp <- lp + 1
+                let m =
+                    if Topology.isTopoNode v.Node 
+                    then Match.State(v.States, v.Node.Loc)
+                    else NoMatch
+                let node = 
+                    neighbors cg v
+                    |> Seq.filter (fun x -> x.Node.Loc = loc) 
+                    |> Seq.head
+                let exports =
+                    node
+                    |> neighbors cg
+                    |> Seq.filter (fun x -> Topology.isTopoNode x.Node)
+                    |> Seq.filter (fun x -> x.Node.Loc <> v.Node.Loc)
+                    |> Seq.toList
+                    |> List.map (fun x -> (x.Node.Loc, [SetComm(node.States)] ))
+                filters <- ((m,lp), exports) :: filters
+                originates <- v.Node.Typ = Topology.Start
+            let deviceConf = {Originates=originates; Filters=filters}
+            config <- Map.add loc deviceConf config
     config
 
 let isCommunityTag (action: Action) : bool = 

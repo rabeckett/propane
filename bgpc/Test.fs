@@ -156,6 +156,11 @@ let rSeesaw1 (reb: Regex.REBuilder) =
     let pref2 = reb.Path(["X"; "N"; "M"])
     [pref1; pref2]
 
+let rWAN1 (reb: Regex.REBuilder) = 
+    let pref1 = reb.ConcatAll [reb.Star reb.Outside; reb.Loc "A"; reb.Star reb.Inside; reb.Loc "Y"]
+    let pref2 = reb.ConcatAll [reb.Star reb.Outside; reb.Loc "B"; reb.Star reb.Inside; reb.Outside]
+    [pref1; pref2]
+
 let tests = [
 
     {Name= "Diamond1";
@@ -337,7 +342,6 @@ let tests = [
 let testPrefixes () =
     printfn ""
     printfn "Testing prefix ops..."
-
     let r = System.Random()
     for i = 1 to numRandomTests do 
         let lo = uint32 (r.Next ())
@@ -348,6 +352,14 @@ let testPrefixes () =
             |> List.fold (fun acc r -> Prefix.union r acc) []
         if List.length rs <> 1 || List.head rs <> (lo,hi) then
             printfn "[Failed]: expected: %A, but got %A" (lo,hi) (List.head rs)
+
+let tempTestWAN () = 
+    let topo = Examples.topoWAN1 () 
+    let reb = Regex.REBuilder(topo)
+    let prefs = rWAN1 reb
+    match IR.compileToIR topo reb prefs "debug/temp" with 
+    | Err(x) -> printfn "error: %A" x
+    | Ok(config) -> printfn "ok: %A" config
 
 let testCompilation() =
     printfn ""
@@ -413,8 +425,9 @@ let testCompilation() =
 
 
 let run () =
+    tempTestWAN () (*
     testPrefixes ()
-    testCompilation ()
+    testCompilation () *)
 
 
     
