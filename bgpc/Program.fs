@@ -39,11 +39,11 @@ let main argv =
                     | IR.UnusedPreferences m ->
                         error (sprintf "Unused preferences %A" m)
                     | IR.NoPathForRouters rs ->
-                        error (sprintf "Unable to find a path for routers: %A" rs)
+                        unimplementable (sprintf "Unable to find a path for routers: %A" rs)
                     | IR.InconsistentPrefs(x,y) ->
                         let xs = x.ToString()
                         let ys = y.ToString() 
-                        error (sprintf "Unable to implement in BGP. Can not choose between:\n%s\n%s" xs ys)
+                        unimplementable (sprintf "Can not choose preference between:\n%s\n%s" xs ys)
             | Args.Template -> ()
 
     0

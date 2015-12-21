@@ -1,5 +1,6 @@
 ﻿module Input
 
+open Common.Error
 open System.IO
 open Microsoft.FSharp.Text.Lexing
 
@@ -12,14 +13,12 @@ let readFromFile fname =
     setInitialPos lexbuf fname
     try Parser.start Lexer.tokenize lexbuf
     with
-        | Lexer.EofInComment -> 
-            printfn "[Parse Error]: End of file detected in comment"
-            exit 0
+        | Lexer.EofInComment ->
+            parseError ("End of file detected in comment")
         | _ ->
            let pos = lexbuf.EndPos
            let line = pos.Line
            let column = pos.Column
-           printfn "[Parse Error]: Line: %d, Char: %d" line column
-           exit 0
+           parseError (sprintf "Line: %d, Char: %d" line column)
 
 

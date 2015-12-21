@@ -69,6 +69,14 @@ module Error =
         printfn "\n[Error]: %s" s
         exit 0
 
+    let parseError s =
+        printfn "\n[Parse Error]: %s" s
+        exit 0
+
+    let unimplementable s =
+        printfn "\n[Unimplementable]: %s" s
+        exit 0
+
     type Result<'a, 'b> = 
         | Ok of 'a
         | Err of 'b
