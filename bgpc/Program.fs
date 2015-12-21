@@ -1,5 +1,4 @@
-﻿open System
-open Common.Debug
+﻿open Common.Debug
 open Common.Error
 
 
@@ -7,7 +6,7 @@ open Common.Error
 let main argv =
     let opts = Args.parse argv
     let settings = Args.getSettings ()
-    logInfo0(String.Format("Got settings: {0}", settings))
+    logInfo0 (sprintf "Got settings: %A" settings)
     if settings.Test then 
         Test.run () 
     else
@@ -18,14 +17,13 @@ let main argv =
         let topo = Examples.topoDatacenterSmall()
         let reb = Regex.REBuilder(topo)
         match settings.PolFile with 
-        | None -> 
-            printfn "No policy file specified"
-            exit 0
+        | None -> error ("No policy file specified")
         | Some p ->
             let ast = Input.readFromFile p
             
             let pairs = Ast.makePolicyPairs ast reb
             let (prefixes,res) = pairs.Head
+            printfn "%A" pairs
 
             let cg = CGraph.buildFromRegex topo reb res
             match settings.Format with 
@@ -38,17 +36,14 @@ let main argv =
                         System.IO.File.WriteAllText(out + ".ir", IR.format config)
                 | Err(x) -> 
                     match x with
-                    | IR.UnusedPreferences m -> 
-                        printfn "Error: Unused preferences %A" m
-                        exit 0
-                    | IR.NoPathForRouters rs -> 
-                        printfn "Error: Unable to find a path for routers: %A" rs
-                        exit 0
-                    | IR.InconsistentPrefs(x,y) -> 
-                        printfn "Error: Unable to implement in BGP. Can not choose between:"
-                        printfn "%s" (x.ToString()) 
-                        printfn "%s" (y.ToString())
-                        exit 0
+                    | IR.UnusedPreferences m ->
+                        error (sprintf "Unused preferences %A" m)
+                    | IR.NoPathForRouters rs ->
+                        error (sprintf "Unable to find a path for routers: %A" rs)
+                    | IR.InconsistentPrefs(x,y) ->
+                        let xs = x.ToString()
+                        let ys = y.ToString() 
+                        error (sprintf "Unable to implement in BGP. Can not choose between:\n%s\n%s" xs ys)
             | Args.Template -> ()
 
     0

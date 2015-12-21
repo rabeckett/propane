@@ -2,7 +2,6 @@
 
 open Common.Error
 open Common.Debug
-open System
 open System.Collections.Generic
 open System.Diagnostics
 open QuickGraph
@@ -282,7 +281,7 @@ module Reachable =
                     (Set.intersect v v' |> Set.isEmpty |> not) ) b)) b
 
         let stepNodeNode n1 n2 =
-            logInfo3 (String.Format("Simulate: {0} -- {1}", n1.ToString(), n2.ToString()) ) 
+            logInfo3 (sprintf "Simulate: %s -- %s" (n1.ToString()) (n2.ToString())) 
             let neighbors1 = neighbors cg1 n1 |> Seq.filter isRealNode |> Set.ofSeq
             let neighbors2 = neighbors cg2 n2 |> Seq.filter isRealNode |> Set.ofSeq
             let nchars1 = Set.map (fun v -> v.Node.Loc) neighbors1
@@ -415,13 +414,13 @@ module Minimize =
 
     let minimizeO3 (cg: T) =
         let count cg = cg.Graph.VertexCount + cg.Graph.EdgeCount
-        logInfo1(String.Format("Node count: {0}", cg.Graph.VertexCount))
+        logInfo1(sprintf "Node count: %d" cg.Graph.VertexCount)
         let prune () = 
             removeNodesThatCantReachEnd cg
-            logInfo1(String.Format("Node count - after O1: {0}", cg.Graph.VertexCount))
+            logInfo1(sprintf "Node count - after O1: %d" cg.Graph.VertexCount)
             removeEdgesForDominatedNodes cg
             removeNodesNotReachableOnSimplePath cg 
-            logInfo1(String.Format("Node count - after O2: {0}", cg.Graph.VertexCount))
+            logInfo1(sprintf "Node count - after O2: %d" cg.Graph.VertexCount)
 
         let mutable sum = count cg
         prune() 
@@ -430,7 +429,7 @@ module Minimize =
             prune ()
         removeNodesNotOnAnySimplePathToEnd cg
         removeDeadEdgesHeuristic cg
-        logInfo1(String.Format("Node count - after O3: {0}", cg.Graph.VertexCount))
+        logInfo1(sprintf "Node count - after O3: %d" cg.Graph.VertexCount)
 
 
 module Consistency = 
@@ -475,11 +474,11 @@ module Consistency =
                 let reachX = Map.find x reachMap
                 let reachY = Map.find y reachMap
                 if x <> y && (isPreferred f cg r (x,y) (reachX,reachY)) then
-                    logInfo1 (String.Format("{0} is preferred to {1}", x.ToString(), y.ToString()))
+                    logInfo1 (sprintf "%s is preferred to %s" (x.ToString()) (y.ToString()))
                     edges <- Set.add (x,y) edges
                     g.AddEdge (TaggedEdge(x, y, ())) |> ignore
                 else if x <> y then
-                    logInfo1 (String.Format("{0} is NOT preferred to {1}", x.ToString(), y.ToString()))
+                    logInfo1 (sprintf "%s is NOT preferred to %s" (x.ToString()) (y.ToString()))
         g, edges
 
     let encodeConstraints f cg r nodes =

@@ -3,8 +3,6 @@
 open Topology
 open Common.Error
 
-(* Inside/Outside, Loc are part of single identifier definition *)
-
 type Predicate =
     | True
     | False
@@ -79,6 +77,7 @@ let rec buildRegex (reb: Regex.REBuilder) (r: Re) : Regex.T =
         | "internal" -> ignore (checkParams id 0 args); reb.Internal()
         | "external" -> ignore (checkParams id 0 args); reb.External()
         | "any" -> ignore (checkParams id 0 args); reb.Any()
+        | "none" -> ignore (checkParams id 0 args); reb.Empty
         | "in" -> ignore (checkParams id 0 args); reb.Inside 
         | "out" -> ignore (checkParams id 0 args);  reb.Outside
         | l -> ignore (checkParams id 0 args); reb.Loc l
@@ -110,8 +109,9 @@ let makeDisjointPairs (sName: string) (pcs: PathConstraints) reb : ConcretePathC
             let options = List.map Prefix.prefixesOfRange ranges |> List.concat
             disjointPairs <- (options, res) :: disjointPairs
         if not (List.isEmpty rollingPred) then 
-            let p = (List.head (Prefix.prefixesOfRange (List.head rollingPred))).ToString()
-            error (sprintf "Incomplete prefixes in scope (%s). An example of a prefix that is not matched: %s" sName p)
+            let exPrefix = List.head (Prefix.prefixesOfRange (List.head rollingPred))
+            let s = exPrefix.ToString()
+            error (sprintf "Incomplete prefixes in scope (%s). An example of a prefix that is not matched: %s" sName s)
         List.rev disjointPairs
     with InvalidPrefixException p ->
         error (sprintf "Invalid prefix: %s" (p.ToString()))
@@ -124,7 +124,6 @@ let applyOp r1 r2 op =
     | OInter -> Re.Inter(r1,r2)
     | OUnion -> Re.Union(r1,r2)
 
-
 let combineRegexes (rs1: Re list) (rs2: Re list) (op: BinOp) : Re list =
     let len1 = List.length rs1 
     let len2 = List.length rs2
@@ -136,12 +135,9 @@ let combineRegexes (rs1: Re list) (rs2: Re list) (op: BinOp) : Re list =
             | OConcat -> ";"
             | OInter -> " and "
             | OUnion -> " + "
-        printfn 
-            "\n[Error]: Cannot combine multiple preferences in expansion of: (%s)%s(%s)" 
-            (rs1.ToString()) 
-            opStr 
-            (rs2.ToString())
-        exit 0
+        let s1 = rs1.ToString()
+        let s2 = rs2.ToString()
+        error (sprintf "Cannot combine multiple preferences in expansion of: (%s)%s(%s)" s1 opStr s2)
     if len1 >= len2 then 
         let r2 = rs2.Head
         List.map (fun r1 -> applyOp r1 r2 op) rs1
@@ -170,12 +166,10 @@ let rec mergeScopes (re: Re) disjoints : ConcretePathConstraints =
     | Concat(x,y) -> combineConstraints (mergeScopes x disjoints) (mergeScopes y disjoints) OConcat
     | Union(x,y) -> combineConstraints (mergeScopes x disjoints) (mergeScopes y disjoints) OUnion
     | Inter(x,y) -> combineConstraints (mergeScopes x disjoints) (mergeScopes y disjoints) OInter
-    | Negate x ->
-        error (sprintf "Negation not allowed in main policy definition, in expression: %s" (x.ToString()))
-    | Star x -> 
-        error (sprintf "Star operator not allowed in main policy definition, in expression: %s" (x.ToString()))
+    | Negate x -> error (sprintf "Negation not allowed in main policy definition, in expression: %s" (x.ToString()))
+    | Star x -> error (sprintf "Star operator not allowed in main policy definition, in expression: %s" (x.ToString()))
     | Ident(x,res) -> 
-        if not (List.isEmpty res) then
+        if res <> [] then
             error (sprintf "parameters given for identifier %s in main policy definition" x) 
         Map.find x disjoints
 
@@ -190,6 +184,8 @@ let makePolicyPairs (ast: T) reb : (Prefix.T list * Regex.T list) list =
             |> Seq.filter (fun (_,i) -> i > 1)
             |> Seq.map fst
         error (sprintf "duplicate named policies: %s" (dups.ToString()))
-    let disjoints = List.fold (fun acc s -> Map.add s.Name (makeDisjointPairs s.Name s.PConstraints reb) acc) Map.empty ast.Scopes
+    let addPair acc s = 
+        Map.add s.Name (makeDisjointPairs s.Name s.PConstraints reb) acc
+    let disjoints = List.fold addPair Map.empty ast.Scopes
     let allPCs = mergeScopes ast.Policy disjoints
     List.map (fun (prefixes, res) -> (prefixes, List.map (buildRegex reb) res)) allPCs
