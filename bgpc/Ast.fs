@@ -1,7 +1,7 @@
 ﻿module Ast
 
 open Topology
-
+open Common.Error
 
 (* Inside/Outside, Loc are part of single identifier definition *)
 
@@ -97,7 +97,8 @@ let rec buildRegex (reb: Regex.REBuilder) (r: Re) : Regex.T =
         | "in", 0 -> reb.Inside 
         | "out", 0 -> reb.Outside
         | l, 0 -> reb.Loc l
-        | _, _ -> failwith ("[Error]: Unknown definition: " + id)
+        | _, _ ->
+            error (sprintf "Unknown definition %s" id)
 
 let rec asRanges (p: Predicate) : Prefix.Ranges = 
     match p with 
@@ -116,7 +117,7 @@ let rec asRanges (p: Predicate) : Prefix.Ranges =
             raise (InvalidPrefixException p)
         [Prefix.rangeOfPrefix p]
 
-let makeDisjointPairs (pcs: PathConstraints) reb : ConcretePathConstraints =
+let makeDisjointPairs (sName: string) (pcs: PathConstraints) reb : ConcretePathConstraints =
     try 
         let mutable rollingPred = [Prefix.wholeRange]
         let mutable disjointPairs = []
@@ -125,10 +126,13 @@ let makeDisjointPairs (pcs: PathConstraints) reb : ConcretePathConstraints =
             rollingPred <- Prefix.interAll rollingPred (Prefix.negateAll ranges)
             let options = List.map Prefix.prefixesOfRange ranges |> List.concat
             disjointPairs <- (options, res) :: disjointPairs
+        if not (List.isEmpty rollingPred) then 
+            let p = (List.head (Prefix.prefixesOfRange (List.head rollingPred))).ToString()
+            error (sprintf "Incomplete prefixes in scope (%s). An example of a prefix that is not matched: %s" sName p)
         List.rev disjointPairs
-    with InvalidPrefixException p -> 
-        printfn "[Prefix Error]: Invalid prefix: %s" (p.ToString())
-        exit 0
+    with InvalidPrefixException p ->
+        let s = sprintf "Invalid prefix: %s" (p.ToString())
+        error s
 
 type BinOp = OConcat | OInter | OUnion
 
@@ -151,7 +155,7 @@ let combineRegexes (rs1: Re list) (rs2: Re list) (op: BinOp) : Re list =
             | OInter -> " and "
             | OUnion -> " + "
         printfn 
-            "[Macro Error]: Cannot combine multiple preferences in: (%s)%s(%s)" 
+            "\n[Error]: Cannot combine multiple preferences in expansion of: (%s)%s(%s)" 
             (rs1.ToString()) 
             opStr 
             (rs2.ToString())
@@ -179,19 +183,18 @@ let combineConstraints (pcs1: ConcretePathConstraints) (pcs2: ConcretePathConstr
 
 let rec mergeScopes (re: Re) disjoints : ConcretePathConstraints =
     match re with
-    | Empty -> failwith "todo"
+    | Empty -> 
+        error (sprintf "Empty constraint not allowed in main policy expression")
     | Concat(x,y) -> combineConstraints (mergeScopes x disjoints) (mergeScopes y disjoints) OConcat
     | Union(x,y) -> combineConstraints (mergeScopes x disjoints) (mergeScopes y disjoints) OUnion
     | Inter(x,y) -> combineConstraints (mergeScopes x disjoints) (mergeScopes y disjoints) OInter
     | Negate x ->
-        printfn "[Parse Error]: Negation not allowed in main policy definition, in expression: %s" (x.ToString())
-        exit 0
+        error (sprintf "Negation not allowed in main policy definition, in expression: %s" (x.ToString()))
     | Star x -> 
-        printfn "[Parse Error]: Star operator not allowed in main policy definition, in expression: %s" (x.ToString())
-        exit 0
+        error (sprintf "Star operator not allowed in main policy definition, in expression: %s" (x.ToString()))
     | Ident(x,res) -> 
-        if not (List.isEmpty res) then 
-            printfn "[Parse Error]: parameters given for identifier %s in main policy definition" x
+        if not (List.isEmpty res) then
+            error (sprintf "parameters given for identifier %s in main policy definition" x) 
         Map.find x disjoints
 
 let makePolicyPairs (ast: T) reb : (Prefix.T list * Regex.T list) list =
@@ -204,8 +207,7 @@ let makePolicyPairs (ast: T) reb : (Prefix.T list * Regex.T list) list =
             |> Seq.countBy id
             |> Seq.filter (fun (_,i) -> i > 1)
             |> Seq.map fst
-        printfn "[Name Error]: duplicate named policies: %s" (dups.ToString())
-        exit 0
-    let disjoints = List.fold (fun acc s -> Map.add s.Name (makeDisjointPairs s.PConstraints reb) acc) Map.empty ast.Scopes
+        error (sprintf "duplicate named policies: %s" (dups.ToString()))
+    let disjoints = List.fold (fun acc s -> Map.add s.Name (makeDisjointPairs s.Name s.PConstraints reb) acc) Map.empty ast.Scopes
     let allPCs = mergeScopes ast.Policy disjoints
     List.map (fun (prefixes, res) -> (prefixes, List.map (buildRegex reb) res)) allPCs

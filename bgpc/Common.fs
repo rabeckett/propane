@@ -65,6 +65,10 @@ module List =
 
 module Error =
 
+    let error s = 
+        printfn "\n[Error]: %s" s
+        exit 0
+
     type Result<'a, 'b> = 
         | Ok of 'a
         | Err of 'b
