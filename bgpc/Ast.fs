@@ -52,7 +52,16 @@ type T =
 exception InvalidPrefixException of Prefix.T
 
 
-let rec buildRegex (reb: Regex.REBuilder) (r: Re) : Regex.T = 
+let rec buildRegex (reb: Regex.REBuilder) (r: Re) : Regex.T =
+    let checkParams id n args =
+        let m = List.length args
+        if m <> n then 
+            error (sprintf "expected %d arguments for %s, but received %d" n id m) 
+        let args = List.map (buildRegex reb) args
+        let wf = List.map (Regex.singleLocations reb.Alphabet) args
+        if List.exists Option.isNone wf then 
+            error (sprintf "parameter for %s must refer to locations only" id)
+        else List.map (Option.get >> Set.toList) wf
     match r with
     | Empty -> reb.Empty 
     | Concat(x,y) -> reb.Concat (buildRegex reb x) (buildRegex reb y)
@@ -61,44 +70,18 @@ let rec buildRegex (reb: Regex.REBuilder) (r: Re) : Regex.T =
     | Negate x -> reb.Negate (buildRegex reb x)
     | Star x -> reb.Star (buildRegex reb x)
     | Ident(id, args) -> 
-        match id, args.Length with
-        | "valleyfree", n when n > 0 -> 
-            let args = List.map (buildRegex reb) args
-            let wf = List.map (Regex.singleLocations reb.Alphabet) args
-            if List.exists Option.isNone wf then 
-                failwith "[Error]: jam"
-            else
-                let locs = List.map (Option.get >> Set.toList) wf
-                reb.ValleyFree locs
-        | "start", 1 -> 
-            let hd = buildRegex reb (List.head args)
-            match Regex.singleLocations (reb.Alphabet) hd with
-            | None -> failwith "[Error]: Foo"
-            | Some ls -> reb.StartsAtAny(Set.toList ls)
-        | "end", 1 ->
-            let hd = buildRegex reb (List.head args)
-            match Regex.singleLocations (reb.Alphabet) hd with
-            | None -> failwith "[Error]: Bar"
-            | Some ls ->
-                reb.EndsAtAny(Set.toList ls)
-        | "waypoint", 1 ->
-            let hd = buildRegex reb (List.head args)
-            match Regex.singleLocations (reb.Alphabet) hd with
-            | None -> failwith "[Error]: Baz"
-            | Some ls -> reb.WaypointAny(Set.toList ls)
-        | "avoid", 1 ->
-            let hd = buildRegex reb (List.head args)
-            match Regex.singleLocations (reb.Alphabet) hd with
-            | None -> failwith "[Error]: Fab"
-            | Some ls -> reb.AvoidAny(Set.toList ls)
-        | "internal", 0 -> reb.Internal()
-        | "external", 0 -> reb.External()
-        | "any", 0 -> reb.Any()
-        | "in", 0 -> reb.Inside 
-        | "out", 0 -> reb.Outside
-        | l, 0 -> reb.Loc l
-        | _, _ ->
-            error (sprintf "Unknown definition %s" id)
+        match id with
+        | "valleyfree" -> let locs = checkParams id args.Length args in reb.ValleyFree locs
+        | "start" -> let locs = checkParams id 1 args in reb.StartsAtAny locs.Head
+        | "end" -> let locs = checkParams id 1 args in reb.EndsAtAny locs.Head
+        | "waypoint" -> let locs = checkParams id 1 args in reb.WaypointAny locs.Head
+        | "avoid" -> let locs = checkParams id 1 args in reb.AvoidAny locs.Head
+        | "internal" -> ignore (checkParams id 0 args); reb.Internal()
+        | "external" -> ignore (checkParams id 0 args); reb.External()
+        | "any" -> ignore (checkParams id 0 args); reb.Any()
+        | "in" -> ignore (checkParams id 0 args); reb.Inside 
+        | "out" -> ignore (checkParams id 0 args);  reb.Outside
+        | l -> ignore (checkParams id 0 args); reb.Loc l
 
 let rec asRanges (p: Predicate) : Prefix.Ranges = 
     match p with 
@@ -131,8 +114,7 @@ let makeDisjointPairs (sName: string) (pcs: PathConstraints) reb : ConcretePathC
             error (sprintf "Incomplete prefixes in scope (%s). An example of a prefix that is not matched: %s" sName p)
         List.rev disjointPairs
     with InvalidPrefixException p ->
-        let s = sprintf "Invalid prefix: %s" (p.ToString())
-        error s
+        error (sprintf "Invalid prefix: %s" (p.ToString()))
 
 type BinOp = OConcat | OInter | OUnion
 
