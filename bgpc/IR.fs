@@ -105,8 +105,12 @@ let genConfig (cg: CGraph.T) (ord: Consistency.Ordering) : T =
                     lastPref <- Some pref 
                     lp <- lp + 1
                 let m =
-                    if Topology.isTopoNode v.Node 
-                    then Match.State(v.States, v.Node.Loc)
+                    if Topology.isTopoNode v.Node then
+                        if not (ain.Contains v.Node.Loc) then 
+                            (* TODO: generate regex filter *)
+                            Match.State(v.States, v.Node.Loc)
+                        else
+                            Match.State(v.States, v.Node.Loc)
                     else NoMatch
                 let node = 
                     neighbors cg v

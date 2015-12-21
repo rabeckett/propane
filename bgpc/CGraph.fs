@@ -440,6 +440,26 @@ module Consistency =
     type Ordering = Map<string, Preferences>
     type Constraints = BidirectionalGraph<CgState ,TaggedEdge<CgState,unit>>
 
+    let simulate _ restrict (x,y) (i,j) =
+        let restrict_i = copyGraph (Map.find i restrict)
+        let restrict_j = copyGraph (Map.find j restrict)
+        restrict_i.Graph.RemoveVertexIf (fun v -> v.Node.Loc = x.Node.Loc && v <> x) |> ignore
+        restrict_j.Graph.RemoveVertexIf (fun v -> v.Node.Loc = y.Node.Loc && v <> y) |> ignore
+        (* If x is not in the restricted graph for pref i, it does not subsume y *)
+        if not (restrict_i.Graph.ContainsVertex x) then 
+            false
+        (* If y is not in the restricted graph for pref j, then we shouldn't consider this preference *)
+        else if not (restrict_j.Graph.ContainsVertex y) then
+            true
+        else
+            (* Remove nodes that appear 'above' for the more preferred, to avoid considering simple paths *)
+            (* cheaper approximation of simple paths - can do better at cost of speed *)
+            let exclude = (fun v -> v.Node.Loc = x.Node.Loc && v <> x)
+            let reach = Reachable.srcWithout restrict_i x exclude Up |> Set.map (fun v -> v.Node.Loc)
+            restrict_i.Graph.RemoveVertexIf (fun v -> v <> x && Set.contains v.Node.Loc reach) |> ignore
+            (* Check if the more preferred simulates the less preferred *)
+            Reachable.supersetPaths (restrict_i, x) (restrict_j, y) 
+
     let isPreferred f cg restrict (x,y) (reachX, reachY) =
         let subsumes i j =
             f cg restrict (x,y) (i,j)
@@ -493,48 +513,15 @@ module Consistency =
         getOrdering g edges
 
     let addForLabel f r cg map l =
-        if not (Map.containsKey l map) then 
-            let nodes = Seq.filter (fun v -> v.Node.Loc = l) cg.Graph.Vertices
-            Map.add l (findPrefAssignment f r cg nodes) map
-        else map
-
-    let restrictedGraphs cg prefs =
-        let aux acc i =
-            let r = restrict cg i 
-            Minimize.removeNodesThatCantReachEnd r
-            Map.add i r acc
-        Set.fold aux Map.empty prefs
-
-    let simulate _ restrict (x,y) (i,j) =
-        let restrict_i = copyGraph (Map.find i restrict)
-        let restrict_j = copyGraph (Map.find j restrict)
-        restrict_i.Graph.RemoveVertexIf (fun v -> v.Node.Loc = x.Node.Loc && v <> x) |> ignore
-        restrict_j.Graph.RemoveVertexIf (fun v -> v.Node.Loc = y.Node.Loc && v <> y) |> ignore
-        
-        (* Minimize.removeNodesThatCantReachEnd restrict_i
-        Minimize.removeNodesThatCantReachEnd restrict_j *)
-        
-        (* if restrict_i.Graph.ContainsVertex x then
-            let canReach = Reachable.alongSimplePathSrcDst restrict_i x restrict_i.End Reachable.Down
-            restrict_i.Graph.RemoveVertexIf (fun v -> v <> x && not (canReach.Contains v) ) |> ignore 
-        if restrict_j.Graph.ContainsVertex y then
-            let canReach = Reachable.alongSimplePathSrcDst restrict_j y restrict_j.End Reachable.Down
-            restrict_j.Graph.RemoveVertexIf (fun v -> v <> y && not (canReach.Contains v) ) |> ignore *)
-
-        (* If x is not in the restricted graph for pref i, it does not subsume y *)
-        if not (restrict_i.Graph.ContainsVertex x) then 
-            false
-        (* If y is not in the restricted graph for pref j, then we shouldn't consider this preference *)
-        else if not (restrict_j.Graph.ContainsVertex y) then
-            true
-        else
-            (* Remove nodes that appear 'above' for the more preferred, to avoid considering simple paths *)
-            (* cheaper approximation of simple paths - can do better at cost of speed *)
-            let exclude = (fun v -> v.Node.Loc = x.Node.Loc && v <> x)
-            let reach = Reachable.srcWithout restrict_i x exclude Up |> Set.map (fun v -> v.Node.Loc)
-            restrict_i.Graph.RemoveVertexIf (fun v -> v <> x && Set.contains v.Node.Loc reach) |> ignore
-            (* Check if the more preferred simulates the less preferred *)
-            Reachable.supersetPaths (restrict_i, x) (restrict_j, y) 
+        (* If external, then no ordering required *)
+        let (ain, _) = Topology.alphabet cg.Topo
+        let ain = Set.map (fun (v: Topology.State) -> v.Loc) ain
+        if ain.Contains l then 
+            if not (Map.containsKey l map) then 
+                let nodes = Seq.filter (fun v -> v.Node.Loc = l) cg.Graph.Vertices
+                Map.add l (findPrefAssignment f r cg nodes) map
+            else map
+        else Map.add l Seq.empty map
 
     let failedGraph (cg: T) (failures: Topology.Failure.FailType list) : T =
         let failed = copyGraph cg
@@ -562,7 +549,16 @@ module Consistency =
                (not ( Set.contains x (Reachable.alongSimplePathSrcDst failedX cg.Start cg.End Down))) &&
                (Set.contains y (Reachable.alongSimplePathSrcDst failedY cg.Start cg.End Down)))
         ) failCombos
-         
+
+    let restrictedGraphs cg prefs =
+        let aux acc i =
+            let r = restrict cg i 
+            Minimize.removeNodesThatCantReachEnd r
+            (* don't consider external ASes *)
+            r.Graph.RemoveVertexIf (fun v -> v.Node.Typ = Topology.Outside) |> ignore
+            Map.add i r acc
+        Set.fold aux Map.empty prefs
+
     let findOrdering f (cg: T) outName : Result<Ordering, CounterExample> =
         let prefs = preferences cg 
         let rs = restrictedGraphs cg prefs
