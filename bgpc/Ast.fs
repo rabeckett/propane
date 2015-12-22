@@ -104,6 +104,7 @@ let makeDisjointPairs (sName: string) (pcs: PathConstraints) : ConcretePathConst
         let mutable rollingPred = Prefix.top
         let mutable disjointPairs = []
         for (pred, res) in pcs do
+            printfn "Rolling pred: %A" rollingPred
             let ranges = Prefix.conj (asRanges pred) rollingPred
             rollingPred <- Prefix.conj rollingPred (Prefix.negation ranges)
             let options = Prefix.toPrefixes ranges
@@ -117,9 +118,20 @@ let makeDisjointPairs (sName: string) (pcs: PathConstraints) : ConcretePathConst
         error (sprintf "Invalid prefix: %s" (p.ToString()))
 
 let makeCompactPairs (pcs: ConcretePathConstraints) : ConcretePathConstraints = 
-    let mutable rollingPred = []
-    failwith ""
+    for (p, _) in pcs do 
+        printfn "%A" (Prefix.toPredicate p)
+    let mutable rollingPred = Prefix.bot
+    let mutable newPCs = []
+    for (prefix, res) in pcs do
+        printfn "Rolling predicate: %A" ((rollingPred))
+        let p = Prefix.toPredicate prefix
+        let newP = Prefix.disj p rollingPred
+        let newPrefix = Prefix.toPrefixes newP
+        newPCs <- (newPrefix, res) :: newPCs
+        rollingPred <- newP
+        printfn "Rolling predicate: %A" ((rollingPred))
 
+    List.rev newPCs
 
 type BinOp = OConcat | OInter | OUnion
 
@@ -196,6 +208,7 @@ let makePolicyPairs (ast: T) (topo: Topology.T) : (Prefix.T list * Regex.REBuild
         Map.add s.Name (makeDisjointPairs s.Name s.PConstraints) acc
     let disjoints = List.fold addPair Map.empty ast.Scopes
     let allPCs = mergeScopes ast.Policy disjoints
+    let allPCs = makeCompactPairs allPCs
     let mutable acc = []
     for (prefixes, res) in allPCs do 
         let reb = Regex.REBuilder(topo)

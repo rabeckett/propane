@@ -1,12 +1,12 @@
 ﻿scope Routing {
-    10.10.1.0/24 => waypoint(M) >> waypoint(N) >> any
-    10.10.2.0/24 => any 
+    10.10.0.0/32 => waypoint(M) >> waypoint(N) >> any
+    10.10.0.1/32 => any 
     true => any
 }
 
 scope Ownership {
-    10.10.1.0/24 => end(A)
-    10.10.2.0/24 => end(B)
+    10.10.0.0/32 => end(A)
+    10.10.0.1/32 => end(B)
     true => any
 }
 

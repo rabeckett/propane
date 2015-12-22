@@ -24,7 +24,6 @@ let main argv =
             
             let pairs = Ast.makePolicyPairs ast topo
             let (prefixes, reb, res) = pairs.Head
-            printfn "%A" pairs
 
             let cg = CGraph.buildFromRegex reb res
             match settings.Format with 

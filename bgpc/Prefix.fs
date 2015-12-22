@@ -71,7 +71,7 @@ let rec union r rs =
             union (mergeUnion r s) tl
         else if touch r s then 
             union (mergeUnion r s) tl
-        else if isSmaller r s then r::rs
+        (* else if isSmaller r s then r::rs *)
         else s::(union r tl)
 
 let rec disj rs1 rs2 = 
@@ -86,8 +86,8 @@ let rec inter r rs =
     | s::tl -> 
         if overlap r s then 
             (mergeInter r s)::(inter r tl)
-        else if isSmaller r s then []
-        else inter r tl
+        (* else if isSmaller r s then [] *)
+        else  inter r tl
 
 let rec conj rs1 rs2 = 
     match rs1 with
