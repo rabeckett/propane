@@ -14,15 +14,16 @@ let main argv =
             match settings.OutFile with 
             | None -> settings.DebugDir + string System.IO.Path.DirectorySeparatorChar + "output" 
             | Some n -> settings.DebugDir + string System.IO.Path.DirectorySeparatorChar + n
+        
         let topo = Examples.topoDatacenterSmall()
-        let reb = Regex.REBuilder(topo)
+
         match settings.PolFile with 
         | None -> error ("No policy file specified")
         | Some p ->
             let ast = Input.readFromFile p
             
-            let pairs = Ast.makePolicyPairs ast reb
-            let (prefixes,res) = pairs.Head
+            let pairs = Ast.makePolicyPairs ast topo
+            let (prefixes, reb, res) = pairs.Head
             printfn "%A" pairs
 
             let cg = CGraph.buildFromRegex topo reb res

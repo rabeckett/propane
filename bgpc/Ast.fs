@@ -50,21 +50,21 @@ type T =
 exception InvalidPrefixException of Prefix.T
 
 
-let rec buildRegex (reb: Regex.REBuilder) (r: Re) : Regex.T =
+let rec buildRegex (reb: Regex.REBuilder) (r: Re) : Regex.LazyT =
     let checkParams id n args =
         let m = List.length args
         if m <> n then 
             error (sprintf "expected %d arguments for %s, but received %d" n id m) 
         let args = List.map (buildRegex reb) args
-        let wf = List.map (Regex.singleLocations reb.Alphabet) args
+        let wf = List.map (Regex.singleLocations Set.empty) args
         if List.exists Option.isNone wf then 
             error (sprintf "parameter for %s must refer to locations only" id)
         else List.map (Option.get >> Set.toList) wf
     match r with
     | Empty -> reb.Empty 
-    | Concat(x,y) -> reb.Concat (buildRegex reb x) (buildRegex reb y)
-    | Inter(x,y) -> reb.Inter (buildRegex reb x) (buildRegex reb y)
-    | Union(x,y) -> reb.Union (buildRegex reb x) (buildRegex reb y)
+    | Concat(x,y) -> reb.Concat [(buildRegex reb x); (buildRegex reb y)]
+    | Inter(x,y) -> reb.Inter [(buildRegex reb x); (buildRegex reb y)]
+    | Union(x,y) -> reb.Union [(buildRegex reb x); (buildRegex reb y)]
     | Negate x -> reb.Negate (buildRegex reb x)
     | Star x -> reb.Star (buildRegex reb x)
     | Ident(id, args) -> 
@@ -99,7 +99,7 @@ let rec asRanges (p: Predicate) : Prefix.Ranges =
             raise (InvalidPrefixException p)
         [Prefix.rangeOfPrefix p]
 
-let makeDisjointPairs (sName: string) (pcs: PathConstraints) reb : ConcretePathConstraints =
+let makeDisjointPairs (sName: string) (pcs: PathConstraints) : ConcretePathConstraints =
     try 
         let mutable rollingPred = [Prefix.wholeRange]
         let mutable disjointPairs = []
@@ -175,7 +175,7 @@ let rec mergeScopes (re: Re) disjoints : ConcretePathConstraints =
             parseError (sprintf "parameters given for identifier %s in main policy definition" x) 
         Map.find x disjoints
 
-let makePolicyPairs (ast: T) reb : (Prefix.T list * Regex.T list) list =
+let makePolicyPairs (ast: T) (topo: Topology.T) : (Prefix.T list * Regex.REBuilder * Regex.T list) list =
     let names = List.map (fun s -> s.Name) ast.Scopes
     let unqNames = Set.ofList names
     if unqNames.Count <> names.Length then
@@ -187,7 +187,13 @@ let makePolicyPairs (ast: T) reb : (Prefix.T list * Regex.T list) list =
             |> Seq.map fst
         error (sprintf "duplicate named policies: %s" (dups.ToString()))
     let addPair acc s = 
-        Map.add s.Name (makeDisjointPairs s.Name s.PConstraints reb) acc
+        Map.add s.Name (makeDisjointPairs s.Name s.PConstraints) acc
     let disjoints = List.fold addPair Map.empty ast.Scopes
     let allPCs = mergeScopes ast.Policy disjoints
-    List.map (fun (prefixes, res) -> (prefixes, List.map (buildRegex reb) res)) allPCs
+    let mutable acc = []
+    for (prefixes, res) in allPCs do 
+        let reb = Regex.REBuilder(topo)
+        let res = List.map (buildRegex reb) res 
+        let res = List.map (fun r -> reb.Build r) res
+        acc <- (prefixes, reb, res) :: acc
+    List.rev acc

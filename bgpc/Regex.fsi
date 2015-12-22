@@ -7,10 +7,6 @@ type T
 /// Reverse a regular expression
 val rev: T -> T
 
-/// Check if a regular expression denotes only single characters and 
-/// if so, returns the set of characters it denotes
-val singleLocations: Set<string> -> T -> Set<string> option
-
 /// Build a DFA for a regular expression directly using regular 
 /// expression derivatives. Works well with complement,
 /// intersection, and character classes. Produces near-minimal DFAs
@@ -24,7 +20,11 @@ type Automaton =
 /// Since we don't have the complete alphabet until we have built the entire
 /// regular expression (due to partial AS topology information), we delay
 /// the construction until the Build method is called in the builder object below.
-type LazyT 
+type LazyT
+
+/// Check if a regular expression denotes only single characters and 
+/// if so, returns the set of characters it denotes
+val singleLocations: Set<string> -> LazyT -> Set<string> option
 
 /// Parameterize regular expression by an alphabet. Since f# does
 /// not support ML-style functors, different objects can use different

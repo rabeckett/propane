@@ -135,26 +135,6 @@ let unionAll res =
     | _ -> Common.List.fold1 union res
 
 
-/// Check if a regular expression denotes only single characters and 
-/// if so, returns the set of characters it denotes
-let rec singleLocations alphabet r =
-    let aux f r1 r2 = 
-        match r1, r2 with 
-        | None, _ -> None 
-        | _, None -> None 
-        | Some s1, Some s2 -> Some (f s1 s2)
-    match r with 
-    | Locs s -> Some s
-    | Inter rs ->
-        List.map (singleLocations alphabet) rs |> 
-        Common.List.fold1 (aux Set.intersect)
-    | Union rs -> 
-        List.map (singleLocations alphabet) rs |>
-        Common.List.fold1 (aux Set.union)
-    | Negate r ->
-        Option.map (Set.difference alphabet) (singleLocations alphabet r)
-    | _ -> None
-
 /// Check if a regular expression accepts the empty string
 let rec nullable r = 
     match r with 
@@ -278,6 +258,24 @@ type LazyT =
     | LUnion of LazyT list
     | LNegate of LazyT
     | LStar of LazyT
+
+let rec singleLocations alphabet r =
+    let aux f r1 r2 = 
+        match r1, r2 with 
+        | None, _ -> None 
+        | _, None -> None 
+        | Some s1, Some s2 -> Some (f s1 s2)
+    match r with 
+    | LLocs s -> Some s
+    | LInter rs ->
+        List.map (singleLocations alphabet) rs |> 
+        Common.List.fold1 (aux Set.intersect)
+    | LUnion rs -> 
+        List.map (singleLocations alphabet) rs |>
+        Common.List.fold1 (aux Set.union)
+    | LNegate r ->
+        Option.map (Set.difference alphabet) (singleLocations alphabet r)
+    | _ -> None
 
 let getAlphabet (topo: Topology.T) = 
     let (inStates, outStates) = Topology.alphabet topo

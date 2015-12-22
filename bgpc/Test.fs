@@ -61,82 +61,91 @@ let tBadGadget = Examples.topoBadGadget ()
 let tSeesaw = Examples.topoSeesaw ()
 
 let rDiamond1 (reb: Regex.REBuilder) = 
-    [reb.ConcatAll (List.map reb.Loc ["A"; "X"; "N"; "Y"; "B"])]
+    let pref1 = reb.Concat (List.map reb.Loc ["A"; "X"; "N"; "Y"; "B"])
+    [reb.Build pref1]
 
 let rDiamond2 (reb: Regex.REBuilder) = 
-    let re1 = reb.ConcatAll (List.map reb.Loc ["A"; "X"; "N"; "Y"; "B"])
-    let re2 = reb.ConcatAll [reb.Loc "A"; reb.Star reb.Inside; reb.Loc "N"; reb.Loc "Z"; reb.Loc "B"]
-    [re1; re2]
+    let pref1 = reb.Concat (List.map reb.Loc ["A"; "X"; "N"; "Y"; "B"])
+    let pref2 = reb.Concat [reb.Loc "A"; reb.Star reb.Inside; reb.Loc "N"; reb.Loc "Z"; reb.Loc "B"]
+    [reb.Build pref1; reb.Build pref2]
 
 let rDatacenterSmall1 (reb: Regex.REBuilder) = 
-    [reb.Internal()]
+    let pref1 = reb.Internal()
+    [reb.Build pref1]
 
 let rDatacenterSmall2 (reb: Regex.REBuilder) = 
-    [reb.InterAll [reb.Waypoint("M"); reb.EndsAt("A")]]
+    let pref1 = reb.Inter [reb.Waypoint("M"); reb.EndsAt("A")]
+    [reb.Build pref1]
 
 let rDatacenterSmall3 (reb: Regex.REBuilder) =
-    let pref1 = reb.InterAll [reb.Waypoint "M"; reb.EndsAt "A"]
-    let pref2 = reb.InterAll [reb.Internal(); reb.EndsAt "A"]
-    [pref1; pref2]
+    let pref1 = reb.Inter [reb.Waypoint "M"; reb.EndsAt "A"]
+    let pref2 = reb.Inter [reb.Internal(); reb.EndsAt "A"]
+    [reb.Build pref1; reb.Build pref2]
 
 let rDatacenterSmall4 (reb: Regex.REBuilder) =
-    [reb.EndsAt("A")]
+    let pref1 = reb.EndsAt("A")
+    [reb.Build pref1]
 
 let rDatacenterSmall5 (reb: Regex.REBuilder) =
-    [reb.InterAll [reb.Waypoint("M"); reb.EndsAt("A")]]
+    let pref1 = reb.Inter [reb.Waypoint("M"); reb.EndsAt("A")]
+    [reb.Build pref1]
 
 let rDatacenterMedium1 (reb: Regex.REBuilder) =
-    [reb.Internal()]
+    let pref1 = reb.Internal()
+    [reb.Build pref1]
 
 let rDatacenterMedium2 (reb: Regex.REBuilder) =
-    [reb.InterAll [reb.Waypoint("X"); reb.EndsAt("F")]]
+    let pref1 = reb.Inter [reb.Waypoint("X"); reb.EndsAt("F")]
+    [reb.Build pref1]
 
 let rDatacenterMedium3 (reb: Regex.REBuilder) =
     let vf = reb.ValleyFree([["A";"B";"E";"F"]; ["C";"D";"G";"H"]; ["X";"Y"]])
-    [reb.InterAll [reb.Waypoint("X"); reb.EndsAt("F"); vf]]
+    let pref1 = reb.Inter [reb.Waypoint("X"); reb.EndsAt("F"); vf]
+    [reb.Build pref1]
 
 let rDatacenterMedium4 (reb: Regex.REBuilder) =
     let vf = reb.ValleyFree([["A";"B";"E";"F"]; ["C";"D";"G";"H"]; ["X";"Y"]])
     let start = reb.StartsAtAny(["A"; "B"])
-    let pref1 = reb.InterAll [start; reb.Waypoint("X"); reb.EndsAt("F"); vf]
-    let pref2 = reb.InterAll [reb.EndsAt("F"); vf]
-    [pref1; pref2]
+    let pref1 = reb.Inter [start; reb.Waypoint("X"); reb.EndsAt("F"); vf]
+    let pref2 = reb.Inter [reb.EndsAt("F"); vf]
+    [reb.Build pref1; reb.Build pref2]
 
 let rDatacenterLarge1 (reb: Regex.REBuilder) =
-    [reb.InterAll [reb.Waypoint("M"); reb.EndsAt("A")]]
+    let pref1 = reb.Inter [reb.Waypoint("M"); reb.EndsAt("A")]
+    [reb.Build pref1]
 
 let rDatacenterLarge2 (reb: Regex.REBuilder) =
-    let pref1 = reb.InterAll [reb.Waypoint("M"); reb.EndsAt("A")]
+    let pref1 = reb.Inter [reb.Waypoint("M"); reb.EndsAt("A")]
     let pref2 = reb.EndsAt("A")
-    [pref1; pref2]
+    [reb.Build pref1; reb.Build pref2]
 
 let rDatacenterLarge3 (reb: Regex.REBuilder) =
-    let pref1 = reb.InterAll [reb.Waypoint("M"); reb.EndsAt("A")]
-    let pref2 = reb.InterAll [reb.Waypoint("N"); reb.EndsAt("A")]
+    let pref1 = reb.Inter [reb.Waypoint("M"); reb.EndsAt("A")]
+    let pref2 = reb.Inter [reb.Waypoint("N"); reb.EndsAt("A")]
     let pref3 = reb.EndsAt("A")
-    [pref1; pref2; pref3]
+    [reb.Build pref1; reb.Build pref2; reb.Build pref3]
 
 let rBrokenTriangle1 (reb: Regex.REBuilder) =
-    [reb.Union
-        (reb.Path(["C"; "A"; "E"; "D"]))
-        (reb.Path(["A"; "B"; "D"])) ]
+    let pref1 = reb.Union [reb.Path(["C"; "A"; "E"; "D"]); reb.Path(["A"; "B"; "D"])]
+    [reb.Build pref1]
 
 let rBigDipper1 (reb: Regex.REBuilder) =
     let op1 = reb.Path(["C"; "A"; "E"; "D"])
     let op2 = reb.Path(["A"; "E"; "D"])
     let op3 = reb.Path(["A"; "D"])
-    [reb.UnionAll [op1; op2; op3]]
+    let pref1 = reb.Union [op1; op2; op3]
+    [reb.Build pref1]
 
 let rBadGadget1 (reb: Regex.REBuilder) =
     let op1 = reb.Path(["A"; "C"; "D"])
     let op2 = reb.Path(["B"; "A"; "D"])
     let op3 = reb.Path(["C"; "B"; "D"])
-    let pref1 = reb.UnionAll [op1; op2; op3]
+    let pref1 = reb.Union [op1; op2; op3]
     let op4 = reb.Path(["A"; "D"]) 
     let op5 = reb.Path(["B"; "D"])
     let op6 = reb.Path(["C"; "D"])
-    let pref2 = reb.UnionAll [op4; op5; op6]
-    [pref1; pref2]
+    let pref2 = reb.Union [op4; op5; op6]
+    [reb.Build pref1; reb.Build pref2]
 
 let rBadGadget2 (reb: Regex.REBuilder) =
     let op1 = reb.Path(["A"; "C"; "D"])
@@ -145,21 +154,22 @@ let rBadGadget2 (reb: Regex.REBuilder) =
     let op4 = reb.Path(["A"; "D"]) 
     let op5 = reb.Path(["B"; "D"])
     let op6 = reb.Path(["C"; "D"])
-    [reb.UnionAll [op1; op2; op3; op4; op5; op6]]
+    let pref1 = reb.Union [op1; op2; op3; op4; op5; op6]
+    [reb.Build pref1]
 
 let rSeesaw1 (reb: Regex.REBuilder) = 
     let op1 = reb.Path(["A"; "X"; "N"; "M"])
     let op2 = reb.Path(["B"; "X"; "N"; "M"])
     let op3 = reb.Path(["A"; "X"; "O"; "M"])
     let op4 = reb.Path(["X"; "O"; "M"])
-    let pref1 = reb.UnionAll [op1; op2; op3; op4]
+    let pref1 = reb.Union [op1; op2; op3; op4]
     let pref2 = reb.Path(["X"; "N"; "M"])
-    [pref1; pref2]
+    [reb.Build pref1; reb.Build pref2]
 
 let rWAN1 (reb: Regex.REBuilder) = 
-    let pref1 = reb.ConcatAll [reb.Star reb.Outside; reb.Loc "A"; reb.Star reb.Inside; reb.Loc "Y"]
-    let pref2 = reb.ConcatAll [reb.Star reb.Outside; reb.Loc "B"; reb.Star reb.Inside; reb.Outside]
-    [pref1; pref2]
+    let pref1 = reb.Concat [reb.Star reb.Outside; reb.Loc "A"; reb.Star reb.Inside; reb.Loc "Y"]
+    let pref2 = reb.Concat [reb.Star reb.Outside; reb.Loc "B"; reb.Star reb.Inside; reb.Outside]
+    [reb.Build pref1; reb.Build pref2]
 
 let tests = [
 

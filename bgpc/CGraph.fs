@@ -84,7 +84,7 @@ let buildFromAutomata (topo: Topology.T) (autos : Regex.Automaton array) : T =
 
 let buildFromRegex (topo: Topology.T) (reb: Regex.REBuilder) (res: Regex.T list) : T =
     res 
-    |> List.map (fun r -> reb.MakeDFA (reb.Rev r))
+    |> List.map (fun r -> reb.MakeDFA (Regex.rev r))
     |> Array.ofList
     |> buildFromAutomata topo
 
