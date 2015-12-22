@@ -26,10 +26,10 @@ let main argv =
             let (prefixes, reb, res) = pairs.Head
             printfn "%A" pairs
 
-            let cg = CGraph.buildFromRegex topo reb res
+            let cg = CGraph.buildFromRegex reb res
             match settings.Format with 
             | Args.IR ->
-                match IR.compileToIR topo reb res outName with 
+                match IR.compileToIR reb res outName with 
                 | Ok(config) -> 
                     match settings.OutFile with
                     | None -> ()

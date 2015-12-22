@@ -63,9 +63,13 @@ let buildFromAutomata (topo: Topology.T) (autos : Regex.Automaton array) : T =
             for c in Set.intersect alphabetAll adj do
                 let nextInfo = Array.init autos.Length (fun i ->
                     let g, v = autos.[i], ss.[i]
+
+                    (* printfn "trans: %A" g.trans
+                    printfn "(v,c.Loc): (%A,%A)" v c.Loc *)
+                    
                     let key = Map.findKey (fun (q,S) _ -> q = v && Set.contains c.Loc S) g.trans
                     let newState = Map.find key g.trans
-                    let accept = 
+                    let accept =
                         if (Topology.canOriginateTraffic c) && (Set.contains newState g.F) then 
                             Set.singleton (i+1)
                         else Set.empty
@@ -82,11 +86,15 @@ let buildFromAutomata (topo: Topology.T) (autos : Regex.Automaton array) : T =
     Seq.iter (fun v -> graph.AddEdge(TaggedEdge(v, newEnd, ())) |> ignore) accepting
     {Start=newStart; Graph=graph; End=newEnd; Topo=topo}
 
-let buildFromRegex (topo: Topology.T) (reb: Regex.REBuilder) (res: Regex.T list) : T =
+let buildFromRegex (reb: Regex.REBuilder) (res: Regex.T list) : T =
+    (* for v in reb.Topo().Vertices do 
+        printfn "Vertex: %A" v.Loc
+    for e in reb.Topo().Edges do 
+        printfn "Edge: (%A, %A)" e.Source.Loc e.Target.Loc *)
     res 
     |> List.map (fun r -> reb.MakeDFA (Regex.rev r))
     |> Array.ofList
-    |> buildFromAutomata topo
+    |> buildFromAutomata (reb.Topo ())
 
 let inline preferences (cg: T) : Set<int> = 
     let mutable all = Set.empty

@@ -31,7 +31,7 @@ val buildFromAutomata: Topology.T -> Regex.Automaton array -> T
 /// collection of regular expression automata for different route preferences.
 /// All paths through the product graph are valid topology paths that satisfy
 /// one or more of the regular path constraints.
-val buildFromRegex: Topology.T -> Regex.REBuilder -> Regex.T list -> T
+val buildFromRegex: Regex.REBuilder -> Regex.T list -> T
 
 /// Returns the set of reachable preferences
 val inline preferences: T -> Set<int>

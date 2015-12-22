@@ -37,4 +37,4 @@ val format: T -> string
 /// Generate the BGP match/action rules that are guaranteed to 
 /// implement the user policy under all possible failure scenarios. 
 /// This function returns an intermediate representation (IR) for BGP policies
-val compileToIR: Topology.T -> Regex.REBuilder -> Regex.T list -> string -> Result<T, CounterExample>
+val compileToIR: Regex.REBuilder -> Regex.T list -> string -> Result<T, CounterExample>

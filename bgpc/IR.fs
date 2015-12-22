@@ -441,8 +441,8 @@ let compress (cg: CGraph.T) (config: T) (outName: string) : T =
 
 (* Given a topology and a policy, generate a low-level configuration in an intermediate
    byte-code-like, vendor-independent representation for BGP  *)
-let compileToIR (topo: Topology.T) (reb: Regex.REBuilder) (res: Regex.T list) (outName: string) : Result<T, CounterExample> =
-    let cg = CGraph.buildFromRegex topo reb res
+let compileToIR (reb: Regex.REBuilder) (res: Regex.T list) (outName: string) : Result<T, CounterExample> =
+    let cg = CGraph.buildFromRegex reb res
     debug1 (fun () -> CGraph.generatePNG cg outName)
     (* Ensure the path suffix property and dont conside simple paths *)
     CGraph.Minimize.delMissingSuffixPaths cg

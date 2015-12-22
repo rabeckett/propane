@@ -59,6 +59,7 @@ let tBrokenTriangle = Examples.topoBrokenTriangle ()
 let tBigDipper = Examples.topoBigDipper () 
 let tBadGadget = Examples.topoBadGadget ()
 let tSeesaw = Examples.topoSeesaw ()
+let tWAN1 = Examples.topoWAN1 ()
 
 let rDiamond1 (reb: Regex.REBuilder) = 
     let pref1 = reb.Concat (List.map reb.Loc ["A"; "X"; "N"; "Y"; "B"])
@@ -347,6 +348,16 @@ let tests = [
      Prefs = None;
      Fail = Some InconsistentPrefs};
 
+    (* Begin inter-domain tests *)
+
+    {Name= "WAN1";
+     Explanation="Prefer one AS over another";
+     Topo= tWAN1;
+     Rf= rWAN1; 
+     Receive= Some [("C", "D"); ("A", "C"); ("B", "C")];
+     Originate = Some [];
+     Prefs = Some [("D", "Y", "Z")];
+     Fail = None};
 ]
 
 let testPrefixes () =
@@ -363,14 +374,6 @@ let testPrefixes () =
         if List.length rs <> 1 || List.head rs <> (lo,hi) then
             printfn "[Failed]: expected: %A, but got %A" (lo,hi) (List.head rs)
 
-let tempTestWAN () = 
-    let topo = Examples.topoWAN1 () 
-    let reb = Regex.REBuilder(topo)
-    let prefs = rWAN1 reb
-    match IR.compileToIR topo reb prefs "debug/temp" with 
-    | Err(x) -> printfn "error: %A" x
-    | Ok(config) -> printfn "ok: %A" config
-
 let testCompilation() =
     printfn ""
     printfn "Testing compilation..."
@@ -383,8 +386,9 @@ let testCompilation() =
         let msg = String.Format("{0}{1}{2}", test.Name, spaces, test.Explanation)
         printfn "%s" msg
         logInfo0("\n" + msg)
-        let reb = Regex.REBuilder test.Topo
-        match IR.compileToIR test.Topo reb (test.Rf reb) (settings.DebugDir + test.Name) with 
+        let reb = Regex.REBuilder(test.Topo)
+        let built = test.Rf reb
+        match IR.compileToIR reb built (settings.DebugDir + test.Name) with 
         | Err(x) ->
             if (Option.isSome test.Receive || 
                 Option.isSome test.Originate || 
@@ -435,9 +439,5 @@ let testCompilation() =
 
 
 let run () =
-    tempTestWAN () (*
     testPrefixes ()
-    testCompilation () *)
-
-
-    
+    testCompilation ()

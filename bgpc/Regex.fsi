@@ -31,6 +31,7 @@ val singleLocations: Set<string> -> LazyT -> Set<string> option
 /// alphabets. Client code must ensure a single object is used.
 type REBuilder  = 
     new: Topology.T -> REBuilder
+    member Topo: unit -> Topology.T
     member Build: LazyT -> T
     member Inside: LazyT
     member Outside: LazyT

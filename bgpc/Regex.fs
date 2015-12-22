@@ -288,14 +288,19 @@ let getAlphabet (topo: Topology.T) =
 /// not support ML-style functors, different objects can use different
 /// alphabets. Client code must ensure a single object is used.
 type REBuilder(topo: Topology.T) =
+    let unknownName = "out"
     let (ins, outs, alph) = getAlphabet topo
     let mutable inside = ins
-    let mutable outside = outs
-    let mutable alphabet = alph
+    let mutable outside = Set.add unknownName outs
+    let mutable alphabet = Set.add unknownName alph
     let mutable isDone = false
-    let unknown: Topology.State = {Loc="out"; Typ = Topology.Unknown}
+    let unknown: Topology.State = {Loc=unknownName; Typ = Topology.Unknown}
+    
     let topo =
-        ignore (topo.AddVertex unknown) 
+        ignore (topo.AddVertex unknown)
+        for v in topo.Vertices do
+            if v.Typ = Topology.Outside then 
+                Topology.addEdgesUndirected topo [(v,unknown)]
         Topology.copyTopology topo
 
     (* let isExternal l = String.length l > 2 && l.[0] = 'A' && l.[1] = 'S' *)
@@ -317,10 +322,10 @@ type REBuilder(topo: Topology.T) =
         | LNegate x -> negate alphabet (convert x) 
         | LStar x -> star (convert x)
 
+    member __.Topo() = topo
+
     (* Creates the actual regex now that we have the full alphabet and topology *)
     member this.Build re =
-        if isDone then 
-            failwith "Cannot reuse REBuilder object"
         isDone <- true
         convert re
 
@@ -333,6 +338,7 @@ type REBuilder(topo: Topology.T) =
     member __.Negate x = LNegate x
     member __.Inside = LIn
     member __.Outside = LOut
+
     member __.Loc x =
         if not (alphabet.Contains x) then 
             outside <- Set.add x outside
@@ -414,7 +420,7 @@ type REBuilder(topo: Topology.T) =
             match last with
             | None -> (Some tierx, acc)
             | Some last ->
-                let bad = this.Union [tierx; last; tierx]
+                let bad = this.Concat [tierx; last; tierx]
                 let sq = [this.MaybeOutside(); this.MaybeInside(); bad; this.MaybeInside(); this.MaybeOutside()]
                 let avoid = this.Negate (this.Concat sq)
                 (Some tierx, this.Inter [acc; avoid])
