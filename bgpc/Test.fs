@@ -367,10 +367,10 @@ let testPrefixes () =
     for i = 1 to numRandomTests do 
         let lo = uint32 (r.Next ())
         let hi = uint32 (r.Next ()) + lo
-        let ps = Prefix.prefixesOfRange (lo,hi)
+        let ps = Prefix.toPrefixes [(lo,hi)]
         let rs = 
-            List.map Prefix.rangeOfPrefix ps
-            |> List.fold (fun acc r -> Prefix.union r acc) []
+            List.map Prefix.toPredicate [ps]
+            |> List.fold (fun acc r -> Prefix.disj r acc) []
         if List.length rs <> 1 || List.head rs <> (lo,hi) then
             printfn "[Failed]: expected: %A, but got %A" (lo,hi) (List.head rs)
 

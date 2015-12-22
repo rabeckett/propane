@@ -82,13 +82,13 @@ let rec buildRegex (reb: Regex.REBuilder) (r: Re) : Regex.LazyT =
         | "out" -> ignore (checkParams id 0 args);  reb.Outside
         | l -> ignore (checkParams id 0 args); reb.Loc l
 
-let rec asRanges (p: Predicate) : Prefix.Ranges = 
+let rec asRanges (p: Predicate) : Prefix.Pred = 
     match p with 
-    | True -> [Prefix.wholeRange]
-    | False -> [] 
-    | And(a,b) -> Prefix.interAll (asRanges a) (asRanges b)
-    | Or(a,b) -> Prefix.unionAll (asRanges a) (asRanges b)
-    | Not a -> Prefix.negateAll (asRanges a)
+    | True -> Prefix.top
+    | False -> Prefix.bot
+    | And(a,b) -> Prefix.conj (asRanges a) (asRanges b)
+    | Or(a,b) -> Prefix.disj (asRanges a) (asRanges b)
+    | Not a -> Prefix.negation (asRanges a)
     | Prefix(a,b,c,d,bits) ->
         let adjustedBits = 
             match bits with
@@ -97,24 +97,29 @@ let rec asRanges (p: Predicate) : Prefix.Ranges =
         let p = Prefix.T(a,b,c,d,adjustedBits)
         if (a > 255u || b > 255u || c > 255u || d > 255u || adjustedBits > 32u) then
             raise (InvalidPrefixException p)
-        [Prefix.rangeOfPrefix p]
+        Prefix.toPredicate [p]
 
 let makeDisjointPairs (sName: string) (pcs: PathConstraints) : ConcretePathConstraints =
     try 
-        let mutable rollingPred = [Prefix.wholeRange]
+        let mutable rollingPred = Prefix.top
         let mutable disjointPairs = []
         for (pred, res) in pcs do
-            let ranges = Prefix.interAll (asRanges pred) rollingPred
-            rollingPred <- Prefix.interAll rollingPred (Prefix.negateAll ranges)
-            let options = List.map Prefix.prefixesOfRange ranges |> List.concat
+            let ranges = Prefix.conj (asRanges pred) rollingPred
+            rollingPred <- Prefix.conj rollingPred (Prefix.negation ranges)
+            let options = Prefix.toPrefixes ranges
             disjointPairs <- (options, res) :: disjointPairs
-        if not (List.isEmpty rollingPred) then 
-            let exPrefix = List.head (Prefix.prefixesOfRange (List.head rollingPred))
+        if rollingPred <> Prefix.bot then 
+            let exPrefix = List.head (Prefix.toPrefixes rollingPred)
             let s = exPrefix.ToString()
             error (sprintf "Incomplete prefixes in scope (%s). An example of a prefix that is not matched: %s" sName s)
         List.rev disjointPairs
     with InvalidPrefixException p ->
         error (sprintf "Invalid prefix: %s" (p.ToString()))
+
+let makeCompactPairs (pcs: ConcretePathConstraints) : ConcretePathConstraints = 
+    let mutable rollingPred = []
+    failwith ""
+
 
 type BinOp = OConcat | OInter | OUnion
 
@@ -149,10 +154,10 @@ let combineConstraints (pcs1: ConcretePathConstraints) (pcs2: ConcretePathConstr
     let mutable combined = []
     for (ps, res) in pcs1 do 
         for (ps', res') in pcs2 do 
-            let rs = Prefix.rangeOfPrefixes ps
-            let rs' = Prefix.rangeOfPrefixes ps'
-            let conj = Prefix.interAll rs rs'
-            let asPref = Prefix.prefixesOfRanges conj
+            let rs = Prefix.toPredicate ps
+            let rs' = Prefix.toPredicate ps'
+            let comb = Prefix.conj rs rs'
+            let asPref = Prefix.toPrefixes comb
             let both = (asPref, combineRegexes res res' op)
             combined <- both :: combined
     combined
@@ -175,6 +180,7 @@ let rec mergeScopes (re: Re) disjoints : ConcretePathConstraints =
             parseError (sprintf "parameters given for identifier %s in main policy definition" x) 
         Map.find x disjoints
 
+
 let makePolicyPairs (ast: T) (topo: Topology.T) : (Prefix.T list * Regex.REBuilder * Regex.T list) list =
     let names = List.map (fun s -> s.Name) ast.Scopes
     let unqNames = Set.ofList names
@@ -194,6 +200,6 @@ let makePolicyPairs (ast: T) (topo: Topology.T) : (Prefix.T list * Regex.REBuild
     for (prefixes, res) in allPCs do 
         let reb = Regex.REBuilder(topo)
         let res = List.map (buildRegex reb) res 
-        let res = List.map (fun r -> reb.Build r) res
+        let res = List.map reb.Build res
         acc <- (prefixes, reb, res) :: acc
     List.rev acc

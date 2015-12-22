@@ -76,6 +76,7 @@
     <Compile Include="Common.fs" />
     <Compile Include="Topology.fsi" />
     <Compile Include="Topology.fs" />
+    <Compile Include="Prefix.fsi" />
     <Compile Include="Prefix.fs" />
     <Compile Include="Regex.fsi" />
     <Compile Include="Regex.fs" />

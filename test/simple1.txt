@@ -1,10 +1,7 @@
-﻿define peer = A or B or C
-define transit = enterOut(peer) inter exitIn(peer)
-
-scope Routing {
+﻿scope Routing {
     10.10.1.0/24 => waypoint(M) >> waypoint(N) >> any
     10.10.2.0/24 => any 
-    true => none
+    true => any
 }
 
 scope Ownership {
@@ -13,12 +10,7 @@ scope Ownership {
     true => any
 }
 
-scope NoTransit {
-    true => any \ transit
-}
-
-Routing inter Ownership inter Network
-
+Routing inter Ownership
 
 
 /* 

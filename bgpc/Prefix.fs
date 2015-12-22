@@ -2,7 +2,6 @@
 
 (* TODO: 64 bit case *)
 
-[<Struct>]
 type T =
     val X1: uint32
     val X2: uint32
@@ -18,8 +17,8 @@ type T =
         (string this.X4) + "/" + 
         (string this.Slash)
 
-type Range = (uint32 * uint32)
-type Ranges = Range list
+type Range = (uint32 * uint32) 
+type Pred = Range list
 
 let wholeRange : Range = (uint32 0, System.UInt32.MaxValue)
 
@@ -75,11 +74,11 @@ let rec union r rs =
         else if isSmaller r s then r::rs
         else s::(union r tl)
 
-let rec unionAll rs1 rs2 = 
+let rec disj rs1 rs2 = 
      match rs1 with 
      | [] -> rs2
      | r::rs -> 
-        unionAll rs (union r rs2) 
+        disj rs (union r rs2) 
 
 let rec inter r rs = 
     match rs with 
@@ -90,13 +89,17 @@ let rec inter r rs =
         else if isSmaller r s then []
         else inter r tl
 
-let rec interAll rs1 rs2 = 
+let rec conj rs1 rs2 = 
     match rs1 with
     | [] -> []
     | r::rs ->
         let x = inter r rs2
-        let y = interAll rs rs2
-        unionAll x y
+        let y = conj rs rs2
+        disj x y
+
+let bot: Pred = []
+
+let top = [wholeRange]
 
 let negate r =
     assert (wfRange r)
@@ -108,13 +111,13 @@ let negate r =
     | false, true -> [(a,x-1u)]
     | false, false -> [(a,x-1u); (y+1u,b)]
 
-let rec negateAll rs =
+let rec negation rs =
     match rs with 
     | [] -> [wholeRange]
     | r::tl ->
         let x = negate r 
-        let y = negateAll tl 
-        interAll x y
+        let y = negation tl 
+        conj x y
 
 let inline shr x bits = 
     if bits >= 32 then 0u else x >>> bits
@@ -140,7 +143,7 @@ let rangeOfPrefix (p: T) : Range =
     let value = value &&& uint32 lowermask
     (value, value + uint32 uppermask)
 
-let rangeOfPrefixes (ps: T list) : Ranges =
+let toPredicate (ps: T list) : Pred =
     List.map rangeOfPrefix ps
 
 let inline dotted x = 
@@ -156,7 +159,7 @@ let inline firstNBits x n =
 let rec prefixesOfRange (r: Range) : T list =
     let without p =
         let r' = rangeOfPrefix p
-        let remaining = interAll (negate r') [r]
+        let remaining = conj (negate r') [r]
         remaining
         |> List.map prefixesOfRange
         |> List.collect id
@@ -198,7 +201,7 @@ let rec prefixesOfRange (r: Range) : T list =
         let rng = T(a,b,c,d,slash)
         rng :: without rng
 
-let prefixesOfRanges (rs: Ranges) : T list =
+let toPrefixes (rs: Pred) : T list =
     rs
     |> List.map prefixesOfRange
     |> List.concat
