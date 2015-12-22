@@ -94,18 +94,18 @@ let rec asRanges (p: Predicate) : Prefix.Pred =
             match bits with
             | None -> 32u
             | Some x -> x
-        let p = Prefix.T(a,b,c,d,adjustedBits)
+        let p = Prefix.prefix (a,b,c,d) adjustedBits
         if (a > 255u || b > 255u || c > 255u || d > 255u || adjustedBits > 32u) then
             raise (InvalidPrefixException p)
         Prefix.toPredicate [p]
 
-let makeDisjointPairs (sName: string) (pcs: PathConstraints) : ConcretePathConstraints =
+let makeDisjointPairs (sName: string) (pcs: ConcretePathConstraints) : ConcretePathConstraints =
     try 
         let mutable rollingPred = Prefix.top
         let mutable disjointPairs = []
         for (pred, res) in pcs do
-            printfn "Rolling pred: %A" rollingPred
-            let ranges = Prefix.conj (asRanges pred) rollingPred
+            (* printfn "Rolling pred: %A" rollingPred *)
+            let ranges = Prefix.conj (Prefix.toPredicate pred) rollingPred
             rollingPred <- Prefix.conj rollingPred (Prefix.negation ranges)
             let options = Prefix.toPrefixes ranges
             disjointPairs <- (options, res) :: disjointPairs
@@ -118,18 +118,18 @@ let makeDisjointPairs (sName: string) (pcs: PathConstraints) : ConcretePathConst
         error (sprintf "Invalid prefix: %s" (p.ToString()))
 
 let makeCompactPairs (pcs: ConcretePathConstraints) : ConcretePathConstraints = 
-    for (p, _) in pcs do 
-        printfn "%A" (Prefix.toPredicate p)
+    (* for (p, _) in pcs do 
+        printfn "%A" (Prefix.toPredicate p) *)
     let mutable rollingPred = Prefix.bot
     let mutable newPCs = []
     for (prefix, res) in pcs do
-        printfn "Rolling predicate: %A" ((rollingPred))
+        (* printfn "Rolling predicate: %A" ((rollingPred)) *)
         let p = Prefix.toPredicate prefix
         let newP = Prefix.disj p rollingPred
         let newPrefix = Prefix.toPrefixes newP
         newPCs <- (newPrefix, res) :: newPCs
         rollingPred <- newP
-        printfn "Rolling predicate: %A" ((rollingPred))
+        (* printfn "Rolling predicate: %A" ((rollingPred)) *)
 
     List.rev newPCs
 
@@ -204,8 +204,9 @@ let makePolicyPairs (ast: T) (topo: Topology.T) : (Prefix.T list * Regex.REBuild
             |> Seq.filter (fun (_,i) -> i > 1)
             |> Seq.map fst
         error (sprintf "duplicate named policies: %s" (dups.ToString()))
-    let addPair acc s = 
-        Map.add s.Name (makeDisjointPairs s.Name s.PConstraints) acc
+    let addPair acc s =
+        let cconstrs = List.map (fun (p,r) -> (Prefix.toPrefixes (asRanges p),r)) s.PConstraints
+        Map.add s.Name (makeDisjointPairs s.Name cconstrs) acc
     let disjoints = List.fold addPair Map.empty ast.Scopes
     let allPCs = mergeScopes ast.Policy disjoints
     let allPCs = makeCompactPairs allPCs

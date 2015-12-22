@@ -1,16 +1,10 @@
 ﻿module Prefix
 
+[<StructuralEquality; StructuralComparison>]
+type T = {X1: uint32; X2: uint32; X3: uint32; X4: uint32; Slash: uint32}
+type Pred = (uint32 * uint32) list
 
-type T =
-    val X1: uint32
-    val X2: uint32
-    val X3: uint32
-    val X4: uint32
-    val Slash: uint32
-    new: uint32 * uint32 * uint32 * uint32 * uint32 -> T
-    override ToString: unit -> string
-
-type Pred = (uint32 * uint32)  list
+val prefix: (uint32*uint32*uint32*uint32) -> uint32 -> T
 
 val disj: Pred -> Pred -> Pred
 val conj: Pred -> Pred -> Pred

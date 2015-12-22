@@ -2,23 +2,21 @@
 
 (* TODO: 64 bit case *)
 
+[<StructuralEquality; StructuralComparison>]
 type T =
-    val X1: uint32
-    val X2: uint32
-    val X3: uint32
-    val X4: uint32
-    val Slash: uint32
-    new(a: uint32, b: uint32, c: uint32, d: uint32, s: uint32) = 
-        {X1=a; X2=b; X3=c; X4=d; Slash=s}
-    override this.ToString() =
+    {X1: uint32; X2: uint32; X3: uint32; X4: uint32; Slash: uint32}
+    (* override this.ToString() =
         (string this.X1) + "." + 
         (string this.X2) + "." + 
         (string this.X3) + "." + 
         (string this.X4) + "/" + 
-        (string this.Slash)
+        (string this.Slash) *)
 
 type Range = (uint32 * uint32) 
 type Pred = Range list
+
+let prefix (a,b,c,d) slash = 
+    {X1=a; X2=b; X3=c; X4=d; Slash=slash}
 
 let wholeRange : Range = (uint32 0, System.UInt32.MaxValue)
 
@@ -176,21 +174,21 @@ let rec prefixesOfRange (r: Range) : T list =
         else
             lastZeroB <-  Some i
     match lastOneA, lastZeroB with
-    | None, None -> [T(0u,0u,0u,0u,0u)] 
+    | None, None -> [prefix (0u,0u,0u,0u) 0u] 
     | None, Some i -> 
         if i <> 31 then 
             let j = uint32 i + 1u
             let (a,b,c,d) = dotted (firstNBits b j)
-            let rng = T(a,b,c,d,j)
+            let rng = prefix (a,b,c,d) j
             rng :: without rng
         else
             let (a,b,c,d) = dotted b
-            let rng = T(a,b,c,d,32u) 
+            let rng = prefix (a,b,c,d) 32u 
             rng :: without rng
     | Some i, None ->
         let (a,b,c,d) = dotted a
         let j = uint32 i + 1u
-        let rng = T(a,b,c,d,j)
+        let rng = prefix (a,b,c,d) j
         rng :: without rng
     | Some i, Some j ->
         (* everything after i in a is 000000s *)
@@ -198,7 +196,7 @@ let rec prefixesOfRange (r: Range) : T list =
         let k = max i j
         let slash = uint32 k + 1u
         let (a,b,c,d) = dotted (firstNBits (if i >= j then a else b) slash)
-        let rng = T(a,b,c,d,slash)
+        let rng = prefix (a,b,c,d) slash
         rng :: without rng
 
 let toPrefixes (rs: Pred) : T list =

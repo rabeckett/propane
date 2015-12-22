@@ -5,7 +5,7 @@ open System
 open Common.Debug
 open Common.Error
 
-let numRandomTests = 50000
+let maxTests = 100000
 
 (********************************************* 
  *  Config helpers
@@ -360,13 +360,29 @@ let tests = [
      Fail = None};
 ]
 
+let rand = System.Random()
+
+let randomRange () = 
+    let lo = uint32 (rand.Next ())
+    let hi = uint32 (rand.Next ()) + lo
+    (lo,hi)
+
+let randomPrefix () = 
+    let (lo,hi) = randomRange ()
+    Prefix.toPrefixes [(lo,hi)]
+
+let randomPrefixes n = 
+    let num = 1 + (rand.Next() % n)
+    let mutable prefixes = []
+    for i = 0 to num do 
+        prefixes <- (randomPrefix ()) :: prefixes
+    prefixes
+
 let testPrefixes () =
     printfn ""
     printfn "Testing prefix ops..."
-    let r = System.Random()
-    for i = 1 to numRandomTests do 
-        let lo = uint32 (r.Next ())
-        let hi = uint32 (r.Next ()) + lo
+    for i = 1 to maxTests do 
+        let (lo,hi) = randomRange ()
         let ps = Prefix.toPrefixes [(lo,hi)]
         let rs = 
             List.map Prefix.toPredicate [ps]
@@ -374,8 +390,34 @@ let testPrefixes () =
         if List.length rs <> 1 || List.head rs <> (lo,hi) then
             printfn "[Failed]: expected: %A, but got %A" (lo,hi) (List.head rs)
 
+let testNoNewPrefixes () = 
+    printfn "Testing prefix compaction..."
+    let allPrefixes ccs = 
+        ccs
+        |> List.map (fun (ps,_) -> Set.ofList ps)
+        |> List.fold Set.union Set.empty
+    for i = 0 to (maxTests / 10) do
+        let scope1 = 
+            randomPrefixes 10
+            |> List.map (fun ps -> (ps,[Ast.Empty]))
+            |> List.append [(Prefix.toPrefixes Prefix.top, [Ast.Empty])]
+            |> Ast.makeDisjointPairs ""
+        let scope2 = 
+            randomPrefixes 10
+            |> List.map (fun ps -> (ps,[Ast.Empty]))
+            |> List.append [(Prefix.toPrefixes Prefix.top, [Ast.Empty])]
+            |> Ast.makeDisjointPairs ""
+        let combined = Ast.combineConstraints scope1 scope2 Ast.OInter
+        let compact = Ast.makeCompactPairs combined
+        let origPrefixes = Set.union (allPrefixes scope1) (allPrefixes scope2)
+        let currPrefixes = allPrefixes compact
+        if not (Set.isSubset currPrefixes origPrefixes) then 
+            printfn "[Failed]: Compacted prefixes are not a subset"
+        let (ps,_) = List.head (List.rev compact)
+        if Prefix.toPredicate ps <> Prefix.top then 
+            printfn "[Failed]: Last test not true"
+
 let testCompilation() =
-    printfn ""
     printfn "Testing compilation..."
     printfn "----------------------------------------------------------"
     let settings = Args.getSettings ()
@@ -440,4 +482,5 @@ let testCompilation() =
 
 let run () =
     testPrefixes ()
+    testNoNewPrefixes ()
     testCompilation ()
