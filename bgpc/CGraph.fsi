@@ -34,19 +34,19 @@ val buildFromAutomata: Topology.T -> Regex.Automaton array -> T
 val buildFromRegex: Topology.T -> Regex.REBuilder -> Regex.T list -> T
 
 /// Returns the set of reachable preferences
-val preferences: T -> Set<int>
+val inline preferences: T -> Set<int>
 
 /// Returns the set of states that are attached to the end node
-val acceptingStates: T -> Set<CgState>
+val inline acceptingStates: T -> Set<CgState>
 
 /// Returns the set of locations that are attached to the end node
-val acceptingLocations: T -> Set<string>
+val inline acceptingLocations: T -> Set<string>
 
 /// Returns the (outgoing) neighbors of a state in the graph
-val neighbors: T -> CgState -> seq<CgState> 
+val inline neighbors: T -> CgState -> seq<CgState> 
 
 /// Returns the (incoming) neighbors of a state in the graph
-val neighborsIn: T -> CgState -> seq<CgState> 
+val inline neighborsIn: T -> CgState -> seq<CgState> 
 
 /// Returns a copy of the graph, restricted to nodes for a given preference
 val restrict: T -> int -> T

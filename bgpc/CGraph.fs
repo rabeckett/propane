@@ -44,39 +44,38 @@ let buildFromAutomata (topo: Topology.T) (autos : Regex.Automaton array) : T =
     let starting = Array.map (fun (x: Regex.Automaton) -> x.q0) autos
     let newStart = {States = starting; Accept = Set.empty; Node = {Loc="start"; Typ = Topology.Start} }
     graph.AddVertex newStart |> ignore
-    let mutable finished = Set.empty
-    let mutable todo = Set.singleton newStart
-    while not (Set.isEmpty todo) do
-        let currState = Set.minElement todo 
-        todo <- Set.remove currState todo
-        let {States=ss; Node=t} = currState
-        let adj = 
-            if t.Typ = Topology.Start then 
-                Set.filter Topology.canOriginateTraffic alphabetAll 
-            else 
-                topo.OutEdges t 
-                |> Seq.map (fun e -> e.Target)
-                |> Set.ofSeq 
-        for c in Set.intersect alphabetAll adj do
-            let nextInfo = Array.init autos.Length (fun i -> 
-                let g, v = autos.[i], ss.[i]
-                let key = Map.findKey (fun (q,S) _ -> q = v && Set.contains c.Loc S) g.trans
-                let newState = Map.find key g.trans 
-                let accept = 
-                    if (Topology.canOriginateTraffic c) && (Set.contains newState g.F) then 
-                        Set.singleton (i+1)
-                    else Set.empty
-                newState, accept
-            )
-            let nextStates, nextAccept = Array.unzip nextInfo
-            let accept = Array.fold Set.union Set.empty nextAccept
-            let state = {States=nextStates; Accept=accept; Node=c}
-            graph.AddVertex state |> ignore
-            graph.AddEdge(TaggedEdge(currState, state, ())) |> ignore
-            if Set.contains state finished then ()
-            else 
-                todo <- Set.add state todo
-        finished <- Set.add currState finished
+    let marked = HashSet()
+    let todo = Queue()
+    todo.Enqueue newStart
+    while todo.Count > 0 do
+        let currState = todo.Dequeue()
+        if not (marked.Contains currState) then 
+            marked.Add currState |> ignore
+            let {States=ss; Node=t} = currState
+            let adj = 
+                if t.Typ = Topology.Start then 
+                    Set.filter Topology.canOriginateTraffic alphabetAll 
+                else 
+                    topo.OutEdges t 
+                    |> Seq.map (fun e -> e.Target)
+                    |> Set.ofSeq
+            let adj = if t.Typ = Topology.Unknown then Set.add t adj else adj
+            for c in Set.intersect alphabetAll adj do
+                let nextInfo = Array.init autos.Length (fun i ->
+                    let g, v = autos.[i], ss.[i]
+                    let key = Map.findKey (fun (q,S) _ -> q = v && Set.contains c.Loc S) g.trans
+                    let newState = Map.find key g.trans
+                    let accept = 
+                        if (Topology.canOriginateTraffic c) && (Set.contains newState g.F) then 
+                            Set.singleton (i+1)
+                        else Set.empty
+                    newState, accept)
+                let nextStates, nextAccept = Array.unzip nextInfo
+                let accept = Array.fold Set.union Set.empty nextAccept
+                let state = {States=nextStates; Accept=accept; Node=c}
+                graph.AddVertex state |> ignore
+                graph.AddEdge(TaggedEdge(currState, state, ())) |> ignore
+                todo.Enqueue state 
     let newEnd = {States = [||]; Accept = Set.empty; Node = {Loc="end"; Typ = Topology.End}}
     graph.AddVertex newEnd |> ignore
     let accepting = Seq.filter (fun v -> not (Set.isEmpty v.Accept)) graph.Vertices
@@ -89,31 +88,37 @@ let buildFromRegex (topo: Topology.T) (reb: Regex.REBuilder) (res: Regex.T list)
     |> Array.ofList
     |> buildFromAutomata topo
 
-let preferences (cg: T) : Set<int> = 
+let inline preferences (cg: T) : Set<int> = 
     let mutable all = Set.empty
     for v in cg.Graph.Vertices do 
         all <- Set.union all v.Accept
     all
 
-let acceptingStates (cg: T) : Set<CgState> =
+let inline acceptingStates (cg: T) : Set<CgState> =
     cg.Graph.Vertices
     |> Seq.filter (fun (v: CgState) -> not v.Accept.IsEmpty)
     |> Set.ofSeq
 
-let acceptingLocations (cg: T) : Set<string> = 
+let inline acceptingLocations (cg: T) : Set<string> = 
     acceptingStates cg
     |> Set.map (fun v -> v.Node.Loc)
 
-let isRealNode (state: CgState) : bool =
+let inline isRealNode (state: CgState) : bool =
     Topology.isTopoNode state.Node
 
-let neighbors (cg: T) (state: CgState) =
+let inline neighbors (cg: T) (state: CgState) =
     cg.Graph.OutEdges state
     |> Seq.map (fun e -> e.Target) 
 
-let neighborsIn (cg: T) (state: CgState) = 
+let inline neighborsIn (cg: T) (state: CgState) = 
     cg.Graph.InEdges state
     |> Seq.map (fun e -> e.Source)
+
+let inline isUnknownRepeater (cg: T) (state: CgState) =
+    let ns = neighbors cg state
+    (state.Node.Typ = Topology.Unknown) &&
+    (Seq.exists (fun n -> n = state) ns)
+
 
 let restrict (cg: T) (i: int) : T = 
     if Set.contains i (preferences cg) then 
@@ -203,7 +208,7 @@ module Reachable =
         marked
 
     let srcDstWithout (cg: T) source sink without direction = 
-        if without sink then false
+        if without sink || without source then false
         else Set.contains sink (srcWithout cg source without direction)
 
     let src (cg: T) (source: CgState) direction : Set<CgState> =
@@ -361,8 +366,8 @@ module Minimize =
             | Some ie ->
                 assert (ie.Source = e.Target)
                 assert (ie.Target = e.Source)
-                Set.contains e.Target (Map.find e.Source dom) || 
-                Set.contains e.Source (Map.find e.Target domRev)
+                (Set.contains e.Target (Map.find e.Source dom) || Set.contains e.Source (Map.find e.Target domRev)) &&
+                not (isUnknownRepeater cg e.Target || isUnknownRepeater cg e.Source)
         ) |> ignore
 
     let removeDeadEdgesHeuristic (cg: T) =
@@ -399,6 +404,34 @@ module Minimize =
             not (Set.contains v starting)
         ) |> ignore
 
+    let absorbNeighbor cg x y = 
+        for z in neighbors cg y do 
+            cg.Graph.AddEdge (TaggedEdge(x,z,())) |> ignore
+        cg.Graph.RemoveVertex y |> ignore
+
+    let coalesceExternalNodes (cg: T) =
+        let outStars = 
+            cg.Graph.Vertices 
+            |> Seq.filter (isUnknownRepeater cg)
+        let toAddEdges = HashSet()
+        let toDelNodes = HashSet()
+        for os in outStars do
+            let ons = neighbors cg os |> Set.ofSeq
+            for x in ons do
+                let xns = neighbors cg x |> Set.ofSeq
+                if isRealNode x && x <> os && xns.Contains os then
+                    toDelNodes.Add x |> ignore
+                    for y in xns do
+                        if not (ons.Contains y) then
+                            toAddEdges.Add((os,y)) |> ignore
+                    for y in neighborsIn cg x do
+                        if not (ons.Contains y) then
+                            toAddEdges.Add((y,os)) |> ignore
+        for (x,y) in toAddEdges do
+            cg.Graph.AddEdge (TaggedEdge(x,y,())) |> ignore
+        for n in toDelNodes do 
+            cg.Graph.RemoveVertex n |> ignore
+           
     let minimizeO0 (cg: T) =
         removeNodesThatCantReachEnd cg
       
@@ -429,6 +462,7 @@ module Minimize =
             prune ()
         removeNodesNotOnAnySimplePathToEnd cg
         removeDeadEdgesHeuristic cg
+        coalesceExternalNodes cg
         logInfo1(sprintf "Node count - after O3: %d" cg.Graph.VertexCount)
 
 
@@ -554,7 +588,7 @@ module Consistency =
         let aux acc i =
             let r = restrict cg i 
             Minimize.removeNodesThatCantReachEnd r
-            (* don't consider external ASes *)
+            (* don't consider external ASes. Note: don't remove nodes after this *)
             r.Graph.RemoveVertexIf (fun v -> v.Node.Typ = Topology.Outside) |> ignore
             Map.add i r acc
         Set.fold aux Map.empty prefs

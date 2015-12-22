@@ -7,6 +7,7 @@ type NodeType =
     | Outside
     | Inside 
     | InsideOriginates
+    | Unknown
 
 type State = 
     {Loc: string; 

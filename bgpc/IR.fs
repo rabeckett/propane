@@ -1,6 +1,5 @@
 ﻿module IR
 
-open System
 open CGraph
 open Common.Debug
 open Common.Error
@@ -457,14 +456,15 @@ let compileToIR (topo: Topology.T) (reb: Regex.REBuilder) (res: Regex.T list) (o
         |> Seq.map (fun v -> v.Node.Loc)
         |> Set.ofSeq
     let canOriginate = 
-        cg.Topo.Vertices 
+        cg.Topo.Vertices
+        |> Seq.filter Topology.isInside
         |> Seq.filter Topology.canOriginateTraffic
-        |> Seq.map (fun v -> v.Loc) 
+        |> Seq.map (fun v -> v.Loc)
         |> Set.ofSeq
     let locsThatNeedPath = Set.difference (Set.intersect startingLocs canOriginate) originators
     let locsThatGetPath = CGraph.acceptingLocations cg
-    logInfo1(String.Format("Locations that need path: {0}", locsThatNeedPath.ToString()))
-    logInfo1(String.Format("Locations that get path: {0}", locsThatGetPath.ToString()))
+    logInfo1(sprintf "Locations that need path: %s" (locsThatNeedPath.ToString()))
+    logInfo1(sprintf "Locations that get path: %s" (locsThatGetPath.ToString()))
     let lost = Set.difference locsThatNeedPath locsThatGetPath
     if not (Set.isEmpty lost) then 
         Err(NoPathForRouters(lost))

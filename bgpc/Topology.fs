@@ -9,6 +9,7 @@ type NodeType =
     | Outside
     | Inside 
     | InsideOriginates
+    | Unknown
 
 type State = 
     {Loc: string; 
@@ -44,26 +45,27 @@ let alphabet (topo: T) : Set<State> * Set<State> =
     let mutable aout = Set.empty 
     for v in topo.Vertices do
         match v.Typ with 
-        | Inside -> ain <- Set.add v ain
-        | InsideOriginates -> ain <- Set.add v ain
-        | Outside -> aout <- Set.add v aout
+        | Inside | InsideOriginates -> ain <- Set.add v ain
+        | Outside | Unknown -> aout <- Set.add v aout
         | Start | End -> failwith "unreachable"
     (ain, aout)
 
 let isTopoNode (t: State) = 
     match t.Typ with 
     | Start | End -> false
-    | Outside | Inside | InsideOriginates -> true
+    | _ -> true
 
 let isInside (t: State) = 
     match t.Typ with 
-    | Inside | InsideOriginates ->  true 
-    | Outside | Start | End -> false
+    | Inside -> true 
+    | InsideOriginates ->  true 
+    | _ -> false
 
 let canOriginateTraffic (t: State) = 
     match t.Typ with 
     | InsideOriginates -> true 
     | Outside -> true
+    | Unknown -> true
     | Inside -> false
     | Start | End -> false
 

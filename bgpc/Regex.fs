@@ -1,5 +1,7 @@
 ﻿module Regex
+
 open Common
+open Common.Error
 
 /// Extended regular expressions with negation and intersection 
 /// Characters classes are modelled using sets of locations
@@ -259,22 +261,25 @@ let makeDFA alphabet r =
     {q0=q0'; Q=Q'; F=F'; trans=trans'}
 
 
-/// Parameterize regular expression by an alphabet. Since f# does 
-/// not support ML-style functors, different objects can use different 
+/// Parameterize regular expression by an alphabet. Since f# does
+/// not support ML-style functors, different objects can use different
 /// alphabets. Client code must ensure a single object is used
-type REBuilder(topo: Topology.T) = 
+type REBuilder(topo: Topology.T) =
+    (* Need to be very careful with unkown neighbors and how this interacts
+       with derivatives based on a finite alphabet *)
     let (inStates, outStates) = Topology.alphabet topo
     let inside = Set.map (fun (s: Topology.State) -> s.Loc) inStates
     let outside = Set.map (fun (s: Topology.State) -> s.Loc) outStates
     let alphabet = Set.union inside outside
     
-    let check alphabet l = 
+    (* let isExternal l = String.length l > 2 && l.[0] = 'A' && l.[1] = 'S' *)
+    let check alphabet l =
         if not (Set.contains l alphabet) then
-            failwith ("[Topology Error]: " + l + " is not a valid topology location") 
+            error (sprintf "invalid topology location: %s" l)
 
     member __.Alphabet = alphabet
     member __.Inside = if Set.isEmpty inside then empty else locs inside
-    member __.Outside = if Set.isEmpty outside then empty else locs outside
+    member __.Outside = if outside.Count = 1 then empty else locs outside
     member __.Rev = rev
     member __.Empty = empty
     member __.Epsilon = epsilon
