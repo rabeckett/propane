@@ -4,52 +4,57 @@
 /// intersection, and character classes
 type T
 
+/// Reverse a regular expression
+val rev: T -> T
+
 /// Check if a regular expression denotes only single characters and 
 /// if so, returns the set of characters it denotes
 val singleLocations: Set<string> -> T -> Set<string> option
 
-/// Standard deterministic finite automaton, implemented 
-/// using maps and sets for simplicity
+/// Build a DFA for a regular expression directly using regular 
+/// expression derivatives. Works well with complement,
+/// intersection, and character classes. Produces near-minimal DFAs
 type Automaton =
     {q0: int;
      Q: Set<int>; 
      F: Set<int>;
      trans: Map<int*Set<string>, int>}
 
-/// Parameterize regular expression by an alphabet. Since f# does 
-/// not support ML-style functors, different objects can use different 
-/// alphabets. Client code must ensure a single builder object is used
+/// Representation for a regex that we haven't built yet. 
+/// Since we don't have the complete alphabet until we have built the entire
+/// regular expression (due to partial AS topology information), we delay
+/// the construction until the Build method is called in the builder object below.
+type LazyT 
+
+/// Parameterize regular expression by an alphabet. Since f# does
+/// not support ML-style functors, different objects can use different
+/// alphabets. Client code must ensure a single object is used.
 type REBuilder  = 
     new: Topology.T -> REBuilder
-    member Alphabet: Set<string>
-    member Inside: T
-    member Outside: T
-    member Rev: (T -> T)
-    member Empty: T
-    member Epsilon: T
-    member Loc: string -> T
-    member Locs: Set<string> -> T
-    member Concat: (T -> T -> T)
-    member Inter: (T -> T -> T)
-    member Union: (T -> T -> T)
-    member ConcatAll: (T list -> T)
-    member InterAll: (T list -> T)
-    member UnionAll: (T list -> T)
-    member Negate: (T -> T)
-    member Star: (T -> T)
-    member MakeDFA: (T -> Automaton)
+    member Build: LazyT -> T
+    member Inside: LazyT
+    member Outside: LazyT
+    member Empty: LazyT
+    member Epsilon: LazyT
+    member Loc: string -> LazyT
+    member Concat: LazyT list -> LazyT
+    member Inter: LazyT list -> LazyT
+    member Union: LazyT list -> LazyT
+    member Negate: LazyT -> LazyT
+    member Star: LazyT -> LazyT
+    member MakeDFA: T -> Automaton
     member StartingLocs: T -> Set<string>
     (* Constraint-based builders *)
-    member Path: string list -> T
-    member Internal: unit -> T
-    member External: unit -> T
-    member Any: unit -> T
-    member Waypoint: string -> T
-    member WaypointAny: string list -> T
-    member Avoid: string -> T 
-    member AvoidAny: string list -> T
-    member EndsAt: string -> T
-    member EndsAtAny: string list -> T
-    member StartsAt: string -> T
-    member StartsAtAny: string list -> T
-    member ValleyFree: seq<string list> -> T
+    member Path: string list -> LazyT
+    member Internal: unit -> LazyT
+    member External: unit -> LazyT
+    member Any: unit -> LazyT
+    member Waypoint: string -> LazyT
+    member WaypointAny: string list -> LazyT
+    member Avoid: string -> LazyT 
+    member AvoidAny: string list -> LazyT
+    member EndsAt: string -> LazyT
+    member EndsAtAny: string list -> LazyT
+    member StartsAt: string -> LazyT
+    member StartsAtAny: string list -> LazyT
+    member ValleyFree: seq<string list> -> LazyT

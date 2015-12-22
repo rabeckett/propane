@@ -122,7 +122,6 @@ let topoWAN1 () =
     let vZ = {Loc="Z"; Typ=Outside}
     let vUnknown = {Loc="out"; Typ=Unknown}
     Topology.addVertices g [vA; vB; vC; vD; vX; vY; vZ; vUnknown]
-    Topology.addEdgesUndirected g 
-        [(vX, vA); (vX, vB); (vA, vC); (vB, vC); (vC, vD); (vD, vY); (vD, vZ);
-         (vUnknown, vX); (vUnknown, vY); (vUnknown,vZ)]
+    Topology.addEdgesUndirected g [(vX, vA); (vX, vB); (vA, vC); (vB, vC); (vC, vD); (vD, vY); (vD, vZ)]
     g
+

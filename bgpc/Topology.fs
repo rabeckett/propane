@@ -40,6 +40,12 @@ let setOriginators (topo: T) (orig: Set<string>) : T =
         newTopo.AddEdge (TaggedEdge<State,unit>(v,u,())) |> ignore
     newTopo *)
 
+let copyTopology (topo: T) : T = 
+    let newTopo = BidirectionalGraph<State,TaggedEdge<State,unit>>()
+    for v in topo.Vertices do newTopo.AddVertex v |> ignore
+    for e in topo.Edges do newTopo.AddEdge e |> ignore 
+    newTopo
+
 let alphabet (topo: T) : Set<State> * Set<State> = 
     let mutable ain = Set.empty 
     let mutable aout = Set.empty 

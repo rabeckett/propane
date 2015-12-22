@@ -1,5 +1,7 @@
 ﻿module Regex
 
+open Topology
+open QuickGraph
 open Common
 open Common.Error
 
@@ -261,41 +263,94 @@ let makeDFA alphabet r =
     {q0=q0'; Q=Q'; F=F'; trans=trans'}
 
 
-/// Parameterize regular expression by an alphabet. Since f# does
-/// not support ML-style functors, different objects can use different
-/// alphabets. Client code must ensure a single object is used
-type REBuilder(topo: Topology.T) =
-    (* Need to be very careful with unkown neighbors and how this interacts
-       with derivatives based on a finite alphabet *)
+/// Representation for a regex that we haven't built yet. 
+/// Since we don't have the complete alphabet until we have built the entire
+/// regular expression (due to partial AS topology information), we delay
+/// the construction until the Build method is called in the builder object below.
+type LazyT =
+    | LIn
+    | LOut
+    | LEmpty
+    | LEpsilon
+    | LLocs of Set<string> 
+    | LConcat of LazyT list
+    | LInter of LazyT list
+    | LUnion of LazyT list
+    | LNegate of LazyT
+    | LStar of LazyT
+
+let getAlphabet (topo: Topology.T) = 
     let (inStates, outStates) = Topology.alphabet topo
     let inside = Set.map (fun (s: Topology.State) -> s.Loc) inStates
     let outside = Set.map (fun (s: Topology.State) -> s.Loc) outStates
     let alphabet = Set.union inside outside
-    
+    (inside, outside, alphabet)
+
+/// Parameterize regular expression by an alphabet. Since f# does
+/// not support ML-style functors, different objects can use different
+/// alphabets. Client code must ensure a single object is used.
+type REBuilder(topo: Topology.T) =
+    let (ins, outs, alph) = getAlphabet topo
+    let mutable inside = ins
+    let mutable outside = outs
+    let mutable alphabet = alph
+    let mutable isDone = false
+    let unknown: Topology.State = {Loc="out"; Typ = Topology.Unknown}
+    let topo =
+        ignore (topo.AddVertex unknown) 
+        Topology.copyTopology topo
+
     (* let isExternal l = String.length l > 2 && l.[0] = 'A' && l.[1] = 'S' *)
     let check alphabet l =
         if not (Set.contains l alphabet) then
             error (sprintf "invalid topology location: %s" l)
+    
+    (* Invariant: Build has set the alphabet *)
+    let rec convert (re: LazyT) : T = 
+        match re with 
+        | LIn -> if Set.isEmpty inside then empty else locs inside
+        | LOut -> if Set.isEmpty outside then empty else locs outside
+        | LEmpty -> empty
+        | LEpsilon -> epsilon
+        | LLocs ls -> locs ls 
+        | LConcat xs -> concatAll (List.map convert xs)
+        | LInter xs -> interAll (List.map convert xs)
+        | LUnion xs -> unionAll (List.map convert xs)
+        | LNegate x -> negate alphabet (convert x) 
+        | LStar x -> star (convert x)
 
-    member __.Alphabet = alphabet
-    member __.Inside = if Set.isEmpty inside then empty else locs inside
-    member __.Outside = if outside.Count = 1 then empty else locs outside
-    member __.Rev = rev
-    member __.Empty = empty
-    member __.Epsilon = epsilon
-    member __.Loc x = check alphabet x; loc x
-    member __.Locs xs = Set.iter (check alphabet) xs; locs xs
-    member __.Concat = concat
-    member __.Inter = inter
-    member __.Union = union
-    member __.ConcatAll = concatAll
-    member __.UnionAll = unionAll
-    member __.InterAll = interAll
-    member __.Star = star
-    member __.Negate = negate alphabet
-    member __.MakeDFA = makeDFA alphabet
+    (* Creates the actual regex now that we have the full alphabet and topology *)
+    member this.Build re =
+        if isDone then 
+            failwith "Cannot reuse REBuilder object"
+        isDone <- true
+        convert re
+
+    member __.Empty = LEmpty
+    member __.Epsilon = LEpsilon
+    member __.Concat xs = LConcat xs
+    member __.Inter xs = LInter xs
+    member __.Union xs = LUnion xs
+    member __.Star x = LStar x
+    member __.Negate x = LNegate x
+    member __.Inside = LIn
+    member __.Outside = LOut
+    member __.Loc x =
+        if not (alphabet.Contains x) then 
+            outside <- Set.add x outside
+            alphabet <- Set.add x alphabet
+            let v = {Loc=x; Typ=Topology.Outside}
+            topo.AddVertex v |> ignore
+            topo.AddEdge (TaggedEdge(unknown,v,())) |> ignore
+            topo.AddEdge (TaggedEdge(v,unknown,())) |> ignore
+        LLocs (Set.singleton x)
+
+    member __.MakeDFA r =
+        assert (isDone)
+        makeDFA alphabet r
 
     member __.StartingLocs r =
+        assert (isDone)
         Set.fold (fun acc a -> 
             if derivative alphabet a r <> Empty 
             then Set.add a acc 
@@ -303,7 +358,7 @@ type REBuilder(topo: Topology.T) =
         ) Set.empty alphabet
 
     member this.Path(ls) =
-        this.ConcatAll (List.map this.Loc ls)
+        this.Concat (List.map this.Loc ls)
 
     member this.MaybeOutside() =
         this.Star this.Outside
@@ -312,57 +367,57 @@ type REBuilder(topo: Topology.T) =
         this.Star this.Inside
 
     member this.Internal() =
-        this.Concat this.Inside (this.Star this.Inside)
+        this.Concat [this.Inside; (this.Star this.Inside)]
 
     member this.External() =
-        this.Concat this.Outside (this.Star this.Outside)
+        this.Concat [this.Outside; (this.Star this.Outside)]
 
     member this.Any() =
-        this.ConcatAll [this.MaybeOutside(); this.Internal(); this.MaybeOutside()]
+        this.Concat [this.MaybeOutside(); this.Internal(); this.MaybeOutside()]
 
     member this.Waypoint(x) =
-        this.ConcatAll [this.MaybeOutside(); this.MaybeInside(); this.Loc x; this.MaybeInside(); this.MaybeOutside()]
+        this.Concat [this.MaybeOutside(); this.MaybeInside(); this.Loc x; this.MaybeInside(); this.MaybeOutside()]
 
     (* TODO: more efficient with character classes *)
     member this.WaypointAny(xs) =
-        this.UnionAll (List.map this.Waypoint xs)
+        this.Union (List.map this.Waypoint xs)
 
     member this.Avoid(x) =
         this.Negate (this.Waypoint(x))
 
     (* TODO: more efficient with character classes *)
     member this.AvoidAny(xs) =
-        this.UnionAll (List.map this.Avoid xs)
+        this.Union (List.map this.Avoid xs)
 
     member this.EndsAt(x) =
         if inside.Contains x then
-            this.ConcatAll [this.MaybeOutside(); this.MaybeInside(); this.Loc x]
+            this.Concat [this.MaybeOutside(); this.MaybeInside(); this.Loc x]
         else
-            this.ConcatAll [this.MaybeOutside(); this.Internal(); this.MaybeOutside(); this.Loc x]
+            this.Concat [this.MaybeOutside(); this.Internal(); this.MaybeOutside(); this.Loc x]
 
     (* Relies on ill-formedness of (x out+ in+) when x is an internal location *)
     member this.StartsAt(x) = 
         if inside.Contains x then
-            this.ConcatAll [this.Loc x;  this.Internal(); this.MaybeOutside()]
+            this.Concat [this.Loc x;  this.Internal(); this.MaybeOutside()]
         else
-            this.ConcatAll [this.Loc x;  this.MaybeOutside(); this.Internal() ;this.MaybeOutside()]
+            this.Concat [this.Loc x;  this.MaybeOutside(); this.Internal() ;this.MaybeOutside()]
 
     (* TODO: use character classes to split by inside/outside (more efficient) *)
     member this.EndsAtAny(xs) =
-        this.UnionAll (List.map this.EndsAt xs)
+        this.Union (List.map this.EndsAt xs)
 
     (* TODO: use character classes to split by inside/outside (more efficient) *)
     member this.StartsAtAny(xs) =
-        this.UnionAll (List.map this.StartsAt xs)
+        this.Union (List.map this.StartsAt xs)
 
     member this.ValleyFree(xs) =
         let aux (last, acc) x =
-            let tierx = this.UnionAll (List.map this.Loc x)
+            let tierx = this.Union (List.map this.Loc x)
             match last with
             | None -> (Some tierx, acc)
             | Some last ->
-                let bad = this.ConcatAll [tierx; last; tierx]
+                let bad = this.Union [tierx; last; tierx]
                 let sq = [this.MaybeOutside(); this.MaybeInside(); bad; this.MaybeInside(); this.MaybeOutside()]
-                let avoid = this.Negate (this.ConcatAll sq)
-                (Some tierx, this.Inter acc avoid)
+                let avoid = this.Negate (this.Concat sq)
+                (Some tierx, this.Inter [acc; avoid])
         List.fold aux (None, this.Any()) xs |> snd

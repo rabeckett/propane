@@ -15,6 +15,9 @@ type State =
 
 type T = BidirectionalGraph<State,TaggedEdge<State,unit>>
 
+/// Make a defensive copy of the topology
+val copyTopology: T -> T
+
 /// Build the internal and external alphabet from a topology
 val alphabet: T -> Set<State> * Set<State> 
 
