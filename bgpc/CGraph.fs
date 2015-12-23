@@ -44,7 +44,7 @@ let buildFromAutomata (topo: Topology.T) (autos : Regex.Automaton array) : T =
     let starting = Array.map (fun (x: Regex.Automaton) -> x.q0) autos
     let newStart = {States = starting; Accept = Set.empty; Node = {Loc="start"; Typ = Topology.Start} }
     graph.AddVertex newStart |> ignore
-    let marked = HashSet()
+    let marked = HashSet(HashIdentity.Structural)
     let todo = Queue()
     todo.Enqueue newStart
     while todo.Count > 0 do
@@ -436,8 +436,8 @@ module Minimize =
         let outStars = 
             cg.Graph.Vertices 
             |> Seq.filter (isUnknownRepeater cg)
-        let toAddEdges = HashSet()
-        let toDelNodes = HashSet()
+        let toAddEdges = HashSet(HashIdentity.Structural)
+        let toDelNodes = HashSet(HashIdentity.Structural)
         for os in outStars do
             let ons = neighbors cg os |> Set.ofSeq
             for x in ons do
@@ -633,3 +633,57 @@ module Consistency =
     let findOrderingEnumerate n = findOrdering (enumerate n) *)
 
     let findOrderingConservative = findOrdering simulate
+
+
+module ToRegex = 
+    
+    let constructRegex (cg: T) (state: CgState) : Regex.T =
+        printfn "Starting state: %A" state
+        let reMap = ref Map.empty
+
+        let get v = 
+            Common.Map.getOrDefault v Regex.empty !reMap
+
+        let add k v = 
+            reMap := Map.add k v !reMap
+
+        let cgRev = copyReverseGraph cg
+        (* populate the map *)
+        for e in cgRev.Graph.Edges do
+            printfn "adding: (%s,%s)" (e.Source.ToString()) (e.Target.ToString())
+            add (e.Source, e.Target) (Regex.loc e.Source.Node.Loc)
+        (* start with immediate neighbors *)
+        let ns = 
+            neighbors cgRev state
+            |> Seq.filter isRealNode
+        printfn "Immediate neighbors: %A" ns
+        let queue = Queue()
+        for n in ns do 
+            queue.Enqueue n
+        (* repeatedly look at the next neighbor *)
+        while queue.Count > 0 do 
+            let n = queue.Dequeue()
+            printfn "looking at: %A" n
+            let ms = neighbors cgRev n
+            for m in ms do
+                printfn "  3rd node: %A" m
+                if m <> n then
+                    let middleRe = get (n,n)
+                    let labelSN = get (state,n)
+                    let labelNS = get (n,state)
+                    let labelNM = get (n,m)
+                    let labelMN = get (m,n)
+               
+                    add (state,m) (Regex.concatAll [labelSN; Regex.star middleRe; labelNM])
+                    add (state,state) (Regex.concatAll [labelSN; Regex.star middleRe; labelNS])
+                    add (m,m) (Regex.concatAll [labelMN; Regex.star middleRe; labelNS])
+                    add (m,state) (Regex.concatAll [labelMN; Regex.star middleRe; labelNS])
+                    queue.Enqueue m
+            cgRev.Graph.RemoveVertex n |> ignore
+        
+        let r1 = get (state, state)
+        let r2 = get (state, cg.Start)
+        let r3 = get (cg.Start, state)
+        let r4 = get (cg.Start, cg.Start)
+        let rloop = Regex.star (Regex.union r4 (Regex.concatAll [r3; Regex.star r1; r2]))
+        Regex.concatAll [Regex.star r1; r2; rloop]

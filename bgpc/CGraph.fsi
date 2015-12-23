@@ -143,3 +143,7 @@ module Consistency =
     /// Exact check if BGP routes can make local decisions by enumerating failures
     /// Takes an optional file name for debugging intermediate information
     (* val findOrderingEnumerate: int -> (T -> string -> Result<Ordering, CounterExample>) *)
+
+module ToRegex = 
+
+    val constructRegex: T -> CgState -> Regex.T

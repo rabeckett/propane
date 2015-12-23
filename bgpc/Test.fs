@@ -177,7 +177,7 @@ let rStretchingManWAN2 (reb: Regex.REBuilder) =
     [reb.Build pref1]
 
 let tests = [
-
+(* 
     {Name= "Diamond1";
      Explanation="A simple path";
      Topo= tDiamond;
@@ -361,7 +361,7 @@ let tests = [
      Receive= Some [("C", "D"); ("A", "C"); ("B", "C")];
      Originate = Some [];
      Prefs = Some [("D", "Y", "Z")];
-     Fail = None};
+     Fail = None}; *)
 
     {Name= "StretchingMan2";
      Explanation="Using peer not listed in the topology";

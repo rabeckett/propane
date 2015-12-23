@@ -1,7 +1,5 @@
 ﻿Interdomain Routing:
 	Interdomain routing set MEDs
-	Interdomain routing dealing with unknown locations
-	Conversion from product graph to regex for preferences on border routers
 
 Aggregation:
 	Adding aggregation constaints
@@ -10,13 +8,14 @@ Aggregation:
 
 Well-formedness:
 	Ensure topology is well formed (connected)
+	All peers in topology are known
 	Reject routes not matching out* in+ out*
 	Disallow aggregation on external locations
 
-Other:
-	Infer which routers we care about in the product graph based on policy
+Error Reporting
 	More detailed counterexamples (include exact failure scenario)
 
-Performance:
-	Use mutable data structures instead of Set, Map, etc
-	Allow specifying speed/expressiveness of policies allowed (e.g., change which nodes to remove in simulation based on this)
+Misc
+	Remove edges not on simple path efficiently
+	paths for starting locations based on language emptiness
+	

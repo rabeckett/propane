@@ -63,6 +63,14 @@ module List =
         aux [] n ls
 
 
+module Map = 
+
+    let inline getOrDefault v d m = 
+        match Map.tryFind v m with 
+        | None -> d 
+        | Some x -> x
+
+
 module Error =
 
     let error s = 

@@ -105,7 +105,9 @@ let genConfig (cg: CGraph.T) (ord: Consistency.Ordering) : T =
                     lp <- lp + 1
                 let m =
                     if Topology.isTopoNode v.Node then
-                        if not (ain.Contains v.Node.Loc) then 
+                        if not (ain.Contains v.Node.Loc) then
+                            let re = CGraph.ToRegex.constructRegex cg v
+                            printfn "Final regex: %s" (re.ToString())
                             (* TODO: generate regex filter *)
                             Match.State(v.States, v.Node.Loc)
                         else

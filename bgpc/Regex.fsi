@@ -7,6 +7,22 @@ type T
 /// Reverse a regular expression
 val rev: T -> T
 
+/// Smart constructors for regular expressions. These functions are exposed
+/// for reuse with the DFA to automaton conversion.
+/// To build regular expressions with a topology, use the REBuilder 
+val empty: T
+val epsilon: T
+val loc: string -> T
+val locs: Set<string> -> T
+val star: T -> T
+val negate: Set<string> -> T -> T
+val concat: T -> T -> T
+val concatAll: T list -> T
+val inter: T -> T -> T
+val interAll: T list -> T
+val union: T -> T -> T
+val unionAll: T list -> T
+
 /// Build a DFA for a regular expression directly using regular 
 /// expression derivatives. Works well with complement,
 /// intersection, and character classes. Produces near-minimal DFAs
