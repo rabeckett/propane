@@ -346,8 +346,10 @@ type REBuilder(topo: Topology.T) =
             alphabet <- Set.add x alphabet
             let v = {Loc=x; Typ=Topology.Outside}
             topo.AddVertex v |> ignore
-            topo.AddEdge (TaggedEdge(unknown,v,())) |> ignore
-            topo.AddEdge (TaggedEdge(v,unknown,())) |> ignore
+            let allOutside = topo.Vertices |> Seq.filter Topology.isOutside
+            for u in allOutside do
+                if u <> v then
+                    Topology.addEdgesUndirected topo [(u,v)]
         LLocs (Set.singleton x)
 
     member __.MakeDFA r =

@@ -28,6 +28,9 @@ val alphabet: T -> Set<State> * Set<State>
 /// Check if a node is a valid topology node
 val isTopoNode: State -> bool
 
+/// Check if a node represents an external location (external AS)
+val isOutside: State -> bool
+
 /// Check if a node represents an internal location (under AS control)
 val isInside: State -> bool
 

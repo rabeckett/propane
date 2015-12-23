@@ -61,6 +61,12 @@ let isTopoNode (t: State) =
     | Start | End -> false
     | _ -> true
 
+let isOutside (t: State) = 
+    match t.Typ with 
+    | Outside -> true
+    | Unknown -> true
+    | _ -> false
+
 let isInside (t: State) = 
     match t.Typ with 
     | Inside -> true 

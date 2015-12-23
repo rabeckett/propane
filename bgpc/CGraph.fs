@@ -63,10 +63,6 @@ let buildFromAutomata (topo: Topology.T) (autos : Regex.Automaton array) : T =
             for c in Set.intersect alphabetAll adj do
                 let nextInfo = Array.init autos.Length (fun i ->
                     let g, v = autos.[i], ss.[i]
-
-                    (* printfn "trans: %A" g.trans
-                    printfn "(v,c.Loc): (%A,%A)" v c.Loc *)
-                    
                     let key = Map.findKey (fun (q,S) _ -> q = v && Set.contains c.Loc S) g.trans
                     let newState = Map.find key g.trans
                     let accept =
@@ -390,7 +386,7 @@ module Minimize =
                 assert (ie.Source = e.Target)
                 assert (ie.Target = e.Source)
                 (Set.contains e.Target (Map.find e.Source dom) || Set.contains e.Source (Map.find e.Target domRev)) &&
-                not (isUnknownRepeater cg e.Target || isUnknownRepeater cg e.Source)
+                not (e.Target = e.Source)
         ) |> ignore
 
     let removeDeadEdgesHeuristic (cg: T) =
@@ -432,6 +428,20 @@ module Minimize =
             cg.Graph.AddEdge (TaggedEdge(x,z,())) |> ignore
         cg.Graph.RemoveVertex y |> ignore
 
+    let removeRedundantExternalNodes (cg: T) =
+        let toDelNodes = HashSet(HashIdentity.Structural)
+        for v in cg.Graph.Vertices do 
+            let ns = neighbors cg v |> Set.ofSeq
+            for a in ns do 
+                for b in ns do
+                    if (a <> b) && (isUnknownRepeater cg a) && (Topology.isOutside b.Node) then
+                        let ans = neighbors cg a |> Set.ofSeq 
+                        let bns = neighbors cg b |> Set.ofSeq
+                        if (Set.isSuperset ans bns) then 
+                            ignore (toDelNodes.Add b)
+        cg.Graph.RemoveVertexIf (fun v -> toDelNodes.Contains v) |> ignore
+
+(*
     let coalesceExternalNodes (cg: T) =
         let outStars = 
             cg.Graph.Vertices 
@@ -453,7 +463,7 @@ module Minimize =
         for (x,y) in toAddEdges do
             cg.Graph.AddEdge (TaggedEdge(x,y,())) |> ignore
         for n in toDelNodes do 
-            cg.Graph.RemoveVertex n |> ignore
+            cg.Graph.RemoveVertex n |> ignore *)
            
     let minimizeO0 (cg: T) =
         removeNodesThatCantReachEnd cg
@@ -475,6 +485,8 @@ module Minimize =
             removeNodesThatCantReachEnd cg
             logInfo1(sprintf "Node count - after O1: %d" cg.Graph.VertexCount)
             removeEdgesForDominatedNodes cg
+            removeRedundantExternalNodes cg
+            (* coalesceExternalNodes cg *)
             (* removeNodesNotReachableOnSimplePath cg *)
             logInfo1(sprintf "Node count - after O2: %d" cg.Graph.VertexCount)
 
@@ -485,7 +497,6 @@ module Minimize =
             prune ()
         removeNodesNotOnAnySimplePathToEnd cg
         removeDeadEdgesHeuristic cg
-        coalesceExternalNodes cg
         logInfo1(sprintf "Node count - after O3: %d" cg.Graph.VertexCount)
 
 
@@ -663,10 +674,10 @@ module ToRegex =
         (* repeatedly look at the next neighbor *)
         while queue.Count > 0 do 
             let n = queue.Dequeue()
-            printfn "looking at: %A" n
+            printfn "looking at: %s" (n.ToString())
             let ms = neighbors cgRev n
             for m in ms do
-                printfn "  3rd node: %A" m
+                printfn "  3rd node: %s" (m.ToString())
                 if m <> n then
                     let middleRe = get (n,n)
                     let labelSN = get (state,n)
