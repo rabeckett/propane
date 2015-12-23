@@ -5,12 +5,12 @@
 [<StructuralEquality; StructuralComparison>]
 type T =
     {X1: uint32; X2: uint32; X3: uint32; X4: uint32; Slash: uint32}
-    (* override this.ToString() =
+    override this.ToString() =
         (string this.X1) + "." + 
         (string this.X2) + "." + 
         (string this.X3) + "." + 
         (string this.X4) + "/" + 
-        (string this.Slash) *)
+        (string this.Slash) 
 
 type Range = (uint32 * uint32) 
 type Pred = Range list

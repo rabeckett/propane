@@ -5,7 +5,7 @@ open System
 open Common.Debug
 open Common.Error
 
-let maxTests = 100000
+let maxTests = 1000
 
 (********************************************* 
  *  Config helpers
@@ -59,7 +59,7 @@ let tBrokenTriangle = Examples.topoBrokenTriangle ()
 let tBigDipper = Examples.topoBigDipper () 
 let tBadGadget = Examples.topoBadGadget ()
 let tSeesaw = Examples.topoSeesaw ()
-let tWAN1 = Examples.topoWAN1 ()
+let tStretchingManWAN = Examples.topoStretchingManWAN ()
 
 let rDiamond1 (reb: Regex.REBuilder) = 
     let pref1 = reb.Concat (List.map reb.Loc ["A"; "X"; "N"; "Y"; "B"])
@@ -167,10 +167,14 @@ let rSeesaw1 (reb: Regex.REBuilder) =
     let pref2 = reb.Path(["X"; "N"; "M"])
     [reb.Build pref1; reb.Build pref2]
 
-let rWAN1 (reb: Regex.REBuilder) = 
+let rStretchingManWAN1 (reb: Regex.REBuilder) = 
     let pref1 = reb.Concat [reb.Star reb.Outside; reb.Loc "A"; reb.Star reb.Inside; reb.Loc "Y"]
     let pref2 = reb.Concat [reb.Star reb.Outside; reb.Loc "B"; reb.Star reb.Inside; reb.Outside]
     [reb.Build pref1; reb.Build pref2]
+
+let rStretchingManWAN2 (reb: Regex.REBuilder) = 
+    let pref1 = reb.Concat [reb.Star reb.Outside; reb.Loc "A"; reb.Star reb.Inside; reb.Loc "Y"; reb.Star reb.Outside; reb.Loc "ASChina"]
+    [reb.Build pref1]
 
 let tests = [
 
@@ -321,7 +325,7 @@ let tests = [
      Prefs = Some [("A","E","D")];
      Fail = None};
 
-    {Name= "BadGadget1";
+    {Name= "BadGadget";
      Explanation="Total ordering prevents instability (should fail)";
      Topo= tBadGadget;
      Rf= rBadGadget1; 
@@ -330,7 +334,7 @@ let tests = [
      Prefs = None;
      Fail = Some InconsistentPrefs};
 
-    {Name= "BadGadget2";
+    {Name= "OkGadget";
      Explanation="Must find correct total ordering";
      Topo= tBadGadget;
      Rf= rBadGadget2; 
@@ -350,13 +354,22 @@ let tests = [
 
     (* Begin inter-domain tests *)
 
-    {Name= "WAN1";
+    {Name= "StretchingMan1";
      Explanation="Prefer one AS over another";
-     Topo= tWAN1;
-     Rf= rWAN1; 
+     Topo= tStretchingManWAN;
+     Rf= rStretchingManWAN1; 
      Receive= Some [("C", "D"); ("A", "C"); ("B", "C")];
      Originate = Some [];
      Prefs = Some [("D", "Y", "Z")];
+     Fail = None};
+
+    {Name= "StretchingMan2";
+     Explanation="Using peer not listed in the topology";
+     Topo= tStretchingManWAN;
+     Rf= rStretchingManWAN2; 
+     Receive= Some [];
+     Originate = Some [];
+     Prefs = Some [];
      Fail = None};
 ]
 
@@ -378,9 +391,10 @@ let randomPrefixes n =
         prefixes <- (randomPrefix ()) :: prefixes
     prefixes
 
+(* Randomized tests that check that converting a prefix 
+   to a range-based representation and back are inverse functions *)
 let testPrefixes () =
-    printfn ""
-    printfn "Testing prefix ops..."
+    printfn "Testing prefix predicates..."
     for i = 1 to maxTests do 
         let (lo,hi) = randomRange ()
         let ps = Prefix.toPrefixes [(lo,hi)]
@@ -390,7 +404,9 @@ let testPrefixes () =
         if List.length rs <> 1 || List.head rs <> (lo,hi) then
             printfn "[Failed]: expected: %A, but got %A" (lo,hi) (List.head rs)
 
-let testNoNewPrefixes () = 
+(* Randomized tests that check that the scope merging cross product 
+   construction never introduces new prefixes not specified originally *)
+let testScopeMerging () = 
     printfn "Testing prefix compaction..."
     let allPrefixes ccs = 
         ccs
@@ -417,6 +433,8 @@ let testNoNewPrefixes () =
         if Prefix.toPredicate ps <> Prefix.top then 
             printfn "[Failed]: Last test not true"
 
+(* Compiles various examples and ensures that they either don't compile,
+   or they compile and the resulting configuration is correct *)
 let testCompilation() =
     printfn "Testing compilation..."
     printfn "----------------------------------------------------------"
@@ -481,6 +499,7 @@ let testCompilation() =
 
 
 let run () =
+    printfn ""
     testPrefixes ()
-    testNoNewPrefixes ()
+    testScopeMerging ()
     testCompilation ()

@@ -233,26 +233,35 @@ module Reachable =
     let srcAccepting cg src direction = 
         srcAcceptingWithout cg src (fun _ -> false) direction
 
-    let simplePathSrc cg src direction =
+(*
+    let simplePathSrcRepeat cg src canRepeat direction =
         let f = if direction = Up then neighborsIn else neighbors 
         let explored = ref 0
         let allNodes = cg.Graph.Vertices |> Set.ofSeq
         let cantReach = ref allNodes
-        let rec search v seen = 
+        let rec search v seenLocs seenNodes = 
             explored := !explored + 1
             cantReach := Set.remove v !cantReach
             (* Stop if no unmarked node reachable without repeating location *)
-            let exclude = (fun node -> node <> v && Set.contains node.Node.Loc seen)
+            let exclude = (fun node -> node <> v && not (canRepeat node) && Set.contains node.Node.Loc seenLocs)
             let reachable = srcWithout cg v exclude Down
             let relevant = Set.exists (fun x -> Set.contains x reachable) !cantReach 
             if relevant then
                 for u in f cg v do
-                    if not (Set.contains u.Node.Loc seen) then 
-                        search u (Set.add u.Node.Loc seen)
-        search src Set.empty
+                    let seenNodeBefore = Set.contains u seenNodes
+                    let seenLocBefore = Set.contains u.Node.Loc seenLocations
+                    let shouldContinue = not seenLocBefore || (canRepeat u && not seenNodeBefore)
+                    if not (Set.contains u.Node.Loc seenLocs) then 
+                        (* let newSeen = if canRepeat u then seen else (Set.add u.Node.Loc seen) *)
+                        search u (Set.add u.Node.Loc seenLocs) (Set.add u seenNodes)
+        search src Set.empty (Set.singleton cg.Start)
         Set.difference allNodes !cantReach
 
-    let alongSimplePathSrcDst cg src dst direction = 
+    let simplePathSrc cg src direction = 
+        let canRepeat v = (v.Node.Typ = Topology.Unknown)
+        simplePathSrcRepeat cg src canRepeat direction  *)
+
+    let alongSimplePathSrcDstRepeat cg src dst canRepeat direction = 
         let f = if direction = Up then neighborsIn else neighbors
         let num_explored = ref 0
         let allNodes = cg.Graph.Vertices |> Set.ofSeq
@@ -262,7 +271,7 @@ module Reachable =
             if v = cg.End then 
                 cantReach := Set.difference !cantReach seenNodes
             (* Stop if can't reach the end state *)
-            let exclude = (fun node -> node <> v && Set.contains node.Node.Loc seenLocations)
+            let exclude = (fun node -> node <> v && not (canRepeat node) && Set.contains node.Node.Loc seenLocations)
             let reachable = srcWithout cg v exclude Down
             let seenUnmarked = not (Set.isEmpty (Set.intersect !cantReach seenNodes))
             let canReachUnmarked = Set.exists (fun v -> Set.contains v !cantReach) reachable
@@ -270,11 +279,17 @@ module Reachable =
                 let canReachDst = Set.contains dst reachable
                 if canReachDst then
                     for u in f cg v do
-                        let notInPath = not (Set.contains u.Node.Loc seenLocations)
-                        if notInPath then 
+                        let seenNodeBefore = Set.contains u seenNodes
+                        let seenLocBefore = Set.contains u.Node.Loc seenLocations
+                        let shouldContinue = not seenLocBefore || (canRepeat u && not seenNodeBefore)
+                        if shouldContinue then
                             search u (Set.add u.Node.Loc seenLocations) (Set.add u seenNodes)
         search src Set.empty (Set.singleton cg.Start)
         Set.difference allNodes !cantReach
+
+    let alongSimplePathSrcDst cg src dst direction = 
+        let canRepeat v = (v.Node.Typ = Topology.Unknown)
+        alongSimplePathSrcDstRepeat cg src dst canRepeat direction
 
     /// Checks if n1 in graph cg1 simulates n2 in cg2
     let supersetPaths (cg1, n1) (cg2, n2) : bool =
@@ -396,9 +411,9 @@ module Minimize =
             Topology.isTopoNode v.Node && not (Set.contains v canReach)
         ) |> ignore
 
-    let removeNodesNotReachableOnSimplePath (cg: T) =
+    (* let removeNodesNotReachableOnSimplePath (cg: T) =
         let canReach = Reachable.simplePathSrc cg cg.Start Down
-        cg.Graph.RemoveVertexIf (fun v -> Topology.isTopoNode v.Node && not (Set.contains v canReach)) |> ignore
+        cg.Graph.RemoveVertexIf (fun v -> Topology.isTopoNode v.Node && not (Set.contains v canReach)) |> ignore *)
 
     let removeNodesNotOnAnySimplePathToEnd (cg: T) = 
         let canReach = Reachable.alongSimplePathSrcDst cg cg.Start cg.End Down
@@ -450,7 +465,7 @@ module Minimize =
     let minimizeO2 (cg: T) = 
         removeNodesThatCantReachEnd cg
         removeEdgesForDominatedNodes cg
-        removeNodesNotReachableOnSimplePath cg
+        (* removeNodesNotReachableOnSimplePath cg *)
         removeDeadEdgesHeuristic cg
 
     let minimizeO3 (cg: T) =
@@ -460,7 +475,7 @@ module Minimize =
             removeNodesThatCantReachEnd cg
             logInfo1(sprintf "Node count - after O1: %d" cg.Graph.VertexCount)
             removeEdgesForDominatedNodes cg
-            removeNodesNotReachableOnSimplePath cg 
+            (* removeNodesNotReachableOnSimplePath cg *)
             logInfo1(sprintf "Node count - after O2: %d" cg.Graph.VertexCount)
 
         let mutable sum = count cg
@@ -580,18 +595,6 @@ module Consistency =
         failed.Graph.RemoveEdgeIf (fun e -> List.exists ((=) (e.Source.Node.Loc, e.Target.Node.Loc)) failedEdges) |> ignore
         failed
 
-    let enumerate n (cg: T) restrict (x,y) (i,j) = 
-        let gx = Map.find i restrict
-        let gy = Map.find j restrict 
-        let failCombos = Topology.Failure.allFailures n cg.Topo
-        Seq.forall (fun fails ->
-            let failedX = failedGraph gx fails
-            let failedY = failedGraph gy fails
-            not((Set.contains x (Reachable.simplePathSrc failedX cg.Start Down)) &&
-               (not ( Set.contains x (Reachable.alongSimplePathSrcDst failedX cg.Start cg.End Down))) &&
-               (Set.contains y (Reachable.alongSimplePathSrcDst failedY cg.Start cg.End Down)))
-        ) failCombos
-
     let restrictedGraphs cg prefs =
         let aux acc i =
             let r = restrict cg i 
@@ -614,6 +617,19 @@ module Consistency =
         with ConsistencyException(x,y) ->
             Err((x,y) )
 
-    let findOrderingEnumerate n = findOrdering (enumerate n)
+(*
+    let enumerate n (cg: T) restrict (x,y) (i,j) = 
+        let gx = Map.find i restrict
+        let gy = Map.find j restrict 
+        let failCombos = Topology.Failure.allFailures n cg.Topo
+        Seq.forall (fun fails ->
+            let failedX = failedGraph gx fails
+            let failedY = failedGraph gy fails
+            not((Set.contains x (Reachable.simplePathSrc failedX cg.Start Down)) &&
+               (not ( Set.contains x (Reachable.alongSimplePathSrcDst failedX cg.Start cg.End Down))) &&
+               (Set.contains y (Reachable.alongSimplePathSrcDst failedY cg.Start cg.End Down)))
+        ) failCombos
+
+    let findOrderingEnumerate n = findOrdering (enumerate n) *)
 
     let findOrderingConservative = findOrdering simulate

@@ -111,7 +111,7 @@ let topoSeesaw () =
     Topology.addEdgesUndirected g [(vM, vN); (vM, vO); (vO, vX); (vN, vX); (vX, vA); (vX, vB)]
     g
 
-let topoWAN1 () = 
+let topoStretchingManWAN () = 
     let g = BidirectionalGraph<State, TaggedEdge<State,unit>>()
     let vA = {Loc="A"; Typ=Inside}
     let vB = {Loc="B"; Typ=Inside}
@@ -120,8 +120,6 @@ let topoWAN1 () =
     let vX = {Loc="X"; Typ=Outside}
     let vY = {Loc="Y"; Typ=Outside}
     let vZ = {Loc="Z"; Typ=Outside}
-    let vUnknown = {Loc="out"; Typ=Unknown}
-    Topology.addVertices g [vA; vB; vC; vD; vX; vY; vZ; vUnknown]
+    Topology.addVertices g [vA; vB; vC; vD; vX; vY; vZ]
     Topology.addEdgesUndirected g [(vX, vA); (vX, vB); (vA, vC); (vB, vC); (vC, vD); (vD, vY); (vD, vZ)]
     g
-

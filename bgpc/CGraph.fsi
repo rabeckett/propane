@@ -88,7 +88,7 @@ module Reachable =
     val srcAccepting: T -> CgState -> Direction -> Set<int>
 
     /// Find all nodes reachable from src on a simple path
-    val simplePathSrc: T -> CgState -> Direction -> Set<CgState>
+    (* val simplePathSrc: T -> CgState -> Direction -> Set<CgState> *)
 
     /// Find all nodes along some simple path from src to dst
     val alongSimplePathSrcDst: T -> CgState -> CgState -> Direction -> Set<CgState>
@@ -105,7 +105,7 @@ module Minimize =
     val removeNodesThatCantReachEnd: T -> unit
 
     /// Remove nodes that can't be reached from the start node without looping *)
-    val removeNodesNotReachableOnSimplePath: T -> unit 
+    (* val removeNodesNotReachableOnSimplePath: T -> unit *)
 
     /// Remove nodes that are on no path from start to end without looping
     val removeNodesNotOnAnySimplePathToEnd: T -> unit
@@ -142,4 +142,4 @@ module Consistency =
 
     /// Exact check if BGP routes can make local decisions by enumerating failures
     /// Takes an optional file name for debugging intermediate information
-    val findOrderingEnumerate: int -> (T -> string -> Result<Ordering, CounterExample>)
+    (* val findOrderingEnumerate: int -> (T -> string -> Result<Ordering, CounterExample>) *)

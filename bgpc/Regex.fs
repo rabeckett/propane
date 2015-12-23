@@ -294,8 +294,9 @@ type REBuilder(topo: Topology.T) =
     let mutable outside = Set.add unknownName outs
     let mutable alphabet = Set.add unknownName alph
     let mutable isDone = false
+
+    (* Add the unknown special node to the topology *)
     let unknown: Topology.State = {Loc=unknownName; Typ = Topology.Unknown}
-    
     let topo =
         ignore (topo.AddVertex unknown)
         for v in topo.Vertices do
