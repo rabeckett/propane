@@ -423,47 +423,33 @@ module Minimize =
             not (Set.contains v starting)
         ) |> ignore
 
-    let absorbNeighbor cg x y = 
-        for z in neighbors cg y do 
-            cg.Graph.AddEdge (TaggedEdge(x,z,())) |> ignore
-        cg.Graph.RemoveVertex y |> ignore
-
     let removeRedundantExternalNodes (cg: T) =
         let toDelNodes = HashSet(HashIdentity.Structural)
-        for v in cg.Graph.Vertices do 
-            let ns = neighbors cg v |> Set.ofSeq
-            for a in ns do 
-                for b in ns do
-                    if (a <> b) && (isUnknownRepeater cg a) && (Topology.isOutside b.Node) then
-                        let ans = neighbors cg a |> Set.ofSeq 
-                        let bns = neighbors cg b |> Set.ofSeq
-                        if (Set.isSuperset ans bns) then 
-                            ignore (toDelNodes.Add b)
+        (* case 1 *)
+        let outside = 
+            cg.Graph.Vertices 
+            |> Seq.filter (fun v -> Topology.isOutside v.Node)
+            |> Set.ofSeq
+        for a in outside do 
+            let ans = neighbors cg a |> Set.ofSeq
+            if ans.Count = 1 then 
+                let b = ans.MinimumElement
+                if a <> b && isUnknownRepeater cg b then 
+                    let ians = neighborsIn cg a |> Set.ofSeq 
+                    let ibns = neighborsIn cg b |> Set.ofSeq
+                    if Set.isSuperset ibns ians then
+                        ignore (toDelNodes.Add a)
+        (* case 2 *)
+        for b in cg.Graph.Vertices do 
+            if isUnknownRepeater cg b then
+                let bns = neighbors cg b |> Set.ofSeq
+                for a in bns do 
+                    if a <> b && outside.Contains a then
+                        let ans = neighbors cg a |> Set.ofSeq
+                        if Set.isSuperset bns ans then 
+                            ignore (toDelNodes.Add a)
         cg.Graph.RemoveVertexIf (fun v -> toDelNodes.Contains v) |> ignore
 
-(*
-    let coalesceExternalNodes (cg: T) =
-        let outStars = 
-            cg.Graph.Vertices 
-            |> Seq.filter (isUnknownRepeater cg)
-        let toAddEdges = HashSet(HashIdentity.Structural)
-        let toDelNodes = HashSet(HashIdentity.Structural)
-        for os in outStars do
-            let ons = neighbors cg os |> Set.ofSeq
-            for x in ons do
-                let xns = neighbors cg x |> Set.ofSeq
-                if isRealNode x && x <> os && xns.Contains os then
-                    toDelNodes.Add x |> ignore
-                    for y in xns do
-                        if not (ons.Contains y) then
-                            toAddEdges.Add((os,y)) |> ignore
-                    for y in neighborsIn cg x do
-                        if not (ons.Contains y) then
-                            toAddEdges.Add((y,os)) |> ignore
-        for (x,y) in toAddEdges do
-            cg.Graph.AddEdge (TaggedEdge(x,y,())) |> ignore
-        for n in toDelNodes do 
-            cg.Graph.RemoveVertex n |> ignore *)
            
     let minimizeO0 (cg: T) =
         removeNodesThatCantReachEnd cg
@@ -486,7 +472,6 @@ module Minimize =
             logInfo1(sprintf "Node count - after O1: %d" cg.Graph.VertexCount)
             removeEdgesForDominatedNodes cg
             removeRedundantExternalNodes cg
-            (* coalesceExternalNodes cg *)
             (* removeNodesNotReachableOnSimplePath cg *)
             logInfo1(sprintf "Node count - after O2: %d" cg.Graph.VertexCount)
 
@@ -497,6 +482,7 @@ module Minimize =
             prune ()
         removeNodesNotOnAnySimplePathToEnd cg
         removeDeadEdgesHeuristic cg
+        removeEdgesForDominatedNodes cg
         logInfo1(sprintf "Node count - after O3: %d" cg.Graph.VertexCount)
 
 
@@ -649,52 +635,42 @@ module Consistency =
 module ToRegex = 
     
     let constructRegex (cg: T) (state: CgState) : Regex.T =
-        printfn "Starting state: %A" state
-        let reMap = ref Map.empty
-
-        let get v = 
-            Common.Map.getOrDefault v Regex.empty !reMap
-
-        let add k v = 
-            reMap := Map.add k v !reMap
-
         let cgRev = copyReverseGraph cg
-        (* populate the map *)
+
+        (* Store regex transitions in a separate map *)
+        let reMap = ref Map.empty
+        let get v = Common.Map.getOrDefault v Regex.empty !reMap
+        let add k v = reMap := Map.add k v !reMap
+
+        (* Simplify graph to only contain relevant nodes *)
+        let reachable = Reachable.src cgRev state Down
+        cgRev.Graph.RemoveVertexIf (fun v -> not (reachable.Contains v) && Topology.isTopoNode v.Node) |> ignore
+        cgRev.Graph.AddEdge (TaggedEdge(cgRev.End, state, ())) |> ignore
+
+        (* Populate the regex transition map *)
+        add (cgRev.End, state) Regex.epsilon
         for e in cgRev.Graph.Edges do
-            printfn "adding: (%s,%s)" (e.Source.ToString()) (e.Target.ToString())
-            add (e.Source, e.Target) (Regex.loc e.Source.Node.Loc)
-        (* start with immediate neighbors *)
-        let ns = 
-            neighbors cgRev state
-            |> Seq.filter isRealNode
-        printfn "Immediate neighbors: %A" ns
-        let queue = Queue()
-        for n in ns do 
-            queue.Enqueue n
-        (* repeatedly look at the next neighbor *)
-        while queue.Count > 0 do 
-            let n = queue.Dequeue()
-            printfn "looking at: %s" (n.ToString())
-            let ms = neighbors cgRev n
-            for m in ms do
-                printfn "  3rd node: %s" (m.ToString())
-                if m <> n then
-                    let middleRe = get (n,n)
-                    let labelSN = get (state,n)
-                    let labelNS = get (n,state)
-                    let labelNM = get (n,m)
-                    let labelMN = get (m,n)
-               
-                    add (state,m) (Regex.concatAll [labelSN; Regex.star middleRe; labelNM])
-                    add (state,state) (Regex.concatAll [labelSN; Regex.star middleRe; labelNS])
-                    add (m,m) (Regex.concatAll [labelMN; Regex.star middleRe; labelNS])
-                    add (m,state) (Regex.concatAll [labelMN; Regex.star middleRe; labelNS])
-                    queue.Enqueue m
-            cgRev.Graph.RemoveVertex n |> ignore
+            if e.Source <> cgRev.End then
+                add (e.Source, e.Target) (Regex.loc e.Source.Node.Loc)
         
-        let r1 = get (state, state)
-        let r2 = get (state, cg.Start)
-        let r3 = get (cg.Start, state)
-        let r4 = get (cg.Start, cg.Start)
-        let rloop = Regex.star (Regex.union r4 (Regex.concatAll [r3; Regex.star r1; r2]))
-        Regex.concatAll [Regex.star r1; r2; rloop]
+        (* we will remove all none start/end nodes one by one *)
+        let queue = Queue()
+        for v in cgRev.Graph.Vertices do
+            if isRealNode v then
+                queue.Enqueue v
+        
+        (* repeatedly pick a next node and remove it, updating path regexes *)
+        while queue.Count > 0 do 
+            let q = queue.Dequeue()
+            for q1 in cgRev.Graph.Vertices do 
+                for q2 in cgRev.Graph.Vertices do
+                    if q1 <> q && q2 <> q then
+                        let x = get (q1,q2)
+                        let y1 = get (q1,q)
+                        let y2 = get (q,q)
+                        let y3 = get (q,q2)
+                        let re = Regex.union x (Regex.concatAll [y1; Regex.star y2; y3])
+                        reMap := Map.add (q1,q2) re !reMap
+            cgRev.Graph.RemoveVertex q |> ignore
+        
+        Map.find (cgRev.End, cgRev.Start) !reMap
