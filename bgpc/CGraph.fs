@@ -486,6 +486,7 @@ module Minimize =
 module Consistency = 
 
     exception ConsistencyException of CgState * CgState
+
     type CounterExample =  CgState * CgState
     type Preferences = seq<CgState>
     type Ordering = Map<string, Preferences>

@@ -83,7 +83,8 @@ let negate alphabet r =
     | _ -> Negate r
 
 let rec concat r1 r2 = 
-    match r1, r2 with 
+    match r1, r2 with
+    (* main identities *)
     | _, Empty -> Empty
     | Empty, _ -> Empty
     | _, Epsilon -> r1
@@ -118,7 +119,23 @@ let interAll res =
 
 let rec union r1 r2 =
     if r1 = r2 then r1 else
-    match r1, r2 with 
+    match r1, r2 with
+    (* rewrite x;y + x;z = x;(y+z) *)
+    | Concat (hd1::tl1), Concat (hd2::tl2) when hd1 = hd2 -> concat hd1 (union (concatAll tl1) (concatAll tl2))
+    (* rewrite variants of 1 + y;y* = y* *)
+    | Epsilon, Concat [y1; Star y2] when y1 = y2 -> star y2
+    | Epsilon, Concat [Star y1; y2] when y1 = y2 -> star y2
+    | Concat [y1; Star y2], Epsilon when y1 = y2 -> star y2
+    | Concat [y1; Star y2], Epsilon when y1 = y2 -> star y2
+    | x1, Concat [y1; Star y2; x2] when y1 = y2 && x1 = x2 -> concat (star y2) x2
+    | x1, Concat [Star y1; y2; x2] when y1 = y2 && x1 = x2 -> concat (star y2) x2
+    | x1, Concat [x2; y1; Star y2] when y1 = y2 && x1 = x2 -> concat x2 (star y2)
+    | x1, Concat [x2; Star y1; y2] when y1 = y2 && x1 = x2 -> concat x2 (star y2)
+    | Concat [y1; Star y2; x2], x1 when y1 = y2 && x1 = x2 -> concat (star y2) x2
+    | Concat [Star y1; y2; x2], x1 when y1 = y2 && x1 = x2 -> concat (star y2) x2
+    | Concat [x2; y1; Star y2], x1 when y1 = y2 && x1 = x2 -> concat x2 (star y2)
+    | Concat [x2; Star y1; y2], x1 when y1 = y2 && x1 = x2 -> concat x2 (star y2)
+    (* main identities *)
     | _, Empty -> r1
     | Empty, _ -> r2
     | _, Negate Empty -> r2 
