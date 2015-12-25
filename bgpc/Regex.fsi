@@ -4,6 +4,9 @@
 /// intersection, and character classes
 type T
 
+/// Check if a regular expression denotes a single character
+val isLoc: T -> string option
+
 /// Reverse a regular expression
 val rev: T -> T
 

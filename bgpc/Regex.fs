@@ -21,13 +21,19 @@ type T =
         let addParens s = "(" + s + ")"
         match this with 
         | Empty -> "{}"
-        | Epsilon -> ""
+        | Epsilon -> "<epsilon>"
         | Locs S -> "[" + (Set.toList S |> List.joinBy ",") + "]"
         | Concat rs -> List.map (fun r -> r.ToString()) rs |> List.joinBy ";" |> addParens
         | Inter rs -> List.map (fun r -> r.ToString()) rs |> List.joinBy " and " |> addParens
         | Union rs -> List.map (fun r -> r.ToString()) rs |> List.joinBy " or " |> addParens
         | Negate r -> "!(" + r.ToString() + ")"
         | Star r -> (r.ToString() |> addParens) + "*"
+
+let isLoc r = 
+    match r with
+    | Locs xs when xs.Count = 1 -> 
+        Some (xs.MinimumElement)
+    | _ -> None
 
 let rec rev re = 
     match re with 
@@ -84,7 +90,6 @@ let negate alphabet r =
 
 let rec concat r1 r2 = 
     match r1, r2 with
-    (* main identities *)
     | _, Empty -> Empty
     | Empty, _ -> Empty
     | _, Epsilon -> r1
@@ -121,20 +126,21 @@ let rec union r1 r2 =
     if r1 = r2 then r1 else
     match r1, r2 with
     (* rewrite x;y + x;z = x;(y+z) *)
+    | x, Concat (hd::tl) when x = hd -> concat hd (union epsilon (concatAll tl))
+    | Concat (hd::tl), x when x = hd -> concat hd (union epsilon (concatAll tl))
     | Concat (hd1::tl1), Concat (hd2::tl2) when hd1 = hd2 -> concat hd1 (union (concatAll tl1) (concatAll tl2))
+    | x, Concat ys when (List.rev ys).Head = x -> concat (union epsilon (concatAll (List.rev (List.tail (List.rev ys))))) x
+    | Concat ys, x when (List.rev ys).Head = x -> concat (union epsilon (concatAll (List.rev (List.tail (List.rev ys))))) x
+    | Concat xs, Concat ys when (List.rev xs).Head = (List.rev ys).Head ->
+        let revx, revy = List.rev xs, List.rev ys
+        let tlx = List.rev (List.tail revx)
+        let tly = List.rev (List.tail revy)
+        concat (union (concatAll tlx) (concatAll tly)) (List.head revx)
     (* rewrite variants of 1 + y;y* = y* *)
     | Epsilon, Concat [y1; Star y2] when y1 = y2 -> star y2
     | Epsilon, Concat [Star y1; y2] when y1 = y2 -> star y2
     | Concat [y1; Star y2], Epsilon when y1 = y2 -> star y2
     | Concat [y1; Star y2], Epsilon when y1 = y2 -> star y2
-    | x1, Concat [y1; Star y2; x2] when y1 = y2 && x1 = x2 -> concat (star y2) x2
-    | x1, Concat [Star y1; y2; x2] when y1 = y2 && x1 = x2 -> concat (star y2) x2
-    | x1, Concat [x2; y1; Star y2] when y1 = y2 && x1 = x2 -> concat x2 (star y2)
-    | x1, Concat [x2; Star y1; y2] when y1 = y2 && x1 = x2 -> concat x2 (star y2)
-    | Concat [y1; Star y2; x2], x1 when y1 = y2 && x1 = x2 -> concat (star y2) x2
-    | Concat [Star y1; y2; x2], x1 when y1 = y2 && x1 = x2 -> concat (star y2) x2
-    | Concat [x2; y1; Star y2], x1 when y1 = y2 && x1 = x2 -> concat x2 (star y2)
-    | Concat [x2; Star y1; y2], x1 when y1 = y2 && x1 = x2 -> concat x2 (star y2)
     (* main identities *)
     | _, Empty -> r1
     | Empty, _ -> r2

@@ -4,10 +4,13 @@ open CGraph
 open Common.Debug
 open Common.Error
 
+exception UncontrollableEnterException of CgState
+
 type CounterExample = 
     | UnusedPreferences of Map<int, Regex.T>
     | NoPathForRouters of Set<string>
     | InconsistentPrefs of CgState * CgState
+    | UncontrollableEnter of CgState
 
 type Match = 
     | Peer of string 
@@ -107,9 +110,9 @@ let genConfig (cg: CGraph.T) (ord: Consistency.Ordering) : T =
                     if Topology.isTopoNode v.Node then
                         if not (ain.Contains v.Node.Loc) then
                             let re = CGraph.ToRegex.constructRegex cg v
-                            printfn "Final regex: %s" (re.ToString())
-                            (* TODO: generate regex filter *)
-                            Match.State(v.States, v.Node.Loc)
+                            match Regex.isLoc re with
+                            | Some x -> Match.Peer x 
+                            | _ -> Match.PathRE re
                         else
                             Match.State(v.States, v.Node.Loc)
                     else NoMatch
@@ -117,13 +120,22 @@ let genConfig (cg: CGraph.T) (ord: Consistency.Ordering) : T =
                     neighbors cg v
                     |> Seq.filter (fun x -> x.Node.Loc = loc) 
                     |> Seq.head
-                let exports =
-                    node
-                    |> neighbors cg
-                    |> Seq.filter (fun x -> Topology.isTopoNode x.Node)
-                    |> Seq.filter (fun x -> x.Node.Loc <> v.Node.Loc)
+                let expNeighbors = 
+                    neighbors cg node
                     |> Seq.toList
-                    |> List.map (fun x -> (x.Node.Loc, [SetComm(node.States)] ))
+                    |> List.filter (fun x -> x.Node.Loc <> v.Node.Loc && Topology.isTopoNode x.Node)
+                
+                (* ensure we can meet the export policy *)
+                for n in expNeighbors do
+                    if Topology.isOutside n.Node then
+                        let otherReachable = 
+                            Reachable.src cg n Down
+                            |> Set.filter (fun x -> x <> n && not (CGraph.isRepeatedOut cg x) && Topology.isTopoNode x.Node)
+                        if not otherReachable.IsEmpty then 
+                            raise (UncontrollableEnterException n)
+
+                let exports = List.map (fun x -> (x.Node.Loc, [SetComm(node.States)] )) expNeighbors
+
                 filters <- ((m,lp), exports) :: filters
                 originates <- v.Node.Typ = Topology.Start
             let deviceConf = {Originates=originates; Filters=filters}
@@ -166,8 +178,7 @@ let compressUniquePairs (cg: CGraph.T) (config: T) : T =
             let m' = 
                 match m with 
                 | Match.State(is,x) -> if uniquePair (x,loc) then Match.Peer(x) else m
-                | NoMatch -> NoMatch
-                | _ -> failwith "not possible"
+                | _ -> m
             let mutable newEs = []
             for (peer,acts) in es do
                 let acts' = 
@@ -481,7 +492,10 @@ let compileToIR (reb: Regex.REBuilder) (res: Regex.T list) (outName: string) : R
         else
             match Consistency.findOrderingConservative cg outName with 
             | Ok ord ->
-                let config = genConfig cg ord
-                let config = compress cg config outName
-                Ok (config)
+                try 
+                    let config = genConfig cg ord
+                    let config = compress cg config outName
+                    Ok (config)
+                with UncontrollableEnterException s -> 
+                    Err(UncontrollableEnter s)
             | Err((x,y)) -> Err(InconsistentPrefs(x,y))

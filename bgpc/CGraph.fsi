@@ -48,6 +48,9 @@ val inline neighbors: T -> CgState -> seq<CgState>
 /// Returns the (incoming) neighbors of a state in the graph
 val inline neighborsIn: T -> CgState -> seq<CgState> 
 
+/// Return true when a node represents a repeated external location
+val inline isRepeatedOut: T -> CgState -> bool
+
 /// Returns a copy of the graph, restricted to nodes for a given preference
 val restrict: T -> int -> T
 

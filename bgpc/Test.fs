@@ -5,7 +5,7 @@ open System
 open Common.Debug
 open Common.Error
 
-let maxTests = 100000
+let maxTests = 1000
 
 (********************************************* 
  *  Config helpers
@@ -354,6 +354,7 @@ let tests = [
 
     (* Begin inter-domain tests *)
 
+    (* TODO: test preferences on filters *)
     {Name= "StretchingMan1";
      Explanation="Prefer one AS over another";
      Topo= tStretchingManWAN;

@@ -118,7 +118,7 @@ let inline neighborsIn (cg: T) (state: CgState) =
     cg.Graph.InEdges state
     |> Seq.map (fun e -> e.Source)
 
-let inline isUnknownRepeater (cg: T) (state: CgState) =
+let inline isRepeatedOut (cg: T) (state: CgState) =
     let ns = neighbors cg state
     (state.Node.Typ = Topology.Unknown) &&
     (Seq.exists (fun n -> n = state) ns)
@@ -434,14 +434,14 @@ module Minimize =
             let ans = neighbors cg a |> Set.ofSeq
             if ans.Count = 1 then 
                 let b = ans.MinimumElement
-                if a <> b && isUnknownRepeater cg b then 
+                if a <> b && isRepeatedOut cg b then 
                     let ians = neighborsIn cg a |> Set.ofSeq 
                     let ibns = neighborsIn cg b |> Set.ofSeq
                     if Set.isSuperset ibns ians then
                         ignore (toDelNodes.Add a)
         (* case 2 *)
         for b in cg.Graph.Vertices do 
-            if isUnknownRepeater cg b then
+            if isRepeatedOut cg b then
                 let bns = neighbors cg b |> Set.ofSeq
                 for a in bns do
                     if a <> b && outside.Contains a then

@@ -44,6 +44,9 @@ let main argv =
                         let xs = x.ToString()
                         let ys = y.ToString() 
                         unimplementable (sprintf "Can not choose preference between:\n%s\n%s" xs ys)
+                    | IR.UncontrollableEnter x -> 
+                        let xs = x.ToString()
+                        unimplementable (sprintf "Can not control inbound traffic for peer: %s" xs)
             | Args.Template -> ()
 
     0
