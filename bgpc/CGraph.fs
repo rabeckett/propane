@@ -443,11 +443,13 @@ module Minimize =
         for b in cg.Graph.Vertices do 
             if isUnknownRepeater cg b then
                 let bns = neighbors cg b |> Set.ofSeq
-                for a in bns do 
+                for a in bns do
                     if a <> b && outside.Contains a then
-                        let ans = neighbors cg a |> Set.ofSeq
-                        if Set.isSuperset bns ans then 
-                            ignore (toDelNodes.Add a)
+                        let count = neighborsIn cg a |> Seq.length
+                        if count = 1 then
+                            let ans = neighbors cg a |> Set.ofSeq
+                            if Set.isSuperset bns ans then 
+                                ignore (toDelNodes.Add a)
         cg.Graph.RemoveVertexIf (fun v -> toDelNodes.Contains v) |> ignore
 
            
@@ -469,20 +471,15 @@ module Minimize =
         logInfo1(sprintf "Node count: %d" cg.Graph.VertexCount)
         let prune () = 
             removeNodesThatCantReachEnd cg
-            logInfo1(sprintf "Node count - after O1: %d" cg.Graph.VertexCount)
             removeEdgesForDominatedNodes cg
+            removeDeadEdgesHeuristic cg
             removeRedundantExternalNodes cg
-            (* removeNodesNotReachableOnSimplePath cg *)
-            logInfo1(sprintf "Node count - after O2: %d" cg.Graph.VertexCount)
-
+            removeNodesNotOnAnySimplePathToEnd cg
         let mutable sum = count cg
         prune() 
         while count cg <> sum do
             sum <- count cg
             prune ()
-        removeNodesNotOnAnySimplePathToEnd cg
-        removeDeadEdgesHeuristic cg
-        removeEdgesForDominatedNodes cg
         logInfo1(sprintf "Node count - after O3: %d" cg.Graph.VertexCount)
 
 
