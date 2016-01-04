@@ -2,6 +2,7 @@
 
 open QuickGraph
 open QuickGraph.Algorithms
+open System.Collections.Generic
 
 type NodeType = 
     | Start
@@ -16,6 +17,8 @@ type State =
      Typ: NodeType}
 
 type T = BidirectionalGraph<State,TaggedEdge<State,unit>>
+
+exception InvalidTopologyException
 
 (*
 let setOriginators (topo: T) (orig: Set<string>) : T =
@@ -88,9 +91,12 @@ let isPeer (topo: T) (state: State) =
         |> Seq.exists isInside
     (isOutside state) && receivesFromInside
 
-(* TODO *)
-let isWellFormed (t: State) = 
-    false
+let isWellFormed (topo: T) : bool =
+    let onlyInside = copyTopology topo
+    onlyInside.RemoveVertexIf (fun v -> isOutside v) |> ignore
+    let d = Dictionary<State,int>()
+    ignore (onlyInside.WeaklyConnectedComponents d)
+    (Set.ofSeq d.Values).Count = 1
 
 let rec addVertices (topo: T) (vs: State list) = 
     match vs with 

@@ -15,6 +15,8 @@ type State =
 
 type T = BidirectionalGraph<State,TaggedEdge<State,unit>>
 
+exception InvalidTopologyException
+
 /// Make a defensive copy of the topology
 val copyTopology: T -> T
 
@@ -42,7 +44,7 @@ val isPeer: T -> State -> bool
 
 /// Checks if a topology is well-formed. This involves checking 
 /// for duplicate names, as well as checking that the inside is fully connected
-val isWellFormed: State -> bool
+val isWellFormed: T -> bool
 
 /// Helper function for building topology
 val addVertices: T -> State list -> unit 

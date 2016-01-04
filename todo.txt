@@ -1,7 +1,4 @@
-﻿Interdomain Routing:
-	Interdomain routing set MEDs, prepending
-
-Aggregation:
+﻿Aggregation:
 	Adding aggregation constaints
 	Checking aggregation never black holdes according to k failure scenario
 	Automatically insert aggregation when ok
@@ -18,4 +15,3 @@ Error Reporting
 Misc
 	Remove edges not on simple path efficiently
 	paths for starting locations based on language emptiness
-	

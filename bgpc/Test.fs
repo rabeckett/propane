@@ -456,61 +456,66 @@ let testCompilation() =
     let longest = longest.Name.Length
     for test in tests do
         let spaces = String.replicate (longest - test.Name.Length + 3) " "
-        let msg = String.Format("{0}{1}{2}", test.Name, spaces, test.Explanation)
+        let msg = sprintf "%s%s%s" test.Name spaces test.Explanation
         printfn "%s" msg
         logInfo0("\n" + msg)
         let reb = Regex.REBuilder(test.Topo)
         let built = test.Rf reb
-        match IR.compileToIR reb built (settings.DebugDir + test.Name) with 
-        | Err(x) ->
-            if (Option.isSome test.Receive || 
-                Option.isSome test.Originate || 
-                Option.isSome test.Prefs || 
-                Option.isNone test.Fail) then 
-                let msg = String.Format("\n[Failed]:\n  Name: {0}\n  Message: Should compile but did not\n  Error: {1}\n", test.Name, x)
-                printfn "%s" msg
-                logInfo0(msg)
-            match test.Fail, x with 
-            | Some NoPathForRouters, IR.NoPathForRouters _ -> ()
-            | Some InconsistentPrefs, IR.InconsistentPrefs _ -> ()
-            | Some CantControlPeers, IR.UncontrollableEnter _ -> () 
-            | Some CantControlPeers, IR.UncontrollablePeerPreference _ -> ()
-            | _ ->
-                let msg = String.Format("\n[Failed]:\n  Name: {0}\n  Message: Expected Error {1}\n", test.Name, test.Fail)
-                printfn "%s" msg
-                logInfo0(msg)
-        | Ok(config) -> 
-            if (Option.isNone test.Receive || 
-                Option.isNone test.Originate || 
-                Option.isNone test.Prefs || 
-                Option.isSome test.Fail) then
-                let msg = String.Format("\n[Failed]:\n  Name: {0}\n  Message: Should not compile but did\n", test.Name)
-                printfn "%s" msg
-                logInfo0(msg)
-            else
-                (* Check receiving from peers *)
-                let rs = Option.get test.Receive
-                for (x,y) in rs do 
-                    if not (receiveFrom config x y) then
-                        let msg = String.Format("\n[Failed]: ({0}) - {1} should receive from {2} but did not\n", test.Name, x, y)
-                        printfn "%s" msg
-                        logInfo0(msg)
+        if not (Topology.isWellFormed test.Topo) then 
+            let msg = sprintf "\n[Failed]:\n  Topology for (%s) is not well-formed" test.Name 
+            printfn "%s" msg
+            logInfo0(msg)
+        else
+            match IR.compileToIR reb built (settings.DebugDir + test.Name) with 
+            | Err(x) ->
+                if (Option.isSome test.Receive || 
+                    Option.isSome test.Originate || 
+                    Option.isSome test.Prefs || 
+                    Option.isNone test.Fail) then 
+                    let msg = sprintf "\n[Failed]:\n  Name: %s\n  Message: Should compile but did not\n  Error: %A\n" test.Name x
+                    printfn "%s" msg
+                    logInfo0(msg)
+                match test.Fail, x with 
+                | Some NoPathForRouters, IR.NoPathForRouters _ -> ()
+                | Some InconsistentPrefs, IR.InconsistentPrefs _ -> ()
+                | Some CantControlPeers, IR.UncontrollableEnter _ -> () 
+                | Some CantControlPeers, IR.UncontrollablePeerPreference _ -> ()
+                | _ ->
+                    let msg = sprintf "\n[Failed]:\n  Name: %s\n  Message: Expected Error %A\n" test.Name test.Fail
+                    printfn "%s" msg
+                    logInfo0(msg)
+            | Ok(config) -> 
+                if (Option.isNone test.Receive || 
+                    Option.isNone test.Originate || 
+                    Option.isNone test.Prefs || 
+                    Option.isSome test.Fail) then
+                    let msg = sprintf "\n[Failed]:\n  Name: %s\n  Message: Should not compile but did\n" test.Name
+                    printfn "%s" msg
+                    logInfo0(msg)
+                else
+                    (* Check receiving from peers *)
+                    let rs = Option.get test.Receive
+                    for (x,y) in rs do 
+                        if not (receiveFrom config x y) then
+                            let msg = sprintf "\n[Failed]: (%s) - %s should receive from %s but did not\n" test.Name x y
+                            printfn "%s" msg
+                            logInfo0(msg)
                 
-                (* Check originating routes *)
-                let os = Option.get test.Originate
-                for x in os do 
-                    if not (originates config x) then 
-                        let msg = String.Format("\n  [Failed]: ({0}) - {1} should originate a route but did not", test.Name, x)
-                        printfn "%s" msg
-                        logInfo0(msg)
+                    (* Check originating routes *)
+                    let os = Option.get test.Originate
+                    for x in os do 
+                        if not (originates config x) then 
+                            let msg = sprintf "\n[Failed]: (%s) - %s should originate a route but did not" test.Name x
+                            printfn "%s" msg
+                            logInfo0(msg)
 
-                (* Test preferences *)
-                let ps = Option.get test.Prefs
-                for (x,a,b) in ps do
-                    if not (prefersPeer config x (a,b)) then 
-                        let msg = String.Format("\n[Failed]: ({0}) - {1} should prefer {2} to {3} but did not", test.Name, x, a, b)
-                        printfn "%s" msg
-                        logInfo0(msg)
+                    (* Test preferences *)
+                    let ps = Option.get test.Prefs
+                    for (x,a,b) in ps do
+                        if not (prefersPeer config x (a,b)) then 
+                            let msg = sprintf "\n[Failed]: (%s) - %s should prefer %s to %s but did not" test.Name x a b
+                            printfn "%s" msg
+                            logInfo0(msg)
 
 
 let run () =

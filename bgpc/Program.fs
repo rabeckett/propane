@@ -29,26 +29,29 @@ let main argv =
 
         match settings.Format with 
         | Args.IR ->
-            match IR.compileToIR reb res fullName with 
-            | Ok(config) -> 
-                match settings.OutFile with
-                | None -> ()
-                | Some out ->
-                    System.IO.File.WriteAllText(out + ".ir", IR.format config)
-            | Err(x) -> 
-                match x with
-                | IR.UnusedPreferences m ->
-                    error (sprintf "Unused preferences %A" m)
-                | IR.NoPathForRouters rs ->
-                    unimplementable (sprintf "Unable to find a path for routers: %A" rs)
-                | IR.InconsistentPrefs(x,y) ->
-                    let xs = x.ToString()
-                    let ys = y.ToString() 
-                    unimplementable (sprintf "Can not choose preference between:\n%s\n%s" xs ys)
-                | IR.UncontrollableEnter x -> 
-                    unimplementable (sprintf "Can not control inbound traffic from peer: %s" x)
-                | IR.UncontrollablePeerPreference x -> 
-                    unimplementable (sprintf "Can not control inbound preference from peer: %s without MED or prepending" x)
+            try 
+                match IR.compileToIR reb res fullName with 
+                | Ok(config) -> 
+                    match settings.OutFile with
+                    | None -> ()
+                    | Some out ->
+                        System.IO.File.WriteAllText(out + ".ir", IR.format config)
+                | Err(x) -> 
+                    match x with
+                    | IR.UnusedPreferences m ->
+                        error (sprintf "Unused preferences %A" m)
+                    | IR.NoPathForRouters rs ->
+                        unimplementable (sprintf "Unable to find a path for routers: %A" rs)
+                    | IR.InconsistentPrefs(x,y) ->
+                        let xs = x.ToString()
+                        let ys = y.ToString() 
+                        unimplementable (sprintf "Can not choose preference between:\n%s\n%s" xs ys)
+                    | IR.UncontrollableEnter x -> 
+                        unimplementable (sprintf "Can not control inbound traffic from peer: %s" x)
+                    | IR.UncontrollablePeerPreference x -> 
+                        unimplementable (sprintf "Can not control inbound preference from peer: %s without MED or prepending" x)
+            with Topology.InvalidTopologyException -> 
+                error (sprintf "Invalid Topology: internal topology must be weakly connected")
         | Args.Template -> ()
 
     0

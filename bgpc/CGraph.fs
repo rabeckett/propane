@@ -38,6 +38,8 @@ let copyReverseGraph (cg: T) : T =
     {Start=cg.Start; Graph=newCG; End=cg.End; Topo=cg.Topo}
 
 let buildFromAutomata (topo: Topology.T) (autos : Regex.Automaton array) : T =
+    if not (Topology.isWellFormed topo) then
+        raise Topology.InvalidTopologyException
     let alphabetIn, alphabetOut = Topology.alphabet(topo)
     let alphabetAll = Set.union alphabetIn alphabetOut
     let graph = BidirectionalGraph<CgState, TaggedEdge<CgState,unit>>()
