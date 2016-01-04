@@ -81,6 +81,13 @@ let canOriginateTraffic (t: State) =
     | Inside -> false
     | Start | End -> false
 
+let isPeer (topo: T) (state: State) =
+    let receivesFromInside = 
+        topo.InEdges state
+        |> Seq.map (fun e -> e.Source)
+        |> Seq.exists isInside
+    (isOutside state) && receivesFromInside
+
 (* TODO *)
 let isWellFormed (t: State) = 
     false

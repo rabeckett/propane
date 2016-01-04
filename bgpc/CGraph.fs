@@ -561,10 +561,10 @@ module Consistency =
         getOrdering g edges
 
     let addForLabel f r cg map l =
-        (* If external, then no ordering required *)
+        (* Only order internal locations *)
         let (ain, _) = Topology.alphabet cg.Topo
         let ain = Set.map (fun (v: Topology.State) -> v.Loc) ain
-        if ain.Contains l then 
+        if ain.Contains l then
             if not (Map.containsKey l map) then 
                 let nodes = Seq.filter (fun v -> v.Node.Loc = l) cg.Graph.Vertices
                 Map.add l (findPrefAssignment f r cg nodes) map

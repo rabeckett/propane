@@ -36,7 +36,7 @@ type Action =
         | NoAction -> ""
         | SetComm(is) -> "Community<-" + (List.ofArray is).ToString()
         | SetMed i -> "MED<-" + i.ToString()
-        | PrependPath i -> "Prepend path " + i.ToString() + " times"
+        | PrependPath i -> "Prepend " + i.ToString()
 
 type LocalPref = int
 type Peer = string
@@ -79,6 +79,7 @@ let comparePrefThenLoc (x,i1) (y,i2) =
 (* Generate the configuration given preference-based ordering 
    that satisfies our completeness/fail resistance properties *)
 let genConfig (cg: CGraph.T) (ord: Consistency.Ordering) : T =
+    let settings = Args.getSettings ()
     let (ain, _) = Topology.alphabet cg.Topo
     let ain = Set.map (fun (v: Topology.State) -> v.Loc) ain
     let mutable config = Map.empty
@@ -124,7 +125,9 @@ let genConfig (cg: CGraph.T) (ord: Consistency.Ordering) : T =
                     |> Seq.toList
                     |> List.filter (fun x -> x.Node.Loc <> v.Node.Loc && Topology.isTopoNode x.Node)
                 
-                (* ensure we can meet the export policy *)
+                (* Export to neighbors *)
+                let mutable exports = Map.empty
+
                 for n in expNeighbors do
                     if Topology.isOutside n.Node then
                         let otherReachable = 
@@ -132,11 +135,18 @@ let genConfig (cg: CGraph.T) (ord: Consistency.Ordering) : T =
                             |> Set.filter (fun x -> x <> n && not (CGraph.isRepeatedOut cg x) && Topology.isTopoNode x.Node)
                         if not otherReachable.IsEmpty then 
                             raise (UncontrollableEnterException n)
+                        let i = Set.minElement (Reachable.srcAccepting cg n Down)
+                        let mutable actions = []
+                        if settings.UseMed then
+                            actions <- (SetMed i) :: actions
+                        if settings.UsePrepending && i > 1 then
+                            actions <- (PrependPath (i-1)) :: actions
+                        exports <- Map.add n.Node.Loc actions exports
+                    else exports <- Map.add n.Node.Loc [SetComm(node.States)] exports
 
-                let exports = List.map (fun x -> (x.Node.Loc, [SetComm(node.States)] )) expNeighbors
-
-                filters <- ((m,lp), exports) :: filters
+                filters <- ((m,lp), Map.toList exports) :: filters
                 originates <- v.Node.Typ = Topology.Start
+
             let deviceConf = {Originates=originates; Filters=filters}
             config <- Map.add loc deviceConf config
     config

@@ -4,10 +4,12 @@ type Format =
     | IR 
     | Template
 
-type T =
+type T = 
     {PolFile: string option;
      OutFile: string option;
      Format: Format;
+     UseMed: bool;
+     UsePrepending: bool;
      Test: bool;
      Debug: int; 
      DebugDir: string}

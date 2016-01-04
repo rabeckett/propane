@@ -12,15 +12,19 @@ type T =
     {PolFile: string option;
      OutFile: string option;
      Format: Format;
+     UseMed: bool;
+     UsePrepending: bool;
      Test: bool;
      Debug: int; 
      DebugDir: string}
 
-exception InvalidFormatException of string
+exception InvalidArg of string
 
 let polFile = ref None
 let outFile = ref None
 let format = ref IR
+let useMed = ref false
+let usePrepending = ref false 
 let test = ref false
 let debug = ref 0
 let debugDir = ref "debug/"
@@ -33,20 +37,32 @@ let cleanDir dir =
         System.IO.Directory.Delete(dir, true)
     System.IO.Directory.CreateDirectory(dir).Create()
 
+let setMED s = 
+    match s with 
+    | "on" -> useMed := true
+    | "off" -> useMed := false
+    | _ -> raise (InvalidArg ("Invalid MED value: " + s))
+
+let setPrepending s = 
+    match s with 
+    | "on" -> usePrepending := true
+    | "off" -> usePrepending := false
+    | _ -> raise (InvalidArg ("Invalid AS path prepending value: " + s))
+
+let setFormat s = 
+    match s with 
+    | "IR" -> format := IR 
+    | "Template" -> format := Template
+    | _ -> raise (InvalidArg ("Invalid format value: " + s))
+
 let setDebugDir s =
     debugDir := s
 
 let setDebug s = 
     let i = int s
     if i < 0 || i > 3 then 
-        failwith ("Invalid debug level: " + s)
+        raise (InvalidArg ("Invalid debug level: " + s))
     debug := i
-
-let setFormat s = 
-    match s with 
-    | "IR" -> format := IR 
-    | "Template" -> format := Template
-    | _ -> raise (InvalidFormatException s)
 
 let usage = "Usage: bgpc.exe [options]"
 let args = 
@@ -54,6 +70,8 @@ let args =
       ("--out", String (fun s -> outFile := Some s), "Output file");
       ("--debug-dir", String setDebugDir, "Debugging directory (default 'debug')");
       ("--debug:0|1|2|3", String setDebug, "Debug level (lowest 0)");
+      ("--med:on|off", String setMED, "Use MED attribute (default off)");
+      ("--prepending:on|off", String setPrepending, "Use AS path prepending (default off)");
       ("--format:IR|Templ", String setFormat, "Output format (IR, Template)");
       ("--test", Unit (fun () -> test := true), "Run unit tests");
       ("--help", Unit (fun () -> ()), "Display this message");
@@ -89,13 +107,9 @@ let lookup (s: string) next i =
                     printfn "Invalid usage: %s, %s" p descr
                     exit ()
                 | Some s' -> f s'; i + 2
-    with
-        | InvalidFormatException s ->
-            printfn "Invalid format: %s" s
-            exit ()
-        |_ ->
-            printfn "Unknown parameter: %s" s
-            exit ()
+    with InvalidArg msg -> 
+        printfn "%s" msg
+        exit ()
 
 let parse (argv: string[]) : unit =
     if Array.isEmpty argv then 
@@ -113,8 +127,8 @@ let parse (argv: string[]) : unit =
     cleanDir !debugDir
     settings := 
         Some {PolFile = !polFile; OutFile = !outFile; 
-              Format = !format; Test = !test; 
-              Debug = !debug; DebugDir = !debugDir}
+              UseMed = !useMed; UsePrepending = !usePrepending; Format = !format; 
+              Test = !test; Debug = !debug; DebugDir = !debugDir}
 
 let getSettings () = 
     match !settings with

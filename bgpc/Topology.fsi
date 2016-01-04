@@ -37,6 +37,9 @@ val isInside: State -> bool
 /// Check if a node can originate traffice (e.g., TOR in DC)
 val canOriginateTraffic: State -> bool
 
+/// Check if a node is a direct external peer
+val isPeer: T -> State -> bool
+
 /// Checks if a topology is well-formed. This involves checking 
 /// for duplicate names, as well as checking that the inside is fully connected
 val isWellFormed: State -> bool

@@ -83,6 +83,7 @@ module Reachable =
     /// Find all destinations reachable from src
     val src: T -> CgState -> Direction -> Set<CgState>
 
+    val srcAccepting: T -> CgState -> Direction -> Set<int>
 
     /// Check if paths from n1 in cg1 are a superset of paths from n2 in cg2
     val supersetPaths: T * CgState -> T * CgState -> bool
