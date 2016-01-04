@@ -8,13 +8,13 @@ Aggregation:
 	Automatically insert aggregation when ok
 
 Well-formedness:
-	+ Reject routes not matching out* in+ out*
 	Disallow aggregation on external locations
+
+
 
 Error Reporting
 	More detailed counterexamples (include exact failure scenario)
 
 Misc
 	Line numbers for parse errors caught later
-	Add difference as a high-level combinator
 	More efficient character class ops for AvoidsAny, EndsAtAny, ...

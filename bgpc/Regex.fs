@@ -341,6 +341,8 @@ let emptiness (dfa: Automaton) : (string list) option =
     else None
 
 
+
+
 /// Regular expression builder object to parameterize a regular expression by an alphabet. 
 /// Since f# does not support ML-style functors, different objects can use different
 /// alphabets. Additionally, external ASes might not be specified in the topology. 

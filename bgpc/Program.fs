@@ -27,7 +27,6 @@ let main argv =
         let pairs = Ast.makePolicyPairs ast topo
         let (prefixes, reb, res) = pairs.Head
 
-
         match settings.Format with 
         | Args.IR ->
             try 

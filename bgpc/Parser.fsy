@@ -28,7 +28,7 @@ let addScope s (ps, cs) =
 %token LBRACE 
 %token RBRACE 
 %token COMMA 
-%token SLASH 
+%token SLASH
 %token COLON 
 %token SEMICOLON 
 %token RARROW 
@@ -37,7 +37,8 @@ let addScope s (ps, cs) =
 %token EOF
 
 %token INTERSECT 
-%token UNION 
+%token UNION
+%token DIFFERENCE
 %token NOT 
 %token STAR 
 %token SHR 
@@ -53,12 +54,12 @@ let addScope s (ps, cs) =
 %token UNORDERED
 
 %nonassoc EQUALS
-%left UNION INTERSECT
-%left SEMICOLON
-%left AND OR
-%right NOT
-%left STAR
 %left SHR
+%left UNION INTERSECT
+%left AND OR DIFFERENCE
+%left SEMICOLON
+%left STAR
+%right NOT
 
 %%
 
@@ -110,6 +111,7 @@ regex:
 	| regex SEMICOLON regex					{ Ast.Concat ($1, $3) }
 	| regex INTERSECT regex					{ Ast.Inter ($1, $3) }
 	| regex UNION regex						{ Ast.Union ($1, $3) }
+	| regex DIFFERENCE regex				{ Ast.Difference ($1, $3) }
 	| NOT regex								{ Ast.Negate $2 }
 	| regex STAR							{ Ast.Star $1 }
 	| LPAREN regex RPAREN					{ $2 }

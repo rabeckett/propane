@@ -4,6 +4,15 @@
 /// intersection, and character classes
 type T
 
+/// Build a DFA for a regular expression directly using regular 
+/// expression derivatives. Works well with complement,
+/// intersection, and character classes. Produces near-minimal DFAs
+type Automaton =
+    {q0: int;
+     Q: Set<int>; 
+     F: Set<int>;
+     trans: Map<int*Set<string>, int>}
+
 /// Check if a regular expression denotes a single character
 val isLoc: T -> string option
 
@@ -26,14 +35,9 @@ val interAll: T list -> T
 val union: T -> T -> T
 val unionAll: T list -> T
 
-/// Build a DFA for a regular expression directly using regular 
-/// expression derivatives. Works well with complement,
-/// intersection, and character classes. Produces near-minimal DFAs
-type Automaton =
-    {q0: int;
-     Q: Set<int>; 
-     F: Set<int>;
-     trans: Map<int*Set<string>, int>}
+/// Check if an automaton denotes the empty set,
+/// and if not, return an example sequence
+val emptiness: Automaton -> (string list) option
 
 /// Representation for a regex that we haven't built yet. 
 /// Since we don't have the complete alphabet until we have built the entire

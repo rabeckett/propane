@@ -16,7 +16,8 @@ type Re =
     | Concat of Re * Re
     | Union of Re * Re 
     | Inter of Re * Re 
-    | Negate of Re 
+    | Difference of Re * Re
+    | Negate of Re
     | Star of Re
     | Ident of string * Re list
 
@@ -65,6 +66,7 @@ let rec buildRegex (reb: Regex.REBuilder) (r: Re) : Regex.LazyT =
     | Concat(x,y) -> reb.Concat [(buildRegex reb x); (buildRegex reb y)]
     | Inter(x,y) -> reb.Inter [(buildRegex reb x); (buildRegex reb y)]
     | Union(x,y) -> reb.Union [(buildRegex reb x); (buildRegex reb y)]
+    | Difference(x,y) -> reb.Inter [(buildRegex reb x); reb.Negate (buildRegex reb y)]
     | Negate x -> reb.Negate (buildRegex reb x)
     | Star x -> reb.Star (buildRegex reb x)
     | Ident(id, args) -> 

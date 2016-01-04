@@ -41,6 +41,7 @@ rule tokenize = parse
 	| '}'					{ RBRACE }
 	| ','					{ COMMA }
 	| '/'					{ SLASH }
+	| '\\'					{ DIFFERENCE }
 	| ':'					{ COLON }
 	| ';'					{ SEMICOLON }
 	| '.'					{ DOT }

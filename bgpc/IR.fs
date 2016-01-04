@@ -149,7 +149,6 @@ let genConfig (cg: CGraph.T) (ord: Consistency.Ordering) : T =
                 
                 (* Export to neighbors *)
                 let mutable exports = Map.empty
-
                 for n in expNeighbors do
                     if Topology.isOutside n.Node then
                         let i = Set.minElement (Reachable.srcAccepting cg n Down)
