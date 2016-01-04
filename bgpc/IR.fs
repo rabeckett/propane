@@ -109,7 +109,7 @@ let genConfig (cg: CGraph.T) (ord: Consistency.Ordering) : T =
                 let m =
                     if Topology.isTopoNode v.Node then
                         if not (ain.Contains v.Node.Loc) then
-                            let re = CGraph.ToRegex.constructRegex cg v
+                            let re = CGraph.ToRegex.constructRegex (CGraph.copyReverseGraph cg) v
                             match Regex.isLoc re with
                             | Some x -> Match.Peer x 
                             | _ -> Match.PathRE re
@@ -452,8 +452,8 @@ let compress (cg: CGraph.T) (config: T) (outName: string) : T =
     debug1 (fun () -> System.IO.File.WriteAllText(outName + "-min5.ir", format config))
     config
 
-(* Given a topology and a policy, generate a low-level configuration in an intermediate
-   byte-code-like, vendor-independent representation for BGP  *)
+/// Given a topology and a policy, generate a low-level configuration in an intermediate
+/// byte-code-like, vendor-independent representation for BGP 
 let compileToIR (reb: Regex.REBuilder) (res: Regex.T list) (outName: string) : Result<T, CounterExample> =
     let cg = CGraph.buildFromRegex reb res
     debug1 (fun () -> CGraph.generatePNG cg outName)

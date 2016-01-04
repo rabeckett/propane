@@ -123,7 +123,6 @@ let inline isRepeatedOut (cg: T) (state: CgState) =
     (state.Node.Typ = Topology.Unknown) &&
     (Seq.exists (fun n -> n = state) ns)
 
-
 let restrict (cg: T) (i: int) : T = 
     if Set.contains i (preferences cg) then 
         let copy = copyGraph cg
@@ -629,39 +628,36 @@ module Consistency =
 
     let findOrderingConservative = findOrdering simulate
 
+module ToRegex =
 
-module ToRegex = 
-    
     let constructRegex (cg: T) (state: CgState) : Regex.T =
-        let cgRev = copyReverseGraph cg
-
         (* Store regex transitions in a separate map *)
         let reMap = ref Map.empty
         let get v = Common.Map.getOrDefault v Regex.empty !reMap
         let add k v = reMap := Map.add k v !reMap
 
         (* Simplify graph to only contain relevant nodes *)
-        let reachable = Reachable.src cgRev state Down
-        cgRev.Graph.RemoveVertexIf (fun v -> not (reachable.Contains v) && Topology.isTopoNode v.Node) |> ignore
-        cgRev.Graph.AddEdge (TaggedEdge(cgRev.End, state, ())) |> ignore
+        let reachable = Reachable.src cg state Down
+        cg.Graph.RemoveVertexIf (fun v -> not (reachable.Contains v) && Topology.isTopoNode v.Node) |> ignore
+        cg.Graph.AddEdge (TaggedEdge(cg.End, state, ())) |> ignore
 
         (* Populate the regex transition map *)
-        add (cgRev.End, state) Regex.epsilon
-        for e in cgRev.Graph.Edges do
-            if e.Source <> cgRev.End then
+        add (cg.End, state) Regex.epsilon
+        for e in cg.Graph.Edges do
+            if e.Source <> cg.End then
                 add (e.Source, e.Target) (Regex.loc e.Source.Node.Loc)
         
         (* we will remove all none start/end nodes one by one *)
         let queue = Queue()
-        for v in cgRev.Graph.Vertices do
+        for v in cg.Graph.Vertices do
             if isRealNode v then
                 queue.Enqueue v
         
         (* repeatedly pick a next node and remove it, updating path regexes *)
         while queue.Count > 0 do 
             let q = queue.Dequeue()
-            for q1 in cgRev.Graph.Vertices do 
-                for q2 in cgRev.Graph.Vertices do
+            for q1 in cg.Graph.Vertices do 
+                for q2 in cg.Graph.Vertices do
                     if q1 <> q && q2 <> q then
                         let x = get (q1,q2)
                         let y1 = get (q1,q)
@@ -669,6 +665,6 @@ module ToRegex =
                         let y3 = get (q,q2)
                         let re = Regex.union x (Regex.concatAll [y1; Regex.star y2; y3])
                         reMap := Map.add (q1,q2) re !reMap
-            cgRev.Graph.RemoveVertex q |> ignore
+            cg.Graph.RemoveVertex q |> ignore
         
-        Map.find (cgRev.End, cgRev.Start) !reMap
+        Map.find (cg.End, cg.Start) !reMap

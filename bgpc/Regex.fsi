@@ -78,3 +78,7 @@ type REBuilder  =
     member StartsAt: string -> LazyT
     member StartsAtAny: string list -> LazyT
     member ValleyFree: seq<string list> -> LazyT
+    member EnterIn: string -> LazyT
+    member EnterOut: string -> LazyT
+    member ExitIn: string -> LazyT
+    member ExitOut: string -> LazyT

@@ -62,6 +62,13 @@ module List =
             | _, [] -> () }
         aux [] n ls
 
+module Option =
+
+    let inline getOrDefault d o = 
+        match o with
+        | None -> d
+        | Some x -> x
+
 
 module Map = 
 

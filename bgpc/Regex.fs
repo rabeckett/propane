@@ -316,7 +316,7 @@ type REBuilder(topo: Topology.T) =
     let mutable inside = ins
     let mutable outside = Set.add unknownName outs
     let mutable alphabet = Set.add unknownName alph
-    let mutable isDone = false
+    let mutable finalAlphabet = false
 
     (* Add the unknown special node to the topology *)
     let unknown: Topology.State = {Loc=unknownName; Typ = Topology.Unknown}
@@ -327,10 +327,14 @@ type REBuilder(topo: Topology.T) =
                 Topology.addEdgesUndirected topo [(v,unknown)]
         Topology.copyTopology topo
 
-    (* let isExternal l = String.length l > 2 && l.[0] = 'A' && l.[1] = 'S' *)
+    let isInternal l = inside.Contains l
+
+    let isExternal l = 
+        outside.Contains l || (String.length l > 2 && l.[0] = 'A' && l.[1] = 'S')
+
     let check alphabet l =
-        if not (Set.contains l alphabet) then
-            error (sprintf "invalid topology location: %s" l)
+        if not (isInternal l) && not (isExternal l) then
+            error (sprintf "Invalid topology location: %s" l)
     
     (* Invariant: Build has set the alphabet *)
     let rec convert (re: LazyT) : T = 
@@ -348,9 +352,8 @@ type REBuilder(topo: Topology.T) =
 
     member __.Topo() = topo
 
-    (* Creates the actual regex now that we have the full alphabet and topology *)
     member this.Build re =
-        isDone <- true
+        finalAlphabet <- true
         convert re
 
     member __.Empty = LEmpty
@@ -376,11 +379,11 @@ type REBuilder(topo: Topology.T) =
         LLocs (Set.singleton x)
 
     member __.MakeDFA r =
-        assert (isDone)
+        assert (finalAlphabet)
         makeDFA alphabet r
 
     member __.StartingLocs r =
-        assert (isDone)
+        assert (finalAlphabet)
         Set.fold (fun acc a -> 
             if derivative alphabet a r <> Empty 
             then Set.add a acc 
@@ -420,21 +423,21 @@ type REBuilder(topo: Topology.T) =
         this.Union (List.map this.Avoid xs)
 
     member this.EndsAt(x) =
-        if inside.Contains x then
-            this.Concat [this.MaybeOutside(); this.MaybeInside(); this.Loc x]
-        else
-            this.Concat [this.MaybeOutside(); this.Internal(); this.MaybeOutside(); this.Loc x]
-
-    (* Relies on ill-formedness of (x out+ in+) when x is an internal location *)
-    member this.StartsAt(x) = 
-        if inside.Contains x then
-            this.Concat [this.Loc x;  this.Internal(); this.MaybeOutside()]
-        else
-            this.Concat [this.Loc x;  this.MaybeOutside(); this.Internal() ;this.MaybeOutside()]
+        check alphabet x
+        if isInternal x 
+        then this.Concat [this.MaybeOutside(); this.MaybeInside(); this.Loc x]
+        else this.Concat [this.MaybeOutside(); this.Internal(); this.MaybeOutside(); this.Loc x]
 
     (* TODO: use character classes to split by inside/outside (more efficient) *)
     member this.EndsAtAny(xs) =
+        List.iter (check alphabet) xs
         this.Union (List.map this.EndsAt xs)
+
+    member this.StartsAt(x) =
+        check alphabet x
+        if isInternal x 
+        then this.Concat [this.Loc x;  this.MaybeInside(); this.MaybeOutside()]
+        else this.Concat [this.Loc x;  this.MaybeOutside(); this.Internal(); this.MaybeOutside()]
 
     (* TODO: use character classes to split by inside/outside (more efficient) *)
     member this.StartsAtAny(xs) =
@@ -451,3 +454,19 @@ type REBuilder(topo: Topology.T) =
                 let avoid = this.Negate (this.Concat sq)
                 (Some tierx, this.Inter [acc; avoid])
         List.fold aux (None, this.Any()) xs |> snd
+
+    member this.EnterIn(x) =
+        let enter = this.Inter [this.Inside; this.Loc x]
+        this.Concat [this.External(); enter; this.MaybeInside(); this.MaybeOutside()]
+
+    member this.EnterOut(x) = 
+        let enter = this.Inter [this.Outside; this.Loc x]
+        this.Concat [this.MaybeOutside(); enter; this.Internal(); this.MaybeOutside()]
+
+    member this.ExitIn(x) = 
+        let exit = this.Inter [this.Inside; this.Loc x]
+        this.Concat [this.MaybeOutside(); this.MaybeInside(); exit; this.External()]
+
+    member this.ExitOut(x) = 
+        let exit = this.Inter [this.Outside; this.Loc x]
+        this.Concat [this.MaybeOutside(); this.Internal(); exit; this.MaybeOutside()]

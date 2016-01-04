@@ -7,9 +7,8 @@ open Common.Error
 
 let maxTests = 1000
 
-(********************************************* 
- *  Config helpers
- *********************************************)
+/// Helper functions for checking properties
+/// of IR configurations.
 
 let isPeer x m = 
     match m with 
@@ -33,9 +32,8 @@ let originates (config: IR.T) x =
     let deviceConfig = Map.find x config
     deviceConfig.Originates
 
-(********************************************* 
- *  Regular expression queries
- *********************************************)
+/// Unit tests for finding paths and setting preferences
+/// for regular expression queries
 
 type FailReason = 
     | InconsistentPrefs
@@ -392,8 +390,8 @@ let randomPrefixes n =
         prefixes <- (randomPrefix ()) :: prefixes
     prefixes
 
-(* Randomized tests that check that converting a prefix 
-   to a range-based representation and back are inverse functions *)
+/// Randomized tests that check that converting a prefix 
+/// to a range-based representation and back are inverse functions
 let testPrefixes () =
     printfn "Testing prefix predicates..."
     for i = 1 to maxTests do 
@@ -405,8 +403,8 @@ let testPrefixes () =
         if List.length rs <> 1 || List.head rs <> (lo,hi) then
             printfn "[Failed]: expected: %A, but got %A" (lo,hi) (List.head rs)
 
-(* Randomized tests that check that the scope merging cross product 
-   construction never introduces new prefixes not specified originally *)
+/// Randomized tests that check that the scope merging cross product 
+/// construction never introduces new prefixes not specified originally
 let testScopeMerging () = 
     printfn "Testing prefix compaction..."
     let allPrefixes ccs = 
@@ -434,8 +432,8 @@ let testScopeMerging () =
         if Prefix.toPredicate ps <> Prefix.top then 
             printfn "[Failed]: Last test not true"
 
-(* Compiles various examples and ensures that they either don't compile,
-   or they compile and the resulting configuration is correct *)
+/// Compiles various examples and ensures that they either don't compile,
+/// or they compile and the resulting configuration is correct
 let testCompilation() =
     printfn "Testing compilation..."
     printfn "----------------------------------------------------------"

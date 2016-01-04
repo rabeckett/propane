@@ -60,7 +60,6 @@ val toDot: T -> string
 /// Generate a png file for the constraint graph (requires graphviz dot utility)
 val generatePNG: T -> string -> unit
 
-  
 
 module Reachable =
     /// All pairs reachability in the constraint graph
@@ -84,46 +83,14 @@ module Reachable =
     /// Find all destinations reachable from src
     val src: T -> CgState -> Direction -> Set<CgState>
 
-    /// Find all accepting preferences reachable from src while avoiding certain nodes
-    val srcAcceptingWithout: T -> CgState -> (CgState -> bool) -> Direction -> Set<int> 
-
-    /// Find all accepting preferences reachable from src
-    val srcAccepting: T -> CgState -> Direction -> Set<int>
-
-    /// Find all nodes reachable from src on a simple path
-    (* val simplePathSrc: T -> CgState -> Direction -> Set<CgState> *)
-
-    /// Find all nodes along some simple path from src to dst
-    val alongSimplePathSrcDst: T -> CgState -> CgState -> Direction -> Set<CgState>
 
     /// Check if paths from n1 in cg1 are a superset of paths from n2 in cg2
     val supersetPaths: T * CgState -> T * CgState -> bool
 
 
 module Minimize =
-    /// Heuristic to remove edges not on any simple path
-    val removeEdgesForDominatedNodes: T -> unit
-
-    /// Remove nodes that will never result in an accepting state
-    val removeNodesThatCantReachEnd: T -> unit
-
-    /// Remove nodes that can't be reached from the start node without looping *)
-    (* val removeNodesNotReachableOnSimplePath: T -> unit *)
-
-    /// Remove nodes that are on no path from start to end without looping
-    val removeNodesNotOnAnySimplePathToEnd: T -> unit
-
     /// Get rid of nodes that can originate traffic but aren't accepting
     val delMissingSuffixPaths: T -> unit
-
-    /// Remove obviously dead nodes
-    val minimizeO0: T -> unit
-
-    /// Remove obviously dead nodes and dominated edges
-    val minimizeO1: T -> unit
-
-    /// Remove obviously dead nodes, dominated edges, and nodes not on simple path
-    val minimizeO2: T -> unit
 
     /// Fixpoint removal of nodes and edges, including nodes not on any simple path
     val minimizeO3: T -> unit
@@ -148,5 +115,6 @@ module Consistency =
     (* val findOrderingEnumerate: int -> (T -> string -> Result<Ordering, CounterExample>) *)
 
 module ToRegex = 
-
+    /// Construct a compact regular expression describing the paths
+    /// from a given node in the graph
     val constructRegex: T -> CgState -> Regex.T
