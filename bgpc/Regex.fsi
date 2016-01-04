@@ -72,7 +72,7 @@ type REBuilder  =
     member Negate: LazyT -> LazyT
     member Star: LazyT -> LazyT
     member MakeDFA: T -> Automaton
-    member StartingLocs: T -> Set<string>
+    member StartingLocs: Automaton -> Set<string>
     (* Constraint-based builders *)
     member Path: string list -> LazyT
     member Internal: unit -> LazyT

@@ -84,16 +84,6 @@ let buildFromAutomata (topo: Topology.T) (autos : Regex.Automaton array) : T =
     Seq.iter (fun v -> graph.AddEdge(TaggedEdge(v, newEnd, ())) |> ignore) accepting
     {Start=newStart; Graph=graph; End=newEnd; Topo=topo}
 
-let buildFromRegex (reb: Regex.REBuilder) (res: Regex.T list) : T =
-    (* for v in reb.Topo().Vertices do 
-        printfn "Vertex: %A" v.Loc
-    for e in reb.Topo().Edges do 
-        printfn "Edge: (%A, %A)" e.Source.Loc e.Target.Loc *)
-    res 
-    |> List.map (fun r -> reb.MakeDFA (Regex.rev r))
-    |> Array.ofList
-    |> buildFromAutomata (reb.Topo ())
-
 let inline preferences (cg: T) : Set<int> = 
     let mutable all = Set.empty
     for v in cg.Graph.Vertices do 

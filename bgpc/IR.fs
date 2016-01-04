@@ -480,15 +480,24 @@ let compress (cg: CGraph.T) (config: T) (outName: string) : T =
 /// Given a topology and a policy, generate a low-level configuration in an intermediate
 /// byte-code-like, vendor-independent representation for BGP 
 let compileToIR (reb: Regex.REBuilder) (res: Regex.T list) (outName: string) : Result<T, CounterExample> =
-    let cg = CGraph.buildFromRegex reb res
+    
+    (* compute the automata and product graph *)
+    let dfas = 
+        res 
+        |> List.map (fun r -> reb.MakeDFA (Regex.rev r))
+        |> Array.ofList
+    let cg = CGraph.buildFromAutomata (reb.Topo()) dfas
     debug1 (fun () -> CGraph.generatePNG cg outName)
+    
     (* Ensure the path suffix property and dont conside simple paths *)
     CGraph.Minimize.delMissingSuffixPaths cg
     CGraph.Minimize.minimizeO3 cg
+    
     (* Save graphs to file *)
     debug1 (fun () -> CGraph.generatePNG cg (outName + "-min"))
+    
     (* Check for errors *)
-    let startingLocs = List.fold (fun acc r -> Set.union (reb.StartingLocs r) acc) Set.empty res
+    let startingLocs = Array.fold (fun acc dfa -> Set.union (reb.StartingLocs dfa) acc) Set.empty dfas
     let originators = 
         CGraph.neighbors cg cg.Start
         |> Seq.map (fun v -> v.Node.Loc)

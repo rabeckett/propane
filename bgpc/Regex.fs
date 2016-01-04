@@ -165,7 +165,6 @@ let unionAll res =
     | [] -> Empty
     | _ -> Common.List.fold1 union res
 
-
 /// Check if a regular expression accepts the empty string
 let rec nullable r = 
     match r with 
@@ -265,7 +264,6 @@ let makeDFA alphabet r =
     let (q0', Q', F', trans') = indexStates (q0, Q, F, trans)
     {q0=q0'; Q=Q'; F=F'; trans=trans'}
 
-
 /// Representation for a regex that we haven't built yet. 
 /// Since we don't have the complete alphabet until we have built the entire
 /// regular expression (due to partial AS topology information), we delay
@@ -307,9 +305,49 @@ let getAlphabet (topo: Topology.T) =
     let alphabet = Set.union inside outside
     (inside, outside, alphabet)
 
+let applyTransition (dfa: Automaton) (i: int) (s: string) : int =
+    (* slow *)
+    let k = Map.findKey (fun (i',ss) j -> i' = i && Set.contains s ss) dfa.trans
+    Map.find k dfa.trans
+
 /// Language emptiness test for a DFA
 /// Returns either a simple string, or None
+
+let emptinessAux dfa start = 
+    let transitions = 
+        dfa.trans
+        |> Map.toSeq
+        |> Seq.map (fun ((x,_),z) -> (x,z))
+        |> Seq.groupBy fst
+        |> Seq.map (fun (k,ss) -> (k, Set.ofSeq (Seq.map snd ss)))
+        |> Map.ofSeq
+    let s = System.Collections.Generic.Stack()
+    let mutable marked = Set.singleton start
+    let mutable edgeTo = Map.add start start Map.empty
+    s.Push start
+    while s.Count > 0 do 
+        let v = s.Pop()
+        for w in Map.find v transitions do
+            if not (marked.Contains w) then
+                edgeTo <- Map.add w v edgeTo
+                marked <- Set.add w marked
+                s.Push w
+    let reachableFinal = Set.filter dfa.F.Contains marked
+    if reachableFinal.Count > 0 then
+        let mutable path = []
+        let x = ref (Seq.head (Set.toSeq reachableFinal))
+        while !x <> start do 
+            let y = !x
+            x := Map.find !x edgeTo
+            let (_,ss) = Map.findKey (fun (i,ss) j -> i = !x && j = y) dfa.trans
+            path <- (Set.minElement ss) :: path
+        Some path
+    else None
+
 let emptiness (dfa: Automaton) : (string list) option =
+    emptinessAux dfa dfa.q0
+
+let startingLocs (dfa: Automaton) : Set<string> =
     let transitions = 
         dfa.trans
         |> Map.toSeq
@@ -328,18 +366,12 @@ let emptiness (dfa: Automaton) : (string list) option =
                 edgeTo <- Map.add w v edgeTo
                 marked <- Set.add w marked
                 s.Push w
-    let reachableFinal = Set.filter dfa.F.Contains marked
-    if reachableFinal.Count > 0 then
-        let mutable path = []
-        let x = ref (Seq.head (Set.toSeq reachableFinal))
-        while !x <> dfa.q0 do 
-            let y = !x
-            x := Map.find !x edgeTo
-            let (_,ss) = Map.findKey (fun (i,ss) j -> i = !x && j = y) dfa.trans
-            path <- (Set.minElement ss) :: path
-        Some path
-    else None
-
+    let marked = marked
+    Map.fold (fun acc (i,ss) j ->
+        if dfa.F.Contains j && marked.Contains i then
+            Set.union acc ss
+        else acc
+    ) Set.empty dfa.trans
 
 
 
@@ -426,13 +458,15 @@ type REBuilder(topo: Topology.T) =
         assert (finalAlphabet)
         makeDFA alphabet r
 
-    member __.StartingLocs r =
-        assert (finalAlphabet)
-        Set.fold (fun acc a -> 
+    member __.StartingLocs dfa =
+        if not finalAlphabet then 
+            failwith "Builder must be final before computing starting locations"
+        startingLocs dfa
+        (* Set.fold (fun acc a -> 
             if derivative alphabet a r <> Empty 
             then Set.add a acc 
             else acc 
-        ) Set.empty alphabet
+        ) Set.empty alphabet *)
 
     member this.Path(ls) =
         this.Concat (List.map this.Loc ls)
