@@ -6,7 +6,8 @@ type CounterExample =
     | UnusedPreferences of Map<int, Regex.T>
     | NoPathForRouters of Set<string>
     | InconsistentPrefs of CgState * CgState
-    | UncontrollableEnter of CgState
+    | UncontrollableEnter of string
+    | UncontrollablePeerPreference of string
 
 type Match = 
     | Peer of string 

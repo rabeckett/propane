@@ -4,13 +4,15 @@ open CGraph
 open Common.Debug
 open Common.Error
 
-exception UncontrollableEnterException of CgState
+exception UncontrollableEnterException of string
+exception UncontrollablePeerPreferenceException of string
 
 type CounterExample = 
     | UnusedPreferences of Map<int, Regex.T>
     | NoPathForRouters of Set<string>
     | InconsistentPrefs of CgState * CgState
-    | UncontrollableEnter of CgState
+    | UncontrollableEnter of string
+    | UncontrollablePeerPreference of string
 
 type Match = 
     | Peer of string 
@@ -67,6 +69,26 @@ let format (config: T) =
                     sb.Append(", " + acts.ToString()) |> ignore
         sb.Append("\n\n") |> ignore
     sb.ToString()
+
+let checkCanControlIncomingTraffic cg = 
+    let isExportPeer v = 
+        Topology.isOutside v.Node && 
+        Seq.exists (fun u -> Topology.isInside u.Node) (neighborsIn cg v)
+    let exportPeers = Seq.filter isExportPeer cg.Graph.Vertices
+    (* Ensure nothing beyond out* after peer *)
+    for n in exportPeers do
+        let otherReachable = 
+            Reachable.src cg n Down
+            |> Set.filter (fun x -> x <> n && not (CGraph.isRepeatedOut cg x) && Topology.isTopoNode x.Node)
+        if not otherReachable.IsEmpty then 
+            raise (UncontrollableEnterException n.Node.Loc)
+    (* If prepending and MED off, then ensure unique export node per peer *)
+    let settings = Args.getSettings()
+    if not (settings.UseMed || settings.UsePrepending) then 
+        let exports = Seq.groupBy (fun v -> v.Node.Loc) exportPeers
+        for (l, ns) in exports do 
+            if Seq.length ns > 1 then 
+                raise (UncontrollablePeerPreferenceException l)
 
 (* Order config by preference and then router name. 
    This makes it easier to minimize the config *)
@@ -130,11 +152,6 @@ let genConfig (cg: CGraph.T) (ord: Consistency.Ordering) : T =
 
                 for n in expNeighbors do
                     if Topology.isOutside n.Node then
-                        let otherReachable = 
-                            Reachable.src cg n Down
-                            |> Set.filter (fun x -> x <> n && not (CGraph.isRepeatedOut cg x) && Topology.isTopoNode x.Node)
-                        if not otherReachable.IsEmpty then 
-                            raise (UncontrollableEnterException n)
                         let i = Set.minElement (Reachable.srcAccepting cg n Down)
                         let mutable actions = []
                         if settings.UseMed then
@@ -387,7 +404,7 @@ let compressAllExports (cg: CGraph.T) (config: T) : T =
                 topoPeers
                 |> Seq.forall coversPeer
             if eqActions && allPeers && List.length es <= Seq.length topoPeers then 
-                newFilters <- ((m,lp), [("*", [])]) :: newFilters
+                newFilters <- ((m,lp), [("*", snd es.Head)]) :: newFilters
             else newFilters <- f :: newFilters
         let newDC = {Originates=deviceConf.Originates; Filters=List.rev newFilters}
         newConfig <- Map.add loc newDC newConfig
@@ -499,12 +516,14 @@ let compileToIR (reb: Regex.REBuilder) (res: Regex.T list) (outName: string) : R
             let cexamples = Set.fold (fun acc p -> Map.add p (List.nth res (p-1)) acc) Map.empty unusedPrefs
             Err(UnusedPreferences(cexamples))
         else
-            match Consistency.findOrderingConservative cg outName with 
-            | Ok ord ->
-                try 
+            try 
+                checkCanControlIncomingTraffic cg
+                match Consistency.findOrderingConservative cg outName with 
+                | Ok ord ->
                     let config = genConfig cg ord
                     let config = compress cg config outName
                     Ok (config)
-                with UncontrollableEnterException s -> 
-                    Err(UncontrollableEnter s)
-            | Err((x,y)) -> Err(InconsistentPrefs(x,y))
+                | Err((x,y)) -> Err(InconsistentPrefs(x,y))
+            with 
+                | UncontrollableEnterException s -> Err(UncontrollableEnter s)
+                | UncontrollablePeerPreferenceException s -> Err(UncontrollablePeerPreference s)

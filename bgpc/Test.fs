@@ -38,6 +38,7 @@ let originates (config: IR.T) x =
 type FailReason = 
     | InconsistentPrefs
     | NoPathForRouters
+    | CantControlPeers
 
 type Test = 
     {Name: string;
@@ -174,7 +175,8 @@ let rStretchingManWAN2 (reb: Regex.REBuilder) =
     let pref1 = reb.Concat [reb.Star reb.Outside; reb.Loc "A"; reb.Star reb.Inside; reb.Loc "Y"; reb.Star reb.Outside; reb.Loc "ASChina"]
     [reb.Build pref1]
 
-let tests = [
+
+let tests canControlPeers = [
 
     {Name= "Diamond1";
      Explanation="A simple path";
@@ -353,14 +355,24 @@ let tests = [
     (* Begin inter-domain tests *)
 
     (* TODO: test preferences on filters *)
-    {Name= "StretchingMan1";
-     Explanation="Prefer one AS over another";
-     Topo= tStretchingManWAN;
-     Rf= rStretchingManWAN1; 
-     Receive= Some [("C", "D"); ("A", "C"); ("B", "C")];
-     Originate = Some [];
-     Prefs = Some [("D", "Y", "Z")];
-     Fail = None};
+    (if canControlPeers then
+        {Name= "StretchingMan1";
+         Explanation="Prefer one AS over another";
+         Topo= tStretchingManWAN;
+         Rf= rStretchingManWAN1; 
+         Receive= Some [("C", "D"); ("A", "C"); ("B", "C")];
+         Originate = Some [];
+         Prefs = Some [("D", "Y", "Z")];
+         Fail = None};
+    else
+        {Name= "StretchingMan1";
+         Explanation="Prefer one AS over another";
+         Topo= tStretchingManWAN;
+         Rf= rStretchingManWAN1; 
+         Receive= None;
+         Originate = None;
+         Prefs = None;
+         Fail = Some CantControlPeers});
 
     {Name= "StretchingMan2";
      Explanation="Using peer not listed in the topology";
@@ -438,6 +450,8 @@ let testCompilation() =
     printfn "Testing compilation..."
     printfn "----------------------------------------------------------"
     let settings = Args.getSettings ()
+    let canControlPeers = settings.UseMed || settings.UsePrepending
+    let tests = tests canControlPeers
     let longest = List.maxBy (fun t -> t.Name.Length) tests
     let longest = longest.Name.Length
     for test in tests do
@@ -459,6 +473,8 @@ let testCompilation() =
             match test.Fail, x with 
             | Some NoPathForRouters, IR.NoPathForRouters _ -> ()
             | Some InconsistentPrefs, IR.InconsistentPrefs _ -> ()
+            | Some CantControlPeers, IR.UncontrollableEnter _ -> () 
+            | Some CantControlPeers, IR.UncontrollablePeerPreference _ -> ()
             | _ ->
                 let msg = String.Format("\n[Failed]:\n  Name: {0}\n  Message: Expected Error {1}\n", test.Name, test.Fail)
                 printfn "%s" msg
