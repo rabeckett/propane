@@ -1,5 +1,5 @@
 ﻿Interdomain Routing:
-	Interdomain routing set MEDs
+	Interdomain routing set MEDs, prepending
 
 Aggregation:
 	Adding aggregation constaints

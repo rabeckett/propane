@@ -113,8 +113,7 @@ let genConfig (cg: CGraph.T) (ord: Consistency.Ordering) : T =
                             match Regex.isLoc re with
                             | Some x -> Match.Peer x 
                             | _ -> Match.PathRE re
-                        else
-                            Match.State(v.States, v.Node.Loc)
+                        else Match.State(v.States, v.Node.Loc)
                     else NoMatch
                 let node = 
                     neighbors cg v

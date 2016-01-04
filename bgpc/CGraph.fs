@@ -496,12 +496,9 @@ module Consistency =
         let restrict_j = copyGraph (Map.find j restrict)
         restrict_i.Graph.RemoveVertexIf (fun v -> v.Node.Loc = x.Node.Loc && v <> x) |> ignore
         restrict_j.Graph.RemoveVertexIf (fun v -> v.Node.Loc = y.Node.Loc && v <> y) |> ignore
-        (* If x is not in the restricted graph for pref i, it does not subsume y *)
-        if not (restrict_i.Graph.ContainsVertex x) then 
-            false
-        (* If y is not in the restricted graph for pref j, then we shouldn't consider this preference *)
-        else if not (restrict_j.Graph.ContainsVertex y) then
-            true
+
+        if not (restrict_i.Graph.ContainsVertex x) then false
+        else if not (restrict_j.Graph.ContainsVertex y) then true
         else
             (* Remove nodes that appear 'above' for the more preferred, to avoid considering simple paths *)
             (* cheaper approximation of simple paths - can do better at cost of speed *)
@@ -594,7 +591,7 @@ module Consistency =
             let r = restrict cg i 
             Minimize.removeNodesThatCantReachEnd r
             (* don't consider external ASes. Note: don't remove nodes after this *)
-            r.Graph.RemoveVertexIf (fun v -> v.Node.Typ = Topology.Outside) |> ignore
+            r.Graph.RemoveEdgeIf (fun e -> Topology.isOutside e.Source.Node) |> ignore
             Map.add i r acc
         Set.fold aux Map.empty prefs
 
