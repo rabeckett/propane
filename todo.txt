@@ -1,17 +1,20 @@
-﻿Aggregation:
+﻿Correctness
+	Remove edges not on simple path efficiently
+	+ paths for starting locations based on language emptiness
+
+Aggregation:
 	Adding aggregation constaints
 	Checking aggregation never black holdes according to k failure scenario
 	Automatically insert aggregation when ok
 
 Well-formedness:
-	Ensure topology is well formed (connected)
-	All peers in topology are known
-	Reject routes not matching out* in+ out*
+	+ Reject routes not matching out* in+ out*
 	Disallow aggregation on external locations
 
 Error Reporting
 	More detailed counterexamples (include exact failure scenario)
 
 Misc
-	Remove edges not on simple path efficiently
-	paths for starting locations based on language emptiness
+	Line numbers for parse errors caught later
+	Add difference as a high-level combinator
+	More efficient character class ops for AvoidsAny, EndsAtAny, ...

@@ -78,6 +78,7 @@
     <Compile Include="Topology.fs" />
     <Compile Include="Prefix.fsi" />
     <Compile Include="Prefix.fs" />
+    <Compile Include="Examples.fs" />
     <Compile Include="Regex.fsi" />
     <Compile Include="Regex.fs" />
     <Compile Include="Ast.fs" />
@@ -91,7 +92,6 @@
     </FsYacc>
     <Compile Include="Parser.fs" />
     <Compile Include="Lexer.fs" />
-    <Compile Include="Examples.fs" />
     <Compile Include="Input.fsi" />
     <Compile Include="Input.fs" />
     <Compile Include="CGraph.fsi" />

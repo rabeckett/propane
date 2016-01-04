@@ -2,6 +2,16 @@
 open QuickGraph
 open Topology
 
+let topoDisconnected () = 
+    let g = BidirectionalGraph<State ,TaggedEdge<State,unit>>()
+    let vA = {Loc="A"; Typ=Inside}
+    let vB = {Loc="B"; Typ=Inside}
+    let vC = {Loc="C"; Typ=Inside}
+    let vD = {Loc="D"; Typ=Inside}
+    Topology.addVertices g [vA; vB; vC; vD]
+    Topology.addEdgesUndirected g [(vA,vB); (vC,vD)]
+    g
+
 let topoDiamond () = 
     let g = BidirectionalGraph<State ,TaggedEdge<State,unit>>()
     let vA = {Loc="A"; Typ=InsideOriginates}

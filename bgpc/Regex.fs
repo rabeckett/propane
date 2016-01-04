@@ -29,6 +29,14 @@ type T =
         | Negate r -> "!(" + r.ToString() + ")"
         | Star r -> (r.ToString() |> addParens) + "*"
 
+/// Standard deterministic finite automaton, implemented 
+/// using maps ans sets for simplicity
+type Automaton =
+    {q0: int;
+     Q: Set<int>; 
+     F: Set<int>;
+     trans: Map<int*Set<string>, int>}
+
 let isLoc r = 
     match r with
     | Locs xs when xs.Count = 1 -> 
@@ -221,14 +229,6 @@ let rec derivative alphabet a r =
     | Negate r' -> negate alphabet (derivative alphabet a r')
     | Star r' -> concat (derivative alphabet a r') r
 
-/// Standard deterministic finite automaton, implemented 
-/// using maps ans sets for simplicity
-type Automaton =
-    {q0: int;
-     Q: Set<int>; 
-     F: Set<int>;
-     trans: Map<int*Set<string>, int>}
-
 /// Explore and construct an automaton in a depth-first fashion
 let rec goto alphabet q (Q,trans) S = 
     let c = Set.minElement S
@@ -307,9 +307,48 @@ let getAlphabet (topo: Topology.T) =
     let alphabet = Set.union inside outside
     (inside, outside, alphabet)
 
-/// Parameterize regular expression by an alphabet. Since f# does
-/// not support ML-style functors, different objects can use different
-/// alphabets. Client code must ensure a single object is used.
+/// Language emptiness test for a DFA
+/// Returns either a simple string, or None
+let emptiness (dfa: Automaton) : (string list) option =
+    let transitions = 
+        dfa.trans
+        |> Map.toSeq
+        |> Seq.map (fun ((x,_),z) -> (x,z))
+        |> Seq.groupBy fst
+        |> Seq.map (fun (k,ss) -> (k, Set.ofSeq (Seq.map snd ss)))
+        |> Map.ofSeq
+    let s = System.Collections.Generic.Stack()
+    let mutable marked = Set.singleton dfa.q0
+    let mutable edgeTo = Map.add dfa.q0 dfa.q0 Map.empty
+    s.Push dfa.q0
+    while s.Count > 0 do 
+        let v = s.Pop()
+        for w in Map.find v transitions do
+            if not (marked.Contains w) then
+                edgeTo <- Map.add w v edgeTo
+                marked <- Set.add w marked
+                s.Push w
+    let reachableFinal = Set.filter dfa.F.Contains marked
+    if reachableFinal.Count > 0 then
+        let mutable path = []
+        let x = ref (Seq.head (Set.toSeq reachableFinal))
+        while !x <> dfa.q0 do 
+            let y = !x
+            x := Map.find !x edgeTo
+            let (_,ss) = Map.findKey (fun (i,ss) j -> i = !x && j = y) dfa.trans
+            path <- (Set.minElement ss) :: path
+        Some path
+    else None
+
+
+/// Regular expression builder object to parameterize a regular expression by an alphabet. 
+/// Since f# does not support ML-style functors, different objects can use different
+/// alphabets. Additionally, external ASes might not be specified in the topology. 
+/// We must therefore delay applying the smart constructors until we have seen the entire policy.
+/// Client code must ensure a single builder object is used.
+
+exception InvalidPathShapeException of string list
+
 type REBuilder(topo: Topology.T) =
     let unknownName = "out"
     let (ins, outs, alph) = getAlphabet topo
@@ -328,13 +367,6 @@ type REBuilder(topo: Topology.T) =
         Topology.copyTopology topo
 
     let isInternal l = inside.Contains l
-
-    let isExternal l = 
-        outside.Contains l || (String.length l > 2 && l.[0] = 'A' && l.[1] = 'S')
-
-    let check alphabet l =
-        if not (isInternal l) && not (isExternal l) then
-            error (sprintf "Invalid topology location: %s" l)
     
     (* Invariant: Build has set the alphabet *)
     let rec convert (re: LazyT) : T = 
@@ -352,9 +384,16 @@ type REBuilder(topo: Topology.T) =
 
     member __.Topo() = topo
 
+    member this.WellFormed(x) = 
+        let r = this.Inter [this.Negate (this.Any()); x]
+        let dfa = this.MakeDFA (convert r)
+        emptiness dfa
+
     member this.Build re =
         finalAlphabet <- true
-        convert re
+        match this.WellFormed re with
+        | None -> convert re
+        | Some cs -> raise (InvalidPathShapeException cs)
 
     member __.Empty = LEmpty
     member __.Epsilon = LEpsilon
@@ -423,18 +462,15 @@ type REBuilder(topo: Topology.T) =
         this.Union (List.map this.Avoid xs)
 
     member this.EndsAt(x) =
-        check alphabet x
         if isInternal x 
         then this.Concat [this.MaybeOutside(); this.MaybeInside(); this.Loc x]
         else this.Concat [this.MaybeOutside(); this.Internal(); this.MaybeOutside(); this.Loc x]
 
     (* TODO: use character classes to split by inside/outside (more efficient) *)
     member this.EndsAtAny(xs) =
-        List.iter (check alphabet) xs
         this.Union (List.map this.EndsAt xs)
 
     member this.StartsAt(x) =
-        check alphabet x
         if isInternal x 
         then this.Concat [this.Loc x;  this.MaybeInside(); this.MaybeOutside()]
         else this.Concat [this.Loc x;  this.MaybeOutside(); this.Internal(); this.MaybeOutside()]

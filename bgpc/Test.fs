@@ -5,7 +5,7 @@ open System
 open Common.Debug
 open Common.Error
 
-let maxTests = 1000
+let maxTests = 10000
 
 /// Helper functions for checking properties
 /// of IR configurations.
@@ -444,6 +444,30 @@ let testScopeMerging () =
         if Prefix.toPredicate ps <> Prefix.top then 
             printfn "[Failed]: Last test not true"
 
+let testRegexWellFormedness () =
+    printfn "Testing regex well-formedness..."
+    let reb = Regex.REBuilder tStretchingManWAN
+    let pref1 = reb.Path ["X"; "B"; "X"; "B"]
+    let pref2 = reb.Concat [reb.External(); reb.Internal(); reb.External(); reb.Internal()]
+    let pref3 = reb.Concat [reb.Internal(); reb.External(); reb.Internal()]
+    for p in [pref1; pref2; pref3] do
+        try 
+            ignore (reb.Build p)
+            printfn "\n[Failed]:\n  Should catch invalid path shape for regex: %s" (p.ToString())
+        with Regex.InvalidPathShapeException is -> ()
+
+let testTopologyWellFormedness () =
+    printfn "Testing topology well-formedness..."
+    let topo = Examples.topoDisconnected ()
+    if Topology.isWellFormed topo then 
+        printfn "\n[Failed]:\n  Should mark disconnected topology as invalid"
+
+let testWellFormedness () =
+    testRegexWellFormedness ()
+    testTopologyWellFormedness ()
+
+
+
 /// Compiles various examples and ensures that they either don't compile,
 /// or they compile and the resulting configuration is correct
 let testCompilation() =
@@ -522,4 +546,5 @@ let run () =
     printfn ""
     testPrefixes ()
     testScopeMerging ()
+    testWellFormedness ()
     testCompilation ()

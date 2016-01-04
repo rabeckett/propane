@@ -45,6 +45,10 @@ type LazyT
 /// if so, returns the set of characters it denotes
 val singleLocations: Set<string> -> LazyT -> Set<string> option
 
+/// Exception thrown when user-specified paths do not 
+/// conform to the shape out*; in+; out*
+exception InvalidPathShapeException of string list
+
 /// Parameterize regular expression by an alphabet. Since f# does
 /// not support ML-style functors, different objects can use different
 /// alphabets. Client code must ensure a single object is used.

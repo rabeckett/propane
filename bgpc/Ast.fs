@@ -178,18 +178,15 @@ let combineConstraints (pcs1: ConcretePathConstraints) (pcs2: ConcretePathConstr
 
 let rec mergeScopes (re: Re) disjoints : ConcretePathConstraints =
     match re with
-    | Empty -> 
-        parseError (sprintf "Empty constraint not allowed in main policy expression")
+    | Empty -> error (sprintf "Empty constraint not allowed in main policy expression")
     | Concat(x,y) -> combineConstraints (mergeScopes x disjoints) (mergeScopes y disjoints) OConcat
     | Union(x,y) -> combineConstraints (mergeScopes x disjoints) (mergeScopes y disjoints) OUnion
     | Inter(x,y) -> combineConstraints (mergeScopes x disjoints) (mergeScopes y disjoints) OInter
-    | Negate x -> 
-        parseError (sprintf "Negation not allowed in main policy definition, in expression: %s" (x.ToString()))
-    | Star x -> 
-        parseError (sprintf "Star operator not allowed in main policy definition, in expression: %s" (x.ToString()))
+    | Negate x -> error (sprintf "Negation not allowed in main policy definition, in expression: %s" (x.ToString()))
+    | Star x -> error (sprintf "Star operator not allowed in main policy definition, in expression: %s" (x.ToString()))
     | Ident(x,res) -> 
         if res <> [] then
-            parseError (sprintf "parameters given for identifier %s in main policy definition" x) 
+            error (sprintf "parameters given for identifier %s in main policy definition" x) 
         Map.find x disjoints
 
 
