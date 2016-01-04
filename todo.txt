@@ -17,4 +17,3 @@ Error Reporting
 
 Misc
 	Line numbers for parse errors caught later
-	More efficient character class ops for AvoidsAny, EndsAtAny, ...

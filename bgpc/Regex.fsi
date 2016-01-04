@@ -65,6 +65,7 @@ type REBuilder  =
     member Empty: LazyT
     member Epsilon: LazyT
     member Loc: string -> LazyT
+    member Locs: string list -> LazyT
     member Concat: LazyT list -> LazyT
     member Inter: LazyT list -> LazyT
     member Union: LazyT list -> LazyT

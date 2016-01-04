@@ -419,6 +419,9 @@ type REBuilder(topo: Topology.T) =
                     Topology.addEdgesUndirected topo [(u,v)]
         LLocs (Set.singleton x)
 
+    member this.Locs (xs: string list) = 
+        List.fold (fun acc x -> this.Union [acc; this.Loc x]) this.Empty xs
+
     member __.MakeDFA r =
         assert (finalAlphabet)
         makeDFA alphabet r
@@ -450,36 +453,43 @@ type REBuilder(topo: Topology.T) =
         this.Concat [this.MaybeOutside(); this.Internal(); this.MaybeOutside()]
 
     member this.Waypoint(x) =
-        this.Concat [this.MaybeOutside(); this.MaybeInside(); this.Loc x; this.MaybeInside(); this.MaybeOutside()]
+        if isInternal x
+        then this.Concat [this.MaybeOutside(); this.MaybeInside(); this.Loc x; this.MaybeInside(); this.MaybeOutside()]
+        else this.Concat [this.MaybeOutside(); this.Internal(); this.MaybeInside(); this.Loc x; this.MaybeOutside()]
 
-    (* TODO: more efficient with character classes *)
     member this.WaypointAny(xs) =
-        this.Union (List.map this.Waypoint xs)
+        let (ins,outs) = List.partition isInternal xs
+        this.Union 
+            [this.Concat [this.MaybeOutside(); this.MaybeInside(); this.Locs ins; this.MaybeInside(); this.MaybeOutside()];
+            this.Concat [this.MaybeOutside(); this.Internal(); this.MaybeInside(); this.Locs outs; this.MaybeOutside()]]
 
     member this.Avoid(x) =
         this.Negate (this.Waypoint(x))
 
-    (* TODO: more efficient with character classes *)
     member this.AvoidAny(xs) =
-        this.Union (List.map this.Avoid xs)
+        this.Negate (this.WaypointAny(xs))
 
     member this.EndsAt(x) =
         if isInternal x 
         then this.Concat [this.MaybeOutside(); this.MaybeInside(); this.Loc x]
         else this.Concat [this.MaybeOutside(); this.Internal(); this.MaybeOutside(); this.Loc x]
 
-    (* TODO: use character classes to split by inside/outside (more efficient) *)
     member this.EndsAtAny(xs) =
-        this.Union (List.map this.EndsAt xs)
+        let (ins,outs) = List.partition isInternal xs
+        this.Union
+            [this.Concat [this.MaybeOutside(); this.MaybeInside(); this.Locs ins];
+             this.Concat [this.MaybeOutside(); this.Internal(); this.MaybeOutside(); this.Locs outs]]
 
     member this.StartsAt(x) =
         if isInternal x 
         then this.Concat [this.Loc x;  this.MaybeInside(); this.MaybeOutside()]
         else this.Concat [this.Loc x;  this.MaybeOutside(); this.Internal(); this.MaybeOutside()]
 
-    (* TODO: use character classes to split by inside/outside (more efficient) *)
     member this.StartsAtAny(xs) =
-        this.Union (List.map this.StartsAt xs)
+        let (ins,outs) = List.partition isInternal xs
+        this.Union
+            [this.Concat [this.Locs ins;  this.MaybeInside(); this.MaybeOutside()];
+             this.Concat [this.Locs outs;  this.MaybeOutside(); this.Internal(); this.MaybeOutside()]]
 
     member this.ValleyFree(xs) =
         let aux (last, acc) x =
