@@ -70,14 +70,15 @@ let format (config: T) =
         sb.Append("\n\n") |> ignore
     sb.ToString()
 
+(* Ensure well-formedness for controlling 
+   traffic entering the network. MED and prepending allow
+   certain patterns of control to immediate neighbors only *)
 let checkCanControlIncomingTraffic cg = 
     let isExportPeer v = 
         Topology.isOutside v.Node && 
         Seq.exists (fun u -> Topology.isInside u.Node) (neighborsIn cg v)
-    
     let exportPeers = Seq.filter isExportPeer cg.Graph.Vertices
     let otherPeers = ref Map.empty
-
     (* Ensure nothing beyond out* after peer *)
     for n in exportPeers do
         let otherReachable = Set.filter (fun x -> x <> n && Topology.isTopoNode x.Node) (Reachable.src cg n Down)
@@ -85,19 +86,17 @@ let checkCanControlIncomingTraffic cg =
         (* Record if it is just the peer *)
         let only = Common.Map.getOrDefault n.Node.Loc false !otherPeers
         otherPeers := Map.add n.Node.Loc (only || otherReachable.Count > 0) !otherPeers
-
         if not badReachable.IsEmpty then 
             raise (UncontrollableEnterException n.Node.Loc)
-    
     (* If prepending and MED off, then ensure unique export node per peer *)
     let settings = Args.getSettings()
-    let canControlPeer = not (settings.UseMed || settings.UsePrepending)
+    let canControlPeer = (settings.UseMed || settings.UsePrepending)
     let exports = Seq.groupBy (fun v -> v.Node.Loc) exportPeers
     for (l, ns) in exports do
         if (Seq.length ns > 1) && not canControlPeer then
             raise (UncontrollablePeerPreferenceException l)
         let nonLocalExport = Seq.exists (fun n -> Map.find n.Node.Loc !otherPeers) ns
-        if (Seq.length ns > 1) && nonLocalExport then 
+        if (Seq.length ns > 1) && nonLocalExport then
             raise (UncontrollablePeerPreferenceException l)
 
 (* Order config by preference and then router name. 

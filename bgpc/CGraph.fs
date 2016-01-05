@@ -414,9 +414,32 @@ module Minimize =
             not (Set.contains v starting)
         ) |> ignore
 
+    let compressRepeatedUnknowns (cg: T) = 
+        let components = ref (Dictionary(HashIdentity.Structural) :> IDictionary<CgState,int>)
+        ignore (cg.Graph.StronglyConnectedComponents(components))
+        let mutable sccs = Map.empty 
+        for kv in !components do
+            let state = kv.Key
+            let comp = kv.Value
+            if Topology.isOutside state.Node then 
+                let existing = Common.Map.getOrDefault comp Set.empty sccs
+                sccs <- Map.add comp (Set.add state existing) sccs
+        let allOutTopo = 
+            cg.Topo.Vertices
+            |> Seq.filter Topology.isOutside
+            |> Set.ofSeq
+        let allOutTopoLocs = Set.map (fun (v: Topology.State) -> v.Loc) allOutTopo
+        let sccs = List.map snd (Map.toList sccs)
+        for scc in sccs do 
+            let locs = Set.map (fun v -> v.Node.Loc) scc
+            if (allOutTopo.Count = scc.Count) && 
+               (locs = allOutTopoLocs) && 
+               (Set.exists (isRepeatedOut cg) scc) then
+                let outStar = Set.filter (isRepeatedOut cg) scc |> Set.minElement
+                cg.Graph.RemoveEdgeIf (fun e -> e.Source = outStar && isRealNode e.Target && e.Target <> e.Source) |> ignore
+
     let removeRedundantExternalNodes (cg: T) =
         let toDelNodes = HashSet(HashIdentity.Structural)
-        (* case 1 *)
         let outside = 
             cg.Graph.Vertices 
             |> Seq.filter (fun v -> Topology.isOutside v.Node)
@@ -430,7 +453,6 @@ module Minimize =
                     let ibns = neighborsIn cg b |> Set.ofSeq
                     if Set.isSuperset ibns ians then
                         ignore (toDelNodes.Add a)
-        (* case 2 *)
         for b in cg.Graph.Vertices do 
             if isRepeatedOut cg b then
                 let bns = neighbors cg b |> Set.ofSeq
@@ -442,7 +464,6 @@ module Minimize =
                             if Set.isSuperset bns ans then 
                                 ignore (toDelNodes.Add a)
         cg.Graph.RemoveVertexIf (fun v -> toDelNodes.Contains v) |> ignore
-
            
     let minimizeO0 (cg: T) =
         removeNodesThatCantReachEnd cg
@@ -465,6 +486,7 @@ module Minimize =
             removeEdgesForDominatedNodes cg
             removeDeadEdgesHeuristic cg
             removeRedundantExternalNodes cg
+            compressRepeatedUnknowns cg
             removeNodesNotOnAnySimplePathToEnd cg
         let mutable sum = count cg
         prune() 

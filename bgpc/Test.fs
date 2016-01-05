@@ -5,7 +5,7 @@ open System
 open Common.Debug
 open Common.Error
 
-let maxTests = 10000
+let maxTests = 5000
 
 /// Helper functions for checking properties
 /// of IR configurations.
@@ -60,6 +60,7 @@ let tBadGadget = Examples.topoBadGadget ()
 let tSeesaw = Examples.topoSeesaw ()
 let tStretchingManWAN = Examples.topoStretchingManWAN ()
 let tPinCushionWAN = Examples.topoPinCushionWAN ()
+let tBackboneWAN = Examples.topoBackboneWAN ()
 
 let rDiamond1 (reb: Regex.REBuilder) = 
     let pref1 = reb.Concat (List.map reb.Loc ["A"; "X"; "N"; "Y"; "B"])
@@ -173,6 +174,11 @@ let rStretchingManWAN1 (reb: Regex.REBuilder) =
     [reb.Build pref1; reb.Build pref2]
 
 let rStretchingManWAN2 (reb: Regex.REBuilder) = 
+    let pref1 = reb.Concat [reb.Outside; reb.Loc "A"; reb.Star reb.Inside; reb.Loc "Y"]
+    let pref2 = reb.Concat [reb.Outside; reb.Loc "B"; reb.Star reb.Inside; reb.Outside]
+    [reb.Build pref1; reb.Build pref2]
+
+let rStretchingManWAN3 (reb: Regex.REBuilder) = 
     let pref1 = reb.Concat [reb.Star reb.Outside; reb.Loc "A"; reb.Star reb.Inside; reb.Loc "Y"; reb.Star reb.Outside; reb.Loc "ASChina"]
     [reb.Build pref1]
 
@@ -181,6 +187,9 @@ let rPinCushionWAN1 (reb: Regex.REBuilder) =
     let pref2 = reb.Concat [reb.Loc "X"; reb.Internal(); reb.Loc "Z"]
     [reb.Build pref1; reb.Build pref2]
 
+let rBackboneWAN1 (reb: Regex.REBuilder) =
+    let pref1 = reb.EndsAt("A")
+    [reb.Build pref1]
 
 let tests canControlPeers = [
 
@@ -313,7 +322,7 @@ let tests canControlPeers = [
      Prefs = None;
      Fail = Some InconsistentPrefs};
 
-    {Name= "BrokenTriangle1";
+    {Name= "BrokenTriangle";
      Explanation="Inconsistent path suffixes (should fail)";
      Topo= tBrokenTriangle;
      Rf= rBrokenTriangle1; 
@@ -322,7 +331,7 @@ let tests canControlPeers = [
      Prefs = None;
      Fail = Some NoPathForRouters};
 
-    {Name= "BigDipper1";
+    {Name= "BigDipper";
      Explanation="Must choose the correct preference";
      Topo= tBigDipper;
      Rf= rBigDipper1; 
@@ -349,7 +358,7 @@ let tests canControlPeers = [
      Prefs = Some [("A", "D", "C"); ("B", "D", "A"); ("C", "D", "B")];
      Fail = None};
 
-    {Name= "Seesaw1";
+    {Name= "Seesaw";
      Explanation="Must get all best preferences (should fail)";
      Topo= tSeesaw;
      Rf= rSeesaw1; 
@@ -362,7 +371,7 @@ let tests canControlPeers = [
 
     (* TODO: test preferences on filters *)
     {Name= "StretchingMan1";
-     Explanation="Prefer one AS over another";
+     Explanation="Can't control inbound traffic";
      Topo= tStretchingManWAN;
      Rf= rStretchingManWAN1; 
      Receive= None;
@@ -371,15 +380,24 @@ let tests canControlPeers = [
      Fail = Some CantControlPeers};
 
     {Name= "StretchingMan2";
-     Explanation="Using peer not listed in the topology";
+     Explanation="Prefer one AS over another";
      Topo= tStretchingManWAN;
      Rf= rStretchingManWAN2; 
+     Receive= Some [("C", "D"); ("A","C"); ("B", "C")];
+     Originate = Some [];
+     Prefs = Some [("D", "Y", "Z")];
+     Fail = None};
+
+    {Name= "StretchingMan3";
+     Explanation="Using peer not listed in the topology";
+     Topo= tStretchingManWAN;
+     Rf= rStretchingManWAN3; 
      Receive= Some [];
      Originate = Some [];
      Prefs = Some [];
      Fail = None};
 
-    {Name= "StretchingMan3";
+    {Name= "PinCushion";
      Explanation="Unimplementable peer preference";
      Topo= tPinCushionWAN;
      Rf= rPinCushionWAN1; 
@@ -387,6 +405,15 @@ let tests canControlPeers = [
      Originate = None;
      Prefs = None;
      Fail = Some InconsistentPrefs};
+
+    {Name= "Backbone";
+     Explanation="Incoming traffic from multiple peers";
+     Topo= tBackboneWAN;
+     Rf= rBackboneWAN1; 
+     Receive= Some [("NY", "A"); ("SEA", "A")];
+     Originate = Some ["A"];
+     Prefs = Some [];
+     Fail = None};
 ]
 
 let rand = System.Random()

@@ -1,6 +1,7 @@
 ﻿Correctness
 	Remove edges not on simple path efficiently
-	MED and prepending only control immediate neighbor
+	Operate over all prefixes
+	Use export only
 
 Aggregation:
 	Adding aggregation constaints

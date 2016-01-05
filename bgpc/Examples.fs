@@ -148,3 +148,14 @@ let topoPinCushionWAN () =
     Topology.addVertices g [vA; vB; vC; vD; vE; vW; vX; vY; vZ]
     Topology.addEdgesUndirected g [(vW, vA); (vX, vB); (vA, vC); (vB, vC); (vC, vD); (vC, vE); (vD, vY); (vE, vZ)]
     g
+
+let topoBackboneWAN () = 
+    let g = BidirectionalGraph<State, TaggedEdge<State,unit>>()
+    let vA = {Loc="A"; Typ=InsideOriginates}
+    let vSEA = {Loc="SEA"; Typ=InsideOriginates}
+    let vNY = {Loc="NY"; Typ=InsideOriginates}
+    let vX = {Loc="X"; Typ=Outside}
+    let vY = {Loc="Y"; Typ=Outside}
+    Topology.addVertices g [vA; vSEA; vNY; vX; vY]
+    Topology.addEdgesUndirected g [(vA, vSEA); (vA, vNY); (vSEA, vX); (vNY, vY)]
+    g
