@@ -1,6 +1,6 @@
 ﻿Correctness
 	Remove edges not on simple path efficiently
-	+ paths for starting locations based on language emptiness
+	MED and prepending only control immediate neighbor
 
 Aggregation:
 	Adding aggregation constaints
@@ -12,7 +12,7 @@ Well-formedness:
 
 
 
-
+/* after paper */
 
 Error Reporting
 	More detailed counterexamples (include exact failure scenario)

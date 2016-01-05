@@ -74,21 +74,31 @@ let checkCanControlIncomingTraffic cg =
     let isExportPeer v = 
         Topology.isOutside v.Node && 
         Seq.exists (fun u -> Topology.isInside u.Node) (neighborsIn cg v)
+    
     let exportPeers = Seq.filter isExportPeer cg.Graph.Vertices
+    let otherPeers = ref Map.empty
+
     (* Ensure nothing beyond out* after peer *)
     for n in exportPeers do
-        let otherReachable = 
-            Reachable.src cg n Down
-            |> Set.filter (fun x -> x <> n && not (CGraph.isRepeatedOut cg x) && Topology.isTopoNode x.Node)
-        if not otherReachable.IsEmpty then 
+        let otherReachable = Set.filter (fun x -> x <> n && Topology.isTopoNode x.Node) (Reachable.src cg n Down)
+        let badReachable = Set.filter (fun x -> not (CGraph.isRepeatedOut cg x)) otherReachable
+        (* Record if it is just the peer *)
+        let only = Common.Map.getOrDefault n.Node.Loc false !otherPeers
+        otherPeers := Map.add n.Node.Loc (only || otherReachable.Count > 0) !otherPeers
+
+        if not badReachable.IsEmpty then 
             raise (UncontrollableEnterException n.Node.Loc)
+    
     (* If prepending and MED off, then ensure unique export node per peer *)
     let settings = Args.getSettings()
-    if not (settings.UseMed || settings.UsePrepending) then 
-        let exports = Seq.groupBy (fun v -> v.Node.Loc) exportPeers
-        for (l, ns) in exports do 
-            if Seq.length ns > 1 then 
-                raise (UncontrollablePeerPreferenceException l)
+    let canControlPeer = not (settings.UseMed || settings.UsePrepending)
+    let exports = Seq.groupBy (fun v -> v.Node.Loc) exportPeers
+    for (l, ns) in exports do
+        if (Seq.length ns > 1) && not canControlPeer then
+            raise (UncontrollablePeerPreferenceException l)
+        let nonLocalExport = Seq.exists (fun n -> Map.find n.Node.Loc !otherPeers) ns
+        if (Seq.length ns > 1) && nonLocalExport then 
+            raise (UncontrollablePeerPreferenceException l)
 
 (* Order config by preference and then router name. 
    This makes it easier to minimize the config *)

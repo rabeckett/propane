@@ -59,6 +59,7 @@ let tBigDipper = Examples.topoBigDipper ()
 let tBadGadget = Examples.topoBadGadget ()
 let tSeesaw = Examples.topoSeesaw ()
 let tStretchingManWAN = Examples.topoStretchingManWAN ()
+let tPinCushionWAN = Examples.topoPinCushionWAN ()
 
 let rDiamond1 (reb: Regex.REBuilder) = 
     let pref1 = reb.Concat (List.map reb.Loc ["A"; "X"; "N"; "Y"; "B"])
@@ -174,6 +175,11 @@ let rStretchingManWAN1 (reb: Regex.REBuilder) =
 let rStretchingManWAN2 (reb: Regex.REBuilder) = 
     let pref1 = reb.Concat [reb.Star reb.Outside; reb.Loc "A"; reb.Star reb.Inside; reb.Loc "Y"; reb.Star reb.Outside; reb.Loc "ASChina"]
     [reb.Build pref1]
+
+let rPinCushionWAN1 (reb: Regex.REBuilder) =
+    let pref1 = reb.Concat [reb.Loc "W"; reb.Internal(); reb.Loc "Y"]
+    let pref2 = reb.Concat [reb.Loc "X"; reb.Internal(); reb.Loc "Z"]
+    [reb.Build pref1; reb.Build pref2]
 
 
 let tests canControlPeers = [
@@ -355,24 +361,14 @@ let tests canControlPeers = [
     (* Begin inter-domain tests *)
 
     (* TODO: test preferences on filters *)
-    (if canControlPeers then
-        {Name= "StretchingMan1";
-         Explanation="Prefer one AS over another";
-         Topo= tStretchingManWAN;
-         Rf= rStretchingManWAN1; 
-         Receive= Some [("C", "D"); ("A", "C"); ("B", "C")];
-         Originate = Some [];
-         Prefs = Some [("D", "Y", "Z")];
-         Fail = None};
-    else
-        {Name= "StretchingMan1";
-         Explanation="Prefer one AS over another";
-         Topo= tStretchingManWAN;
-         Rf= rStretchingManWAN1; 
-         Receive= None;
-         Originate = None;
-         Prefs = None;
-         Fail = Some CantControlPeers});
+    {Name= "StretchingMan1";
+     Explanation="Prefer one AS over another";
+     Topo= tStretchingManWAN;
+     Rf= rStretchingManWAN1; 
+     Receive= None;
+     Originate = None;
+     Prefs = None;
+     Fail = Some CantControlPeers};
 
     {Name= "StretchingMan2";
      Explanation="Using peer not listed in the topology";
@@ -382,6 +378,15 @@ let tests canControlPeers = [
      Originate = Some [];
      Prefs = Some [];
      Fail = None};
+
+    {Name= "StretchingMan3";
+     Explanation="Unimplementable peer preference";
+     Topo= tPinCushionWAN;
+     Rf= rPinCushionWAN1; 
+     Receive= None;
+     Originate = None;
+     Prefs = None;
+     Fail = Some InconsistentPrefs};
 ]
 
 let rand = System.Random()

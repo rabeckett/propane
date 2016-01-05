@@ -133,3 +133,18 @@ let topoStretchingManWAN () =
     Topology.addVertices g [vA; vB; vC; vD; vX; vY; vZ]
     Topology.addEdgesUndirected g [(vX, vA); (vX, vB); (vA, vC); (vB, vC); (vC, vD); (vD, vY); (vD, vZ)]
     g
+
+let topoPinCushionWAN () = 
+    let g = BidirectionalGraph<State, TaggedEdge<State,unit>>()
+    let vA = {Loc="A"; Typ=Inside}
+    let vB = {Loc="B"; Typ=Inside}
+    let vC = {Loc="C"; Typ=Inside}
+    let vD = {Loc="D"; Typ=Inside}
+    let vE = {Loc="E"; Typ=Inside}
+    let vW = {Loc="W"; Typ=Outside}
+    let vX = {Loc="X"; Typ=Outside}
+    let vY = {Loc="Y"; Typ=Outside}
+    let vZ = {Loc="Z"; Typ=Outside}
+    Topology.addVertices g [vA; vB; vC; vD; vE; vW; vX; vY; vZ]
+    Topology.addEdgesUndirected g [(vW, vA); (vX, vB); (vA, vC); (vB, vC); (vC, vD); (vC, vE); (vD, vY); (vE, vZ)]
+    g
