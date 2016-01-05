@@ -73,31 +73,87 @@ let format (config: T) =
 (* Ensure well-formedness for controlling 
    traffic entering the network. MED and prepending allow
    certain patterns of control to immediate neighbors only *)
-let checkCanControlIncomingTraffic cg = 
+
+type IncomingPattern = 
+    | Anything
+    | Nothing of string
+    | Specific of Regex.T
+
+type IncomingInfo = 
+    {Peers: seq<CgState>;
+     Info: Map<CgState, IncomingPattern>}
+
+type IncomingExportMap = Map<CgState, Export list>
+
+let collectForPeer cg acc peer = 
+    let reachable = 
+        Reachable.src cg peer Down
+        |> Set.filter (fun x -> x <> peer && Topology.isTopoNode x.Node)
+    let hasRepeatedOut = Set.exists (CGraph.isRepeatedOut cg) reachable
+    let hasOther = (reachable.Count > 1) || (not hasRepeatedOut && reachable.Count > 0)
+    match hasRepeatedOut, hasOther with
+    | false, false -> Map.add peer (Nothing peer.Node.Loc) acc
+    | true, false -> Map.add peer Anything acc
+    | _, true ->
+        let cexample = CGraph.ToRegex.constructRegex cg peer
+        Map.add peer (Specific cexample) acc 
+
+let collectIncomingInfo (cg: CGraph.T) : IncomingInfo =
     let isExportPeer v = 
         Topology.isOutside v.Node && 
         Seq.exists (fun u -> Topology.isInside u.Node) (neighborsIn cg v)
     let exportPeers = Seq.filter isExportPeer cg.Graph.Vertices
-    let otherPeers = ref Map.empty
-    (* Ensure nothing beyond out* after peer *)
-    for n in exportPeers do
-        let otherReachable = Set.filter (fun x -> x <> n && Topology.isTopoNode x.Node) (Reachable.src cg n Down)
-        let badReachable = Set.filter (fun x -> not (CGraph.isRepeatedOut cg x)) otherReachable
-        (* Record if it is just the peer *)
-        let only = Common.Map.getOrDefault n.Node.Loc false !otherPeers
-        otherPeers := Map.add n.Node.Loc (only || otherReachable.Count > 0) !otherPeers
-        if not badReachable.IsEmpty then 
-            raise (UncontrollableEnterException n.Node.Loc)
-    (* If prepending and MED off, then ensure unique export node per peer *)
+    let info = Seq.fold (collectForPeer cg) Map.empty exportPeers
+    {Peers = exportPeers; Info = info}
+
+let getUnique peers =
+    Set.ofSeq (Seq.map (fun p -> p.Node.Loc) peers)
+
+let checkCanControlIncomingTraffic cg =
     let settings = Args.getSettings()
-    let canControlPeer = (settings.UseMed || settings.UsePrepending)
-    let exports = Seq.groupBy (fun v -> v.Node.Loc) exportPeers
-    for (l, ns) in exports do
-        if (Seq.length ns > 1) && not canControlPeer then
-            raise (UncontrollablePeerPreferenceException l)
-        let nonLocalExport = Seq.exists (fun n -> Map.find n.Node.Loc !otherPeers) ns
-        if (Seq.length ns > 1) && nonLocalExport then
-            raise (UncontrollablePeerPreferenceException l)
+    let info = collectIncomingInfo cg
+    let byPreference =
+        info.Peers 
+        |> Seq.map (fun p -> (Set.minElement (Reachable.srcAccepting cg p Down), p))
+        |> Seq.groupBy fst
+        |> Seq.map (fun (x,y) -> (x, Seq.map snd y))
+        |> Seq.sortBy fst
+       
+    let mutable exportMap = Map.empty
+    let mutable i = 0
+    let mutable prev = None
+    for (_, peers) in byPreference do
+        match prev with
+        | None -> prev <- Some peers
+        | Some ps ->
+            let unqNow = getUnique peers
+            let unqPrev = getUnique ps 
+            let pre = Set.minElement unqPrev
+            let now = Set.minElement unqNow
+            if (Set.count unqPrev = 1) && (Set.count unqNow = 1) && (now = pre) then
+                if not (settings.UseMed || settings.UsePrepending) then
+                    (* TODO: if this doesn't work, fall back to aggregates *)
+                    raise (UncontrollablePeerPreferenceException ("enable med or prepending to enable preference for: " + now))
+                let mutable actions = []
+                if settings.UsePrepending && i > 0 then actions <- (PrependPath (3*i)) :: actions
+                if settings.UseMed then actions <- (SetMed i) :: actions
+                for p in peers do
+                    match Map.find p info.Info with 
+                    | Anything -> ()
+                    | Nothing x -> 
+                        if settings.UseNoExport then 
+                            actions <- (SetComm [|-1|]) :: actions
+                        else raise (UncontrollableEnterException ("enable no-export to limit incoming traffic to peer: " + x))
+                    | Specific re -> 
+                        raise (UncontrollableEnterException ("incoming traffic cannot conform to: " + re.ToString()))
+                    exportMap <- Map.add p actions exportMap 
+            else
+                (* we need to use aggregates here since last time there were many *)
+                raise (UncontrollablePeerPreferenceException now)
+                ()
+            prev <- Some peers
+        i <- i + 1
+
 
 (* Order config by preference and then router name. 
    This makes it easier to minimize the config *)

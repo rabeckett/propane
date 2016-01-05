@@ -10,6 +10,7 @@ type T =
      Format: Format;
      UseMed: bool;
      UsePrepending: bool;
+     UseNoExport: bool;
      Test: bool;
      Debug: int; 
      DebugDir: string}

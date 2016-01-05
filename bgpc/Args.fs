@@ -14,6 +14,7 @@ type T =
      Format: Format;
      UseMed: bool;
      UsePrepending: bool;
+     UseNoExport: bool;
      Test: bool;
      Debug: int; 
      DebugDir: string}
@@ -24,7 +25,8 @@ let polFile = ref None
 let outFile = ref None
 let format = ref IR
 let useMed = ref false
-let usePrepending = ref false 
+let usePrepending = ref false
+let useNoExport = ref false
 let test = ref false
 let debug = ref 0
 let debugDir = ref "debug/"
@@ -49,6 +51,12 @@ let setPrepending s =
     | "off" -> usePrepending := false
     | _ -> raise (InvalidArg ("Invalid AS path prepending value: " + s))
 
+let setNoExport s =
+    match s with 
+    | "on" -> useNoExport := true
+    | "off" -> useNoExport := false
+    | _ -> raise (InvalidArg ("Invalid No Export value: " + s))
+
 let setFormat s = 
     match s with 
     | "IR" -> format := IR 
@@ -69,9 +77,10 @@ let args =
     [|("--pol", String (fun s -> polFile := Some s), "Policy file");
       ("--out", String (fun s -> outFile := Some s), "Output file");
       ("--debug-dir", String setDebugDir, "Debugging directory (default 'debug')");
-      ("--debug:0|1|2|3", String setDebug, "Debug level (lowest 0)");
+      ("--debug:0|1|2|3", String setDebug, "Debug level (default lowest 0)");
       ("--med:on|off", String setMED, "Use MED attribute (default off)");
       ("--prepending:on|off", String setPrepending, "Use AS path prepending (default off)");
+      ("--no-export:on|off", String setNoExport, "Use no-export community (default off)");
       ("--format:IR|Templ", String setFormat, "Output format (IR, Template)");
       ("--test", Unit (fun () -> test := true), "Run unit tests");
       ("--help", Unit (fun () -> ()), "Display this message");
@@ -126,9 +135,15 @@ let parse (argv: string[]) : unit =
             i <- lookup curr next i
     cleanDir !debugDir
     settings := 
-        Some {PolFile = !polFile; OutFile = !outFile; 
-              UseMed = !useMed; UsePrepending = !usePrepending; Format = !format; 
-              Test = !test; Debug = !debug; DebugDir = !debugDir}
+        Some {PolFile = !polFile; 
+              OutFile = !outFile; 
+              UseMed = !useMed; 
+              UsePrepending = !usePrepending; 
+              UseNoExport = !useNoExport; 
+              Format = !format; 
+              Test = !test; 
+              Debug = !debug; 
+              DebugDir = !debugDir}
 
 let getSettings () = 
     match !settings with
