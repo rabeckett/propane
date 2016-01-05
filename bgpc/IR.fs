@@ -83,7 +83,7 @@ type IncomingInfo =
     {Peers: seq<CgState>;
      Info: Map<CgState, IncomingPattern>}
 
-type IncomingExportMap = Map<CgState, Export list>
+type IncomingExportMap = Map<CgState, Action list>
 
 let collectForPeer cg acc peer = 
     let reachable = 
@@ -109,7 +109,22 @@ let collectIncomingInfo (cg: CGraph.T) : IncomingInfo =
 let getUnique peers =
     Set.ofSeq (Seq.map (fun p -> p.Node.Loc) peers)
 
-let checkCanControlIncomingTraffic cg =
+let addExports (settings: Args.T) info peers actions exportMap =
+    let mutable exportMap = exportMap
+    let mutable actions = actions
+    for p in peers do
+        match Map.find p info.Info with 
+        | Anything -> ()
+        | Nothing x -> 
+            if settings.UseNoExport then 
+                actions <- (SetComm [|-1|]) :: actions
+            else raise (UncontrollableEnterException ("enable no-export to limit incoming traffic to peer: " + x))
+        | Specific re -> 
+            raise (UncontrollableEnterException ("incoming traffic cannot conform to: " + re.ToString()))
+        exportMap <- Map.add p actions exportMap
+    exportMap
+
+let configureIncomingTraffic cg : IncomingExportMap =
     let settings = Args.getSettings()
     let info = collectIncomingInfo cg
     let byPreference =
@@ -118,41 +133,33 @@ let checkCanControlIncomingTraffic cg =
         |> Seq.groupBy fst
         |> Seq.map (fun (x,y) -> (x, Seq.map snd y))
         |> Seq.sortBy fst
-       
     let mutable exportMap = Map.empty
     let mutable i = 0
     let mutable prev = None
     for (_, peers) in byPreference do
         match prev with
-        | None -> prev <- Some peers
+        | None -> 
+            (* TODO: add exports here too *)
+            exportMap <- addExports settings info peers [] exportMap
+            prev <- Some peers
         | Some ps ->
             let unqNow = getUnique peers
             let unqPrev = getUnique ps 
             let pre = Set.minElement unqPrev
             let now = Set.minElement unqNow
-            if (Set.count unqPrev = 1) && (Set.count unqNow = 1) && (now = pre) then
-                if not (settings.UseMed || settings.UsePrepending) then
-                    (* TODO: if this doesn't work, fall back to aggregates *)
-                    raise (UncontrollablePeerPreferenceException ("enable med or prepending to enable preference for: " + now))
+            let canAvoidAggregation = (Set.count unqPrev = 1) && (Set.count unqNow = 1) && (now = pre)
+            if canAvoidAggregation && (settings.UseMed || settings.UsePrepending) then
                 let mutable actions = []
                 if settings.UsePrepending && i > 0 then actions <- (PrependPath (3*i)) :: actions
-                if settings.UseMed then actions <- (SetMed i) :: actions
-                for p in peers do
-                    match Map.find p info.Info with 
-                    | Anything -> ()
-                    | Nothing x -> 
-                        if settings.UseNoExport then 
-                            actions <- (SetComm [|-1|]) :: actions
-                        else raise (UncontrollableEnterException ("enable no-export to limit incoming traffic to peer: " + x))
-                    | Specific re -> 
-                        raise (UncontrollableEnterException ("incoming traffic cannot conform to: " + re.ToString()))
-                    exportMap <- Map.add p actions exportMap 
+                if settings.UseMed && i > 0 then actions <- (SetMed (80+i)) :: actions
+                exportMap <- addExports settings info peers actions exportMap
             else
                 (* we need to use aggregates here since last time there were many *)
                 raise (UncontrollablePeerPreferenceException now)
                 ()
             prev <- Some peers
         i <- i + 1
+    exportMap
 
 
 (* Order config by preference and then router name. 
@@ -165,7 +172,7 @@ let comparePrefThenLoc (x,i1) (y,i2) =
 
 (* Generate the configuration given preference-based ordering 
    that satisfies our completeness/fail resistance properties *)
-let genConfig (cg: CGraph.T) (ord: Consistency.Ordering) : T =
+let genConfig (cg: CGraph.T) (ord: Consistency.Ordering) (inExports: IncomingExportMap) : T =
     let settings = Args.getSettings ()
     let (ain, _) = Topology.alphabet cg.Topo
     let ain = Set.map (fun (v: Topology.State) -> v.Loc) ain
@@ -186,14 +193,14 @@ let genConfig (cg: CGraph.T) (ord: Consistency.Ordering) : T =
                 |> List.ofSeq
                 |> List.sortWith comparePrefThenLoc
             (* Generate filters *)
-            let mutable lp = 99
+            let mutable lp = 100
             let mutable lastPref = None
             for v, pref in prefNeighborsIn do 
                 match lastPref with 
                 | Some p when pref = p -> () 
                 | _ ->
                     lastPref <- Some pref 
-                    lp <- lp + 1
+                    lp <- lp - 1
                 let m =
                     if Topology.isTopoNode v.Node then
                         if not (ain.Contains v.Node.Loc) then
@@ -212,18 +219,12 @@ let genConfig (cg: CGraph.T) (ord: Consistency.Ordering) : T =
                     |> Seq.toList
                     |> List.filter (fun x -> x.Node.Loc <> v.Node.Loc && Topology.isTopoNode x.Node)
                 
-                (* Export to neighbors *)
                 let mutable exports = Map.empty
                 for n in expNeighbors do
+                    let loc = n.Node.Loc
                     if Topology.isOutside n.Node then
-                        let i = Set.minElement (Reachable.srcAccepting cg n Down)
-                        let mutable actions = []
-                        if settings.UseMed then
-                            actions <- (SetMed i) :: actions
-                        if settings.UsePrepending && i > 1 then
-                            actions <- (PrependPath (i-1)) :: actions
-                        exports <- Map.add n.Node.Loc actions exports
-                    else exports <- Map.add n.Node.Loc [SetComm(node.States)] exports
+                        exports <- Map.add loc (Map.find n inExports) exports
+                    else exports <- Map.add loc [SetComm(node.States)] exports
 
                 filters <- ((m,lp), Map.toList exports) :: filters
                 originates <- v.Node.Typ = Topology.Start
@@ -590,10 +591,10 @@ let compileToIR (reb: Regex.REBuilder) (res: Regex.T list) (outName: string) : R
             Err(UnusedPreferences(cexamples))
         else
             try 
-                checkCanControlIncomingTraffic cg
+                let inExports = configureIncomingTraffic cg
                 match Consistency.findOrderingConservative cg outName with 
                 | Ok ord ->
-                    let config = genConfig cg ord
+                    let config = genConfig cg ord inExports
                     let config = compress cg config outName
                     Ok (config)
                 | Err((x,y)) -> Err(InconsistentPrefs(x,y))

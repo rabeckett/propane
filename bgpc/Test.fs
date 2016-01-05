@@ -21,7 +21,7 @@ let prefersPeer config x (a,b) =
         let deviceConfig = Map.find x config 
         let ((_,lp1), _) = List.find (fun ((m,_), _) -> isPeer a m) deviceConfig.Filters
         let ((_,lp2), _) = List.find (fun ((m,_), _) -> isPeer b m) deviceConfig.Filters
-        lp1 < lp2
+        lp1 > lp2
     with _ -> false
 
 let receiveFrom config x y = 
