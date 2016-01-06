@@ -11,13 +11,13 @@ type CounterExample =
 
 type Match = 
     | Peer of string 
-    | State of int array * string
+    | State of string * string
     | PathRE of Regex.T
     | NoMatch
 
 type Action = 
     | NoAction
-    | SetComm of int array
+    | SetComm of string
     | SetMed of int
     | PrependPath of int
 

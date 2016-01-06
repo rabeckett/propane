@@ -16,27 +16,27 @@ type CounterExample =
 
 type Match = 
     | Peer of string 
-    | State of int array * string
+    | State of string * string
     | PathRE of Regex.T
     | NoMatch
 
     override this.ToString () = 
         match this with 
         | Peer s -> "Peer=" + s
-        | State(is,s) -> "Community=" + (List.ofArray is).ToString() + ", Peer=" + s
+        | State(is,s) -> "Community=" + is + ", Peer=" + s
         | PathRE r -> "Regex=" + r.ToString()
         | NoMatch -> "--"
 
 type Action = 
     | NoAction
-    | SetComm of int array
+    | SetComm of string
     | SetMed of int
     | PrependPath of int
 
     override this.ToString() = 
         match this with 
         | NoAction -> ""
-        | SetComm(is) -> "Community<-" + (List.ofArray is).ToString()
+        | SetComm(is) -> "Community<-" + is
         | SetMed i -> "MED<-" + i.ToString()
         | PrependPath i -> "Prepend " + i.ToString()
 
@@ -64,15 +64,20 @@ let format ((prefix,config): T) =
         sb.Append(kv.Key) |> ignore
         let deviceConf = kv.Value
         for ((m, lp), es) in deviceConf.Filters do
-            sb.Append("\n  Import: ") |> ignore
-            sb.Append("[Prefix=" + prefixStr + "; ") |> ignore
+            sb.Append("\n  Match: ") |> ignore
+            sb.Append("[Prefix=" + prefixStr + ", ") |> ignore
             sb.Append(m.ToString() + "]") |> ignore
             if (not deviceConf.Originates) && lp <> 100 then
                 sb.Append(" (LP=" + lp.ToString() + ")") |> ignore
             for (peer, acts) in es do
-                sb.Append("\n    Export to: " + peer) |> ignore
+                sb.Append("\n    Export: [Peer<-" + peer) |> ignore
                 if acts <> [] then
-                    sb.Append(", " + acts.ToString()) |> ignore
+                    let str = 
+                        acts
+                        |> List.map (fun a -> a.ToString())
+                        |> Common.List.joinBy ","
+                    sb.Append(", " + str) |> ignore
+                sb.Append("]") |> ignore
         sb.Append("\n\n") |> ignore
     sb.ToString()
 
@@ -123,8 +128,7 @@ let addExports (settings: Args.T) info peers actions exportMap =
         | Anything -> ()
         | Nothing x -> 
             if settings.UseNoExport then 
-                (* This is a hack - use no-export *)
-                actions <- (SetComm [|-1|]) :: actions
+                actions <- (SetComm "no-export") :: actions
             else raise (UncontrollableEnterException ("enable no-export to limit incoming traffic to peer: " + x))
         | Specific re -> 
             raise (UncontrollableEnterException ("incoming traffic cannot conform to: " + re.ToString()))
@@ -160,7 +164,7 @@ let configureIncomingTraffic cg : IncomingExportMap =
                 if settings.UseMed && i > 0 then actions <- (SetMed (80+i)) :: actions
                 exportMap <- addExports settings info peers actions exportMap
             else
-                (* we need to use aggregates here since last time there were many *)
+                (* TODO: we need to use aggregates here since last time there were many *)
                 raise (UncontrollablePeerPreferenceException now)
                 ()
             prev <- Some peers
@@ -176,12 +180,25 @@ let comparePrefThenLoc (x,i1) (y,i2) =
         compare x.Node.Loc y.Node.Loc
     else cmp
 
+(* Remap community values to be more sensible *)
+let initMapper () =
+    let i = ref 0
+    let commMapper = ref Map.empty
+    (fun comm -> 
+        match Map.tryFind comm !commMapper with
+        | None -> 
+            i := !i + 1
+            commMapper := Map.add comm !i !commMapper 
+            !i
+        | Some x -> x) 
+
 (* Generate the configuration given preference-based ordering 
    that satisfies our completeness/fail resistance properties *)
 let genConfig (cg: CGraph.T) (prefix: Prefix.T list) (ord: Consistency.Ordering) (inExports: IncomingExportMap) : T =
     let settings = Args.getSettings ()
     let (ain, _) = Topology.alphabet cg.Topo
     let ain = Set.map (fun (v: Topology.State) -> v.Loc) ain
+    let commMapper = initMapper ()
     let mutable config = Map.empty
     for entry in ord do 
         let mutable rules = []
@@ -214,7 +231,7 @@ let genConfig (cg: CGraph.T) (prefix: Prefix.T list) (ord: Consistency.Ordering)
                             match Regex.isLoc re with
                             | Some x -> Match.Peer x 
                             | _ -> Match.PathRE re
-                        else Match.State(v.States, v.Node.Loc)
+                        else Match.State(string (commMapper v.States), v.Node.Loc)
                     else NoMatch
                 let node = 
                     neighbors cg v
@@ -231,7 +248,7 @@ let genConfig (cg: CGraph.T) (prefix: Prefix.T list) (ord: Consistency.Ordering)
                     let loc = n.Node.Loc
                     if Topology.isOutside n.Node then
                         exports <- Map.add loc (Map.find n inExports) exports
-                    else exports <- Map.add loc [SetComm(node.States)] exports
+                    else exports <- Map.add loc [SetComm(string (commMapper node.States))] exports
 
                 filters <- ((m,lp), Map.toList exports) :: filters
                 originates <- v.Node.Typ = Topology.Start
@@ -245,7 +262,7 @@ let isCommunityTag (action: Action) : bool =
     | SetComm _ -> true
     | _ -> false
 
-let rec getTag (actions: Action list) : (int array) option =
+let rec getTag (actions: Action list) : string option =
     match actions with 
     | [] -> None
     | hd::tl -> 
@@ -293,7 +310,7 @@ let compressUniquePairs (cg: CGraph.T) ((prefix, config): T) : T =
 (* Find the longest consecutive sequence of imports for each peer. 
    Only imports where the community is matched are counted towards the sequence.
    This makes a single pass over the list to find the largest sequence for each peer *)
-let longestSequenceCommMatchesByPeer (dc: DeviceConfig) : Map<string, (int array) list> =
+let longestSequenceCommMatchesByPeer (dc: DeviceConfig) : Map<string, string list> =
     let rec aux filters sequence bestCounts count (last,lastEs) mapping =
         match filters with
         | [] ->
@@ -331,6 +348,7 @@ let longestSequenceCommMatchesByPeer (dc: DeviceConfig) : Map<string, (int array
 
     aux dc.Filters [] Map.empty 0 (None, None) Map.empty
 
+(*
 let findVertex cg (loc, states) = 
     cg.Graph.Vertices 
     |> Seq.find (fun v -> v.States = states && v.Node.Loc = loc)
@@ -346,7 +364,7 @@ let areAllIsomorphic cg (nodes: CGraph.CgState list) : bool =
     | [x] -> true
     | x::y::z -> aux x nodes
 
-let removeCommFiltersForStates (states: (string * int array) list) (dc: DeviceConfig) : DeviceConfig =
+let removeCommFiltersForStates (states: (string * string) list) (dc: DeviceConfig) : DeviceConfig =
     let relevant x = 
         List.exists ((=) x ) states
     let replace arg =
@@ -382,7 +400,7 @@ let compressIsomorphicImports (cg: CGraph.T) ((prefix, config): T) : T =
             if (List.length nodes) > 1 && (areAllIsomorphic cg nodes) then
                 newDC <- removeCommFiltersForStates states newDC
         newConfig <- Map.add loc newDC newConfig
-    (prefix, newConfig)
+    (prefix, newConfig) *)
 
 
 (* Removes less preferred, but otherwise identical imports.
@@ -541,8 +559,8 @@ let compress (cg: CGraph.T) (config: T) (outName: string) : T =
     debug1 (fun () -> System.IO.File.WriteAllText(outName + "-raw.ir", format config))
     let config = compressUniquePairs cg config
     debug2 (fun () -> System.IO.File.WriteAllText(outName + "-min1.ir", format config))
-    let config = compressIsomorphicImports cg config
-    debug2 (fun () -> System.IO.File.WriteAllText(outName + "-min2.ir", format config))
+    (* let config = compressIsomorphicImports cg config
+    debug2 (fun () -> System.IO.File.WriteAllText(outName + "-min2.ir", format config)) *)
     let config = compressIdenticalImports config
     debug2 (fun () -> System.IO.File.WriteAllText(outName + "-min3.ir", format config))
     let config = compressTaggingWhenNotImported config
