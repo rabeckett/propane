@@ -30,12 +30,26 @@ type DeviceConfig =
     {Originates: bool;
      Filters: (Import * Export list) list}
 
+type PolicyPair = Prefix.T list * Regex.REBuilder * Regex.T list
+
 type T = Prefix.T list * Map<string, DeviceConfig>
 
+/// Convert per-prefix representation to a per-router representatoin
+val byRouter: T list -> Map<string, (Prefix.T list * DeviceConfig) list>
+
 /// Debug config output
-val format: T -> string
+val format: T list -> string
 
 /// Generate the BGP match/action rules that are guaranteed to 
-/// implement the user policy under all possible failure scenarios. 
-/// This function returns an intermediate representation (IR) for BGP policies
+/// implement the user policy under all possible failure scenarios for a given prefix. 
+/// This function returns either an intermediate representation (IR) 
+/// for BGP policies, or a counterexample indicating why compilation will not work.
 val compileToIR: Prefix.T list -> Regex.REBuilder -> Regex.T list -> string -> Result<T, CounterExample>
+
+/// Compile to an intermediate representation for a given prefix. 
+/// Gives a counterexample and quits the program if compilation is not possible.
+val compileForSinglePrefix: string -> PolicyPair -> T
+
+/// Compile for all prefixes
+/// TODO: do this in parallel
+val compileAllPrefixes: string -> PolicyPair list -> T list

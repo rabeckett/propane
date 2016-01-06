@@ -49,36 +49,49 @@ type DeviceConfig =
     {Originates: bool;
      Filters: (Import * Export list) list}
 
+type PolicyPair = Prefix.T list * Regex.REBuilder * Regex.T list
+
 type T = Prefix.T list * Map<string, DeviceConfig>
 
-let format ((prefix,config): T) = 
+let byRouter (pairs: T list) =
+    let mutable result = Map.empty
+    for (prefix, config) in pairs do 
+        for kv in config do
+            let value = (prefix, kv.Value)
+            match Map.tryFind kv.Key result with
+            | None -> result <- Map.add kv.Key [value] result
+            | Some x -> result <- Map.add kv.Key (value::x) result
+    result
+
+let format (configs: T list) = 
     let sb = System.Text.StringBuilder ()
-    let prefixStr = 
-        if List.isEmpty prefix then "false" else
-        if Prefix.toPredicate prefix = Prefix.top then "true" else
-        prefix
-        |> List.map (fun p -> p.ToString())
-        |> Common.List.joinBy " or "
-    for kv in config do
+    let routers = byRouter configs
+    for kv in routers do
         sb.Append("Router ") |> ignore
         sb.Append(kv.Key) |> ignore
-        let deviceConf = kv.Value
-        for ((m, lp), es) in deviceConf.Filters do
-            sb.Append("\n  Match: ") |> ignore
-            sb.Append("[Prefix=" + prefixStr + ", ") |> ignore
-            sb.Append(m.ToString() + "]") |> ignore
-            if (not deviceConf.Originates) && lp <> 100 then
-                sb.Append(" (LP=" + lp.ToString() + ")") |> ignore
-            for (peer, acts) in es do
-                sb.Append("\n    Export: [Peer<-" + peer) |> ignore
-                if acts <> [] then
-                    let str = 
-                        acts
-                        |> List.map (fun a -> a.ToString())
-                        |> Common.List.joinBy ","
-                    sb.Append(", " + str) |> ignore
-                sb.Append("]") |> ignore
-        sb.Append("\n\n") |> ignore
+        for (prefix, deviceConf) in kv.Value do
+            let prefixStr = 
+                if List.isEmpty prefix then "false" else
+                if Prefix.toPredicate prefix = Prefix.top then "true" else
+                prefix
+                |> List.map (fun p -> p.ToString())
+                |> Common.List.joinBy " or "
+            for ((m, lp), es) in deviceConf.Filters do
+                sb.Append("\n  Match: ") |> ignore
+                sb.Append("[Prefix=" + prefixStr + ", ") |> ignore
+                sb.Append(m.ToString() + "]") |> ignore
+                if (not deviceConf.Originates) && lp <> 100 then
+                    sb.Append(" (LP=" + lp.ToString() + ")") |> ignore
+                for (peer, acts) in es do
+                    sb.Append("\n    Export: [Peer<-" + peer) |> ignore
+                    if acts <> [] then
+                        let str = 
+                            acts
+                            |> List.map (fun a -> a.ToString())
+                            |> Common.List.joinBy ","
+                        sb.Append(", " + str) |> ignore
+                    sb.Append("]") |> ignore
+            sb.Append("\n\n") |> ignore
     sb.ToString()
 
 (* Ensure well-formedness for controlling 
@@ -556,24 +569,24 @@ let compressAllImports (cg: CGraph.T) ((prefix, config): T) : T =
 (* Make a config smaller (e.g., number of route maps) and more human-readable
    by removing community tagging information when possible *)
 let compress (cg: CGraph.T) (config: T) (outName: string) : T =
-    debug1 (fun () -> System.IO.File.WriteAllText(outName + "-raw.ir", format config))
+    debug1 (fun () -> System.IO.File.WriteAllText(outName + "-raw.ir", format [config]))
     let config = compressUniquePairs cg config
-    debug2 (fun () -> System.IO.File.WriteAllText(outName + "-min1.ir", format config))
+    debug2 (fun () -> System.IO.File.WriteAllText(outName + "-min1.ir", format [config]))
     (* let config = compressIsomorphicImports cg config
     debug2 (fun () -> System.IO.File.WriteAllText(outName + "-min2.ir", format config)) *)
     let config = compressIdenticalImports config
-    debug2 (fun () -> System.IO.File.WriteAllText(outName + "-min3.ir", format config))
+    debug2 (fun () -> System.IO.File.WriteAllText(outName + "-min3.ir", format [config]))
     let config = compressTaggingWhenNotImported config
-    debug2 (fun () -> System.IO.File.WriteAllText(outName + "-min4.ir", format config))
+    debug2 (fun () -> System.IO.File.WriteAllText(outName + "-min4.ir", format [config]))
     let config = compressAllExports cg config
     let config = compressAllImports cg config
-    debug1 (fun () -> System.IO.File.WriteAllText(outName + "-min5.ir", format config))
+    debug1 (fun () -> System.IO.File.WriteAllText(outName + "-min5.ir", format [config]))
     config
 
 /// Given a topology and a policy, generate a low-level configuration in an intermediate
 /// byte-code-like, vendor-independent representation for BGP 
+
 let compileToIR (prefix: Prefix.T list) (reb: Regex.REBuilder) (res: Regex.T list) (outName: string) : Result<T, CounterExample> =
-    
     (* compute the automata and product graph *)
     let dfas = 
         res 
@@ -581,14 +594,11 @@ let compileToIR (prefix: Prefix.T list) (reb: Regex.REBuilder) (res: Regex.T lis
         |> Array.ofList
     let cg = CGraph.buildFromAutomata (reb.Topo()) dfas
     debug1 (fun () -> CGraph.generatePNG cg outName)
-    
     (* Ensure the path suffix property and dont conside simple paths *)
     CGraph.Minimize.delMissingSuffixPaths cg
     CGraph.Minimize.minimizeO3 cg
-    
     (* Save graphs to file *)
     debug1 (fun () -> CGraph.generatePNG cg (outName + "-min"))
-    
     (* Check for errors *)
     let startingLocs = Array.fold (fun acc dfa -> Set.union (reb.StartingLocs dfa) acc) Set.empty dfas
     let originators = 
@@ -628,3 +638,29 @@ let compileToIR (prefix: Prefix.T list) (reb: Regex.REBuilder) (res: Regex.T lis
             with 
                 | UncontrollableEnterException s -> Err(UncontrollableEnter s)
                 | UncontrollablePeerPreferenceException s -> Err(UncontrollablePeerPreference s)
+
+let compileForSinglePrefix fullName (prefix, reb, res) =
+    try 
+        match compileToIR prefix reb res fullName with 
+        | Ok(config) -> config
+        | Err(x) -> 
+            match x with
+            | UnusedPreferences m ->
+                error (sprintf "Unused preferences %A" m)
+            | NoPathForRouters rs ->
+                unimplementable (sprintf "Unable to find a path for routers: %A" rs)
+            | InconsistentPrefs(x,y) ->
+                let xs = x.ToString()
+                let ys = y.ToString() 
+                unimplementable (sprintf "Can not choose preference between:\n%s\n%s" xs ys)
+            | UncontrollableEnter x -> 
+                unimplementable (sprintf "Can not control inbound traffic from peer: %s" x)
+            | UncontrollablePeerPreference x -> 
+                unimplementable (sprintf "Can not control inbound preference from peer: %s without MED or prepending" x)
+    with Topology.InvalidTopologyException -> 
+        error (sprintf "Invalid Topology: internal topology must be weakly connected")
+
+let compileAllPrefixes fullName (pairs: PolicyPair list) : T list = 
+    Array.ofList pairs
+    |> Array.Parallel.map (compileForSinglePrefix fullName)
+    |> Array.toList
