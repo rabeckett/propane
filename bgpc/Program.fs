@@ -24,13 +24,14 @@ let main argv =
     | None -> error ("No policy file specified")
     | Some p ->
         let ast = Input.readFromFile p
+
         let pairs = Ast.makePolicyPairs ast topo
         let (prefixes, reb, res) = pairs.Head
 
         match settings.Format with 
         | Args.IR ->
             try 
-                match IR.compileToIR reb res fullName with 
+                match IR.compileToIR prefixes reb res fullName with 
                 | Ok(config) -> 
                     match settings.OutFile with
                     | None -> ()

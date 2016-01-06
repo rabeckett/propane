@@ -16,7 +16,7 @@ let isPeer x m =
     | IR.State(_,y) -> x = y || y = "*"
     | _ -> false
 
-let prefersPeer config x (a,b) =
+let prefersPeer (_,config) x (a,b) =
     try 
         let deviceConfig = Map.find x config 
         let ((_,lp1), _) = List.find (fun ((m,_), _) -> isPeer a m) deviceConfig.Filters
@@ -24,11 +24,11 @@ let prefersPeer config x (a,b) =
         lp1 > lp2
     with _ -> false
 
-let receiveFrom config x y = 
+let receiveFrom (_,config) x y = 
     let deviceConf = Map.find x config 
     List.exists (fun ((m,_), _) -> isPeer y m) deviceConf.Filters
 
-let originates (config: IR.T) x =
+let originates ((_, config): IR.T) x =
     let deviceConfig = Map.find x config
     deviceConfig.Originates
 
@@ -529,7 +529,8 @@ let testCompilation() =
             printfn "%s" msg
             logInfo0(msg)
         else
-            match IR.compileToIR reb built (settings.DebugDir + test.Name) with 
+            let prefix = Prefix.toPrefixes Prefix.top
+            match IR.compileToIR prefix reb built (settings.DebugDir + test.Name) with 
             | Err(x) ->
                 if (Option.isSome test.Receive || 
                     Option.isSome test.Originate || 

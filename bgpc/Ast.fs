@@ -132,16 +132,20 @@ let makeCompactPairs (pcs: ConcretePathConstraints) : ConcretePathConstraints =
         newPCs <- (newPrefix, res) :: newPCs
         rollingPred <- newP
         (* printfn "Rolling predicate: %A" ((rollingPred)) *)
-
     List.rev newPCs
 
-type BinOp = OConcat | OInter | OUnion
+type BinOp = 
+    | OConcat 
+    | OInter 
+    | OUnion 
+    | ODifference
 
 let applyOp r1 r2 op = 
     match op with
     | OConcat -> Re.Concat(r1,r2)
     | OInter -> Re.Inter(r1,r2)
     | OUnion -> Re.Union(r1,r2)
+    | ODifference -> Re.Difference(r1,r2)
 
 let combineRegexes (rs1: Re list) (rs2: Re list) (op: BinOp) : Re list =
     let len1 = List.length rs1 
@@ -154,6 +158,7 @@ let combineRegexes (rs1: Re list) (rs2: Re list) (op: BinOp) : Re list =
             | OConcat -> ";"
             | OInter -> " and "
             | OUnion -> " + "
+            | ODifference -> " \ "
         let s1 = rs1.ToString()
         let s2 = rs2.ToString()
         error (sprintf "Cannot combine multiple preferences in expansion of: (%s)%s(%s)" s1 opStr s2)
@@ -184,6 +189,7 @@ let rec mergeScopes (re: Re) disjoints : ConcretePathConstraints =
     | Concat(x,y) -> combineConstraints (mergeScopes x disjoints) (mergeScopes y disjoints) OConcat
     | Union(x,y) -> combineConstraints (mergeScopes x disjoints) (mergeScopes y disjoints) OUnion
     | Inter(x,y) -> combineConstraints (mergeScopes x disjoints) (mergeScopes y disjoints) OInter
+    | Difference(x,y) -> combineConstraints (mergeScopes x disjoints) (mergeScopes y disjoints) ODifference
     | Negate x -> error (sprintf "Negation not allowed in main policy definition, in expression: %s" (x.ToString()))
     | Star x -> error (sprintf "Star operator not allowed in main policy definition, in expression: %s" (x.ToString()))
     | Ident(x,res) -> 

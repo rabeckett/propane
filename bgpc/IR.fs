@@ -46,21 +46,27 @@ type Import = Match * LocalPref
 type Export = Peer * Action list
 
 type DeviceConfig =
-    {(* Prefix: Prefix.T; *)
-     Originates: bool;
+    {Originates: bool;
      Filters: (Import * Export list) list}
 
-type T = Map<string, DeviceConfig>
+type T = Prefix.T list * Map<string, DeviceConfig>
 
-let format (config: T) = 
+let format ((prefix,config): T) = 
     let sb = System.Text.StringBuilder ()
-    for kv in config do 
+    let prefixStr = 
+        if List.isEmpty prefix then "false" else
+        if Prefix.toPredicate prefix = Prefix.top then "true" else
+        prefix
+        |> List.map (fun p -> p.ToString())
+        |> Common.List.joinBy " or "
+    for kv in config do
         sb.Append("Router ") |> ignore
         sb.Append(kv.Key) |> ignore
         let deviceConf = kv.Value
         for ((m, lp), es) in deviceConf.Filters do
             sb.Append("\n  Import: ") |> ignore
-            sb.Append(m.ToString()) |> ignore
+            sb.Append("[Prefix=" + prefixStr + "; ") |> ignore
+            sb.Append(m.ToString() + "]") |> ignore
             if (not deviceConf.Originates) && lp <> 100 then
                 sb.Append(" (LP=" + lp.ToString() + ")") |> ignore
             for (peer, acts) in es do
@@ -117,6 +123,7 @@ let addExports (settings: Args.T) info peers actions exportMap =
         | Anything -> ()
         | Nothing x -> 
             if settings.UseNoExport then 
+                (* This is a hack - use no-export *)
                 actions <- (SetComm [|-1|]) :: actions
             else raise (UncontrollableEnterException ("enable no-export to limit incoming traffic to peer: " + x))
         | Specific re -> 
@@ -139,7 +146,6 @@ let configureIncomingTraffic cg : IncomingExportMap =
     for (_, peers) in byPreference do
         match prev with
         | None -> 
-            (* TODO: add exports here too *)
             exportMap <- addExports settings info peers [] exportMap
             prev <- Some peers
         | Some ps ->
@@ -172,7 +178,7 @@ let comparePrefThenLoc (x,i1) (y,i2) =
 
 (* Generate the configuration given preference-based ordering 
    that satisfies our completeness/fail resistance properties *)
-let genConfig (cg: CGraph.T) (ord: Consistency.Ordering) (inExports: IncomingExportMap) : T =
+let genConfig (cg: CGraph.T) (prefix: Prefix.T list) (ord: Consistency.Ordering) (inExports: IncomingExportMap) : T =
     let settings = Args.getSettings ()
     let (ain, _) = Topology.alphabet cg.Topo
     let ain = Set.map (fun (v: Topology.State) -> v.Loc) ain
@@ -193,7 +199,7 @@ let genConfig (cg: CGraph.T) (ord: Consistency.Ordering) (inExports: IncomingExp
                 |> List.ofSeq
                 |> List.sortWith comparePrefThenLoc
             (* Generate filters *)
-            let mutable lp = 100
+            let mutable lp = 101
             let mutable lastPref = None
             for v, pref in prefNeighborsIn do 
                 match lastPref with 
@@ -219,6 +225,7 @@ let genConfig (cg: CGraph.T) (ord: Consistency.Ordering) (inExports: IncomingExp
                     |> Seq.toList
                     |> List.filter (fun x -> x.Node.Loc <> v.Node.Loc && Topology.isTopoNode x.Node)
                 
+                (* Set exports *)
                 let mutable exports = Map.empty
                 for n in expNeighbors do
                     let loc = n.Node.Loc
@@ -231,7 +238,7 @@ let genConfig (cg: CGraph.T) (ord: Consistency.Ordering) (inExports: IncomingExp
 
             let deviceConf = {Originates=originates; Filters=filters}
             config <- Map.add loc deviceConf config
-    config
+    (prefix, config)
 
 let isCommunityTag (action: Action) : bool = 
     match action with
@@ -249,7 +256,7 @@ let rec getTag (actions: Action list) : (int array) option =
 (* For each pair of (X,Y) edges in the product graph
    if the pair is unique, then there is no need to 
    match/tag on the community, so we can remove it *)
-let compressUniquePairs (cg: CGraph.T) (config: T) : T =
+let compressUniquePairs (cg: CGraph.T) ((prefix, config): T) : T =
     let pairCount = 
         cg.Graph.Vertices
         |> Seq.map ((fun v -> (v, neighbors cg v)) >> (fun (v, ns) -> Seq.map (fun n -> (v,n)) ns))
@@ -281,7 +288,7 @@ let compressUniquePairs (cg: CGraph.T) (config: T) : T =
             newFilters <- newFilt :: newFilters
         let newDeviceConf = {Originates=deviceConf.Originates; Filters=List.rev newFilters}
         newConfig <- Map.add loc newDeviceConf newConfig
-    newConfig
+    (prefix, newConfig)
 
 (* Find the longest consecutive sequence of imports for each peer. 
    Only imports where the community is matched are counted towards the sequence.
@@ -356,7 +363,7 @@ let removeCommFiltersForStates (states: (string * int array) list) (dc: DeviceCo
    preferences are separated by an intermediate preference since the community 
    may be used to distinguish between these.
    Uses longestSequenceCommMatchesByPeer to ensure this property. *)
-let compressIsomorphicImports (cg: CGraph.T) (config: T) : T =
+let compressIsomorphicImports (cg: CGraph.T) ((prefix, config): T) : T =
     let mutable newConfig = Map.empty
     for kv in config do
         let loc = kv.Key
@@ -375,12 +382,12 @@ let compressIsomorphicImports (cg: CGraph.T) (config: T) : T =
             if (List.length nodes) > 1 && (areAllIsomorphic cg nodes) then
                 newDC <- removeCommFiltersForStates states newDC
         newConfig <- Map.add loc newDC newConfig
-    newConfig
+    (prefix, newConfig)
 
 
 (* Removes less preferred, but otherwise identical imports.
    These can never occur unless they are back-to-back in the configuration. *)
-let compressIdenticalImports (config: T) : T =
+let compressIdenticalImports ((prefix, config): T) : T =
     let rec aux filters acc = 
         match filters with
         | [] -> acc
@@ -396,11 +403,11 @@ let compressIdenticalImports (config: T) : T =
         let newFilters = aux (List.rev deviceConf.Filters) []
         let newDeviceConf = {Originates=deviceConf.Originates; Filters=newFilters}
         newConfig <- Map.add loc newDeviceConf newConfig
-    newConfig
+    (prefix, newConfig)
 
 (* Avoids tagging with a community from A to B, when B never
    needs to distinguish based on that particular community value *)
-let compressTaggingWhenNotImported (config: T) : T =
+let compressTaggingWhenNotImported ((prefix, config): T) : T =
     let importCommNeeded = ref Map.empty 
     for kv in config do 
         let loc = kv.Key 
@@ -413,31 +420,33 @@ let compressTaggingWhenNotImported (config: T) : T =
                 | None -> importCommNeeded := Map.add (loc,x) (Set.singleton is) !importCommNeeded
                 | Some iss -> importCommNeeded := Map.add (loc,x) (Set.add is iss) !importCommNeeded
             | _ -> ()
-    Map.map (fun loc dc ->
-        let filters' = 
-            List.map (fun ((m,lp), es) ->
-                let es' = 
-                    List.map (fun (peer,acts) ->
-                        let acts' = 
-                            List.filter (fun a ->
-                                match a with
-                                | SetComm is ->
-                                    Map.containsKey (peer,loc) !importCommNeeded &&
-                                    !importCommNeeded
-                                    |> Map.find (peer,loc)
-                                    |> Set.contains is
-                                | _ -> true
-                            ) acts
-                        (peer,acts')
-                    ) es
-                ((m,lp), es')
-            ) dc.Filters
-        {Originates=dc.Originates; Filters=filters'}
-    ) config
+    let newConfig = 
+        Map.map (fun loc dc ->
+            let filters' = 
+                List.map (fun ((m,lp), es) ->
+                    let es' = 
+                        List.map (fun (peer,acts) ->
+                            let acts' = 
+                                List.filter (fun a ->
+                                    match a with
+                                    | SetComm is ->
+                                        Map.containsKey (peer,loc) !importCommNeeded &&
+                                        !importCommNeeded
+                                        |> Map.find (peer,loc)
+                                        |> Set.contains is
+                                    | _ -> true
+                                ) acts
+                            (peer,acts')
+                        ) es
+                    ((m,lp), es')
+                ) dc.Filters
+            {Originates=dc.Originates; Filters=filters'}
+        ) config
+    (prefix, newConfig)
 
 (* Whenever we export identical routes to all peers, we can replace
    this with a simpler route export of the form: (Export: * ) for readability *)
-let compressAllExports (cg: CGraph.T) (config: T) : T =
+let compressAllExports (cg: CGraph.T) ((prefix, config): T) : T =
     let mutable newConfig = Map.empty
     for kv in config do
         let loc = kv.Key 
@@ -473,11 +482,11 @@ let compressAllExports (cg: CGraph.T) (config: T) : T =
             else newFilters <- f :: newFilters
         let newDC = {Originates=deviceConf.Originates; Filters=List.rev newFilters}
         newConfig <- Map.add loc newDC newConfig
-    newConfig
+    (prefix, newConfig)
 
 (* Whenever import identical routes from all peers, we can replace
    this with a simpler route import of the form: (Import: * ) for readability *)
-let compressAllImports (cg: CGraph.T) (config: T) : T =
+let compressAllImports (cg: CGraph.T) ((prefix, config): T) : T =
     let mutable newConfig = Map.empty
     for kv in config do
         let loc = kv.Key 
@@ -524,7 +533,7 @@ let compressAllImports (cg: CGraph.T) (config: T) : T =
             else filters
         let newDC = {Originates=deviceConf.Originates; Filters=newFilters}
         newConfig <- Map.add loc newDC newConfig
-    newConfig
+    (prefix, newConfig)
 
 (* Make a config smaller (e.g., number of route maps) and more human-readable
    by removing community tagging information when possible *)
@@ -545,7 +554,7 @@ let compress (cg: CGraph.T) (config: T) (outName: string) : T =
 
 /// Given a topology and a policy, generate a low-level configuration in an intermediate
 /// byte-code-like, vendor-independent representation for BGP 
-let compileToIR (reb: Regex.REBuilder) (res: Regex.T list) (outName: string) : Result<T, CounterExample> =
+let compileToIR (prefix: Prefix.T list) (reb: Regex.REBuilder) (res: Regex.T list) (outName: string) : Result<T, CounterExample> =
     
     (* compute the automata and product graph *)
     let dfas = 
@@ -594,7 +603,7 @@ let compileToIR (reb: Regex.REBuilder) (res: Regex.T list) (outName: string) : R
                 let inExports = configureIncomingTraffic cg
                 match Consistency.findOrderingConservative cg outName with 
                 | Ok ord ->
-                    let config = genConfig cg ord inExports
+                    let config = genConfig cg prefix ord inExports
                     let config = compress cg config outName
                     Ok (config)
                 | Err((x,y)) -> Err(InconsistentPrefs(x,y))
