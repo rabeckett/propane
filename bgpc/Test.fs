@@ -530,7 +530,7 @@ let testCompilation() =
             logInfo0(msg)
         else
             let prefix = Prefix.toPrefixes Prefix.top
-            match IR.compileToIR prefix reb built (settings.DebugDir + test.Name) with 
+            match IR.compileToIR (settings.DebugDir + test.Name) prefix reb built with 
             | Err(x) ->
                 if (Option.isSome test.Receive || 
                     Option.isSome test.Originate || 

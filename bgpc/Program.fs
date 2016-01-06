@@ -16,7 +16,7 @@ let main argv =
         exit 0
 
     (* Set debugging output file *)
-    let fileName = Option.getOrDefault "output" settings.OutFile
+    let fileName = Common.Option.getOrDefault "output" settings.OutFile
     let fullName = settings.DebugDir + (string System.IO.Path.DirectorySeparatorChar) + fileName
 
     (* Get the topology *)

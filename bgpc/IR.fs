@@ -586,19 +586,19 @@ let compress (cg: CGraph.T) (config: T) (outName: string) : T =
 /// Given a topology and a policy, generate a low-level configuration in an intermediate
 /// byte-code-like, vendor-independent representation for BGP 
 
-let compileToIR (prefix: Prefix.T list) (reb: Regex.REBuilder) (res: Regex.T list) (outName: string) : Result<T, CounterExample> =
+let compileToIR fullName (prefix: Prefix.T list) (reb: Regex.REBuilder) (res: Regex.T list) : Result<T, CounterExample> =
     (* compute the automata and product graph *)
     let dfas = 
         res 
         |> List.map (fun r -> reb.MakeDFA (Regex.rev r))
         |> Array.ofList
     let cg = CGraph.buildFromAutomata (reb.Topo()) dfas
-    debug1 (fun () -> CGraph.generatePNG cg outName)
+    debug1 (fun () -> CGraph.generatePNG cg fullName)
     (* Ensure the path suffix property and dont conside simple paths *)
     CGraph.Minimize.delMissingSuffixPaths cg
     CGraph.Minimize.minimizeO3 cg
     (* Save graphs to file *)
-    debug1 (fun () -> CGraph.generatePNG cg (outName + "-min"))
+    debug1 (fun () -> CGraph.generatePNG cg (fullName + "-min"))
     (* Check for errors *)
     let startingLocs = Array.fold (fun acc dfa -> Set.union (reb.StartingLocs dfa) acc) Set.empty dfas
     let originators = 
@@ -629,10 +629,10 @@ let compileToIR (prefix: Prefix.T list) (reb: Regex.REBuilder) (res: Regex.T lis
         else
             try 
                 let inExports = configureIncomingTraffic cg
-                match Consistency.findOrderingConservative cg outName with 
+                match Consistency.findOrderingConservative cg fullName with 
                 | Ok ord ->
                     let config = genConfig cg prefix ord inExports
-                    let config = compress cg config outName
+                    let config = compress cg config fullName
                     Ok (config)
                 | Err((x,y)) -> Err(InconsistentPrefs(x,y))
             with 
@@ -641,7 +641,7 @@ let compileToIR (prefix: Prefix.T list) (reb: Regex.REBuilder) (res: Regex.T lis
 
 let compileForSinglePrefix fullName (prefix, reb, res) =
     try 
-        match compileToIR prefix reb res fullName with 
+        match compileToIR fullName prefix reb res with 
         | Ok(config) -> config
         | Err(x) -> 
             match x with
