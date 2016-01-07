@@ -58,7 +58,7 @@ let rec buildRegex (ast: T) (reb: Regex.REBuilder) (r: Re) : Regex.LazyT =
         if m <> n then 
             error (sprintf "expected %d arguments for %s, but received %d" n id m) 
         let args = List.map (buildRegex ast reb) args
-        let wf = List.map (Regex.singleLocations Set.empty) args
+        let wf = List.map (Regex.singleLocations (reb.Topo())) args
         if List.exists Option.isNone wf then 
             error (sprintf "parameter for %s must refer to locations only" id)
         else List.map (Option.get >> Set.toList) wf
@@ -87,9 +87,10 @@ let rec buildRegex (ast: T) (reb: Regex.REBuilder) (r: Re) : Regex.LazyT =
             ignore (checkParams id 0 args)
             match Map.tryFind l ast.Defs with 
             | None -> reb.Loc l
-            | Some r -> buildRegex ast reb r
+            | Some r ->
+                (* TODO: check for recursive definition *)
+                buildRegex ast reb r
             
-
 let rec asRanges (p: Predicate) : Prefix.Pred = 
     match p with 
     | True -> Prefix.top
@@ -117,8 +118,8 @@ let buildCConstraint ast (topo: Topology.T) cc =
             | PredicateExpr p -> 
                 match b with
                 | LinkExpr(x,y) ->
-                    let locsX = Regex.singleLocations Set.empty (buildRegex ast reb x)
-                    let locsY = Regex.singleLocations Set.empty (buildRegex ast reb y)
+                    let locsX = Regex.singleLocations (reb.Topo()) (buildRegex ast reb x)
+                    let locsY = Regex.singleLocations (reb.Topo()) (buildRegex ast reb y)
                     match locsX, locsY with 
                     | Some xs, Some ys -> Aggregate (Prefix.toPrefixes (asRanges p), xs, ys)
                     | _, _ -> error (sprintf "link expression parameter 2 to aggregate must denote single locations")
@@ -128,46 +129,7 @@ let buildCConstraint ast (topo: Topology.T) cc =
     | _ -> error (sprintf "unknown control constraint: %s" name)
 
 let getControlConstraints (ast: T) topo = 
-    ast.CConstraints
-    |> List.map (buildCConstraint ast topo)
-
-
-(*
-let makeDisjointPairs (sName: string) (pcs: ConcretePathConstraints) : ConcretePathConstraints =
-    try 
-        let mutable rollingPred = Prefix.top
-        let mutable disjointPairs = []
-        for (pred, res) in pcs do
-            (* printfn "Rolling pred: %A" rollingPred *)
-            let ranges = Prefix.conj (Prefix.toPredicate pred) rollingPred
-            rollingPred <- Prefix.conj rollingPred (Prefix.negation ranges)
-            let options = Prefix.toPrefixes ranges
-            disjointPairs <- (options, res) :: disjointPairs
-        if rollingPred <> Prefix.bot then 
-            let exPrefix = List.head (Prefix.toPrefixes rollingPred)
-            let s = exPrefix.ToString()
-            error (sprintf "Incomplete prefixes in scope (%s). An example of a prefix that is not matched: %s" sName s)
-        List.rev disjointPairs
-    with InvalidPrefixException p ->
-        error (sprintf "Invalid prefix: %s" (p.ToString())) *)
-
-(* let makeCompactPairs (pcs: ConcretePathConstraints) : ConcretePathConstraints = 
-    printfn "============================"
-    for (p, _) in pcs do 
-        printfn "%s" (string p)
-    let mutable rollingPred = Prefix.bot
-    let mutable newPCs = []
-    for (prefix, res) in pcs do
-        printfn "Existing predicate: %s" (prefix.ToString())
-        printfn "Rolling predicate: %s" ((Prefix.toPrefixes rollingPred).ToString())
-        let p = Prefix.toPredicate prefix
-        let newP = Prefix.disj p rollingPred
-        let newPrefix = Prefix.toPrefixes newP
-        newPCs <- (newPrefix, res) :: newPCs
-        rollingPred <- newP
-        printfn "Rolling predicate (after): %s" ((Prefix.toPrefixes rollingPred).ToString())
-    printfn "============================"
-    List.rev newPCs *)
+    List.map (buildCConstraint ast topo) ast.CConstraints
 
 type BinOp = 
     | OConcat 

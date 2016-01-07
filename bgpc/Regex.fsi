@@ -47,7 +47,7 @@ type LazyT
 
 /// Check if a regular expression denotes only single characters and 
 /// if so, returns the set of characters it denotes
-val singleLocations: Set<string> -> LazyT -> Set<string> option
+val singleLocations: Topology.T -> LazyT -> Set<string> option
 
 /// Exception thrown when user-specified paths do not 
 /// conform to the shape out*; in+; out*

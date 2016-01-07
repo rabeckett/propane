@@ -67,7 +67,9 @@ let setDebugDir s =
     debugDir := s + string System.IO.Path.DirectorySeparatorChar
 
 let setDebug s = 
-    let i = int s
+    let i = 
+        try int s 
+        with _ -> raise (InvalidArgException (sprintf "Invalid number: %s" s))
     if i < 0 || i > 3 then 
         raise (InvalidArgException ("Invalid debug level: " + s))
     debug := i

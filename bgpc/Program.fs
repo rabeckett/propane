@@ -24,6 +24,10 @@ let main argv =
     | None -> error ("No policy file specified")
     | Some p ->
         let ast = Input.readFromFile p
+
+        let cconstraints = Ast.getControlConstraints ast topo
+        printfn "Aggregates: %A" cconstraints
+
         let pairs = Ast.makePolicyPairs ast topo
         let ir = IR.compileAllPrefixes fullName pairs
 

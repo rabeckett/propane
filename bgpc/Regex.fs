@@ -280,23 +280,26 @@ type LazyT =
     | LNegate of LazyT
     | LStar of LazyT
 
-let rec singleLocations alphabet r =
-    let aux f r1 r2 = 
-        match r1, r2 with 
-        | None, _ -> None 
-        | _, None -> None 
-        | Some s1, Some s2 -> Some (f s1 s2)
-    match r with 
-    | LLocs s -> Some s
-    | LInter rs ->
-        List.map (singleLocations alphabet) rs |> 
-        Common.List.fold1 (aux Set.intersect)
-    | LUnion rs -> 
-        List.map (singleLocations alphabet) rs |>
-        Common.List.fold1 (aux Set.union)
-    | LNegate r ->
-        Option.map (Set.difference alphabet) (singleLocations alphabet r)
-    | _ -> None
+let singleLocations (topo: Topology.T) r =
+    let (ain, aout) = Topology.alphabet topo
+    let rec inner r =
+        let aux f r1 r2 = 
+            match r1, r2 with 
+            | None, _ -> None 
+            | _, None -> None 
+            | Some s1, Some s2 -> Some (f s1 s2)
+        match r with
+        | LIn -> Some (Set.map (fun v -> v.Loc) ain)
+        | LOut -> Some (Set.map (fun v -> v.Loc) aout)
+        | LLocs s -> Some s
+        | LInter rs ->
+            List.map inner rs |> 
+            Common.List.fold1 (aux Set.intersect)
+        | LUnion rs -> 
+            List.map inner rs |>
+            Common.List.fold1 (aux Set.union)
+        | _ -> None
+    inner r
 
 let getAlphabet (topo: Topology.T) = 
     let (inStates, outStates) = Topology.alphabet topo
