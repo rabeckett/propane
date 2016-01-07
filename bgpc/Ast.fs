@@ -22,8 +22,6 @@ type Re =
     | Star of Re
     | Ident of string * Re list
 
-type Definition = string
-
 type Expr =
     | PredicateExpr of Predicate
     | LinkExpr of Re * Re
@@ -47,31 +45,32 @@ type Task =
 type CConstraint = 
     | Aggregate of Prefix.T list * Set<string> * Set<string>
 
+
 type T = 
-    {Defs: Definition list;
+    {Defs: Map<string, Re>;
      Tasks: Task list;
      Policy: Re}
 
 exception InvalidPrefixException of Prefix.T
 
-let rec buildRegex (reb: Regex.REBuilder) (r: Re) : Regex.LazyT =
+let rec buildRegex (ast: T) (reb: Regex.REBuilder) (r: Re) : Regex.LazyT =
     let checkParams id n args =
         let m = List.length args
         if m <> n then 
             error (sprintf "expected %d arguments for %s, but received %d" n id m) 
-        let args = List.map (buildRegex reb) args
+        let args = List.map (buildRegex ast reb) args
         let wf = List.map (Regex.singleLocations Set.empty) args
         if List.exists Option.isNone wf then 
             error (sprintf "parameter for %s must refer to locations only" id)
         else List.map (Option.get >> Set.toList) wf
     match r with
     | Empty -> reb.Empty 
-    | Concat(x,y) -> reb.Concat [(buildRegex reb x); (buildRegex reb y)]
-    | Inter(x,y) -> reb.Inter [(buildRegex reb x); (buildRegex reb y)]
-    | Union(x,y) -> reb.Union [(buildRegex reb x); (buildRegex reb y)]
-    | Difference(x,y) -> reb.Inter [(buildRegex reb x); reb.Negate (buildRegex reb y)]
-    | Negate x -> reb.Negate (buildRegex reb x)
-    | Star x -> reb.Star (buildRegex reb x)
+    | Concat(x,y) -> reb.Concat [(buildRegex ast reb x); (buildRegex ast reb y)]
+    | Inter(x,y) -> reb.Inter [(buildRegex ast reb x); (buildRegex ast reb y)]
+    | Union(x,y) -> reb.Union [(buildRegex ast reb x); (buildRegex ast reb y)]
+    | Difference(x,y) -> reb.Inter [(buildRegex ast reb x); reb.Negate (buildRegex ast reb y)]
+    | Negate x -> reb.Negate (buildRegex ast reb x)
+    | Star x -> reb.Star (buildRegex ast reb x)
     | Ident(id, args) ->
         match id with
         | "valleyfree" -> let locs = checkParams id args.Length args in reb.ValleyFree locs
@@ -85,7 +84,12 @@ let rec buildRegex (reb: Regex.REBuilder) (r: Re) : Regex.LazyT =
         | "none" -> ignore (checkParams id 0 args); reb.Empty
         | "in" -> ignore (checkParams id 0 args); reb.Inside 
         | "out" -> ignore (checkParams id 0 args);  reb.Outside
-        | l -> ignore (checkParams id 0 args); reb.Loc l
+        | l -> 
+            ignore (checkParams id 0 args)
+            match Map.tryFind l ast.Defs with 
+            | None -> reb.Loc l
+            | Some r -> buildRegex ast reb r
+            
 
 let rec asRanges (p: Predicate) : Prefix.Pred = 
     match p with 
@@ -104,7 +108,7 @@ let rec asRanges (p: Predicate) : Prefix.Pred =
             raise (InvalidPrefixException p)
         Prefix.toPredicate [p]
 
-let buildCConstraint (topo: Topology.T) cc =
+let buildCConstraint ast (topo: Topology.T) cc =
     let reb = Regex.REBuilder(topo) 
     let (name, args) = cc
     match name with
@@ -115,8 +119,8 @@ let buildCConstraint (topo: Topology.T) cc =
             | PredicateExpr p -> 
                 match b with
                 | LinkExpr(x,y) ->
-                    let locsX = Regex.singleLocations Set.empty (buildRegex reb x)
-                    let locsY = Regex.singleLocations Set.empty (buildRegex reb y)
+                    let locsX = Regex.singleLocations Set.empty (buildRegex ast reb x)
+                    let locsY = Regex.singleLocations Set.empty (buildRegex ast reb y)
                     match locsX, locsY with 
                     | Some xs, Some ys -> Aggregate (Prefix.toPrefixes (asRanges p), xs, ys)
                     | _, _ -> error (sprintf "link expression parameter 2 to aggregate must denote single locations")
@@ -125,12 +129,12 @@ let buildCConstraint (topo: Topology.T) cc =
         | _ -> error (sprintf "aggregate constraint takes 2 arguments")
     | _ -> error (sprintf "unknown control constraint: %s" name)
 
-let getControlConstraints (ast: T) reb = 
+let getControlConstraints (ast: T) topo = 
     ast.Tasks 
     |> List.map (fun s -> s.CConstraints)
     |> List.toSeq
     |> Seq.concat
-    |> Seq.map (buildCConstraint reb)
+    |> Seq.map (buildCConstraint ast topo)
 
 
 (*
@@ -269,7 +273,7 @@ let makePolicyPairs (ast: T) (topo: Topology.T) : (Prefix.T list * Regex.REBuild
     let mutable acc = []
     for (prefixes, res) in allPCs do 
         let reb = Regex.REBuilder(topo)
-        let res = List.map (buildRegex reb) res 
+        let res = List.map (buildRegex ast reb) res 
         let res = List.map reb.Build res
         acc <- (prefixes, reb, res) :: acc
     List.rev acc

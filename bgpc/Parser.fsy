@@ -64,8 +64,8 @@ let addTask s (ps, cs) =
 %%
 
 start:
-	| tasks regex EOF						{ {Defs=[]; Tasks=$1; Policy=$2} }
-	| definitions tasks regex EOF			{ {Defs=$1; Tasks=$2; Policy=$3} }
+	| tasks regex EOF						{ {Defs=Map.empty; Tasks=$1; Policy=$2} }
+	| definitions tasks regex EOF			{ {Defs=Map.ofList $1; Tasks=$2; Policy=$3} }
 
 tasks:
 	| TASK ID LBRACE task RBRACE			{ [addTask $2 $4] }
@@ -131,4 +131,4 @@ definitions:
 	| definition definitions				{ $1 :: $2 }
 
 definition:
-	| DEFINE ID								{ $2 }
+	| DEFINE ID	EQUAL regex					{ ($2, $4) }
