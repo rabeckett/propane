@@ -4,7 +4,7 @@ open IR
 open Common.Debug
 open Common.Error
 
-let maxTests = 1000
+let maxTests = 10000
 
 let isPeer x m = 
     match m with 
@@ -451,43 +451,33 @@ let testPrefixes () =
         if a <> b then
             printfn "[Failed]: expected: %s, but got %s" a b
 
-(* 
+
 /// Randomized tests that check that the scope merging cross product 
 /// construction never introduces new prefixes not specified originally
-let testScopeMerging () = 
+let testPrefixMerging () = 
     printfn "Testing prefix compaction..."
     let allPrefixes ccs = 
         ccs
         |> List.map (fun (ps,_) -> Set.ofList ps)
         |> List.fold Set.union Set.empty
+    let tru = [Prefix.prefix (0u,0u,0u,0u) 0u]
     for i = 0 to (maxTests / 10) do
-        let scope1 = 
-            randomPrefixes 2
-            |> List.map (fun ps -> (ps,[Ast.Empty]))
-        let scope1 = scope1 @ [(Prefix.toPrefixes Prefix.top, [Ast.Empty])]
-        let scope1Disjoint = Ast.makeDisjointPairs "" scope1
-        let scope2 = 
-            randomPrefixes 2
-            |> List.map (fun ps -> (ps,[Ast.Empty]))
-        let scope2 = scope2 @ [(Prefix.toPrefixes Prefix.top, [Ast.Empty])]
-        let scope2Disjoint = Ast.makeDisjointPairs "" scope2
-        let combined = Ast.combineConstraints scope1Disjoint scope2Disjoint Ast.OInter
-        let compact = Ast.makeCompactPairs combined
-
-        let origPrefixes = Set.union (allPrefixes scope1) (allPrefixes scope2)
-        let currPrefixes = allPrefixes compact
-        printfn "origPrefixes:" 
-        for x in (List.map string ((scope1) @ (scope2))) do 
-            printfn "%s" x
-        printfn "currPrefixes" 
-        for (x,_) in (List.map (fun (x,y) -> (string x,y)) compact) do
-            printfn "%s" x
-
-        if not (Set.isSubset currPrefixes origPrefixes) then 
+        let task1 =
+            let x = Prefix.toPrefixes (randomPrefix ())
+            let y = Prefix.toPrefixes (randomPrefix ())
+            [ (x, [Ast.Empty]); (y, [Ast.Empty]); (tru, [Ast.Empty]) ]
+        let task2 =
+            let x = Prefix.toPrefixes (randomPrefix ())
+            let y = Prefix.toPrefixes (randomPrefix ())
+            [ (x, [Ast.Empty]); (y, [Ast.Empty]); (tru, [Ast.Empty]) ]
+        let combined = Ast.combineConstraints task1 task2 Ast.OInter
+        /// compare the old to new prefixes
+        let allOriginal = allPrefixes (task1 @ task2)
+        let allCurrent = allPrefixes combined
+        /// check we don't introduce new ones
+        if not (Set.isSubset allCurrent allOriginal) then
             printfn "[Failed]: Compacted prefixes are not a subset"
-        let (ps,_) = List.head (List.rev compact)
-        if Prefix.toPredicate ps <> Prefix.top then 
-            printfn "[Failed]: Last test not true" *)
+
 
 let testRegexWellFormedness () =
     printfn "Testing regex well-formedness..."
@@ -506,12 +496,6 @@ let testTopologyWellFormedness () =
     let topo = Examples.topoDisconnected ()
     if Topology.isWellFormed topo then 
         printfn "\n[Failed]:\n  Should mark disconnected topology as invalid"
-
-let testWellFormedness () =
-    testRegexWellFormedness ()
-    testTopologyWellFormedness ()
-
-
 
 /// Compiles various examples and ensures that they either don't compile,
 /// or they compile and the resulting configuration is correct
@@ -590,6 +574,7 @@ let testCompilation() =
 let run () =
     printfn ""
     testPrefixes ()
-    (* testScopeMerging () *)
-    testWellFormedness ()
+    testPrefixMerging () 
+    testRegexWellFormedness ()
+    testTopologyWellFormedness ()
     testCompilation ()

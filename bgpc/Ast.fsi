@@ -41,6 +41,12 @@ type CConstraint =
 
 type PolicyPair = (Prefix.T list * Regex.REBuilder * Regex.T list)
 
+type BinOp = 
+    | OConcat 
+    | OInter 
+    | OUnion 
+    | ODifference
+
 type T = 
     {Defs: Map<string, Re>;
      CConstraints: ControlConstraints;
@@ -48,5 +54,7 @@ type T =
      Policy: Re}
 
 val getControlConstraints: T -> Topology.T -> CConstraint list
+
+val combineConstraints: ConcretePathConstraints -> ConcretePathConstraints -> BinOp -> ConcretePathConstraints
 
 val makePolicyPairs: T -> Topology.T -> PolicyPair list

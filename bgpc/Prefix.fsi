@@ -1,12 +1,17 @@
 ﻿module Prefix
 
 /// A 32-bit prefix
-type T
+type T =
+    {X1: uint32; 
+     X2: uint32; 
+     X3: uint32; 
+     X4: uint32; 
+     Slash: uint32}
 
 /// Range-based representation of a prefix
 /// Ranges are kept sorted and overlapping
 /// ranges are merged whenever possible
-type Pred
+type Pred = Pred of (uint32 * uint32) list
 
 /// Constructor for a prefix
 val prefix: (uint32*uint32*uint32*uint32) -> uint32 -> T
