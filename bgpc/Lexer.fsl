@@ -18,9 +18,6 @@ rule tokenize = parse
 	| "/*"					{ comments 0 lexbuf } 
 	| "define"				{ DEFINE }
 	| "task"				{ TASK }
-	| "paths"				{ PATHS }
-	| "ordered"				{ ORDERED }
-	| "unordered"			{ UNORDERED }
 	| "inter"				{ INTERSECT }
 	| "union"				{ UNION }
 	| "not"					{ NOT }
@@ -28,6 +25,7 @@ rule tokenize = parse
 	| "or"					{ OR }
 	| "true"				{ TRUE }
 	| "false"				{ FALSE }
+	| "control"				{ CONTROL }
 	| id					{ ID (LexBuffer<char>.LexemeString lexbuf) }
 	| ['0'-'9']+			{ INT (UInt32.Parse (LexBuffer<char>.LexemeString lexbuf)) }
 	| '='					{ EQUAL }

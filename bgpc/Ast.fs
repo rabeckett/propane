@@ -10,7 +10,6 @@ type Predicate =
     | Prefix of uint32 * uint32 * uint32 * uint32 * uint32 option 
     | Or of Predicate * Predicate
     | And of Predicate * Predicate
-    | Not of Predicate
 
 type Re = 
     | Empty
@@ -39,8 +38,7 @@ type ControlConstraints = ControlConstraint list
 
 type Task =
     {Name: string;
-     PConstraints: PathConstraints;
-     CConstraints: ControlConstraints}
+     PConstraints: PathConstraints}
 
 type CConstraint = 
     | Aggregate of Prefix.T list * Set<string> * Set<string>
@@ -48,6 +46,7 @@ type CConstraint =
 
 type T = 
     {Defs: Map<string, Re>;
+     CConstraints: ControlConstraints;
      Tasks: Task list;
      Policy: Re}
 
@@ -97,7 +96,6 @@ let rec asRanges (p: Predicate) : Prefix.Pred =
     | False -> Prefix.bot
     | And(a,b) -> Prefix.conj (asRanges a) (asRanges b)
     | Or(a,b) -> Prefix.disj (asRanges a) (asRanges b)
-    | Not a -> Prefix.negation (asRanges a)
     | Prefix(a,b,c,d,bits) ->
         let adjustedBits = 
             match bits with
@@ -130,11 +128,8 @@ let buildCConstraint ast (topo: Topology.T) cc =
     | _ -> error (sprintf "unknown control constraint: %s" name)
 
 let getControlConstraints (ast: T) topo = 
-    ast.Tasks 
-    |> List.map (fun s -> s.CConstraints)
-    |> List.toSeq
-    |> Seq.concat
-    |> Seq.map (buildCConstraint ast topo)
+    ast.CConstraints
+    |> List.map (buildCConstraint ast topo)
 
 
 (*
