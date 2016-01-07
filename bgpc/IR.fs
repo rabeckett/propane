@@ -156,7 +156,7 @@ let addExports (settings: Args.T) info peers actions exportMap =
     for p in peers do
         match Map.find p info.Info with 
         | Anything -> ()
-        | Nothing x -> 
+        | Nothing x ->
             if settings.UseNoExport then 
                 actions <- (SetComm "no-export") :: actions
             else raise (UncontrollableEnterException ("enable no-export to limit incoming traffic to peer: " + x))
@@ -184,7 +184,7 @@ let configureIncomingTraffic cg : IncomingExportMap =
             prev <- Some peers
         | Some ps ->
             let unqNow = getUnique peers
-            let unqPrev = getUnique ps 
+            let unqPrev = getUnique ps
             let pre = Set.minElement unqPrev
             let now = Set.minElement unqNow
             let canAvoidAggregation = (Set.count unqPrev = 1) && (Set.count unqNow = 1) && (now = pre)

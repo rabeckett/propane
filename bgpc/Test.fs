@@ -4,7 +4,7 @@ open IR
 open Common.Debug
 open Common.Error
 
-let maxTests = 10
+let maxTests = 1000
 
 let isPeer x m = 
     match m with 
@@ -184,7 +184,11 @@ let rBackboneWAN1 (reb: Regex.REBuilder) =
     let pref1 = reb.EndsAt("A")
     [reb.Build pref1]
 
-let tests (settings: Args.T) = [
+let tests (settings: Args.T) = 
+    let controlIn = settings.UseMed || settings.UsePrepending
+    let noExport = settings.UseNoExport
+
+    [
 
     {Name= "Diamond1";
      Explanation="A simple path";
@@ -361,16 +365,26 @@ let tests (settings: Args.T) = [
      Fail = Some InconsistentPrefs};
 
     (* TODO: test preferences on filters *)
-    {Name= "StretchingMan1";
-     Explanation="Can't control inbound traffic";
-     Topo= tStretchingManWAN;
-     Rf= rStretchingManWAN1; 
-     Receive= Some [("D", "Y"); ("D", "Z"); ("C", "D"); ("A", "C"); ("B", "C")];
-     Originate = Some [];
-     Prefs = Some [];
-     Fail = None};
+    (if controlIn then
+        {Name= "StretchingMan1";
+         Explanation="Can't control inbound traffic";
+         Topo= tStretchingManWAN;
+         Rf= rStretchingManWAN1; 
+         Receive= Some [("D", "Y"); ("D", "Z"); ("C", "D"); ("A", "C"); ("B", "C")];
+         Originate = Some [];
+         Prefs = Some [];
+         Fail = None}
+    else
+        {Name= "StretchingMan1";
+         Explanation="Can't control inbound traffic";
+         Topo= tStretchingManWAN;
+         Rf= rStretchingManWAN1; 
+         Receive= None;
+         Originate = None;
+         Prefs = None;
+         Fail = Some CantControlPeers});
 
-    (if settings.UseNoExport then
+    (if controlIn && noExport then
         {Name= "StretchingMan2";
          Explanation="Prefer one AS over another";
          Topo= tStretchingManWAN;
