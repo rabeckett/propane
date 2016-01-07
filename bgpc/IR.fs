@@ -51,9 +51,11 @@ type DeviceConfig =
 
 type PolicyPair = Prefix.T list * Regex.REBuilder * Regex.T list
 
-type T = Prefix.T list * Map<string, DeviceConfig>
+type PrefixConfig = Prefix.T list * Map<string, DeviceConfig>
 
-let byRouter (pairs: T list) =
+type T = Map<string, (Prefix.T list * DeviceConfig) list>
+
+let joinConfigs (pairs: PrefixConfig list) : T =
     let mutable result = Map.empty
     for (prefix, config) in pairs do 
         for kv in config do
@@ -63,10 +65,9 @@ let byRouter (pairs: T list) =
             | Some x -> result <- Map.add kv.Key (x @ [value]) result
     result
 
-let format (configs: T list) = 
+let format (config: T) = 
     let sb = System.Text.StringBuilder ()
-    let routers = byRouter configs
-    for kv in routers do
+    for kv in config do
         sb.Append("\nRouter ") |> ignore
         sb.Append(kv.Key) |> ignore
         for (prefix, deviceConf) in kv.Value do
@@ -93,7 +94,7 @@ let format (configs: T list) =
                     sb.Append("]") |> ignore
         sb.Append("\n") |> ignore
     sb.ToString()
-
+ 
 (* Ensure well-formedness for controlling 
    traffic entering the network. MED and prepending allow
    certain patterns of control to immediate neighbors only *)
@@ -207,7 +208,7 @@ let initMapper () =
 
 (* Generate the configuration given preference-based ordering 
    that satisfies our completeness/fail resistance properties *)
-let genConfig (cg: CGraph.T) (prefix: Prefix.T list) (ord: Consistency.Ordering) (inExports: IncomingExportMap) : T =
+let genConfig (cg: CGraph.T) (prefix: Prefix.T list) (ord: Consistency.Ordering) (inExports: IncomingExportMap) : PrefixConfig =
     let settings = Args.getSettings ()
     let (ain, _) = Topology.alphabet cg.Topo
     let ain = Set.map (fun (v: Topology.State) -> v.Loc) ain
@@ -292,7 +293,7 @@ module Compress =
     (* For each pair of (X,Y) edges in the product graph
        if the pair is unique, then there is no need to 
        match/tag on the community, so we can remove it *)
-    let compressUniquePairs (cg: CGraph.T) ((prefix, config): T) : T =
+    let compressUniquePairs (cg: CGraph.T) ((prefix, config): PrefixConfig) : PrefixConfig =
         let pairCount = 
             cg.Graph.Vertices
             |> Seq.map ((fun v -> (v, neighbors cg v)) >> (fun (v, ns) -> Seq.map (fun n -> (v,n)) ns))
@@ -424,7 +425,7 @@ module Compress =
 
     (* Removes less preferred, but otherwise identical imports.
        These can never occur unless they are back-to-back in the configuration. *)
-    let compressIdenticalImports ((prefix, config): T) : T =
+    let compressIdenticalImports ((prefix, config): PrefixConfig) : PrefixConfig =
         let rec aux filters acc = 
             match filters with
             | [] -> acc
@@ -444,7 +445,7 @@ module Compress =
 
     (* Avoids tagging with a community from A to B, when B never
        needs to distinguish based on that particular community value *)
-    let compressTaggingWhenNotImported ((prefix, config): T) : T =
+    let compressTaggingWhenNotImported ((prefix, config): PrefixConfig) : PrefixConfig =
         let importCommNeeded = ref Map.empty 
         for kv in config do 
             let loc = kv.Key 
@@ -483,7 +484,7 @@ module Compress =
 
     (* Whenever we export identical routes to all peers, we can replace
        this with a simpler route export of the form: (Export: * ) for readability *)
-    let compressAllExports (cg: CGraph.T) ((prefix, config): T) : T =
+    let compressAllExports (cg: CGraph.T) ((prefix, config): PrefixConfig) : PrefixConfig =
         let mutable newConfig = Map.empty
         for kv in config do
             let loc = kv.Key 
@@ -523,7 +524,7 @@ module Compress =
 
     (* Whenever import identical routes from all peers, we can replace
        this with a simpler route import of the form: (Import: * ) for readability *)
-    let compressAllImports (cg: CGraph.T) ((prefix, config): T) : T =
+    let compressAllImports (cg: CGraph.T) ((prefix, config): PrefixConfig) : PrefixConfig =
         let mutable newConfig = Map.empty
         for kv in config do
             let loc = kv.Key 
@@ -574,25 +575,25 @@ module Compress =
 
     (* Make a config smaller (e.g., number of route maps) and more human-readable
        by removing community tagging information when possible *)
-    let compress (cg: CGraph.T) (config: T) (outName: string) : T =
-        debug1 (fun () -> System.IO.File.WriteAllText(outName + "-raw.ir", format [config]))
+    let compress (cg: CGraph.T) (config: PrefixConfig) (outName: string) : PrefixConfig =
+        debug1 (fun () -> System.IO.File.WriteAllText(outName + "-raw.ir", format (joinConfigs [config])))
         let config = compressUniquePairs cg config
-        debug2 (fun () -> System.IO.File.WriteAllText(outName + "-min1.ir", format [config]))
+        debug2 (fun () -> System.IO.File.WriteAllText(outName + "-min1.ir", format (joinConfigs [config])))
         (* let config = compressIsomorphicImports cg config
         debug2 (fun () -> System.IO.File.WriteAllText(outName + "-min2.ir", format config)) *)
         let config = compressIdenticalImports config
-        debug2 (fun () -> System.IO.File.WriteAllText(outName + "-min3.ir", format [config]))
+        debug2 (fun () -> System.IO.File.WriteAllText(outName + "-min3.ir", format (joinConfigs [config])))
         let config = compressTaggingWhenNotImported config
-        debug2 (fun () -> System.IO.File.WriteAllText(outName + "-min4.ir", format [config]))
+        debug2 (fun () -> System.IO.File.WriteAllText(outName + "-min4.ir", format (joinConfigs [config])))
         let config = compressAllExports cg config
         let config = compressAllImports cg config
-        debug1 (fun () -> System.IO.File.WriteAllText(outName + "-min5.ir", format [config]))
+        debug1 (fun () -> System.IO.File.WriteAllText(outName + "-min5.ir", format (joinConfigs [config])))
         config
 
 /// Given a topology and a policy, generate a low-level configuration in an intermediate
 /// byte-code-like, vendor-independent representation for BGP 
 
-let compileToIR fullName idx (prefix: Prefix.T list) (reb: Regex.REBuilder) (res: Regex.T list) : Result<T, CounterExample> =
+let compileToIR fullName idx prefix (reb: Regex.REBuilder) res : Result<PrefixConfig, CounterExample> =
     let fullName = fullName + "(" + (string idx) + ")"
     (* compute the automata and product graph *)
     let dfas = 
@@ -667,7 +668,8 @@ let compileForSinglePrefix fullName idx (prefix, reb, res) =
     with Topology.InvalidTopologyException -> 
         error (sprintf "Invalid Topology: internal topology must be weakly connected")
 
-let compileAllPrefixes fullName (pairs: PolicyPair list) : T list = 
+let compileAllPrefixes fullName (pairs: PolicyPair list) : T = 
     Array.ofList pairs
     |> Array.Parallel.mapi (compileForSinglePrefix fullName)
     |> Array.toList
+    |> joinConfigs

@@ -105,11 +105,21 @@ module Consistency =
     /// Takes an optional file name for debugging intermediate information
     val findOrderingConservative: (int -> T -> string -> Result<Ordering, CounterExample>)
 
-    /// Exact check if BGP routes can make local decisions by enumerating failures
-    /// Takes an optional file name for debugging intermediate information
-    (* val findOrderingEnumerate: int -> (T -> string -> Result<Ordering, CounterExample>) *)
 
 module ToRegex = 
     /// Construct a compact regular expression describing the paths
     /// from a given node in the graph
     val constructRegex: T -> CgState -> Regex.T
+
+
+module Failure =
+    /// A single node or link falure
+    type FailType =
+        | NodeFailure of Topology.State
+        | LinkFailure of TaggedEdge<Topology.State,unit>
+
+    /// Enumerate all failures up to a given size
+    val allFailures: int -> Topology.T -> seq<FailType list>
+
+    /// Create the corresponding failed product graph
+    val failedGraph: T -> FailType list -> T

@@ -12,13 +12,12 @@ type T =
         (string this.X4) + "/" + 
         (string this.Slash) 
 
-type Range = (uint32 * uint32) 
-type Pred = Range list
+type Pred = Pred of (uint32 * uint32) list
 
 let prefix (a,b,c,d) slash = 
     {X1=a; X2=b; X3=c; X4=d; Slash=slash}
 
-let wholeRange : Range = (uint32 0, System.UInt32.MaxValue)
+let wholeRange = (uint32 0, System.UInt32.MaxValue)
 
 let wfRange (x,y) = 
     x <= y
@@ -72,11 +71,11 @@ let rec union r rs =
         (* else if isSmaller r s then r::rs *)
         else s::(union r tl)
 
-let rec disj rs1 rs2 = 
+let rec disj (Pred rs1) (Pred rs2) = 
      match rs1 with 
-     | [] -> rs2
+     | [] -> (Pred rs2)
      | r::rs -> 
-        disj rs (union r rs2) 
+        disj (Pred rs) (Pred (union r rs2)) 
 
 let rec inter r rs = 
     match rs with 
@@ -87,17 +86,17 @@ let rec inter r rs =
         (* else if isSmaller r s then [] *)
         else  inter r tl
 
-let rec conj rs1 rs2 = 
+let rec conj (Pred rs1) (Pred rs2) = 
     match rs1 with
-    | [] -> []
+    | [] -> Pred []
     | r::rs ->
-        let x = inter r rs2
-        let y = conj rs rs2
+        let x = Pred (inter r rs2)
+        let y = conj (Pred rs) (Pred rs2)
         disj x y
 
-let bot: Pred = []
+let bot = Pred []
 
-let top = [wholeRange]
+let top = Pred [wholeRange]
 
 let negate r =
     assert (wfRange r)
@@ -109,12 +108,12 @@ let negate r =
     | false, true -> [(a,x-1u)]
     | false, false -> [(a,x-1u); (y+1u,b)]
 
-let rec negation rs =
+let rec negation (Pred rs) =
     match rs with 
-    | [] -> [wholeRange]
+    | [] -> Pred [wholeRange]
     | r::tl ->
-        let x = negate r 
-        let y = negation tl 
+        let x = Pred (negate r) 
+        let y = negation (Pred tl) 
         conj x y
 
 let inline shr x bits = 
@@ -134,7 +133,7 @@ let binaryStr x =
         result <- result + (if isOne x i then "1" else "0")
     result
 
-let rangeOfPrefix (p: T) : Range =
+let rangeOfPrefix (p: T) =
     let lowermask = shl 0xffffffffu (32 - int p.Slash)
     let uppermask = shr 0xffffffffu (int p.Slash)
     let value = (shl p.X1 24) + (shl p.X2 16) + (shl p.X3 8) + p.X4
@@ -142,7 +141,7 @@ let rangeOfPrefix (p: T) : Range =
     (value, value + uint32 uppermask)
 
 let toPredicate (ps: T list) : Pred =
-    List.map rangeOfPrefix ps
+    Pred (List.map rangeOfPrefix ps)
 
 let inline dotted x = 
     let a = shr x 24
@@ -154,10 +153,10 @@ let inline dotted x =
 let inline firstNBits x n = 
     x &&& (shl 0xffffffffu (32 - int n))
 
-let rec prefixesOfRange (r: Range) : T list =
+let rec prefixesOfRange r : T list =
     let without p =
         let r' = rangeOfPrefix p
-        let remaining = conj (negate r') [r]
+        let (Pred remaining) = conj (Pred (negate r')) (Pred [r])
         remaining
         |> List.map prefixesOfRange
         |> List.collect id
@@ -199,7 +198,7 @@ let rec prefixesOfRange (r: Range) : T list =
         let rng = prefix (a,b,c,d) slash
         rng :: without rng
 
-let toPrefixes (rs: Pred) : T list =
+let toPrefixes (Pred rs: Pred) : T list =
     rs
     |> List.map prefixesOfRange
     |> List.concat

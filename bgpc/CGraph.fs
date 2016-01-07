@@ -571,21 +571,6 @@ module Consistency =
             else map
         else Map.add l Seq.empty map
 
-    let failedGraph (cg: T) (failures: Topology.Failure.FailType list) : T =
-        let failed = copyGraph cg
-        let rec aux acc fs =
-            let (vs,es) = acc 
-            match fs with
-            | [] -> acc
-            | (Topology.Failure.NodeFailure s)::tl ->
-                aux (s.Loc::vs, es) tl
-            | (Topology.Failure.LinkFailure s)::tl ->
-                aux (vs, (s.Source.Loc, s.Target.Loc)::(s.Target.Loc, s.Source.Loc)::es) tl
-        let (failedNodes, failedEdges) = aux ([],[]) failures
-        failed.Graph.RemoveVertexIf (fun v -> List.exists ((=) v.Node.Loc) failedNodes) |> ignore
-        failed.Graph.RemoveEdgeIf (fun e -> List.exists ((=) (e.Source.Node.Loc, e.Target.Node.Loc)) failedEdges) |> ignore
-        failed
-
     let restrictedGraphs cg prefs =
         let aux acc i =
             let r = restrict cg i 
@@ -607,21 +592,6 @@ module Consistency =
         try Ok(Set.fold (addForLabel idx f rs cg) Map.empty labels)
         with ConsistencyException(x,y) ->
             Err((x,y) )
-
-(*
-    let enumerate n (cg: T) restrict (x,y) (i,j) = 
-        let gx = Map.find i restrict
-        let gy = Map.find j restrict 
-        let failCombos = Topology.Failure.allFailures n cg.Topo
-        Seq.forall (fun fails ->
-            let failedX = failedGraph gx fails
-            let failedY = failedGraph gy fails
-            not((Set.contains x (Reachable.simplePathSrc failedX cg.Start Down)) &&
-               (not ( Set.contains x (Reachable.alongSimplePathSrcDst failedX cg.Start cg.End Down))) &&
-               (Set.contains y (Reachable.alongSimplePathSrcDst failedY cg.Start cg.End Down)))
-        ) failCombos
-
-    let findOrderingEnumerate n = findOrdering (enumerate n) *)
 
     let findOrderingConservative (idx: int) = findOrdering idx (simulate idx)
 
@@ -666,3 +636,42 @@ module ToRegex =
             cg.Graph.RemoveVertex q |> ignore
         
         Map.find (cg.End, cg.Start) !reMap
+
+
+module Failure =
+
+    type FailType =
+        | NodeFailure of Topology.State
+        | LinkFailure of TaggedEdge<Topology.State,unit>
+
+        override this.ToString() = 
+            match this with 
+            | NodeFailure n -> "Node(" + n.Loc + ")"
+            | LinkFailure e -> "Link(" + e.Source.Loc + "," + e.Target.Loc + ")"
+  
+    let allFailures n (topo: Topology.T) : seq<FailType list> =
+        let fvs = topo.Vertices |> Seq.filter Topology.isInside |> Seq.map NodeFailure
+        let fes =
+            topo.Edges
+            |> Seq.filter (fun e -> Topology.isInside e.Source || Topology.isInside e.Target) 
+            |> Seq.map LinkFailure 
+        Seq.append fes fvs 
+        |> Seq.toList
+        |> Common.List.combinations n
+
+    let failedGraph (cg: T) (failures: FailType list) : T =
+        let failed = copyGraph cg
+        let rec aux acc fs =
+            let (vs,es) = acc 
+            match fs with
+            | [] -> acc
+            | (NodeFailure s)::tl ->
+                aux (s.Loc::vs, es) tl
+            | (LinkFailure s)::tl ->
+                aux (vs, (s.Source.Loc, s.Target.Loc)::(s.Target.Loc, s.Source.Loc)::es) tl
+        let (failedNodes, failedEdges) = aux ([],[]) failures
+        failed.Graph.RemoveVertexIf (fun v -> 
+            List.exists ((=) v.Node.Loc) failedNodes) |> ignore
+        failed.Graph.RemoveEdgeIf (fun e -> 
+            List.exists ((=) (e.Source.Node.Loc, e.Target.Node.Loc)) failedEdges) |> ignore
+        failed

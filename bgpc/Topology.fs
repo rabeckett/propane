@@ -20,29 +20,6 @@ type T = BidirectionalGraph<State,TaggedEdge<State,unit>>
 
 exception InvalidTopologyException
 
-(*
-let setOriginators (topo: T) (orig: Set<string>) : T =
-    let mutable conv = Map.empty
-    let newTopo = BidirectionalGraph()
-    for v in topo.Vertices do 
-        if orig.Contains v.Loc then
-            match v.Typ with 
-            | Inside | InsideOriginates ->
-                let nv = {Loc=v.Loc; Typ=InsideOriginates} 
-                newTopo.AddVertex nv |> ignore
-                conv <- Map.add v nv conv
-            | _ ->
-                failwith ("[Topology Error]: cannot set location: " + v.Loc + " to be internal")
-        else 
-            newTopo.AddVertex v |> ignore
-            conv <- Map.add v v conv
-
-    for e in topo.Edges do 
-        let v = Map.find e.Source conv
-        let u = Map.find e.Target conv
-        newTopo.AddEdge (TaggedEdge<State,unit>(v,u,())) |> ignore
-    newTopo *)
-
 let copyTopology (topo: T) : T = 
     let newTopo = BidirectionalGraph<State,TaggedEdge<State,unit>>()
     for v in topo.Vertices do newTopo.AddVertex v |> ignore
@@ -120,23 +97,22 @@ let rec addEdgesDirected (topo: T) (es: (State * State) list) =
         topo.AddEdge (TaggedEdge(x,y,())) |> ignore
         addEdgesDirected topo es
 
-
-module Failure =
-    type FailType =
-        | NodeFailure of State
-        | LinkFailure of TaggedEdge<State,unit>
-        
-        override this.ToString() = 
-            match this with 
-            | NodeFailure n -> "Node(" + n.Loc + ")"
-            | LinkFailure e -> "Link(" + e.Source.Loc + "," + e.Target.Loc + ")"
-  
-    let allFailures n (topo: T) : seq<FailType list> =
-        let fvs = topo.Vertices |> Seq.filter isInside |> Seq.map NodeFailure
-        let fes =
-            topo.Edges
-            |> Seq.filter (fun e -> isInside e.Source || isInside e.Target) 
-            |> Seq.map LinkFailure 
-        Seq.append fes fvs 
-        |> Seq.toList
-        |> Common.List.combinations n
+let getStateByLoc (topo: T) loc = 
+    Seq.tryFind (fun v -> v.Loc = loc) topo.Vertices
+    
+let findLinks (topo: T) (froms, tos) =
+    let mutable pairs = []
+    for x in Set.toSeq froms do 
+        for y in Set.toSeq tos do 
+            let a = getStateByLoc topo x 
+            let b = getStateByLoc topo y
+            match a, b with
+            | Some s, Some d ->
+                let ns = 
+                    topo.OutEdges s
+                    |> Seq.map (fun (e: TaggedEdge<State,unit>) -> e.Target)
+                    |> Set.ofSeq
+                if Set.contains d ns then 
+                    pairs <- (s, d) :: pairs
+            | _, _ -> ()
+    pairs

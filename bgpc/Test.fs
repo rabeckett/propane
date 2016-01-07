@@ -28,7 +28,7 @@ let receiveFrom (_,config) x y =
     let deviceConf = Map.find x config 
     List.exists (fun ((m,_), _) -> isPeer y m) deviceConf.Filters
 
-let originates ((_, config): IR.T) x =
+let originates ((_, config): IR.PrefixConfig) x =
     let deviceConfig = Map.find x config
     deviceConfig.Originates
 
@@ -432,20 +432,19 @@ let randomRange () =
     (lo,hi)
 
 let randomPrefix () = 
-    let (lo,hi) = randomRange ()
-    Prefix.toPrefixes [(lo,hi)]
+    let a = uint32 (rand.Next() % 256)
+    let b = uint32 (rand.Next() % 256)
+    let c = uint32 (rand.Next() % 256)
+    let d = uint32 (rand.Next() % 256)
+    let slash = uint32 (rand.Next() % 33)
+    Prefix.prefix (a,b,c,d) slash
 
 let randomPrefixes n =
     assert (n > 0) 
     let num = 1 + (rand.Next() % n)
     let mutable prefixes = []
     for i = 0 to num-1 do
-        let a = uint32 (rand.Next() % 256)
-        let b = uint32 (rand.Next() % 256)
-        let c = uint32 (rand.Next() % 256)
-        let d = uint32 (rand.Next() % 256)
-        let slash = uint32 (rand.Next() % 33)
-        prefixes <- [(Prefix.prefix (a,b,c,d) slash)] :: prefixes
+        prefixes <- (randomPrefix ()) :: prefixes
     printfn "got %d random prefixes: %A" n (List.map string prefixes)
     prefixes
 
@@ -454,13 +453,13 @@ let randomPrefixes n =
 let testPrefixes () =
     printfn "Testing prefix predicates..."
     for i = 1 to maxTests do 
-        let (lo,hi) = randomRange ()
-        let ps = Prefix.toPrefixes [(lo,hi)]
-        let rs = 
-            List.map Prefix.toPredicate [ps]
-            |> List.fold (fun acc r -> Prefix.disj r acc) []
-        if List.length rs <> 1 || List.head rs <> (lo,hi) then
-            printfn "[Failed]: expected: %A, but got %A" (lo,hi) (List.head rs)
+        let ps = randomPrefixes 4
+        let rs = Prefix.toPredicate ps
+        let ps' = Prefix.toPrefixes rs
+        let x = Set.ofList (List.map string ps)
+        let y = Set.ofList (List.map string ps')
+        if x <> y then
+            printfn "[Failed]: expected: %s, but got %s" (string x) (string y)
 
 (* 
 /// Randomized tests that check that the scope merging cross product 

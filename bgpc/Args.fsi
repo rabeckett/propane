@@ -15,7 +15,7 @@ type T =
      Debug: int; 
      DebugDir: string}
 
-/// The command-line settings
+/// Get the command-line settings
 val getSettings: unit -> T
 
 /// Parse command line arguments and return the compiler settings

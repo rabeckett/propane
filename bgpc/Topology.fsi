@@ -23,10 +23,6 @@ val copyTopology: T -> T
 /// Build the internal and external alphabet from a topology
 val alphabet: T -> Set<State> * Set<State> 
 
-/// Set the originator nodes in the topology based
-/// on information available later from the policy
-(* val setOriginators: T -> Set<string> -> T *)
-
 /// Check if a node is a valid topology node
 val isTopoNode: State -> bool
 
@@ -55,9 +51,5 @@ val addEdgesDirected: T -> (State*State) list -> unit
 /// Helper function for building topology
 val addEdgesUndirected: T -> (State*State) list -> unit
 
-/// Helper module for generating topology failures
-module Failure = 
-    type FailType =
-        | NodeFailure of State
-        | LinkFailure of TaggedEdge<State,unit>
-    val allFailures: int -> T -> seq<FailType list>
+/// Find all the valid topology links corresponding to pairs of locations
+val findLinks: T -> Set<string> * Set<string> -> (State * State) list

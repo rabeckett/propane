@@ -32,23 +32,25 @@ type DeviceConfig =
 
 type PolicyPair = Prefix.T list * Regex.REBuilder * Regex.T list
 
-type T = Prefix.T list * Map<string, DeviceConfig>
+type PrefixConfig = Prefix.T list * Map<string, DeviceConfig>
+
+type T = Map<string, (Prefix.T list * DeviceConfig) list>
 
 /// Convert per-prefix representation to a per-router representatoin
-val byRouter: T list -> Map<string, (Prefix.T list * DeviceConfig) list>
+val joinConfigs: PrefixConfig list -> T
 
 /// Debug config output
-val format: T list -> string
+val format: T -> string
 
 /// Generate the BGP match/action rules that are guaranteed to 
 /// implement the user policy under all possible failure scenarios for a given prefix. 
 /// This function returns either an intermediate representation (IR) 
 /// for BGP policies, or a counterexample indicating why compilation will not work.
-val compileToIR: string -> int -> Prefix.T list -> Regex.REBuilder -> Regex.T list -> Result<T, CounterExample>
+val compileToIR: string -> int -> Prefix.T list -> Regex.REBuilder -> Regex.T list -> Result<PrefixConfig, CounterExample>
 
 /// Compile to an intermediate representation for a given prefix. 
 /// Gives a counterexample and quits the program if compilation is not possible.
-val compileForSinglePrefix: string -> int -> PolicyPair -> T
+val compileForSinglePrefix: string -> int -> PolicyPair -> PrefixConfig
 
 /// Compile for all prefixes
-val compileAllPrefixes: string -> PolicyPair list -> T list
+val compileAllPrefixes: string -> PolicyPair list -> T
