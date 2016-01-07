@@ -2,6 +2,7 @@
 
 open Topology
 open Common.Error
+open Common.Debug
 
 type Predicate =
     | True
@@ -43,13 +44,15 @@ type Scope =
      PConstraints: PathConstraints;
      CConstraints: ControlConstraints}
 
+type CConstraint = 
+    | Aggregate of Prefix.T list * Set<string> * Set<string>
+
 type T = 
     {Defs: Definition list;
      Scopes: Scope list;
      Policy: Re}
 
 exception InvalidPrefixException of Prefix.T
-
 
 let rec buildRegex (reb: Regex.REBuilder) (r: Re) : Regex.LazyT =
     let checkParams id n args =
@@ -69,7 +72,7 @@ let rec buildRegex (reb: Regex.REBuilder) (r: Re) : Regex.LazyT =
     | Difference(x,y) -> reb.Inter [(buildRegex reb x); reb.Negate (buildRegex reb y)]
     | Negate x -> reb.Negate (buildRegex reb x)
     | Star x -> reb.Star (buildRegex reb x)
-    | Ident(id, args) -> 
+    | Ident(id, args) ->
         match id with
         | "valleyfree" -> let locs = checkParams id args.Length args in reb.ValleyFree locs
         | "start" -> let locs = checkParams id 1 args in reb.StartsAtAny locs.Head
@@ -101,6 +104,36 @@ let rec asRanges (p: Predicate) : Prefix.Pred =
             raise (InvalidPrefixException p)
         Prefix.toPredicate [p]
 
+let buildCConstraint (topo: Topology.T) cc =
+    let reb = Regex.REBuilder(topo) 
+    let (name, args) = cc
+    match name with
+    | "aggregate" ->
+        match args with 
+        | [a; b] ->
+            match a with
+            | PredicateExpr p -> 
+                match b with
+                | LinkExpr(x,y) ->
+                    let locsX = Regex.singleLocations Set.empty (buildRegex reb x)
+                    let locsY = Regex.singleLocations Set.empty (buildRegex reb y)
+                    match locsX, locsY with 
+                    | Some xs, Some ys -> Aggregate (Prefix.toPrefixes (asRanges p), xs, ys)
+                    | _, _ -> error (sprintf "link expression parameter 2 to aggregate must denote single locations")
+                | _ -> error (sprintf "parameter 2 to aggregate must be a link expression (e.g., in -> out)")
+            | _ -> error (sprintf "parameter 1 to aggregate must be a prefix")
+        | _ -> error (sprintf "aggregate constraint takes 2 arguments")
+    | _ -> error (sprintf "unknown control constraint: %s" name)
+
+let getControlConstraints (ast: T) reb = 
+    ast.Scopes 
+    |> List.map (fun s -> s.CConstraints)
+    |> List.toSeq
+    |> Seq.concat
+    |> Seq.map (buildCConstraint reb)
+
+
+(*
 let makeDisjointPairs (sName: string) (pcs: ConcretePathConstraints) : ConcretePathConstraints =
     try 
         let mutable rollingPred = Prefix.top
@@ -117,22 +150,25 @@ let makeDisjointPairs (sName: string) (pcs: ConcretePathConstraints) : ConcreteP
             error (sprintf "Incomplete prefixes in scope (%s). An example of a prefix that is not matched: %s" sName s)
         List.rev disjointPairs
     with InvalidPrefixException p ->
-        error (sprintf "Invalid prefix: %s" (p.ToString()))
+        error (sprintf "Invalid prefix: %s" (p.ToString())) *)
 
-let makeCompactPairs (pcs: ConcretePathConstraints) : ConcretePathConstraints = 
-    (* for (p, _) in pcs do 
-        printfn "%A" (Prefix.toPredicate p) *)
+(* let makeCompactPairs (pcs: ConcretePathConstraints) : ConcretePathConstraints = 
+    printfn "============================"
+    for (p, _) in pcs do 
+        printfn "%s" (string p)
     let mutable rollingPred = Prefix.bot
     let mutable newPCs = []
     for (prefix, res) in pcs do
-        (* printfn "Rolling predicate: %A" ((rollingPred)) *)
+        printfn "Existing predicate: %s" (prefix.ToString())
+        printfn "Rolling predicate: %s" ((Prefix.toPrefixes rollingPred).ToString())
         let p = Prefix.toPredicate prefix
         let newP = Prefix.disj p rollingPred
         let newPrefix = Prefix.toPrefixes newP
         newPCs <- (newPrefix, res) :: newPCs
         rollingPred <- newP
-        (* printfn "Rolling predicate: %A" ((rollingPred)) *)
-    List.rev newPCs
+        printfn "Rolling predicate (after): %s" ((Prefix.toPrefixes rollingPred).ToString())
+    printfn "============================"
+    List.rev newPCs *)
 
 type BinOp = 
     | OConcat 
@@ -170,18 +206,35 @@ let combineRegexes (rs1: Re list) (rs2: Re list) (op: BinOp) : Re list =
         List.map (fun r2 -> applyOp r1 r2 op) rs2
 
 let combineConstraints (pcs1: ConcretePathConstraints) (pcs2: ConcretePathConstraints) (op: BinOp) =
+    logInfo1("Macro constraint expansion")
     let mutable combined = []
+    let mutable rollingPred = Prefix.bot
     for (ps, res) in pcs1 do 
-        for (ps', res') in pcs2 do 
+        for (ps', res') in pcs2 do
             let rs = Prefix.toPredicate ps
             let rs' = Prefix.toPredicate ps'
             let comb = Prefix.conj rs rs'
             let asPref = Prefix.toPrefixes comb
-            let both = (asPref, combineRegexes res res' op)
-            combined <- both :: combined
-    combined
-    |> List.filter (fun (x,_) -> not (List.isEmpty x))
-    |> List.rev
+            let notAbove = Prefix.conj comb (Prefix.negation rollingPred)
+            if notAbove <> Prefix.bot then
+                logInfo2(sprintf "combine %A and %A as %A" (string ps) (string ps') (string asPref))
+                rollingPred <- Prefix.disj rollingPred comb
+                let both = (asPref, combineRegexes res res' op)
+                combined <- both :: combined
+    List.rev combined
+
+let checkPrefixes (sName: string) (pcs: ConcretePathConstraints) =
+    try 
+        let mutable rollingPred = Prefix.top
+        for (pred, _) in pcs do
+            let ranges = Prefix.conj (Prefix.toPredicate pred) rollingPred
+            rollingPred <- Prefix.conj rollingPred (Prefix.negation ranges)
+        if rollingPred <> Prefix.bot then 
+            let exPrefix = List.head (Prefix.toPrefixes rollingPred)
+            let s = exPrefix.ToString()
+            error (sprintf "Incomplete prefixes in scope (%s). An example of a prefix that is not matched: %s" sName s)
+    with InvalidPrefixException p ->
+        error (sprintf "Invalid prefix: %s" (p.ToString()))
 
 let rec mergeScopes (re: Re) disjoints : ConcretePathConstraints =
     match re with
@@ -197,6 +250,10 @@ let rec mergeScopes (re: Re) disjoints : ConcretePathConstraints =
             error (sprintf "parameters given for identifier %s in main policy definition" x) 
         Map.find x disjoints
 
+let addPair acc s =
+    let cconstrs = List.map (fun (p,r) -> (Prefix.toPrefixes (asRanges p),r)) s.PConstraints
+    checkPrefixes s.Name cconstrs
+    Map.add s.Name cconstrs acc
 
 let makePolicyPairs (ast: T) (topo: Topology.T) : (Prefix.T list * Regex.REBuilder * Regex.T list) list =
     let names = List.map (fun s -> s.Name) ast.Scopes
@@ -209,12 +266,8 @@ let makePolicyPairs (ast: T) (topo: Topology.T) : (Prefix.T list * Regex.REBuild
             |> Seq.filter (fun (_,i) -> i > 1)
             |> Seq.map fst
         error (sprintf "duplicate named policies: %s" (dups.ToString()))
-    let addPair acc s =
-        let cconstrs = List.map (fun (p,r) -> (Prefix.toPrefixes (asRanges p),r)) s.PConstraints
-        Map.add s.Name (makeDisjointPairs s.Name cconstrs) acc
     let disjoints = List.fold addPair Map.empty ast.Scopes
     let allPCs = mergeScopes ast.Policy disjoints
-    let allPCs = makeCompactPairs allPCs
     let mutable acc = []
     for (prefixes, res) in allPCs do 
         let reb = Regex.REBuilder(topo)

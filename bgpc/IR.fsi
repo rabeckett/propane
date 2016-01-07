@@ -44,12 +44,11 @@ val format: T list -> string
 /// implement the user policy under all possible failure scenarios for a given prefix. 
 /// This function returns either an intermediate representation (IR) 
 /// for BGP policies, or a counterexample indicating why compilation will not work.
-val compileToIR: string -> Prefix.T list -> Regex.REBuilder -> Regex.T list -> Result<T, CounterExample>
+val compileToIR: string -> int -> Prefix.T list -> Regex.REBuilder -> Regex.T list -> Result<T, CounterExample>
 
 /// Compile to an intermediate representation for a given prefix. 
 /// Gives a counterexample and quits the program if compilation is not possible.
-val compileForSinglePrefix: string -> PolicyPair -> T
+val compileForSinglePrefix: string -> int -> PolicyPair -> T
 
 /// Compile for all prefixes
-/// TODO: do this in parallel
 val compileAllPrefixes: string -> PolicyPair list -> T list

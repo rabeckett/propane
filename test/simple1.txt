@@ -7,7 +7,7 @@
 scope Ownership {
     10.10.0.0/32 => end(A)
     10.10.0.1/32 => end(B)
-    true => any
+    true => end(A)
 }
 
 Routing inter Ownership

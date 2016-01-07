@@ -1,6 +1,5 @@
 ﻿Correctness
 	Remove edges not on simple path efficiently
-	Operate over all prefixes
 
 Aggregation:
 	Adding aggregation constaints

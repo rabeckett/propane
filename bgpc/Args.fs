@@ -19,7 +19,7 @@ type T =
      Debug: int; 
      DebugDir: string}
 
-exception InvalidArg of string
+exception InvalidArgException of string
 
 let polFile = ref None
 let outFile = ref None
@@ -29,7 +29,7 @@ let usePrepending = ref false
 let useNoExport = ref false
 let test = ref false
 let debug = ref 0
-let debugDir = ref "debug/"
+let debugDir = ref ("debug" + string System.IO.Path.DirectorySeparatorChar)
 
 let settings = ref None
 
@@ -43,33 +43,33 @@ let setMED s =
     match s with 
     | "on" -> useMed := true
     | "off" -> useMed := false
-    | _ -> raise (InvalidArg ("Invalid MED value: " + s))
+    | _ -> raise (InvalidArgException ("Invalid MED value: " + s))
 
 let setPrepending s = 
     match s with 
     | "on" -> usePrepending := true
     | "off" -> usePrepending := false
-    | _ -> raise (InvalidArg ("Invalid AS path prepending value: " + s))
+    | _ -> raise (InvalidArgException ("Invalid AS path prepending value: " + s))
 
 let setNoExport s =
     match s with 
     | "on" -> useNoExport := true
     | "off" -> useNoExport := false
-    | _ -> raise (InvalidArg ("Invalid No Export value: " + s))
+    | _ -> raise (InvalidArgException ("Invalid No Export value: " + s))
 
 let setFormat s = 
     match s with 
     | "IR" -> format := IR 
     | "Template" -> format := Template
-    | _ -> raise (InvalidArg ("Invalid format value: " + s))
+    | _ -> raise (InvalidArgException ("Invalid format value: " + s))
 
 let setDebugDir s =
-    debugDir := s
+    debugDir := s + string System.IO.Path.DirectorySeparatorChar
 
 let setDebug s = 
     let i = int s
     if i < 0 || i > 3 then 
-        raise (InvalidArg ("Invalid debug level: " + s))
+        raise (InvalidArgException ("Invalid debug level: " + s))
     debug := i
 
 let usage = "Usage: bgpc.exe [options]"
@@ -116,7 +116,7 @@ let lookup (s: string) next i =
                     printfn "Invalid usage: %s, %s" p descr
                     exit ()
                 | Some s' -> f s'; i + 2
-    with InvalidArg msg -> 
+    with InvalidArgException msg -> 
         printfn "%s" msg
         exit ()
 

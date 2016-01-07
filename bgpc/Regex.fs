@@ -416,6 +416,8 @@ type REBuilder(topo: Topology.T) =
         | LNegate x -> negate alphabet (convert x) 
         | LStar x -> star (convert x)
 
+    member __.Alphabet() = alphabet
+
     member __.Topo() = topo
 
     member this.WellFormed(x) = 

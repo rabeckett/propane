@@ -16,8 +16,7 @@ let main argv =
         exit 0
 
     (* Set debugging output file *)
-    let fileName = Common.Option.getOrDefault "output" settings.OutFile
-    let fullName = settings.DebugDir + (string System.IO.Path.DirectorySeparatorChar) + fileName
+    let fullName = settings.DebugDir + (Common.Option.getOrDefault "output" settings.OutFile)
 
     (* Get the topology *)
     let topo = Examples.topoDatacenterSmall()
@@ -33,8 +32,9 @@ let main argv =
         | None -> ()
         | Some out -> System.IO.File.WriteAllText(out + ".ir", IR.format ir)
 
+        (* TODO: another compilation step *)
         match settings.Format with 
         | Args.IR -> ()
-        | Args.Template -> () (* TODO: another compilation step *)
+        | Args.Template -> () 
 
     0

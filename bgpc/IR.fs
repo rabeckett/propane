@@ -60,14 +60,14 @@ let byRouter (pairs: T list) =
             let value = (prefix, kv.Value)
             match Map.tryFind kv.Key result with
             | None -> result <- Map.add kv.Key [value] result
-            | Some x -> result <- Map.add kv.Key (value::x) result
+            | Some x -> result <- Map.add kv.Key (x @ [value]) result
     result
 
 let format (configs: T list) = 
     let sb = System.Text.StringBuilder ()
     let routers = byRouter configs
     for kv in routers do
-        sb.Append("Router ") |> ignore
+        sb.Append("\nRouter ") |> ignore
         sb.Append(kv.Key) |> ignore
         for (prefix, deviceConf) in kv.Value do
             let prefixStr = 
@@ -91,7 +91,7 @@ let format (configs: T list) =
                             |> Common.List.joinBy ","
                         sb.Append(", " + str) |> ignore
                     sb.Append("]") |> ignore
-            sb.Append("\n\n") |> ignore
+        sb.Append("\n") |> ignore
     sb.ToString()
 
 (* Ensure well-formedness for controlling 
@@ -270,330 +270,337 @@ let genConfig (cg: CGraph.T) (prefix: Prefix.T list) (ord: Consistency.Ordering)
             config <- Map.add loc deviceConf config
     (prefix, config)
 
-let isCommunityTag (action: Action) : bool = 
-    match action with
-    | SetComm _ -> true
-    | _ -> false
 
-let rec getTag (actions: Action list) : string option =
-    match actions with 
-    | [] -> None
-    | hd::tl -> 
-        match hd with 
-        | SetComm is -> Some is 
-        | _ -> getTag tl
+/// Compress configs to make them more readable by 
+/// e.g., removing unnecessary community tagging 
+/// or making regexes more readable etc
+module Compress =
 
-(* For each pair of (X,Y) edges in the product graph
-   if the pair is unique, then there is no need to 
-   match/tag on the community, so we can remove it *)
-let compressUniquePairs (cg: CGraph.T) ((prefix, config): T) : T =
-    let pairCount = 
-        cg.Graph.Vertices
-        |> Seq.map ((fun v -> (v, neighbors cg v)) >> (fun (v, ns) -> Seq.map (fun n -> (v,n)) ns))
-        |> Seq.fold Seq.append Seq.empty 
-        |> Seq.countBy (fun (a,b) -> (a.Node.Loc, b.Node.Loc))
-        |> Map.ofSeq
+    let isCommunityTag (action: Action) : bool = 
+        match action with
+        | SetComm _ -> true
+        | _ -> false
 
-    let uniquePair (a,b) = 
-        Map.find (a,b) pairCount = 1 
+    let rec getTag (actions: Action list) : string option =
+        match actions with 
+        | [] -> None
+        | hd::tl -> 
+            match hd with 
+            | SetComm is -> Some is 
+            | _ -> getTag tl
 
-    let mutable newConfig = Map.empty
-    for kv in config do
-        let loc = kv.Key
-        let deviceConf = kv.Value 
-        let mutable newFilters = []
-        for ((m,lp), es) in deviceConf.Filters do
-            let m' = 
-                match m with 
-                | Match.State(is,x) -> if uniquePair (x,loc) then Match.Peer(x) else m
-                | _ -> m
-            let mutable newEs = []
-            for (peer,acts) in es do
-                let acts' = 
-                    match getTag acts, uniquePair (loc,peer) with 
-                    | None, _ | _, false -> acts
-                    | Some is, true -> List.filter (isCommunityTag >> not) acts
-                newEs <- (peer, acts') :: newEs
-            let newFilt = ((m', lp), List.rev newEs)
-            newFilters <- newFilt :: newFilters
-        let newDeviceConf = {Originates=deviceConf.Originates; Filters=List.rev newFilters}
-        newConfig <- Map.add loc newDeviceConf newConfig
-    (prefix, newConfig)
+    (* For each pair of (X,Y) edges in the product graph
+       if the pair is unique, then there is no need to 
+       match/tag on the community, so we can remove it *)
+    let compressUniquePairs (cg: CGraph.T) ((prefix, config): T) : T =
+        let pairCount = 
+            cg.Graph.Vertices
+            |> Seq.map ((fun v -> (v, neighbors cg v)) >> (fun (v, ns) -> Seq.map (fun n -> (v,n)) ns))
+            |> Seq.fold Seq.append Seq.empty 
+            |> Seq.countBy (fun (a,b) -> (a.Node.Loc, b.Node.Loc))
+            |> Map.ofSeq
 
-(* Find the longest consecutive sequence of imports for each peer. 
-   Only imports where the community is matched are counted towards the sequence.
-   This makes a single pass over the list to find the largest sequence for each peer *)
-let longestSequenceCommMatchesByPeer (dc: DeviceConfig) : Map<string, string list> =
-    let rec aux filters sequence bestCounts count (last,lastEs) mapping =
-        match filters with
-        | [] ->
-            if last <> None then
-                let peer = Option.get last
-                let existing = Map.tryFind peer bestCounts
-                if Option.isNone existing || Option.get existing < count 
-                then Map.add peer sequence mapping 
+        let uniquePair (a,b) = 
+            Map.find (a,b) pairCount = 1 
+
+        let mutable newConfig = Map.empty
+        for kv in config do
+            let loc = kv.Key
+            let deviceConf = kv.Value 
+            let mutable newFilters = []
+            for ((m,lp), es) in deviceConf.Filters do
+                let m' = 
+                    match m with 
+                    | Match.State(is,x) -> if uniquePair (x,loc) then Match.Peer(x) else m
+                    | _ -> m
+                let mutable newEs = []
+                for (peer,acts) in es do
+                    let acts' = 
+                        match getTag acts, uniquePair (loc,peer) with 
+                        | None, _ | _, false -> acts
+                        | Some is, true -> List.filter (isCommunityTag >> not) acts
+                    newEs <- (peer, acts') :: newEs
+                let newFilt = ((m', lp), List.rev newEs)
+                newFilters <- newFilt :: newFilters
+            let newDeviceConf = {Originates=deviceConf.Originates; Filters=List.rev newFilters}
+            newConfig <- Map.add loc newDeviceConf newConfig
+        (prefix, newConfig)
+
+    (*
+    (* Find the longest consecutive sequence of imports for each peer. 
+       Only imports where the community is matched are counted towards the sequence.
+       This makes a single pass over the list to find the largest sequence for each peer *)
+    let longestSequenceCommMatchesByPeer (dc: DeviceConfig) : Map<string, string list> =
+        let rec aux filters sequence bestCounts count (last,lastEs) mapping =
+            match filters with
+            | [] ->
+                if last <> None then
+                    let peer = Option.get last
+                    let existing = Map.tryFind peer bestCounts
+                    if Option.isNone existing || Option.get existing < count 
+                    then Map.add peer sequence mapping 
+                    else mapping
                 else mapping
-            else mapping
-        | ((m,lp),es)::fs ->
-            let peer, is = 
-                match m with 
-                | Match.Peer(x) -> Some x, None
-                | Match.State(is,x) -> Some x, Some is
-                | _ -> None, None
-            if Option.isNone peer then aux fs [] bestCounts 0 (None, None) mapping else
-            let peer = Option.get peer
-            if (Option.isNone last || (Option.get last = peer && Option.get lastEs = es)) then
-                let sequence', inc =
-                    match is with 
-                    | None -> sequence, 0
-                    | Some is' -> (is'::sequence), 1
-                aux fs sequence' bestCounts (count + inc) (Some peer, Some es) mapping
-            else
-                let lastPeer = Option.get last
-                let existing = Map.tryFind lastPeer bestCounts
-                let sequence' =
-                    match is with 
-                    | None -> []
-                    | Some is' -> [is']
-                if Option.isNone existing || Option.get existing < count then
-                    aux fs sequence' (Map.add lastPeer count bestCounts) 0 (Some peer, Some es) (Map.add lastPeer sequence mapping)
-                else aux fs sequence' bestCounts 0 (Some peer, Some es) mapping
+            | ((m,lp),es)::fs ->
+                let peer, is = 
+                    match m with 
+                    | Match.Peer(x) -> Some x, None
+                    | Match.State(is,x) -> Some x, Some is
+                    | _ -> None, None
+                if Option.isNone peer then aux fs [] bestCounts 0 (None, None) mapping else
+                let peer = Option.get peer
+                if (Option.isNone last || (Option.get last = peer && Option.get lastEs = es)) then
+                    let sequence', inc =
+                        match is with 
+                        | None -> sequence, 0
+                        | Some is' -> (is'::sequence), 1
+                    aux fs sequence' bestCounts (count + inc) (Some peer, Some es) mapping
+                else
+                    let lastPeer = Option.get last
+                    let existing = Map.tryFind lastPeer bestCounts
+                    let sequence' =
+                        match is with 
+                        | None -> []
+                        | Some is' -> [is']
+                    if Option.isNone existing || Option.get existing < count then
+                        aux fs sequence' (Map.add lastPeer count bestCounts) 0 (Some peer, Some es) (Map.add lastPeer sequence mapping)
+                    else aux fs sequence' bestCounts 0 (Some peer, Some es) mapping
 
-    aux dc.Filters [] Map.empty 0 (None, None) Map.empty
+        aux dc.Filters [] Map.empty 0 (None, None) Map.empty
 
-(*
-let findVertex cg (loc, states) = 
-    cg.Graph.Vertices 
-    |> Seq.find (fun v -> v.States = states && v.Node.Loc = loc)
+    let findVertex cg (loc, states) = 
+        cg.Graph.Vertices 
+        |> Seq.find (fun v -> v.States = states && v.Node.Loc = loc)
 
-let areAllIsomorphic cg (nodes: CGraph.CgState list) : bool =
-    let rec aux fst nodes = 
+    let areAllIsomorphic cg (nodes: CGraph.CgState list) : bool =
+        let rec aux fst nodes = 
+            match nodes with
+            | [] -> true
+            | [x] -> Reachable.supersetPaths (cg, x) (cg, fst)
+            | x::((y::z) as tl) -> (Reachable.supersetPaths (cg, x) (cg, y)) && (aux fst (y::z))
         match nodes with
         | [] -> true
-        | [x] -> Reachable.supersetPaths (cg, x) (cg, fst)
-        | x::((y::z) as tl) -> (Reachable.supersetPaths (cg, x) (cg, y)) && (aux fst (y::z))
-    match nodes with
-    | [] -> true
-    | [x] -> true
-    | x::y::z -> aux x nodes
+        | [x] -> true
+        | x::y::z -> aux x nodes
 
-let removeCommFiltersForStates (states: (string * string) list) (dc: DeviceConfig) : DeviceConfig =
-    let relevant x = 
-        List.exists ((=) x ) states
-    let replace arg =
-        let ((m,lp), es) = arg
-        match m with
-        | Match.State(is,x) when relevant (x,is) -> ((Match.Peer(x),lp), es)
-        | _ -> arg
-    let newFilters = List.map replace dc.Filters
-    {Originates=dc.Originates; Filters=newFilters}
+    let removeCommFiltersForStates (states: (string * string) list) (dc: DeviceConfig) : DeviceConfig =
+        let relevant x = 
+            List.exists ((=) x ) states
+        let replace arg =
+            let ((m,lp), es) = arg
+            match m with
+            | Match.State(is,x) when relevant (x,is) -> ((Match.Peer(x),lp), es)
+            | _ -> arg
+        let newFilters = List.map replace dc.Filters
+        {Originates=dc.Originates; Filters=newFilters}
 
-(* Removes redundant community matches when ultimately nobody else
-   will ever care about the difference in community value.
-   We have to be careful to avoid removing the community match when
-   preferences are separated by an intermediate preference since the community 
-   may be used to distinguish between these.
-   Uses longestSequenceCommMatchesByPeer to ensure this property. *)
-let compressIsomorphicImports (cg: CGraph.T) ((prefix, config): T) : T =
-    let mutable newConfig = Map.empty
-    for kv in config do
-        let loc = kv.Key
-        let deviceConf = kv.Value 
-        let mByPeer = longestSequenceCommMatchesByPeer deviceConf
-        let mutable newDC = deviceConf
-        for kv in mByPeer do
-            let peer = kv.Key
-            let states = 
-                kv.Value
-                |> List.map (fun c -> (peer,c))
-            let nodes = 
-                states
-                |> List.map (findVertex cg)
-                |> List.map (fun v -> Seq.filter (fun v' -> v'.Node.Loc = loc) (neighbors cg v) |> Seq.head)
-            if (List.length nodes) > 1 && (areAllIsomorphic cg nodes) then
-                newDC <- removeCommFiltersForStates states newDC
-        newConfig <- Map.add loc newDC newConfig
-    (prefix, newConfig) *)
+    (* Removes redundant community matches when ultimately nobody else
+       will ever care about the difference in community value.
+       We have to be careful to avoid removing the community match when
+       preferences are separated by an intermediate preference since the community 
+       may be used to distinguish between these.
+       Uses longestSequenceCommMatchesByPeer to ensure this property. *)
+    let compressIsomorphicImports (cg: CGraph.T) ((prefix, config): T) : T =
+        let mutable newConfig = Map.empty
+        for kv in config do
+            let loc = kv.Key
+            let deviceConf = kv.Value 
+            let mByPeer = longestSequenceCommMatchesByPeer deviceConf
+            let mutable newDC = deviceConf
+            for kv in mByPeer do
+                let peer = kv.Key
+                let states = 
+                    kv.Value
+                    |> List.map (fun c -> (peer,c))
+                let nodes = 
+                    states
+                    |> List.map (findVertex cg)
+                    |> List.map (fun v -> Seq.filter (fun v' -> v'.Node.Loc = loc) (neighbors cg v) |> Seq.head)
+                if (List.length nodes) > 1 && (areAllIsomorphic cg nodes) then
+                    newDC <- removeCommFiltersForStates states newDC
+            newConfig <- Map.add loc newDC newConfig
+        (prefix, newConfig) *)
 
 
-(* Removes less preferred, but otherwise identical imports.
-   These can never occur unless they are back-to-back in the configuration. *)
-let compressIdenticalImports ((prefix, config): T) : T =
-    let rec aux filters acc = 
-        match filters with
-        | [] -> acc
-        | (((m,lp), es) as f)::fs ->
-            let cleaned = List.filter (fun ((m',_),_) -> m' <> m) fs
-            aux cleaned (f::acc)
-    let mutable newConfig = Map.empty
-    for kv in config do
-        let loc = kv.Key 
-        let deviceConf = kv.Value
-        let filters = deviceConf.Filters
-        let mutable newFilters = []
-        let newFilters = aux (List.rev deviceConf.Filters) []
-        let newDeviceConf = {Originates=deviceConf.Originates; Filters=newFilters}
-        newConfig <- Map.add loc newDeviceConf newConfig
-    (prefix, newConfig)
+    (* Removes less preferred, but otherwise identical imports.
+       These can never occur unless they are back-to-back in the configuration. *)
+    let compressIdenticalImports ((prefix, config): T) : T =
+        let rec aux filters acc = 
+            match filters with
+            | [] -> acc
+            | (((m,lp), es) as f)::fs ->
+                let cleaned = List.filter (fun ((m',_),_) -> m' <> m) fs
+                aux cleaned (f::acc)
+        let mutable newConfig = Map.empty
+        for kv in config do
+            let loc = kv.Key 
+            let deviceConf = kv.Value
+            let filters = deviceConf.Filters
+            let mutable newFilters = []
+            let newFilters = aux (List.rev deviceConf.Filters) []
+            let newDeviceConf = {Originates=deviceConf.Originates; Filters=newFilters}
+            newConfig <- Map.add loc newDeviceConf newConfig
+        (prefix, newConfig)
 
-(* Avoids tagging with a community from A to B, when B never
-   needs to distinguish based on that particular community value *)
-let compressTaggingWhenNotImported ((prefix, config): T) : T =
-    let importCommNeeded = ref Map.empty 
-    for kv in config do 
-        let loc = kv.Key 
-        let deviceConf = kv.Value 
-        for ((m,_), _) in deviceConf.Filters do
-            match m with 
-            | Match.State(is,x) ->
-                let edge = (loc,x)
-                match Map.tryFind edge !importCommNeeded with
-                | None -> importCommNeeded := Map.add (loc,x) (Set.singleton is) !importCommNeeded
-                | Some iss -> importCommNeeded := Map.add (loc,x) (Set.add is iss) !importCommNeeded
-            | _ -> ()
-    let newConfig = 
-        Map.map (fun loc dc ->
-            let filters' = 
-                List.map (fun ((m,lp), es) ->
-                    let es' = 
-                        List.map (fun (peer,acts) ->
-                            let acts' = 
-                                List.filter (fun a ->
-                                    match a with
-                                    | SetComm is ->
-                                        Map.containsKey (peer,loc) !importCommNeeded &&
-                                        !importCommNeeded
-                                        |> Map.find (peer,loc)
-                                        |> Set.contains is
-                                    | _ -> true
-                                ) acts
-                            (peer,acts')
-                        ) es
-                    ((m,lp), es')
-                ) dc.Filters
-            {Originates=dc.Originates; Filters=filters'}
-        ) config
-    (prefix, newConfig)
+    (* Avoids tagging with a community from A to B, when B never
+       needs to distinguish based on that particular community value *)
+    let compressTaggingWhenNotImported ((prefix, config): T) : T =
+        let importCommNeeded = ref Map.empty 
+        for kv in config do 
+            let loc = kv.Key 
+            let deviceConf = kv.Value 
+            for ((m,_), _) in deviceConf.Filters do
+                match m with 
+                | Match.State(is,x) ->
+                    let edge = (loc,x)
+                    match Map.tryFind edge !importCommNeeded with
+                    | None -> importCommNeeded := Map.add (loc,x) (Set.singleton is) !importCommNeeded
+                    | Some iss -> importCommNeeded := Map.add (loc,x) (Set.add is iss) !importCommNeeded
+                | _ -> ()
+        let newConfig = 
+            Map.map (fun loc dc ->
+                let filters' = 
+                    List.map (fun ((m,lp), es) ->
+                        let es' = 
+                            List.map (fun (peer,acts) ->
+                                let acts' = 
+                                    List.filter (fun a ->
+                                        match a with
+                                        | SetComm is ->
+                                            Map.containsKey (peer,loc) !importCommNeeded &&
+                                            !importCommNeeded
+                                            |> Map.find (peer,loc)
+                                            |> Set.contains is
+                                        | _ -> true
+                                    ) acts
+                                (peer,acts')
+                            ) es
+                        ((m,lp), es')
+                    ) dc.Filters
+                {Originates=dc.Originates; Filters=filters'}
+            ) config
+        (prefix, newConfig)
 
-(* Whenever we export identical routes to all peers, we can replace
-   this with a simpler route export of the form: (Export: * ) for readability *)
-let compressAllExports (cg: CGraph.T) ((prefix, config): T) : T =
-    let mutable newConfig = Map.empty
-    for kv in config do
-        let loc = kv.Key 
-        let deviceConf = kv.Value
-        let filters = deviceConf.Filters
-        let mutable newFilters = []
-        let topoNode = 
-            cg.Topo.Vertices
-            |> Seq.find (fun v -> v.Loc = loc)
-        for f in filters do 
-            let ((m,lp), es) = f 
+    (* Whenever we export identical routes to all peers, we can replace
+       this with a simpler route export of the form: (Export: * ) for readability *)
+    let compressAllExports (cg: CGraph.T) ((prefix, config): T) : T =
+        let mutable newConfig = Map.empty
+        for kv in config do
+            let loc = kv.Key 
+            let deviceConf = kv.Value
+            let filters = deviceConf.Filters
+            let mutable newFilters = []
+            let topoNode = 
+                cg.Topo.Vertices
+                |> Seq.find (fun v -> v.Loc = loc)
+            for f in filters do 
+                let ((m,lp), es) = f 
+                let topoPeers = 
+                    cg.Topo.OutEdges topoNode
+                    |> Seq.map (fun e -> e.Target.Loc)
+                let eqActions =
+                    es
+                    |> List.map snd 
+                    |> Set.ofList
+                    |> Set.count
+                    |> ((=) 1)
+                let import = 
+                    match m with 
+                    | Match.Peer(x) -> Some x
+                    | _ -> None
+                let coversPeer p = 
+                    (Option.isSome import && p = Option.get import) || 
+                    (List.exists (fun  (peer,_) -> peer = p) es)
+                let allPeers = 
+                    topoPeers
+                    |> Seq.forall coversPeer
+                if eqActions && allPeers && List.length es <= Seq.length topoPeers then 
+                    newFilters <- ((m,lp), [("*", snd es.Head)]) :: newFilters
+                else newFilters <- f :: newFilters
+            let newDC = {Originates=deviceConf.Originates; Filters=List.rev newFilters}
+            newConfig <- Map.add loc newDC newConfig
+        (prefix, newConfig)
+
+    (* Whenever import identical routes from all peers, we can replace
+       this with a simpler route import of the form: (Import: * ) for readability *)
+    let compressAllImports (cg: CGraph.T) ((prefix, config): T) : T =
+        let mutable newConfig = Map.empty
+        for kv in config do
+            let loc = kv.Key 
+            let deviceConf = kv.Value
+            let filters = deviceConf.Filters
+            let mutable newFilters = []
+            let topoNode = 
+                cg.Topo.Vertices
+                |> Seq.find (fun v -> v.Loc = loc)
             let topoPeers = 
                 cg.Topo.OutEdges topoNode
                 |> Seq.map (fun e -> e.Target.Loc)
             let eqActions =
-                es
+                filters
                 |> List.map snd 
                 |> Set.ofList
                 |> Set.count
                 |> ((=) 1)
-            let import = 
-                match m with 
-                | Match.Peer(x) -> Some x
-                | _ -> None
+            let eqLP = 
+                filters
+                |> List.map (fst >> snd)
+                |> Set.ofList
+                |> Set.count
+                |> ((=) 1)
+            let noComms = 
+                filters
+                |> List.map (fst >> fst)
+                |> List.forall (fun x -> match x with Match.Peer _ -> true | _ -> false)
             let coversPeer p = 
-                (Option.isSome import && p = Option.get import) || 
-                (List.exists (fun  (peer,_) -> peer = p) es)
+                List.exists (fun  ((m,lp),es) -> 
+                    match m with
+                    | Match.Peer(x) -> x = p
+                    | _ -> false
+                ) filters
             let allPeers = 
                 topoPeers
                 |> Seq.forall coversPeer
-            if eqActions && allPeers && List.length es <= Seq.length topoPeers then 
-                newFilters <- ((m,lp), [("*", snd es.Head)]) :: newFilters
-            else newFilters <- f :: newFilters
-        let newDC = {Originates=deviceConf.Originates; Filters=List.rev newFilters}
-        newConfig <- Map.add loc newDC newConfig
-    (prefix, newConfig)
+            let allSame = eqActions && eqLP && noComms && allPeers
+            let newFilters = 
+                if allSame && List.length filters = Seq.length topoPeers && not (List.isEmpty filters)
+                then
+                    let ((m,lp),es) = List.head filters 
+                    [((Match.Peer("*"), lp), es)]
+                else filters
+            let newDC = {Originates=deviceConf.Originates; Filters=newFilters}
+            newConfig <- Map.add loc newDC newConfig
+        (prefix, newConfig)
 
-(* Whenever import identical routes from all peers, we can replace
-   this with a simpler route import of the form: (Import: * ) for readability *)
-let compressAllImports (cg: CGraph.T) ((prefix, config): T) : T =
-    let mutable newConfig = Map.empty
-    for kv in config do
-        let loc = kv.Key 
-        let deviceConf = kv.Value
-        let filters = deviceConf.Filters
-        let mutable newFilters = []
-        let topoNode = 
-            cg.Topo.Vertices
-            |> Seq.find (fun v -> v.Loc = loc)
-        let topoPeers = 
-            cg.Topo.OutEdges topoNode
-            |> Seq.map (fun e -> e.Target.Loc)
-        let eqActions =
-            filters
-            |> List.map snd 
-            |> Set.ofList
-            |> Set.count
-            |> ((=) 1)
-        let eqLP = 
-            filters
-            |> List.map (fst >> snd)
-            |> Set.ofList
-            |> Set.count
-            |> ((=) 1)
-        let noComms = 
-            filters
-            |> List.map (fst >> fst)
-            |> List.forall (fun x -> match x with Match.Peer _ -> true | _ -> false)
-        let coversPeer p = 
-            List.exists (fun  ((m,lp),es) -> 
-                match m with
-                | Match.Peer(x) -> x = p
-                | _ -> false
-            ) filters
-        let allPeers = 
-            topoPeers
-            |> Seq.forall coversPeer
-        let allSame = eqActions && eqLP && noComms && allPeers
-        let newFilters = 
-            if allSame && List.length filters = Seq.length topoPeers && not (List.isEmpty filters)
-            then
-                let ((m,lp),es) = List.head filters 
-                [((Match.Peer("*"), lp), es)]
-            else filters
-        let newDC = {Originates=deviceConf.Originates; Filters=newFilters}
-        newConfig <- Map.add loc newDC newConfig
-    (prefix, newConfig)
-
-(* Make a config smaller (e.g., number of route maps) and more human-readable
-   by removing community tagging information when possible *)
-let compress (cg: CGraph.T) (config: T) (outName: string) : T =
-    debug1 (fun () -> System.IO.File.WriteAllText(outName + "-raw.ir", format [config]))
-    let config = compressUniquePairs cg config
-    debug2 (fun () -> System.IO.File.WriteAllText(outName + "-min1.ir", format [config]))
-    (* let config = compressIsomorphicImports cg config
-    debug2 (fun () -> System.IO.File.WriteAllText(outName + "-min2.ir", format config)) *)
-    let config = compressIdenticalImports config
-    debug2 (fun () -> System.IO.File.WriteAllText(outName + "-min3.ir", format [config]))
-    let config = compressTaggingWhenNotImported config
-    debug2 (fun () -> System.IO.File.WriteAllText(outName + "-min4.ir", format [config]))
-    let config = compressAllExports cg config
-    let config = compressAllImports cg config
-    debug1 (fun () -> System.IO.File.WriteAllText(outName + "-min5.ir", format [config]))
-    config
+    (* Make a config smaller (e.g., number of route maps) and more human-readable
+       by removing community tagging information when possible *)
+    let compress (cg: CGraph.T) (config: T) (outName: string) : T =
+        debug1 (fun () -> System.IO.File.WriteAllText(outName + "-raw.ir", format [config]))
+        let config = compressUniquePairs cg config
+        debug2 (fun () -> System.IO.File.WriteAllText(outName + "-min1.ir", format [config]))
+        (* let config = compressIsomorphicImports cg config
+        debug2 (fun () -> System.IO.File.WriteAllText(outName + "-min2.ir", format config)) *)
+        let config = compressIdenticalImports config
+        debug2 (fun () -> System.IO.File.WriteAllText(outName + "-min3.ir", format [config]))
+        let config = compressTaggingWhenNotImported config
+        debug2 (fun () -> System.IO.File.WriteAllText(outName + "-min4.ir", format [config]))
+        let config = compressAllExports cg config
+        let config = compressAllImports cg config
+        debug1 (fun () -> System.IO.File.WriteAllText(outName + "-min5.ir", format [config]))
+        config
 
 /// Given a topology and a policy, generate a low-level configuration in an intermediate
 /// byte-code-like, vendor-independent representation for BGP 
 
-let compileToIR fullName (prefix: Prefix.T list) (reb: Regex.REBuilder) (res: Regex.T list) : Result<T, CounterExample> =
+let compileToIR fullName idx (prefix: Prefix.T list) (reb: Regex.REBuilder) (res: Regex.T list) : Result<T, CounterExample> =
+    let fullName = fullName + "(" + (string idx) + ")"
     (* compute the automata and product graph *)
     let dfas = 
         res 
         |> List.map (fun r -> reb.MakeDFA (Regex.rev r))
         |> Array.ofList
     let cg = CGraph.buildFromAutomata (reb.Topo()) dfas
-    debug1 (fun () -> CGraph.generatePNG cg fullName)
+    debug1 (fun () -> CGraph.generatePNG cg fullName )
     (* Ensure the path suffix property and dont conside simple paths *)
     CGraph.Minimize.delMissingSuffixPaths cg
     CGraph.Minimize.minimizeO3 cg
@@ -632,16 +639,16 @@ let compileToIR fullName (prefix: Prefix.T list) (reb: Regex.REBuilder) (res: Re
                 match Consistency.findOrderingConservative cg fullName with 
                 | Ok ord ->
                     let config = genConfig cg prefix ord inExports
-                    let config = compress cg config fullName
+                    let config = Compress.compress cg config fullName
                     Ok (config)
                 | Err((x,y)) -> Err(InconsistentPrefs(x,y))
             with 
                 | UncontrollableEnterException s -> Err(UncontrollableEnter s)
                 | UncontrollablePeerPreferenceException s -> Err(UncontrollablePeerPreference s)
 
-let compileForSinglePrefix fullName (prefix, reb, res) =
+let compileForSinglePrefix fullName idx (prefix, reb, res) =
     try 
-        match compileToIR fullName prefix reb res with 
+        match compileToIR fullName idx prefix reb res with 
         | Ok(config) -> config
         | Err(x) -> 
             match x with
@@ -662,5 +669,6 @@ let compileForSinglePrefix fullName (prefix, reb, res) =
 
 let compileAllPrefixes fullName (pairs: PolicyPair list) : T list = 
     Array.ofList pairs
-    |> Array.Parallel.map (compileForSinglePrefix fullName)
+    |> Array.mapi (compileForSinglePrefix fullName)
+    (* |> Array.Parallel.map (compileForSinglePrefix fullName) *)
     |> Array.toList

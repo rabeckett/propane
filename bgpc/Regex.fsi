@@ -58,6 +58,7 @@ exception InvalidPathShapeException of string list
 /// alphabets. Client code must ensure a single object is used.
 type REBuilder  = 
     new: Topology.T -> REBuilder
+    member Alphabet: unit -> Set<string>
     member Topo: unit -> Topology.T
     member Build: LazyT -> T
     member Inside: LazyT
