@@ -4,10 +4,10 @@ open Ast
 open Microsoft.FSharp.Collections
 
 exception EmptyFile
-exception NoScope
+exception NoTask
 exception NoPathConstraints
 
-let addScope s (ps, cs) = 
+let addTask s (ps, cs) = 
     {Name=s;
     PConstraints=ps;
     CConstraints=cs}
@@ -48,7 +48,7 @@ let addScope s (ps, cs) =
 %token FALSE
 
 %token DEFINE 
-%token SCOPE
+%token TASK
 %token PATHS 
 %token ORDERED 
 %token UNORDERED
@@ -64,14 +64,14 @@ let addScope s (ps, cs) =
 %%
 
 start:
-	| scopes regex EOF						{ {Defs=[]; Scopes=$1; Policy=$2} }
-	| definitions scopes regex EOF			{ {Defs=$1; Scopes=$2; Policy=$3} }
+	| tasks regex EOF						{ {Defs=[]; Tasks=$1; Policy=$2} }
+	| definitions tasks regex EOF			{ {Defs=$1; Tasks=$2; Policy=$3} }
 
-scopes:
-	| SCOPE ID LBRACE scope RBRACE			{ [addScope $2 $4] }
-	| SCOPE ID LBRACE scope RBRACE scopes	{ (addScope $2 $4) :: $6 }
+tasks:
+	| TASK ID LBRACE task RBRACE			{ [addTask $2 $4] }
+	| TASK ID LBRACE task RBRACE tasks	    { (addTask $2 $4) :: $6 }
 
-scope:
+task:
 	| pconstrs								{ ($1, []) }
 	| pconstrs cconstrs						{ ($1, $2) }
 

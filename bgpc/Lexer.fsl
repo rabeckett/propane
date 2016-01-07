@@ -17,7 +17,7 @@ let whitespace = [ ' ' '\t' '\r' '\n' ]
 rule tokenize = parse
 	| "/*"					{ comments 0 lexbuf } 
 	| "define"				{ DEFINE }
-	| "scope"				{ SCOPE }
+	| "task"				{ TASK }
 	| "paths"				{ PATHS }
 	| "ordered"				{ ORDERED }
 	| "unordered"			{ UNORDERED }

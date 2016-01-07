@@ -39,7 +39,7 @@ type ConcretePathConstraints = ConcretePathConstraint list
 type ControlConstraint = string * Expr list
 type ControlConstraints = ControlConstraint list
 
-type Scope =
+type Task =
     {Name: string;
      PConstraints: PathConstraints;
      CConstraints: ControlConstraints}
@@ -49,7 +49,7 @@ type CConstraint =
 
 type T = 
     {Defs: Definition list;
-     Scopes: Scope list;
+     Tasks: Task list;
      Policy: Re}
 
 exception InvalidPrefixException of Prefix.T
@@ -126,7 +126,7 @@ let buildCConstraint (topo: Topology.T) cc =
     | _ -> error (sprintf "unknown control constraint: %s" name)
 
 let getControlConstraints (ast: T) reb = 
-    ast.Scopes 
+    ast.Tasks 
     |> List.map (fun s -> s.CConstraints)
     |> List.toSeq
     |> Seq.concat
@@ -234,13 +234,13 @@ let checkPrefixes (sName: string) (pcs: ConcretePathConstraints) =
     with InvalidPrefixException p ->
         error (sprintf "Invalid prefix: %s" (p.ToString()))
 
-let rec mergeScopes (re: Re) disjoints : ConcretePathConstraints =
+let rec mergeTasks (re: Re) disjoints : ConcretePathConstraints =
     match re with
     | Empty -> error (sprintf "Empty constraint not allowed in main policy expression")
-    | Concat(x,y) -> combineConstraints (mergeScopes x disjoints) (mergeScopes y disjoints) OConcat
-    | Union(x,y) -> combineConstraints (mergeScopes x disjoints) (mergeScopes y disjoints) OUnion
-    | Inter(x,y) -> combineConstraints (mergeScopes x disjoints) (mergeScopes y disjoints) OInter
-    | Difference(x,y) -> combineConstraints (mergeScopes x disjoints) (mergeScopes y disjoints) ODifference
+    | Concat(x,y) -> combineConstraints (mergeTasks x disjoints) (mergeTasks y disjoints) OConcat
+    | Union(x,y) -> combineConstraints (mergeTasks x disjoints) (mergeTasks y disjoints) OUnion
+    | Inter(x,y) -> combineConstraints (mergeTasks x disjoints) (mergeTasks y disjoints) OInter
+    | Difference(x,y) -> combineConstraints (mergeTasks x disjoints) (mergeTasks y disjoints) ODifference
     | Negate x -> error (sprintf "Negation not allowed in main policy definition, in expression: %s" (x.ToString()))
     | Star x -> error (sprintf "Star operator not allowed in main policy definition, in expression: %s" (x.ToString()))
     | Ident(x,res) -> 
@@ -254,7 +254,7 @@ let addPair acc s =
     Map.add s.Name cconstrs acc
 
 let makePolicyPairs (ast: T) (topo: Topology.T) : (Prefix.T list * Regex.REBuilder * Regex.T list) list =
-    let names = List.map (fun s -> s.Name) ast.Scopes
+    let names = List.map (fun s -> s.Name) ast.Tasks
     let unqNames = Set.ofList names
     if unqNames.Count <> names.Length then
         let dups =
@@ -264,8 +264,8 @@ let makePolicyPairs (ast: T) (topo: Topology.T) : (Prefix.T list * Regex.REBuild
             |> Seq.filter (fun (_,i) -> i > 1)
             |> Seq.map fst
         error (sprintf "duplicate named policies: %s" (dups.ToString()))
-    let disjoints = List.fold addPair Map.empty ast.Scopes
-    let allPCs = mergeScopes ast.Policy disjoints
+    let disjoints = List.fold addPair Map.empty ast.Tasks
+    let allPCs = mergeTasks ast.Policy disjoints
     let mutable acc = []
     for (prefixes, res) in allPCs do 
         let reb = Regex.REBuilder(topo)
