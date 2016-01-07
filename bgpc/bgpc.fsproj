@@ -99,6 +99,7 @@
     <Compile Include="CGraph.fs" />
     <Compile Include="IR.fsi" />
     <Compile Include="IR.fs" />
+    <Compile Include="Test.fsi" />
     <Compile Include="Test.fs" />
     <Compile Include="Program.fs" />
     <None Include="App.config" />

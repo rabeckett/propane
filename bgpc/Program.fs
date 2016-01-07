@@ -25,11 +25,9 @@ let main argv =
     | Some p ->
         let ast = Input.readFromFile p
 
-        let cconstraints = Ast.getControlConstraints ast topo
-        printfn "Aggregates: %A" cconstraints
-
+        let aggs = Ast.getControlConstraints ast topo
         let pairs = Ast.makePolicyPairs ast topo
-        let ir = IR.compileAllPrefixes fullName pairs
+        let ir = IR.compileAllPrefixes fullName topo pairs aggs
 
         match settings.OutFile with
         | None -> ()

@@ -1,7 +1,6 @@
 ﻿module Test
+
 open IR
-open CGraph
-open System
 open Common.Debug
 open Common.Error
 

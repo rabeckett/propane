@@ -32,10 +32,17 @@ type DeviceConfig =
 
 type PrefixConfig = Prefix.T list * Map<string, DeviceConfig>
 
-type T = Map<string, (Prefix.T list * DeviceConfig) list>
+type DeviceAggregates = (Prefix.T list * seq<string>) list
+type Aggregates = Map<string, DeviceAggregates>
+
+type RouterConfig = 
+    {Actions: (Prefix.T list * DeviceConfig) list;
+     Aggregates: DeviceAggregates}
+
+type T = Map<string, RouterConfig>
 
 /// Convert per-prefix representation to a per-router representatoin
-val joinConfigs: PrefixConfig list -> T
+val joinConfigs: Aggregates -> PrefixConfig list -> T
 
 /// Debug config output
 val format: T -> string
@@ -51,4 +58,4 @@ val compileToIR: string -> int -> Prefix.T list -> Regex.REBuilder -> Regex.T li
 val compileForSinglePrefix: string -> int -> Ast.PolicyPair -> PrefixConfig
 
 /// Compile for all prefixes
-val compileAllPrefixes: string -> Ast.PolicyPair list -> T
+val compileAllPrefixes: string -> Topology.T -> Ast.PolicyPair list -> Ast.CConstraint list -> T

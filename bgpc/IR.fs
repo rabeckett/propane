@@ -51,9 +51,16 @@ type DeviceConfig =
 
 type PrefixConfig = Prefix.T list * Map<string, DeviceConfig>
 
-type T = Map<string, (Prefix.T list * DeviceConfig) list>
+type DeviceAggregates = (Prefix.T list * seq<string>) list
+type Aggregates = Map<string, DeviceAggregates>
 
-let joinConfigs (pairs: PrefixConfig list) : T =
+type RouterConfig = 
+    {Actions: (Prefix.T list * DeviceConfig) list;
+     Aggregates: DeviceAggregates}
+
+type T = Map<string, RouterConfig>
+
+let joinConfigs aggs (pairs: PrefixConfig list) : T =
     let mutable result = Map.empty
     for (prefix, config) in pairs do 
         for kv in config do
@@ -61,14 +68,22 @@ let joinConfigs (pairs: PrefixConfig list) : T =
             match Map.tryFind kv.Key result with
             | None -> result <- Map.add kv.Key [value] result
             | Some x -> result <- Map.add kv.Key (x @ [value]) result
-    result
+    Map.map (fun router vs ->
+        match Map.tryFind router aggs with
+        | None -> {Actions=vs; Aggregates=[]}
+        | Some xs -> {Actions=vs; Aggregates=xs}) result
 
 let format (config: T) = 
     let sb = System.Text.StringBuilder ()
     for kv in config do
+        let routerName = kv.Key 
+        let routerConfig = kv.Value
         sb.Append("\nRouter ") |> ignore
-        sb.Append(kv.Key) |> ignore
-        for (prefix, deviceConf) in kv.Value do
+        sb.Append(routerName) |> ignore
+        for (prefix, peers) in routerConfig.Aggregates do
+            for peer in peers do
+                sb.Append("\n  Aggregate(" + string prefix + ", " + peer + ")") |> ignore
+        for (prefix, deviceConf) in routerConfig.Actions do
             let prefixStr = 
                 if List.isEmpty prefix then "false" else
                 if Prefix.toPredicate prefix = Prefix.top then "true" else
@@ -92,7 +107,10 @@ let format (config: T) =
                     sb.Append("]") |> ignore
         sb.Append("\n") |> ignore
     sb.ToString()
- 
+
+let formatPrefix pconfig = 
+    format (joinConfigs Map.empty [pconfig])
+
 (* Ensure well-formedness for controlling 
    traffic entering the network. MED and prepending allow
    certain patterns of control to immediate neighbors only *)
@@ -574,18 +592,18 @@ module Compress =
     (* Make a config smaller (e.g., number of route maps) and more human-readable
        by removing community tagging information when possible *)
     let compress (cg: CGraph.T) (config: PrefixConfig) (outName: string) : PrefixConfig =
-        debug1 (fun () -> System.IO.File.WriteAllText(outName + "-raw.ir", format (joinConfigs [config])))
+        debug1 (fun () -> System.IO.File.WriteAllText(outName + "-raw.ir", formatPrefix config))
         let config = compressUniquePairs cg config
-        debug2 (fun () -> System.IO.File.WriteAllText(outName + "-min1.ir", format (joinConfigs [config])))
+        debug2 (fun () -> System.IO.File.WriteAllText(outName + "-min1.ir", formatPrefix config))
         (* let config = compressIsomorphicImports cg config
         debug2 (fun () -> System.IO.File.WriteAllText(outName + "-min2.ir", format config)) *)
         let config = compressIdenticalImports config
-        debug2 (fun () -> System.IO.File.WriteAllText(outName + "-min3.ir", format (joinConfigs [config])))
+        debug2 (fun () -> System.IO.File.WriteAllText(outName + "-min3.ir", formatPrefix config))
         let config = compressTaggingWhenNotImported config
-        debug2 (fun () -> System.IO.File.WriteAllText(outName + "-min4.ir", format (joinConfigs [config])))
+        debug2 (fun () -> System.IO.File.WriteAllText(outName + "-min4.ir", formatPrefix config))
         let config = compressAllExports cg config
         let config = compressAllImports cg config
-        debug1 (fun () -> System.IO.File.WriteAllText(outName + "-min5.ir", format (joinConfigs [config])))
+        debug1 (fun () -> System.IO.File.WriteAllText(outName + "-min5.ir", formatPrefix config))
         config
 
 /// Given a topology and a policy, generate a low-level configuration in an intermediate
@@ -666,8 +684,28 @@ let compileForSinglePrefix fullName idx (prefix, reb, res) =
     with Topology.InvalidTopologyException -> 
         error (sprintf "Invalid Topology: internal topology must be weakly connected")
 
-let compileAllPrefixes fullName (pairs: Ast.PolicyPair list) : T = 
+let getAggregates topo aggs =
+    let mutable acc = Map.empty
+    for (Ast.Aggregate (prefix,ins,outs)) in Seq.ofList aggs do
+        let pairs = 
+            if ins.Contains "out" then
+                error (sprintf "Cannot aggregate on external location: out for prefix: %s" (string prefix))
+            let links = Topology.findLinks topo (ins,outs)
+            match List.tryFind (fst >> Topology.isOutside) links with
+            | None ->
+                links
+                |> List.map (fun (x,y) -> (x.Loc, y.Loc))
+                |> Seq.ofList
+                |> Seq.groupBy fst
+                |> Seq.map (fun (x,y) -> (x, [(prefix, Seq.map snd y)]))
+                |> Map.ofSeq
+            | Some x -> error (sprintf "Cannot aggregate on external location: %s for prefix: %s" (fst x).Loc (string prefix))
+        acc <- Common.Map.merge acc pairs (fun _ (xs,ys) -> xs @ ys)
+    acc
+
+let compileAllPrefixes fullName topo (pairs: Ast.PolicyPair list) aggs : T =
+    let aggs = getAggregates topo aggs
     Array.ofList pairs
     |> Array.Parallel.mapi (compileForSinglePrefix fullName)
     |> Array.toList
-    |> joinConfigs
+    |> joinConfigs aggs
