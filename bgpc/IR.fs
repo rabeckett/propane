@@ -684,22 +684,25 @@ let compileForSinglePrefix fullName idx (prefix, reb, res) =
     with Topology.InvalidTopologyException -> 
         error (sprintf "Invalid Topology: internal topology must be weakly connected")
 
+let checkAggregateLocs (ins: Set<string>) prefix links = 
+    if ins.Contains "out" then
+        error (sprintf "Cannot aggregate on external location: out for prefix: %s" (string prefix))
+    match List.tryFind (fst >> Topology.isOutside) links with
+    | None -> ()
+    | Some x -> error (sprintf "Cannot aggregate on external location: %s for prefix: %s" (fst x).Loc (string prefix))
+
 let getAggregates topo aggs =
     let mutable acc = Map.empty
     for (Ast.Aggregate (prefix,ins,outs)) in Seq.ofList aggs do
+        let links = Topology.findLinks topo (ins,outs)
+        checkAggregateLocs ins prefix links
         let pairs = 
-            if ins.Contains "out" then
-                error (sprintf "Cannot aggregate on external location: out for prefix: %s" (string prefix))
-            let links = Topology.findLinks topo (ins,outs)
-            match List.tryFind (fst >> Topology.isOutside) links with
-            | None ->
-                links
-                |> List.map (fun (x,y) -> (x.Loc, y.Loc))
-                |> Seq.ofList
-                |> Seq.groupBy fst
-                |> Seq.map (fun (x,y) -> (x, [(prefix, Seq.map snd y)]))
-                |> Map.ofSeq
-            | Some x -> error (sprintf "Cannot aggregate on external location: %s for prefix: %s" (fst x).Loc (string prefix))
+            links
+            |> List.map (fun (x,y) -> (x.Loc, y.Loc))
+            |> Seq.ofList
+            |> Seq.groupBy fst
+            |> Seq.map (fun (x,y) -> (x, [(prefix, Seq.map snd y)]))
+            |> Map.ofSeq
         acc <- Common.Map.merge acc pairs (fun _ (xs,ys) -> xs @ ys)
     acc
 

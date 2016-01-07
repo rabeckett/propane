@@ -6,9 +6,6 @@ open Common.Error
 
 let maxTests = 10
 
-/// Helper functions for checking properties
-/// of IR configurations.
-
 let isPeer x m = 
     match m with 
     | IR.Peer y -> x = y || y = "*"
@@ -30,9 +27,6 @@ let receiveFrom (_,config) x y =
 let originates ((_, config): IR.PrefixConfig) x =
     let deviceConfig = Map.find x config
     deviceConfig.Originates
-
-/// Unit tests for finding paths and setting preferences
-/// for regular expression queries
 
 type FailReason = 
     | InconsistentPrefs
@@ -425,40 +419,23 @@ let tests (settings: Args.T) = [
 
 let rand = System.Random()
 
-let randomRange () = 
-    let lo = uint32 (rand.Next ())
-    let hi = uint32 (rand.Next ()) + lo
-    (lo,hi)
-
-let randomPrefix () = 
-    let a = uint32 (rand.Next() % 256)
-    let b = uint32 (rand.Next() % 256)
-    let c = uint32 (rand.Next() % 256)
-    let d = uint32 (rand.Next() % 256)
-    let slash = uint32 (rand.Next() % 33)
-    Prefix.prefix (a,b,c,d) slash
-
-let randomPrefixes n =
-    assert (n > 0) 
-    let num = 1 + (rand.Next() % n)
-    let mutable prefixes = []
-    for i = 0 to num-1 do
-        prefixes <- (randomPrefix ()) :: prefixes
-    printfn "got %d random prefixes: %A" n (List.map string prefixes)
-    prefixes
-
+let randomPrefix () =
+    let lo = uint32 (rand.Next())
+    let hi = uint32 (rand.Next()) + lo
+    Prefix.fromRange (lo,hi)
+    
 /// Randomized tests that check that converting a prefix 
 /// to a range-based representation and back are inverse functions
 let testPrefixes () =
     printfn "Testing prefix predicates..."
     for i = 1 to maxTests do 
-        let ps = randomPrefixes 4
-        let rs = Prefix.toPredicate ps
-        let ps' = Prefix.toPrefixes rs
-        let x = Set.ofList (List.map string ps)
-        let y = Set.ofList (List.map string ps')
-        if x <> y then
-            printfn "[Failed]: expected: %s, but got %s" (string x) (string y)
+        let x = randomPrefix ()
+        let y = Prefix.toPrefixes x
+        let z = Prefix.toPredicate y
+        let a = Prefix.str x 
+        let b = Prefix.str z
+        if a <> b then
+            printfn "[Failed]: expected: %s, but got %s" a b
 
 (* 
 /// Randomized tests that check that the scope merging cross product 

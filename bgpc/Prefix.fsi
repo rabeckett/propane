@@ -11,6 +11,10 @@ type Pred
 /// Constructor for a prefix
 val prefix: (uint32*uint32*uint32*uint32) -> uint32 -> T
 
+val str: Pred -> string
+
+val fromRange: uint32 * uint32 -> Pred
+
 /// Logical disjunction of two prefixes
 val disj: Pred -> Pred -> Pred
 

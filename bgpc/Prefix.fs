@@ -17,6 +17,11 @@ type Pred = Pred of (uint32 * uint32) list
 let prefix (a,b,c,d) slash = 
     {X1=a; X2=b; X3=c; X4=d; Slash=slash}
 
+let str (Pred x) =
+    sprintf "%A" x
+
+let fromRange (x,y) = Pred [(x,y)]
+
 let wholeRange = (uint32 0, System.UInt32.MaxValue)
 
 let wfRange (x,y) = 
@@ -141,7 +146,8 @@ let rangeOfPrefix (p: T) =
     (value, value + uint32 uppermask)
 
 let toPredicate (ps: T list) : Pred =
-    Pred (List.map rangeOfPrefix ps)
+    List.map rangeOfPrefix ps
+    |> List.fold (fun acc x -> disj acc (Pred [x]) ) bot
 
 let inline dotted x = 
     let a = shr x 24
