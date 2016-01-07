@@ -30,8 +30,6 @@ type DeviceConfig =
     {Originates: bool;
      Filters: (Import * Export list) list}
 
-type PolicyPair = Prefix.T list * Regex.REBuilder * Regex.T list
-
 type PrefixConfig = Prefix.T list * Map<string, DeviceConfig>
 
 type T = Map<string, (Prefix.T list * DeviceConfig) list>
@@ -50,7 +48,7 @@ val compileToIR: string -> int -> Prefix.T list -> Regex.REBuilder -> Regex.T li
 
 /// Compile to an intermediate representation for a given prefix. 
 /// Gives a counterexample and quits the program if compilation is not possible.
-val compileForSinglePrefix: string -> int -> PolicyPair -> PrefixConfig
+val compileForSinglePrefix: string -> int -> Ast.PolicyPair -> PrefixConfig
 
 /// Compile for all prefixes
-val compileAllPrefixes: string -> PolicyPair list -> T
+val compileAllPrefixes: string -> Ast.PolicyPair list -> T

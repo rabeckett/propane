@@ -49,8 +49,6 @@ type DeviceConfig =
     {Originates: bool;
      Filters: (Import * Export list) list}
 
-type PolicyPair = Prefix.T list * Regex.REBuilder * Regex.T list
-
 type PrefixConfig = Prefix.T list * Map<string, DeviceConfig>
 
 type T = Map<string, (Prefix.T list * DeviceConfig) list>
@@ -668,7 +666,7 @@ let compileForSinglePrefix fullName idx (prefix, reb, res) =
     with Topology.InvalidTopologyException -> 
         error (sprintf "Invalid Topology: internal topology must be weakly connected")
 
-let compileAllPrefixes fullName (pairs: PolicyPair list) : T = 
+let compileAllPrefixes fullName (pairs: Ast.PolicyPair list) : T = 
     Array.ofList pairs
     |> Array.Parallel.mapi (compileForSinglePrefix fullName)
     |> Array.toList

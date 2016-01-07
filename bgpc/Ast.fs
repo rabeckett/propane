@@ -43,6 +43,7 @@ type Task =
 type CConstraint = 
     | Aggregate of Prefix.T list * Set<string> * Set<string>
 
+type PolicyPair = (Prefix.T list * Regex.REBuilder * Regex.T list)
 
 type T = 
     {Defs: Map<string, Re>;
@@ -214,7 +215,7 @@ let addPair acc s =
     checkPrefixes s.Name cconstrs
     Map.add s.Name cconstrs acc
 
-let makePolicyPairs (ast: T) (topo: Topology.T) : (Prefix.T list * Regex.REBuilder * Regex.T list) list =
+let makePolicyPairs (ast: T) (topo: Topology.T) : PolicyPair list =
     let names = List.map (fun s -> s.Name) ast.Tasks
     let unqNames = Set.ofList names
     if unqNames.Count <> names.Length then
