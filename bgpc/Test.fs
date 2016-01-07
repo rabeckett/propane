@@ -537,13 +537,13 @@ let testCompilation() =
         let spaces = String.replicate (longest - test.Name.Length + 3) " "
         let msg = sprintf "%s%s%s" test.Name spaces test.Explanation
         printfn "%s" msg
-        logInfo0("\n" + msg)
+        logInfo0(0, "\n" + msg)
         let reb = Regex.REBuilder(test.Topo)
         let built = test.Rf reb
         if not (Topology.isWellFormed test.Topo) then 
             let msg = sprintf "\n[Failed]:\n  Topology for (%s) is not well-formed" test.Name 
             printfn "%s" msg
-            logInfo0(msg)
+            logInfo0(0, msg)
         else
             let prefix = Prefix.toPrefixes Prefix.top
             match IR.compileToIR (settings.DebugDir + test.Name) 0 prefix reb built with 
@@ -554,7 +554,7 @@ let testCompilation() =
                     Option.isNone test.Fail) then 
                     let msg = sprintf "\n[Failed]:\n  Name: %s\n  Message: Should compile but did not\n  Error: %A\n" test.Name x
                     printfn "%s" msg
-                    logInfo0(msg)
+                    logInfo0(0, msg)
                 match test.Fail, x with 
                 | Some NoPathForRouters, IR.NoPathForRouters _ -> ()
                 | Some InconsistentPrefs, IR.InconsistentPrefs _ -> ()
@@ -563,7 +563,7 @@ let testCompilation() =
                 | _ ->
                     let msg = sprintf "\n[Failed]:\n  Name: %s\n  Message: Expected Error %A\n" test.Name test.Fail
                     printfn "%s" msg
-                    logInfo0(msg)
+                    logInfo0(0, msg)
             | Ok(config) -> 
                 if (Option.isNone test.Receive || 
                     Option.isNone test.Originate || 
@@ -571,7 +571,7 @@ let testCompilation() =
                     Option.isSome test.Fail) then
                     let msg = sprintf "\n[Failed]:\n  Name: %s\n  Message: Should not compile but did\n" test.Name
                     printfn "%s" msg
-                    logInfo0(msg)
+                    logInfo0(0, msg)
                 else
                     (* Check receiving from peers *)
                     let rs = Option.get test.Receive
@@ -579,7 +579,7 @@ let testCompilation() =
                         if not (receiveFrom config x y) then
                             let msg = sprintf "\n[Failed]: (%s) - %s should receive from %s but did not\n" test.Name x y
                             printfn "%s" msg
-                            logInfo0(msg)
+                            logInfo0(0, msg)
                 
                     (* Check originating routes *)
                     let os = Option.get test.Originate
@@ -587,7 +587,7 @@ let testCompilation() =
                         if not (originates config x) then 
                             let msg = sprintf "\n[Failed]: (%s) - %s should originate a route but did not" test.Name x
                             printfn "%s" msg
-                            logInfo0(msg)
+                            logInfo0(0, msg)
 
                     (* Test preferences *)
                     let ps = Option.get test.Prefs
@@ -595,7 +595,7 @@ let testCompilation() =
                         if not (prefersPeer config x (a,b)) then 
                             let msg = sprintf "\n[Failed]: (%s) - %s should prefer %s to %s but did not" test.Name x a b
                             printfn "%s" msg
-                            logInfo0(msg)
+                            logInfo0(0, msg)
 
 
 let run () =

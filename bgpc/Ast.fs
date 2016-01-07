@@ -206,7 +206,6 @@ let combineRegexes (rs1: Re list) (rs2: Re list) (op: BinOp) : Re list =
         List.map (fun r2 -> applyOp r1 r2 op) rs2
 
 let combineConstraints (pcs1: ConcretePathConstraints) (pcs2: ConcretePathConstraints) (op: BinOp) =
-    logInfo1("Macro constraint expansion")
     let mutable combined = []
     let mutable rollingPred = Prefix.bot
     for (ps, res) in pcs1 do 
@@ -217,7 +216,6 @@ let combineConstraints (pcs1: ConcretePathConstraints) (pcs2: ConcretePathConstr
             let asPref = Prefix.toPrefixes comb
             let notAbove = Prefix.conj comb (Prefix.negation rollingPred)
             if notAbove <> Prefix.bot then
-                logInfo2(sprintf "combine %A and %A as %A" (string ps) (string ps') (string asPref))
                 rollingPred <- Prefix.disj rollingPred comb
                 let both = (asPref, combineRegexes res res' op)
                 combined <- both :: combined

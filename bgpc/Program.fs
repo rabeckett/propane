@@ -8,7 +8,6 @@ let main argv =
     (* Parse command line settings *)
     ignore (Args.parse argv)
     let settings = Args.getSettings ()
-    logInfo0 (sprintf "Got settings: %A" settings)
 
     (* Run unit tests if in test mode *)
     if settings.Test then

@@ -15,17 +15,17 @@ module Debug =
     let debug3 f = debug 3 f
 
     /// Log information to a file
-    let logInfo n str =
+    let logInfo n idx str =
         let settings = Args.getSettings ()
-        let logFile = settings.DebugDir + "debug.log"
+        let logFile = settings.DebugDir + "debug(" + string idx + ").log"
         let indent = String.replicate n "\t"
         if settings.Debug >= n then
             System.IO.File.AppendAllText(logFile, indent + str + "\n")
 
-    let logInfo0 f = logInfo 0 f
-    let logInfo1 f = logInfo 1 f
-    let logInfo2 f = logInfo 2 f
-    let logInfo3 f = logInfo 3 f
+    let logInfo0(idx, f) = logInfo 0 idx f
+    let logInfo1(idx, f) = logInfo 1 idx f
+    let logInfo2(idx, f) = logInfo 2 idx f
+    let logInfo3(idx, f) = logInfo 3 idx f
 
 
 module List = 

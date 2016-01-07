@@ -80,7 +80,7 @@ module Reachable =
     val srcAccepting: T -> CgState -> Direction -> Set<int>
 
     /// Check if paths from n1 in cg1 are a superset of paths from n2 in cg2
-    val supersetPaths: T * CgState -> T * CgState -> bool
+    val supersetPaths: int -> T * CgState -> T * CgState -> bool
 
 
 module Minimize =
@@ -88,7 +88,7 @@ module Minimize =
     val delMissingSuffixPaths: T -> unit
 
     /// Fixpoint removal of nodes and edges, including nodes not on any simple path
-    val minimizeO3: T -> unit
+    val minimize: int -> T -> unit
 
 
 module Consistency =
@@ -103,7 +103,7 @@ module Consistency =
 
     /// Conservative check if the BGP routers can make local decisions not knowing about failures
     /// Takes an optional file name for debugging intermediate information
-    val findOrderingConservative: (T -> string -> Result<Ordering, CounterExample>)
+    val findOrderingConservative: (int -> T -> string -> Result<Ordering, CounterExample>)
 
     /// Exact check if BGP routes can make local decisions by enumerating failures
     /// Takes an optional file name for debugging intermediate information

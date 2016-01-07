@@ -279,7 +279,7 @@ module Reachable =
         alongSimplePathSrcDstRepeat cg src dst canRepeat direction
 
     /// Checks if n1 in graph cg1 simulates n2 in cg2
-    let supersetPaths (cg1, n1) (cg2, n2) : bool =
+    let supersetPaths (idx: int) (cg1, n1) (cg2, n2) : bool =
         let add k v map = 
             match Map.tryFind k map with 
             | None -> Map.add k (Set.singleton v) map
@@ -296,7 +296,7 @@ module Reachable =
                     (Set.intersect v v' |> Set.isEmpty |> not) ) b)) b
 
         let stepNodeNode n1 n2 =
-            logInfo3 (sprintf "Simulate: %s -- %s" (n1.ToString()) (n2.ToString())) 
+            logInfo3 (idx, sprintf "Simulate: %s -- %s" (n1.ToString()) (n2.ToString())) 
             let neighbors1 = neighbors cg1 n1 |> Seq.filter isRealNode |> Set.ofSeq
             let neighbors2 = neighbors cg2 n2 |> Seq.filter isRealNode |> Set.ofSeq
             let nchars1 = Set.map (fun v -> v.Node.Loc) neighbors1
@@ -465,22 +465,9 @@ module Minimize =
                                 ignore (toDelNodes.Add a)
         cg.Graph.RemoveVertexIf (fun v -> toDelNodes.Contains v) |> ignore
            
-    let minimizeO0 (cg: T) =
-        removeNodesThatCantReachEnd cg
-      
-    let minimizeO1 (cg: T) =
-        removeNodesThatCantReachEnd cg
-        removeEdgesForDominatedNodes cg
-
-    let minimizeO2 (cg: T) = 
-        removeNodesThatCantReachEnd cg
-        removeEdgesForDominatedNodes cg
-        (* removeNodesNotReachableOnSimplePath cg *)
-        removeDeadEdgesHeuristic cg
-
-    let minimizeO3 (cg: T) =
+    let minimize (idx: int) (cg: T) =
         let count cg = cg.Graph.VertexCount + cg.Graph.EdgeCount
-        logInfo1(sprintf "Node count: %d" cg.Graph.VertexCount)
+        logInfo1(idx, sprintf "Node count: %d" cg.Graph.VertexCount)
         let prune () = 
             removeNodesThatCantReachEnd cg
             removeEdgesForDominatedNodes cg
@@ -493,7 +480,7 @@ module Minimize =
         while count cg <> sum do
             sum <- count cg
             prune ()
-        logInfo1(sprintf "Node count - after O3: %d" cg.Graph.VertexCount)
+        logInfo1(idx, sprintf "Node count - after O3: %d" cg.Graph.VertexCount)
 
 
 module Consistency = 
@@ -505,7 +492,7 @@ module Consistency =
     type Ordering = Map<string, Preferences>
     type Constraints = BidirectionalGraph<CgState ,TaggedEdge<CgState,unit>>
 
-    let simulate _ restrict (x,y) (i,j) =
+    let simulate idx _ restrict (x,y) (i,j) =
         let restrict_i = copyGraph (Map.find i restrict)
         let restrict_j = copyGraph (Map.find j restrict)
         restrict_i.Graph.RemoveVertexIf (fun v -> v.Node.Loc = x.Node.Loc && v <> x) |> ignore
@@ -520,7 +507,7 @@ module Consistency =
             let reach = Reachable.srcWithout restrict_i x exclude Up |> Set.map (fun v -> v.Node.Loc)
             restrict_i.Graph.RemoveVertexIf (fun v -> v <> x && Set.contains v.Node.Loc reach) |> ignore
             (* Check if the more preferred simulates the less preferred *)
-            Reachable.supersetPaths (restrict_i, x) (restrict_j, y) 
+            Reachable.supersetPaths idx (restrict_i, x) (restrict_j, y) 
 
     let isPreferred f cg restrict (x,y) (reachX, reachY) =
         let subsumes i j =
@@ -549,39 +536,38 @@ module Consistency =
             reachMap <- Map.add n (Reachable.srcAccepting cg n Down) reachMap
         reachMap
 
-    let addPrefConstraints f cg (g: Constraints) r nodes reachMap =
+    let addPrefConstraints idx f cg (g: Constraints) r nodes reachMap =
         let mutable edges = Set.empty
         for x in nodes do
             for y in nodes do
                 let reachX = Map.find x reachMap
                 let reachY = Map.find y reachMap
                 if x <> y && (isPreferred f cg r (x,y) (reachX,reachY)) then
-                    logInfo1 (sprintf "%s is preferred to %s" (x.ToString()) (y.ToString()))
+                    logInfo1 (idx, sprintf "%s is preferred to %s" (x.ToString()) (y.ToString()))
                     edges <- Set.add (x,y) edges
                     g.AddEdge (TaggedEdge(x, y, ())) |> ignore
                 else if x <> y then
-                    logInfo1 (sprintf "%s is NOT preferred to %s" (x.ToString()) (y.ToString()))
+                    logInfo1 (idx, sprintf "%s is NOT preferred to %s" (x.ToString()) (y.ToString()))
         g, edges
 
-    let encodeConstraints f cg r nodes =
+    let encodeConstraints idx f cg r nodes =
         let g = BidirectionalGraph<CgState ,TaggedEdge<CgState,unit>>()
         for n in nodes do 
             g.AddVertex n |> ignore
         let reachMap = getReachabilityMap cg nodes
-        addPrefConstraints f cg g r nodes reachMap
+        addPrefConstraints idx f cg g r nodes reachMap
 
-    let findPrefAssignment f r cg nodes = 
-        let g, edges = encodeConstraints f cg r nodes
+    let findPrefAssignment idx f r cg nodes = 
+        let g, edges = encodeConstraints idx f cg r nodes
         getOrdering g edges
 
-    let addForLabel f r cg map l =
-        (* Only order internal locations *)
+    let addForLabel idx f r cg map l =
         let (ain, _) = Topology.alphabet cg.Topo
         let ain = Set.map (fun (v: Topology.State) -> v.Loc) ain
         if ain.Contains l then
             if not (Map.containsKey l map) then 
                 let nodes = Seq.filter (fun v -> v.Node.Loc = l) cg.Graph.Vertices
-                Map.add l (findPrefAssignment f r cg nodes) map
+                Map.add l (findPrefAssignment idx f r cg nodes) map
             else map
         else Map.add l Seq.empty map
 
@@ -609,7 +595,7 @@ module Consistency =
             Map.add i r acc
         Set.fold aux Map.empty prefs
 
-    let findOrdering f (cg: T) outName : Result<Ordering, CounterExample> =
+    let findOrdering idx f (cg: T) outName : Result<Ordering, CounterExample> =
         let prefs = preferences cg 
         let rs = restrictedGraphs cg prefs
         debug2 (fun () -> Map.iter (fun i g -> generatePNG g (outName + "-min-restricted" + string i)) rs)
@@ -618,7 +604,7 @@ module Consistency =
             |> Seq.filter (fun v -> Topology.isTopoNode v.Node)
             |> Seq.map (fun v -> v.Node.Loc)
             |> Set.ofSeq 
-        try Ok(Set.fold (addForLabel f rs cg) Map.empty labels)
+        try Ok(Set.fold (addForLabel idx f rs cg) Map.empty labels)
         with ConsistencyException(x,y) ->
             Err((x,y) )
 
@@ -637,7 +623,8 @@ module Consistency =
 
     let findOrderingEnumerate n = findOrdering (enumerate n) *)
 
-    let findOrderingConservative = findOrdering simulate
+    let findOrderingConservative (idx: int) = findOrdering idx (simulate idx)
+
 
 module ToRegex =
 

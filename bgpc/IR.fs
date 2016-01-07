@@ -603,7 +603,7 @@ let compileToIR fullName idx (prefix: Prefix.T list) (reb: Regex.REBuilder) (res
     debug1 (fun () -> CGraph.generatePNG cg fullName )
     (* Ensure the path suffix property and dont conside simple paths *)
     CGraph.Minimize.delMissingSuffixPaths cg
-    CGraph.Minimize.minimizeO3 cg
+    CGraph.Minimize.minimize idx cg
     (* Save graphs to file *)
     debug1 (fun () -> CGraph.generatePNG cg (fullName + "-min"))
     (* Check for errors *)
@@ -620,8 +620,8 @@ let compileToIR fullName idx (prefix: Prefix.T list) (reb: Regex.REBuilder) (res
         |> Set.ofSeq
     let locsThatNeedPath = Set.difference (Set.intersect startingLocs canOriginate) originators
     let locsThatGetPath = CGraph.acceptingLocations cg
-    logInfo1(sprintf "Locations that need path: %s" (locsThatNeedPath.ToString()))
-    logInfo1(sprintf "Locations that get path: %s" (locsThatGetPath.ToString()))
+    logInfo1(idx, sprintf "Locations that need path: %s" (locsThatNeedPath.ToString()))
+    logInfo1(idx, sprintf "Locations that get path: %s" (locsThatGetPath.ToString()))
     let lost = Set.difference locsThatNeedPath locsThatGetPath
     if not (Set.isEmpty lost) then 
         Err(NoPathForRouters(lost))
@@ -636,7 +636,7 @@ let compileToIR fullName idx (prefix: Prefix.T list) (reb: Regex.REBuilder) (res
         else
             try 
                 let inExports = configureIncomingTraffic cg
-                match Consistency.findOrderingConservative cg fullName with 
+                match Consistency.findOrderingConservative idx cg fullName with 
                 | Ok ord ->
                     let config = genConfig cg prefix ord inExports
                     let config = Compress.compress cg config fullName
@@ -669,6 +669,5 @@ let compileForSinglePrefix fullName idx (prefix, reb, res) =
 
 let compileAllPrefixes fullName (pairs: PolicyPair list) : T list = 
     Array.ofList pairs
-    |> Array.mapi (compileForSinglePrefix fullName)
-    (* |> Array.Parallel.map (compileForSinglePrefix fullName) *)
+    |> Array.Parallel.mapi (compileForSinglePrefix fullName)
     |> Array.toList
