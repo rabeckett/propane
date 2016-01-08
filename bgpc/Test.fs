@@ -458,7 +458,7 @@ let testPrefixMerging () =
     printfn "Testing prefix compaction..."
     let allPrefixes ccs = 
         ccs
-        |> List.map (fun (ps,_) -> Set.ofList ps)
+        |> List.map (fst >> Set.ofList)
         |> List.fold Set.union Set.empty
     let tru = [Prefix.prefix (0u,0u,0u,0u) 0u]
     for i = 0 to (maxTests / 10) do
@@ -477,7 +477,6 @@ let testPrefixMerging () =
         /// check we don't introduce new ones
         if not (Set.isSubset allCurrent allOriginal) then
             printfn "[Failed]: Compacted prefixes are not a subset"
-
 
 let testRegexWellFormedness () =
     printfn "Testing regex well-formedness..."
