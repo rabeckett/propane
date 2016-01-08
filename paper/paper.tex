@@ -38,19 +38,19 @@
 \setlength{\pdfpageheight}{\paperheight}
 \setlength{\pdfpagewidth}{\paperwidth}
 
-\conferenceinfo{CONF 'yy}{Month d--d, 20yy, City, ST, Country} 
-\copyrightyear{20yy} 
-\copyrightdata{978-1-nnnn-nnnn-n/yy/mm} 
+\conferenceinfo{CONF 'yy}{Month d--d, 20yy, City, ST, Country}
+\copyrightyear{20yy}
+\copyrightdata{978-1-nnnn-nnnn-n/yy/mm}
 \doi{nnnnnnn.nnnnnnn}
 
-% Uncomment one of the following two, if you are not going for the 
+% Uncomment one of the following two, if you are not going for the
 % traditional copyright transfer agreement.
 
-%\exclusivelicense                % ACM gets exclusive license to publish, 
+%\exclusivelicense                % ACM gets exclusive license to publish,
                                   % you retain copyright
 
 %\permissiontopublish             % ACM gets nonexclusive license to publish
-                                  % (paid open-access papers, 
+                                  % (paid open-access papers,
                                   % short abstracts)
 
 \titlebanner{banner above paper title}        % These are ignored unless
@@ -74,7 +74,7 @@ TODO
 
 \category{CR-number}{subcategory}{third-level}
 
-% general terms are not compulsory anymore, 
+% general terms are not compulsory anymore,
 % you may leave them out
 \terms
 term1, term2
@@ -110,16 +110,36 @@ The compiler either guarantees that the resulting configurations correctly imple
 To allow for more fine-grained control over control-plane details, our language permits additional constraints on control protocol details (e.g., maximum number of allowed routes, whether to use multipath etc).
 
 
-Summary: 
-	 (1) Centralized: (simpler reasoning, no copy paste error, more concise), 
+Summary:
+	 (1) Centralized: (simpler reasoning, no copy paste error, more concise),
 	 (2) Synthesis: (no need for gory details, e.g., community values, local-pref, MED, ...),
-	 (3) Expressive: (backup routing, preferences, waypointing, directly say things like no transit or cold-potato routing), 
+	 (3) Expressive: (backup routing, preferences, waypointing, directly say things like no transit or cold-potato routing),
 	 (4) Correct: (implement the policy, even under all failure scenarios)
+
+
+\section{Motivation}
+\label{sec:motivation}
+
+We motivate our work by describing the current practice in network configuration and its shortcomings.
+In traditional networks with distributed control planes, the operators’ goal is to generate the configuration of individual devices. Based on its configuration, the device exchanges information with other (e.g., links costs or best known paths) devices, filters and ranks incoming information, and decides how to forward packets to various destinations.
+
+Device configuration languages are low-level and indirect. For instance, instead of allowing operators to express directly the paths they want through the network, they require operators to specify link costs that result in those paths; instead of allowing operators to express directly the types of traffic to not carry through the network, they require operators to select and program an appropriate filtering mechanism (e.g., route maps, null routing,  access control lists) and instantiate it on topologically appropriate devices; instead of allowing operators to directly specify that they prefer to send traffic via customer, peer, and provider networks, in that order, they require operators to program BGP local preferences at each router and ensure that the preferences are consistent across routers.
+
+In many networks today, device configurations are generated manually by operators, without the support of many automated tools. It is easy to see the problems with this approach, for instance, typos, inconsistency across devices, and no guarantees of policy compliance.
+
+To reduce such problems, some networks use a template-based approach. Configuration templates abstract certain constants into variables (e.g., instead of concrete interface IP address, they may contain a variable \$$Router1\_Interface1\_IP$) and may be device-vendor-neutral in their syntax. Operators manually generate the templates, and then use tools to translate them into device configuration, by replacing variables with appropriate constants using a database of network information and replacing vendor-neutral constructs with their vendor-specific counterparts.  
+
+%In practice, most networks use a hybrid of templates and manual generation of device configuration. Templates are used for standardized and common configuration elements across devices and the result is manually tweaked to obtain the exact desired network behavior.
+
+Template-based configuration helps avoid some of the pitfalls of the fully manual approach, it is still far from ideal. The fundamental issue is the semantic mismatch between desirable policies and the level of abstraction that templates offer. While desirable policies are network-wide (e.g., prefer customer networks or link $A$ server as backup for link $B$), templates are specified at the level of individual devices (e.g., BGP local preferences or link costs to use). Operators must still manually decompose network-wide policies into device-level policies that can produce the desired network-wide behavior.
+
+This decomposition is not always straightforward and ensuring policy-compliance can be hard, especially in the face of failures. FOR EXAMPLE:
+
 
 
 \section{Overview}
 
-Sources of bugs we fix. (It seems like the main advantage of our approach is not just fixing bugs though - it is easily describing high-level intention). 
+Sources of bugs we fix. (It seems like the main advantage of our approach is not just fixing bugs though - it is easily describing high-level intention).
 Perhaps the best way to do this is by going through a bunch of examples in section 2 and showing how you could easily introduce bugs:
 
 \begin{itemize}
@@ -139,22 +159,22 @@ Possible Examples:
 	\item Something like cold potato routing
 \end{itemize}
 
-\section{Language} 
+\section{Language}
 
 \subsection{Syntax}
 Define the grammar of each of the languages - regular language, the macro language on top of it, and maybe the IR language.
 
-\subsection{Semantics} 
+\subsection{Semantics}
 Give the semantics in terms of ranked paths.
-Extension of regular expression semantics with the 
-additional constraint that we take only valid topology paths and that their are no paths with 
-repeated locations in the path. One tricky point is that we care about paths starting or ending at locations that are 
+Extension of regular expression semantics with the
+additional constraint that we take only valid topology paths and that their are no paths with
+repeated locations in the path. One tricky point is that we care about paths starting or ending at locations that are
 connected to end-hosts in some way. And we want the length of the path to be a secondary tie-breaker.
 
 \subsection{Theory}
-What are the properties of this language? Ideally, a proof here about its expressiveness. We can perhaps do everything 
-BGP can do? We can't do shortest paths routing with BGP, but we could with OSPF though? Clearly we can only describe 
-policies that are stable under all possible failure scenarios (at least internally stable, could still cause) routing 
+What are the properties of this language? Ideally, a proof here about its expressiveness. We can perhaps do everything
+BGP can do? We can't do shortest paths routing with BGP, but we could with OSPF though? Clearly we can only describe
+policies that are stable under all possible failure scenarios (at least internally stable, could still cause) routing
 loops with interactions with neighbors.
 
 
@@ -163,29 +183,29 @@ loops with interactions with neighbors.
 \begin{itemize}
 	\item Separate prefixes so they are disjoint
 	
-	\item For each prefix, build a DFA from each of the regular path constraints 
+	\item For each prefix, build a DFA from each of the regular path constraints
 		  We do this using character classes and regular expression derivatives.
 		  The accepting states are labeled with the particular preference.
 	
-	\item Build the constraint graph, which gives us valid paths through the network that satisfy one or 
-		  more of the regular path constraints. We accept if we are in at least one of the accepting states 
+	\item Build the constraint graph, which gives us valid paths through the network that satisfy one or
+		  more of the regular path constraints. We accept if we are in at least one of the accepting states
 		  for one or more of the DFAs. Add a new start and end node as well.
-		  
-	\item Minimize the constraint graph by removing nodes and edges that never contribute to a solution. 
+		
+	\item Minimize the constraint graph by removing nodes and edges that never contribute to a solution.
 		  Required for soundness. Removing these makes it easier to check if things are implementable using BGP (see next point).
 		  We use several heuristics to make this faster (e.g., removing edges for dominated nodes)
-		  
+		
 	\item Since our policy language can express things not implementable in BGP, we need a few checks.
-		  First show some examples of what the problem is: why BGP cannot make a decision. 
-		  The reasons this can happen are: 
+		  First show some examples of what the problem is: why BGP cannot make a decision.
+		  The reasons this can happen are:
 		  (1) Single best path per router - no subset of paths specified is consistent (if A goes through B and C goes through A, then C goes through B).
 		  (2) Failures - Have to make a decision without knowing what failures have occurred. Never want to prefer one peer over another and then not get a path when one was available
 
-	\item We can check for these with a sufficient condition (that works often and is very fast), 
+	\item We can check for these with a sufficient condition (that works often and is very fast),
 
 	\item For each router, build a preference pre-order, that defines the constraints between preferences.
 	
-	\item Finally, if we know BGP can make decision locally, then we can directly translate to local BGP configurations using 
+	\item Finally, if we know BGP can make decision locally, then we can directly translate to local BGP configurations using
 		  information about the state machines from the neighbors. In particular, we tag (and test on) community values for the
 		  corresponding state and set preferences accordingly (example will be needed)
 
