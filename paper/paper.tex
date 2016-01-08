@@ -131,7 +131,7 @@ To reduce such problems, some networks use a template-based approach. Configurat
 
 %In practice, most networks use a hybrid of templates and manual generation of device configuration. Templates are used for standardized and common configuration elements across devices and the result is manually tweaked to obtain the exact desired network behavior.
 
-Template-based configuration helps avoid some of the pitfalls of the fully manual approach, it is still far from ideal. The fundamental issue is the semantic mismatch between desirable policies and the level of abstraction that templates offer. While desirable policies are network-wide (e.g., prefer customer networks or link $A$ server as backup for link $B$), templates are specified at the level of individual devices (e.g., BGP local preferences or link costs to use). Operators must still manually decompose network-wide policies into device-level policies that can produce the desired network-wide behavior.
+While template-based configuration avoids some of the pitfalls of the fully manual approach, it is still far from ideal. The fundamental issue is the semantic mismatch between desirable policies and the level of abstraction that templates offer. While desirable policies are network-wide (e.g., prefer customer networks, or link $A$ should serve as backup for link $B$), templates are device-level (e.g., BGP local preferences or link costs to use). Operators must still manually decompose network-wide policies into device-level policies that can produce the desired network-wide behavior.
 
 This decomposition is not always straightforward and ensuring policy-compliance can be hard, especially in the face of failures. FOR EXAMPLE:
 
