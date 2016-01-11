@@ -577,3 +577,8 @@ let run () =
     testRegexWellFormedness ()
     testTopologyWellFormedness ()
     testCompilation ()
+
+    (* let a = Community.disj (Community.value "X") (Community.value "Y")
+    let b = Community.negate a
+    printfn "%s" (string a)
+    printfn "%s" (string b) *)

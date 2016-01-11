@@ -30,14 +30,12 @@ module Debug =
 
 module List = 
 
-    /// A faster, inline version of fold
     let inline fold f b ls = 
         let mutable acc = b 
         for i in ls do 
             acc <- f acc i 
         acc
 
-    /// List fold without a required base element
     let inline fold1 f ls = 
         match ls with 
         | [] -> failwith "empty list in fold1"
@@ -47,11 +45,9 @@ module List =
                 acc <- f acc i 
             acc
 
-    /// Easier custom printing by joining a list of strings with a separator
     let inline joinBy sep ss = 
         fold1 (fun a b -> a + sep + b) ss
 
-    /// Enumerate all length-n combinations of a list
     let combinations n ls = 
         let rec aux acc size set = seq {
             match size, set with 
@@ -61,6 +57,20 @@ module List =
             | 0, [] -> yield acc 
             | _, [] -> () }
         aux [] n ls
+
+
+module Set = 
+
+    let inline fold1 f xs = 
+        if Set.isEmpty xs then 
+            failwith "empty set if fold1"
+        else 
+            let x = Set.minElement xs
+            let xs' = Set.remove x xs
+            Set.fold f x xs'
+
+    let inline joinBy sep ss =
+        fold1 (fun a b -> a + sep + b) ss
 
 
 module Option =

@@ -13,11 +13,13 @@ type T =
 /// ranges are merged whenever possible
 type Pred = Pred of (uint32 * uint32) list
 
-/// Constructor for a prefix
+/// Construct a prefix a.b.c.d/slash
 val prefix: (uint32*uint32*uint32*uint32) -> uint32 -> T
 
+/// Human readable for for a prefix
 val str: Pred -> string
 
+/// Construct a prefix from an integer range
 val fromRange: uint32 * uint32 -> Pred
 
 /// Logical disjunction of two prefixes
