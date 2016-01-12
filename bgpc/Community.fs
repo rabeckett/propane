@@ -82,7 +82,7 @@ let conj c1 c2 =
                         cross <- Set.add (newP, newN) cross
             let cross = simplify cross
             if Set.isEmpty cross then Bot 
-            else Val (simplify cross)
+            else Val cross
 
 let negate c1 = 
     match c1 with

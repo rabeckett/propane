@@ -1,7 +1,9 @@
 ﻿module Community
 
 
-type Pred
+type Pred =
+    | Bot
+    | Val of Set<Set<string> * Set<string>>
 
 val bot: Pred 
 val top: Pred
