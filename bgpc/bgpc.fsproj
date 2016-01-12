@@ -80,6 +80,7 @@
     <Compile Include="Prefix.fs" />
     <Compile Include="Community.fsi" />
     <Compile Include="Community.fs" />
+    <Compile Include="Predicate.fsi" />
     <Compile Include="Predicate.fs" />
     <Compile Include="Examples.fs" />
     <Compile Include="Regex.fsi" />

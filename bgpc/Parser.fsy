@@ -19,7 +19,8 @@ let addTask s ps =
 %token <string> ID
 %token <System.UInt32> INT
 
-%token EQUAL 
+%token EQUAL
+%token AT 
 %token LPAREN 
 %token RPAREN 
 %token LBRACKET 
@@ -35,8 +36,6 @@ let addTask s ps =
 %token DOT 
 %token EOF
 
-%token INTERSECT 
-%token UNION
 %token DIFFERENCE
 %token NOT 
 %token STAR 
@@ -111,8 +110,8 @@ regex:
     | ID LPAREN regexes RPAREN              { Ast.Ident ($1, $3) }
     | LBRACKET RBRACKET                     { Ast.Empty }
     | regex SEMICOLON regex                 { Ast.Concat ($1, $3) }
-    | regex INTERSECT regex                 { Ast.Inter ($1, $3) }
-    | regex UNION regex                     { Ast.Union ($1, $3) }
+    | regex AND regex                       { Ast.Inter ($1, $3) }
+    | regex OR regex                        { Ast.Union ($1, $3) }
     | regex DIFFERENCE regex                { Ast.Difference ($1, $3) }
     | NOT regex                             { Ast.Negate $2 }
     | regex STAR                            { Ast.Star $1 }
@@ -121,6 +120,7 @@ regex:
 predicate:
     | INT DOT INT DOT INT DOT INT           { Ast.Prefix($1, $3, $5, $7, None) }
     | INT DOT INT DOT INT DOT INT SLASH INT { Ast.Prefix($1, $3, $5, $7, Some $9) }
+	| INT COLON INT						    { Ast.Community ($1, $3) }
     | TRUE                                  { Ast.True }
     | FALSE                                 { Ast.False }
     | predicate OR predicate                { Ast.Or($1, $3) }

@@ -3,7 +3,8 @@
 type Predicate =
     | True
     | False
-    | Prefix of uint32 * uint32 * uint32 * uint32 * uint32 option 
+    | Prefix of uint32 * uint32 * uint32 * uint32 * uint32 option
+    | Community of uint32 * uint32 
     | Or of Predicate * Predicate
     | And of Predicate * Predicate
 
@@ -26,7 +27,7 @@ type Expr =
 type PathConstraint = Predicate * (Re list)
 type PathConstraints = PathConstraint list
 
-type ConcretePathConstraint = Prefix.T list * Re list
+type ConcretePathConstraint = Predicate.T * Re list
 type ConcretePathConstraints = ConcretePathConstraint list
 
 type ControlConstraint = string * Expr list
@@ -39,7 +40,7 @@ type Task =
 type CConstraint = 
     | Aggregate of Prefix.T list * Set<string> * Set<string>
 
-type PolicyPair = (Prefix.T list * Regex.REBuilder * Regex.T list)
+type PolicyPair = (Predicate.T * Regex.REBuilder * Regex.T list)
 
 type BinOp = 
     | OConcat 

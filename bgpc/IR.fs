@@ -49,18 +49,18 @@ type DeviceConfig =
     {Originates: bool;
      Filters: (Import * Export list) list}
 
-type PrefixConfig = Prefix.T list * Map<string, DeviceConfig>
+type PredConfig = Predicate.T * Map<string, DeviceConfig>
 
 type DeviceAggregates = (Prefix.T list * seq<string>) list
 type Aggregates = Map<string, DeviceAggregates>
 
 type RouterConfig = 
-    {Actions: (Prefix.T list * DeviceConfig) list;
+    {Actions: (Predicate.T * DeviceConfig) list;
      Aggregates: DeviceAggregates}
 
 type T = Map<string, RouterConfig>
 
-let joinConfigs aggs (pairs: PrefixConfig list) : T =
+let joinConfigs aggs (pairs: PredConfig list) : T =
     let mutable result = Map.empty
     for (prefix, config) in pairs do 
         for kv in config do
@@ -83,16 +83,11 @@ let format (config: T) =
         for (prefix, peers) in routerConfig.Aggregates do
             for peer in peers do
                 sb.Append("\n  Aggregate(" + string prefix + ", " + peer + ")") |> ignore
-        for (prefix, deviceConf) in routerConfig.Actions do
-            let prefixStr = 
-                if List.isEmpty prefix then "false" else
-                if Prefix.toPredicate prefix = Prefix.top then "true" else
-                prefix
-                |> List.map (fun p -> p.ToString())
-                |> Common.List.joinBy " or "
+        for (pred, deviceConf) in routerConfig.Actions do
+            let predStr = string pred
             for ((m, lp), es) in deviceConf.Filters do
                 sb.Append("\n  Match: ") |> ignore
-                sb.Append("[Prefix=" + prefixStr + ", ") |> ignore
+                sb.Append("[Prefix=" + predStr + ", ") |> ignore
                 sb.Append(m.ToString() + "]") |> ignore
                 if (not deviceConf.Originates) && lp <> 100 then
                     sb.Append(" (LP=" + lp.ToString() + ")") |> ignore
@@ -224,7 +219,7 @@ let initMapper () =
 
 (* Generate the configuration given preference-based ordering 
    that satisfies our completeness/fail resistance properties *)
-let genConfig (cg: CGraph.T) (prefix: Prefix.T list) (ord: Consistency.Ordering) (inExports: IncomingExportMap) : PrefixConfig =
+let genConfig (cg: CGraph.T) (pred: Predicate.T) (ord: Consistency.Ordering) (inExports: IncomingExportMap) : PredConfig =
     let settings = Args.getSettings ()
     let (ain, _) = Topology.alphabet cg.Topo
     let ain = Set.map (fun (v: Topology.State) -> v.Loc) ain
@@ -285,7 +280,7 @@ let genConfig (cg: CGraph.T) (prefix: Prefix.T list) (ord: Consistency.Ordering)
 
             let deviceConf = {Originates=originates; Filters=filters}
             config <- Map.add loc deviceConf config
-    (prefix, config)
+    (pred, config)
 
 
 /// Compress configs to make them more readable by 
@@ -309,7 +304,7 @@ module Compress =
     (* For each pair of (X,Y) edges in the product graph
        if the pair is unique, then there is no need to 
        match/tag on the community, so we can remove it *)
-    let compressUniquePairs (cg: CGraph.T) ((prefix, config): PrefixConfig) : PrefixConfig =
+    let compressUniquePairs (cg: CGraph.T) ((pred, config): PredConfig) : PredConfig =
         let pairCount = 
             cg.Graph.Vertices
             |> Seq.map ((fun v -> (v, neighbors cg v)) >> (fun (v, ns) -> Seq.map (fun n -> (v,n)) ns))
@@ -341,7 +336,7 @@ module Compress =
                 newFilters <- newFilt :: newFilters
             let newDeviceConf = {Originates=deviceConf.Originates; Filters=List.rev newFilters}
             newConfig <- Map.add loc newDeviceConf newConfig
-        (prefix, newConfig)
+        (pred, newConfig)
 
     (*
     (* Find the longest consecutive sequence of imports for each peer. 
@@ -441,7 +436,7 @@ module Compress =
 
     (* Removes less preferred, but otherwise identical imports.
        These can never occur unless they are back-to-back in the configuration. *)
-    let compressIdenticalImports ((prefix, config): PrefixConfig) : PrefixConfig =
+    let compressIdenticalImports ((pred, config): PredConfig) : PredConfig =
         let rec aux filters acc = 
             match filters with
             | [] -> acc
@@ -457,11 +452,11 @@ module Compress =
             let newFilters = aux (List.rev deviceConf.Filters) []
             let newDeviceConf = {Originates=deviceConf.Originates; Filters=newFilters}
             newConfig <- Map.add loc newDeviceConf newConfig
-        (prefix, newConfig)
+        (pred, newConfig)
 
     (* Avoids tagging with a community from A to B, when B never
        needs to distinguish based on that particular community value *)
-    let compressTaggingWhenNotImported ((prefix, config): PrefixConfig) : PrefixConfig =
+    let compressTaggingWhenNotImported ((pred, config): PredConfig) : PredConfig =
         let importCommNeeded = ref Map.empty 
         for kv in config do 
             let loc = kv.Key 
@@ -496,11 +491,11 @@ module Compress =
                     ) dc.Filters
                 {Originates=dc.Originates; Filters=filters'}
             ) config
-        (prefix, newConfig)
+        (pred, newConfig)
 
     (* Whenever we export identical routes to all peers, we can replace
        this with a simpler route export of the form: (Export: * ) for readability *)
-    let compressAllExports (cg: CGraph.T) ((prefix, config): PrefixConfig) : PrefixConfig =
+    let compressAllExports (cg: CGraph.T) ((pred, config): PredConfig) : PredConfig =
         let mutable newConfig = Map.empty
         for kv in config do
             let loc = kv.Key 
@@ -536,11 +531,11 @@ module Compress =
                 else newFilters <- f :: newFilters
             let newDC = {Originates=deviceConf.Originates; Filters=List.rev newFilters}
             newConfig <- Map.add loc newDC newConfig
-        (prefix, newConfig)
+        (pred, newConfig)
 
     (* Whenever import identical routes from all peers, we can replace
        this with a simpler route import of the form: (Import: * ) for readability *)
-    let compressAllImports (cg: CGraph.T) ((prefix, config): PrefixConfig) : PrefixConfig =
+    let compressAllImports (cg: CGraph.T) ((pred, config): PredConfig) : PredConfig =
         let mutable newConfig = Map.empty
         for kv in config do
             let loc = kv.Key 
@@ -587,11 +582,11 @@ module Compress =
                 else filters
             let newDC = {Originates=deviceConf.Originates; Filters=newFilters}
             newConfig <- Map.add loc newDC newConfig
-        (prefix, newConfig)
+        (pred, newConfig)
 
     (* Make a config smaller (e.g., number of route maps) and more human-readable
        by removing community tagging information when possible *)
-    let compress (cg: CGraph.T) (config: PrefixConfig) (outName: string) : PrefixConfig =
+    let compress (cg: CGraph.T) (config: PredConfig) (outName: string) : PredConfig =
         debug1 (fun () -> System.IO.File.WriteAllText(outName + "-raw.ir", formatPrefix config))
         let config = compressUniquePairs cg config
         debug2 (fun () -> System.IO.File.WriteAllText(outName + "-min1.ir", formatPrefix config))
@@ -609,7 +604,7 @@ module Compress =
 /// Given a topology and a policy, generate a low-level configuration in an intermediate
 /// byte-code-like, vendor-independent representation for BGP 
 
-let compileToIR fullName idx prefix (reb: Regex.REBuilder) res : Result<PrefixConfig, CounterExample> =
+let compileToIR fullName idx pred (reb: Regex.REBuilder) res : Result<PredConfig, CounterExample> =
     let fullName = fullName + "(" + (string idx) + ")"
     (* compute the automata and product graph *)
     let dfas = 
@@ -655,7 +650,7 @@ let compileToIR fullName idx prefix (reb: Regex.REBuilder) res : Result<PrefixCo
                 let inExports = configureIncomingTraffic cg
                 match Consistency.findOrderingConservative idx cg fullName with 
                 | Ok ord ->
-                    let config = genConfig cg prefix ord inExports
+                    let config = genConfig cg pred ord inExports
                     let config = Compress.compress cg config fullName
                     Ok (config)
                 | Err((x,y)) -> Err(InconsistentPrefs(x,y))
@@ -663,9 +658,9 @@ let compileToIR fullName idx prefix (reb: Regex.REBuilder) res : Result<PrefixCo
                 | UncontrollableEnterException s -> Err(UncontrollableEnter s)
                 | UncontrollablePeerPreferenceException s -> Err(UncontrollablePeerPreference s)
 
-let compileForSinglePrefix fullName idx (prefix, reb, res) =
+let compileForSinglePrefix fullName idx (pred, reb, res) =
     try 
-        match compileToIR fullName idx prefix reb res with 
+        match compileToIR fullName idx pred reb res with 
         | Ok(config) -> config
         | Err(x) -> 
             match x with

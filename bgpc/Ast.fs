@@ -7,7 +7,8 @@ open Common.Debug
 type Predicate =
     | True
     | False
-    | Prefix of uint32 * uint32 * uint32 * uint32 * uint32 option 
+    | Prefix of uint32 * uint32 * uint32 * uint32 * uint32 option
+    | Community of uint32 * uint32 
     | Or of Predicate * Predicate
     | And of Predicate * Predicate
 
@@ -30,7 +31,7 @@ type Expr =
 type PathConstraint = Predicate * (Re list)
 type PathConstraints = PathConstraint list
 
-type ConcretePathConstraint = Prefix.T list * Re list
+type ConcretePathConstraint = Predicate.T * Re list
 type ConcretePathConstraints = ConcretePathConstraint list
 
 type ControlConstraint = string * Expr list
@@ -43,7 +44,7 @@ type Task =
 type CConstraint = 
     | Aggregate of Prefix.T list * Set<string> * Set<string>
 
-type PolicyPair = (Prefix.T list * Regex.REBuilder * Regex.T list)
+type PolicyPair = (Predicate.T * Regex.REBuilder * Regex.T list)
 
 type T = 
     {Defs: Map<string, Re>;
@@ -91,23 +92,44 @@ let rec buildRegex (ast: T) (reb: Regex.REBuilder) (r: Re) : Regex.LazyT =
             | Some r ->
                 (* TODO: check for recursive definition *)
                 buildRegex ast reb r
-            
-let rec asRanges (p: Predicate) : Prefix.Pred = 
+
+let validatePrefix (a,b,c,d,adjBits) =
+    let p = Prefix.prefix (a,b,c,d) adjBits
+    if (a > 255u || b > 255u || c > 255u || d > 255u || adjBits > 32u) then
+        raise (InvalidPrefixException p)
+
+
+let rec toPredicate (p: Predicate) : Predicate.T = 
     match p with 
-    | True -> Prefix.top
-    | False -> Prefix.bot
-    | And(a,b) -> Prefix.conj (asRanges a) (asRanges b)
-    | Or(a,b) -> Prefix.disj (asRanges a) (asRanges b)
+    | True -> Predicate.top
+    | False -> Predicate.bot
+    | And(a,b) -> Predicate.conj (toPredicate a) (toPredicate b)
+    | Or(a,b) -> Predicate.disj (toPredicate a) (toPredicate b)
     | Prefix(a,b,c,d,bits) ->
-        let adjustedBits = 
+        let adjBits = 
             match bits with
             | None -> 32u
             | Some x -> x
-        let p = Prefix.prefix (a,b,c,d) adjustedBits
-        if (a > 255u || b > 255u || c > 255u || d > 255u || adjustedBits > 32u) then
-            raise (InvalidPrefixException p)
-        Prefix.toPredicate [p]
+        validatePrefix (a,b,c,d,adjBits)
+        Predicate.prefix (a,b,c,d) adjBits
+    | Community(x,y) ->  Predicate.community (string x + ":" + string y)
 
+let rec toPrefixes (p: Predicate) : Prefix.Pred = 
+    match p with 
+    | True -> Prefix.top
+    | False -> Prefix.bot 
+    | And(a,b) -> Prefix.conj (toPrefixes a) (toPrefixes b)
+    | Or(a,b) -> Prefix.disj (toPrefixes a) (toPrefixes b)
+    | Prefix(a,b,c,d,bits) ->
+        let adjBits = 
+            match bits with
+            | None -> 32u
+            | Some x -> x
+        validatePrefix (a,b,c,d,adjBits)
+        Prefix.toPredicate [Prefix.prefix (a,b,c,d) adjBits]
+    | Community(x,y) -> 
+        parseError (sprintf "Invalid Community predicate: (%d: %d) " x y)
+        
 let buildCConstraint ast (topo: Topology.T) cc =
     let reb = Regex.REBuilder(topo) 
     let (name, args) = cc
@@ -122,7 +144,7 @@ let buildCConstraint ast (topo: Topology.T) cc =
                     let locsX = Regex.singleLocations (reb.Topo()) (buildRegex ast reb x)
                     let locsY = Regex.singleLocations (reb.Topo()) (buildRegex ast reb y)
                     match locsX, locsY with 
-                    | Some xs, Some ys -> Aggregate (Prefix.toPrefixes (asRanges p), xs, ys)
+                    | Some xs, Some ys -> Aggregate (Prefix.toPrefixes (toPrefixes p), xs, ys)
                     | _, _ -> error (sprintf "link expression parameter 2 to aggregate must denote single locations")
                 | _ -> error (sprintf "parameter 2 to aggregate must be a link expression (e.g., in -> out)")
             | _ -> error (sprintf "parameter 1 to aggregate must be a prefix")
@@ -169,29 +191,26 @@ let combineRegexes (rs1: Re list) (rs2: Re list) (op: BinOp) : Re list =
 
 let combineConstraints (pcs1: ConcretePathConstraints) (pcs2: ConcretePathConstraints) (op: BinOp) =
     let mutable combined = []
-    let mutable rollingPred = Prefix.bot
+    let mutable rollingPred = Predicate.bot
     for (ps, res) in pcs1 do 
         for (ps', res') in pcs2 do
-            let rs = Prefix.toPredicate ps
-            let rs' = Prefix.toPredicate ps'
-            let comb = Prefix.conj rs rs'
-            let asPref = Prefix.toPrefixes comb
-            let notAbove = Prefix.conj comb (Prefix.negation rollingPred)
-            if notAbove <> Prefix.bot then
-                rollingPred <- Prefix.disj rollingPred comb
-                let both = (asPref, combineRegexes res res' op)
+            let comb = Predicate.conj ps ps'
+            let notAbove = Predicate.conj comb (Predicate.negate rollingPred)
+            if notAbove <> Predicate.bot then
+                rollingPred <- Predicate.disj rollingPred comb
+                let both = (comb, combineRegexes res res' op)
                 combined <- both :: combined
     List.rev combined
 
-let checkPrefixes (sName: string) (pcs: ConcretePathConstraints) =
+let checkPredicates (sName: string) (pcs: ConcretePathConstraints) =
     try 
-        let mutable rollingPred = Prefix.top
+        let mutable rollingPred = Predicate.top
         for (pred, _) in pcs do
-            let ranges = Prefix.conj (Prefix.toPredicate pred) rollingPred
-            rollingPred <- Prefix.conj rollingPred (Prefix.negation ranges)
-        if rollingPred <> Prefix.bot then 
-            let exPrefix = List.head (Prefix.toPrefixes rollingPred)
-            let s = exPrefix.ToString()
+            let p = Predicate.conj pred rollingPred
+            rollingPred <- Predicate.conj rollingPred (Predicate.negate p)
+        if rollingPred <> Predicate.bot then
+            printfn "rollingPred: %s" (string rollingPred)
+            let s = Predicate.example rollingPred
             error (sprintf "Incomplete prefixes in scope (%s). An example of a prefix that is not matched: %s" sName s)
     with InvalidPrefixException p ->
         error (sprintf "Invalid prefix: %s" (p.ToString()))
@@ -211,8 +230,8 @@ let rec mergeTasks (re: Re) disjoints : ConcretePathConstraints =
         Map.find x disjoints
 
 let addPair acc s =
-    let cconstrs = List.map (fun (p,r) -> (Prefix.toPrefixes (asRanges p),r)) s.PConstraints
-    checkPrefixes s.Name cconstrs
+    let cconstrs = List.map (fun (p,r) -> (toPredicate p,r)) s.PConstraints
+    checkPredicates s.Name cconstrs
     Map.add s.Name cconstrs acc
 
 let makePolicyPairs (ast: T) (topo: Topology.T) : PolicyPair list =
@@ -229,9 +248,9 @@ let makePolicyPairs (ast: T) (topo: Topology.T) : PolicyPair list =
     let disjoints = List.fold addPair Map.empty ast.Tasks
     let allPCs = mergeTasks ast.Policy disjoints
     let mutable acc = []
-    for (prefixes, res) in allPCs do 
+    for (pred, res) in allPCs do 
         let reb = Regex.REBuilder(topo)
         let res = List.map (buildRegex ast reb) res 
         let res = List.map reb.Build res
-        acc <- (prefixes, reb, res) :: acc
+        acc <- (pred, reb, res) :: acc
     List.rev acc

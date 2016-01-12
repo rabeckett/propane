@@ -25,12 +25,13 @@ type T =
             else
                 let ret = sprintf "%s and %s" (Prefix.str pair.Prefix) (string pair.Comm)
                 if parens then "(" + ret + ")" else ret
-        let (Pred pairs) = this 
-        if Set.count pairs = 1 then
-            aux false (Set.minElement pairs)
-        else Common.Set.joinBy " or " (Set.map (aux true) pairs)
+        let (Pred pairs) = this
+        match Set.count pairs with 
+        | 0 -> "false"
+        | 1 -> aux false (Set.minElement pairs)
+        | _ -> Common.Set.joinBy " or " (Set.map (aux true) pairs)
 
-let bot = Pred (Set.singleton botPair)
+let bot = Pred (Set.empty)
 
 let top = Pred (Set.singleton topPair)
 
@@ -39,10 +40,20 @@ let prefix p slash =
         {Prefix = Prefix.toPredicate [Prefix.prefix p slash]; 
          Comm = Community.top})
 
+let prefixPred x =
+    Pred (Set.singleton 
+        {Prefix = x; 
+         Comm = Community.top})
+
 let community c = 
     Pred (Set.singleton
         {Prefix = Prefix.top;
          Comm = Community.value c})
+
+let communityPred x =
+    Pred (Set.singleton
+        {Prefix = Prefix.top;
+         Comm = x})
 
 let join x y = 
     {Prefix = Prefix.conj x.Prefix y.Prefix;
@@ -79,8 +90,7 @@ let simplify xs =
             xs <- Set.remove y xs
             xs <- Set.add z xs
     xs <- Set.map (fun x -> if x.Prefix = Prefix.bot || x.Comm = Community.bot then botPair else x) xs
-    if Set.isEmpty xs then xs
-    else if Set.contains topPair xs then Set.singleton topPair 
+    if Set.contains topPair xs then Set.singleton topPair 
     else Set.remove botPair xs
 
 let disj x y = 
@@ -100,9 +110,34 @@ let conj x y =
     Pred (simplify cross)
         
 let negate x  =
+    if x = bot then top else
     let (Pred xs) = x
     Set.map (fun x -> 
         let a = {Prefix = Prefix.negation x.Prefix; Comm = Community.top}
         let b = {Prefix = Prefix.top; Comm = Community.negate x.Comm}
         Pred (simplify (Set.ofList [a; b])) ) xs
     |> Common.Set.fold1 conj
+
+let example x = 
+    let (Pred xs) = x
+    if Set.isEmpty xs then "false" else
+    let a = Set.minElement xs
+    let exPrefix = 
+        match Prefix.toPrefixes a.Prefix with
+        | [] -> "false"
+        | x::_ -> string x
+    let exComm = 
+        match a.Comm with
+        | Community.Bot -> "false"
+        | Community.Val xs -> 
+            if Set.isEmpty xs then "true" else
+            Set.minElement xs 
+            |> Set.singleton
+            |> Community.Val
+            |> string
+    match exPrefix, exComm with
+    | "false", _ -> "false"
+    | _, "false" -> "false"
+    | _, "true" -> exPrefix
+    | "0.0.0.0/0", _ -> exComm
+    | _, _ -> exPrefix + " and " + exComm

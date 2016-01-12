@@ -24,7 +24,7 @@ let receiveFrom (_,config) x y =
     let deviceConf = Map.find x config 
     List.exists (fun ((m,_), _) -> isPeer y m) deviceConf.Filters
 
-let originates ((_, config): IR.PrefixConfig) x =
+let originates ((_, config): IR.PredConfig) x =
     let deviceConfig = Map.find x config
     deviceConfig.Originates
 
@@ -454,21 +454,21 @@ let testPrefixes () =
 
 /// Randomized tests that check that the scope merging cross product 
 /// construction never introduces new prefixes not specified originally
-let testPrefixMerging () = 
+(* let testPrefixMerging () = 
     printfn "Testing prefix compaction..."
     let allPrefixes ccs = 
         ccs
         |> List.map (fst >> Set.ofList)
         |> List.fold Set.union Set.empty
-    let tru = [Prefix.prefix (0u,0u,0u,0u) 0u]
+    let tru = Predicate.prefix (0u,0u,0u,0u) 0u
     for i = 0 to (maxTests / 10) do
         let task1 =
-            let x = Prefix.toPrefixes (randomPrefix ())
-            let y = Prefix.toPrefixes (randomPrefix ())
+            let x = Predicate.prefixPred (randomPrefix ())
+            let y = Predicate.prefixPred (randomPrefix ())
             [ (x, [Ast.Empty]); (y, [Ast.Empty]); (tru, [Ast.Empty]) ]
         let task2 =
-            let x = Prefix.toPrefixes (randomPrefix ())
-            let y = Prefix.toPrefixes (randomPrefix ())
+            let x = Predicate.prefixPred (randomPrefix ())
+            let y = Predicate.prefixPred (randomPrefix ())
             [ (x, [Ast.Empty]); (y, [Ast.Empty]); (tru, [Ast.Empty]) ]
         let combined = Ast.combineConstraints task1 task2 Ast.OInter
         /// compare the old to new prefixes
@@ -476,7 +476,7 @@ let testPrefixMerging () =
         let allCurrent = allPrefixes combined
         /// check we don't introduce new ones
         if not (Set.isSubset allCurrent allOriginal) then
-            printfn "[Failed]: Compacted prefixes are not a subset"
+            printfn "[Failed]: Compacted prefixes are not a subset" *)
 
 let testRegexWellFormedness () =
     printfn "Testing regex well-formedness..."
@@ -517,8 +517,8 @@ let testCompilation() =
             printfn "%s" msg
             logInfo0(0, msg)
         else
-            let prefix = Prefix.toPrefixes Prefix.top
-            match IR.compileToIR (settings.DebugDir + test.Name) 0 prefix reb built with 
+            let pred = Predicate.top
+            match IR.compileToIR (settings.DebugDir + test.Name) 0 pred reb built with 
             | Err(x) ->
                 if (Option.isSome test.Receive || 
                     Option.isSome test.Originate || 
@@ -572,27 +572,8 @@ let testCompilation() =
 
 let run () =
     printfn ""
-
-    let a = Predicate.community "A"
-    let b = Predicate.prefix (0u, 0u, 0u, 0u) 0u
-    let c = Predicate.conj a b
-    let d = Predicate.bot 
-    let e = Predicate.disj c d
-
-    let x = Predicate.prefix (0u, 0u, 0u, 0u) 0u
-    let y = Predicate.conj a x
-    let z = Predicate.disj c y
-
-    let f = Predicate.community "B"
-    let g = Predicate.conj z f
-    let h = Predicate.negate g
-
-    printfn "%s" (string g)
-    printfn "%s" (string h)
-
-    (*
     testPrefixes ()
-    testPrefixMerging () 
+    (* testPrefixMerging () *)
     testRegexWellFormedness ()
     testTopologyWellFormedness ()
-    testCompilation () *)
+    testCompilation ()

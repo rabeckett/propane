@@ -11,47 +11,46 @@ let newline (lexbuf: LexBuffer<_>) =
 }
 
 
+let digits = ['0'-'9']+ 
 let id = ['a'-'z' 'A'-'Z'] ['a'-'z' 'A'-'Z' '0'-'9']*
 let whitespace = [ ' ' '\t' '\r' '\n' ]
 
 rule tokenize = parse
-	| "/*"					{ comments 0 lexbuf } 
-	| "define"				{ DEFINE }
-	| "task"				{ TASK }
-	| "inter"				{ INTERSECT }
-	| "union"				{ UNION }
-	| "not"					{ NOT }
-	| "and"					{ AND }
-	| "or"					{ OR }
-	| "true"				{ TRUE }
-	| "false"				{ FALSE }
-	| "control"				{ CONTROL }
-	| id					{ ID (LexBuffer<char>.LexemeString lexbuf) }
-	| ['0'-'9']+			{ INT (UInt32.Parse (LexBuffer<char>.LexemeString lexbuf)) }
-	| '='					{ EQUAL }
-	| '('					{ LPAREN }
-	| ')'					{ RPAREN }
-	| "->"					{ RARROW }
-	| "=>"					{ ROCKET }
-	| '['					{ LBRACKET }
-	| ']'					{ RBRACKET }
-	| '{'					{ LBRACE }
-	| '}'					{ RBRACE }
-	| ','					{ COMMA }
-	| '/'					{ SLASH }
-	| '\\'					{ DIFFERENCE }
-	| ':'					{ COLON }
-	| ';'					{ SEMICOLON }
-	| '.'					{ DOT }
-	| '*'					{ STAR }
-	| ">>"					{ SHR }
-	| [' ' '\t' '\r']		{ tokenize lexbuf }
-	| '\n'					{ newline lexbuf; tokenize lexbuf }
-	| eof					{ EOF }
+	| "/*"                  { comments 0 lexbuf } 
+	| "define"              { DEFINE }
+	| "task"                { TASK }
+	| "not"	                { NOT }
+	| "and"                 { AND }
+	| "or"                  { OR }
+	| "true"                { TRUE }
+	| "false"               { FALSE }
+	| "control"             { CONTROL }
+	| id                    { ID (LexBuffer<char>.LexemeString lexbuf) }
+	| digits                { INT (UInt32.Parse (LexBuffer<char>.LexemeString lexbuf)) }
+	| '='                   { EQUAL }
+	| '('                   { LPAREN }
+	| ')'                   { RPAREN }
+	| "->"                  { RARROW }
+	| "=>"                  { ROCKET }
+	| '['                   { LBRACKET }
+	| ']'                   { RBRACKET }
+	| '{'                   { LBRACE }
+	| '}'                   { RBRACE }
+	| ','                   { COMMA }
+	| '/'                   { SLASH }
+	| '\\'                  { DIFFERENCE }
+	| ':'                   { COLON }
+	| ';'                   { SEMICOLON }
+	| '.'                   { DOT }
+	| '*'                   { STAR }
+	| ">>"                  { SHR }
+	| [' ' '\t' '\r']       { tokenize lexbuf }
+	| '\n'                  { newline lexbuf; tokenize lexbuf }
+	| eof                   { EOF }
 
 and comments level = parse
-	| "*/"					{ if level = 0 then tokenize lexbuf else comments (level-1) lexbuf }
-	| "/*"					{ comments (level+1) lexbuf }
-	| '\n'					{ newline lexbuf; comments level lexbuf }
-	| _						{ comments level lexbuf }
-	| eof					{ raise EofInComment }
+	| "*/"                  { if level = 0 then tokenize lexbuf else comments (level-1) lexbuf }
+	| "/*"                  { comments (level+1) lexbuf }
+	| '\n'                  { newline lexbuf; comments level lexbuf }
+	| _	                    { comments level lexbuf }
+	| eof                   { raise EofInComment }

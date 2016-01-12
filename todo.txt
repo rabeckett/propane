@@ -1,4 +1,14 @@
-﻿Correctness
+﻿Paper:	
+	Add maxroutes constraints
+	Add community tagging constraints
+	Add delete community tagging constraints
+	Add allow private AS, etc
+	
+	Add lexical scoping operator
+	Lift preferences to top level
+	Define new predicates: never, only, prefLocs, startIn, etc
+
+Correctness
 	Remove edges not on simple path efficiently
 
 Aggregation:
@@ -8,6 +18,7 @@ Aggregation:
 
 Well-formedness:
 	Disallow aggregation on external locations
+	Ensure no recursive definitions
 
 
 

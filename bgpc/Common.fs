@@ -63,7 +63,7 @@ module Set =
 
     let inline fold1 f xs = 
         if Set.isEmpty xs then 
-            failwith "empty set if fold1"
+            failwith "empty set in fold1"
         else 
             let x = Set.minElement xs
             let xs' = Set.remove x xs
