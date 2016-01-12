@@ -12,13 +12,11 @@ type T =
         (string this.X4) + "/" + 
         (string this.Slash) 
 
-type Pred = Pred of (uint32 * uint32) list
+type Pred = 
+    Pred of (uint32 * uint32) list
 
 let prefix (a,b,c,d) slash = 
     {X1=a; X2=b; X3=c; X4=d; Slash=slash}
-
-let str (Pred x) =
-    sprintf "%A" x
 
 let fromRange (x,y) = Pred [(x,y)]
 
@@ -208,3 +206,11 @@ let toPrefixes (Pred rs: Pred) : T list =
     rs
     |> List.map prefixesOfRange
     |> List.concat
+
+let str x =
+    let pfxs = toPrefixes x
+    let strs = List.map string pfxs
+    match List.length strs with 
+    | 0 -> "false"
+    | 1 -> Common.List.joinBy " or " strs 
+    | _ -> Common.List.joinBy " or " strs |> sprintf "(%s)"

@@ -7,20 +7,25 @@ type Pred =
     
     override this.ToString() =
         let aux (p,n) =
-            let x = if Set.isEmpty p then "" else Common.Set.joinBy " and " p
-            let y = if Set.isEmpty n then "" else Common.Set.joinBy " and " (Set.map (fun s -> "!" + s) n)
-            match x, y with
-            | "", "" -> "true"
-            | _, "" ->  "(" + x + ")"
-            | "", _ -> "(" + y + ")"
-            | _, _ -> "(" + x + " and " + y + ")"
+            let x = if Set.isEmpty p then "" else Common.Set.joinBy " and " (Set.map (fun s -> "tag:" + s) p)
+            let y = if Set.isEmpty n then "" else Common.Set.joinBy " and " (Set.map (fun s -> "!tag:" + s) n)
+            let str = 
+                match x, y with
+                | "", "" -> "true"
+                | _, "" -> x
+                | "", _ -> y
+                | _, _ -> x + " and " + y
+            if Set.count p + Set.count n > 1 then "(" + str + ")" else str
         match this with
         | Bot -> "false"
-        | Val cs -> 
-            if Set.isEmpty cs then "true"
-            else 
+        | Val cs ->
+            match Set.count cs with 
+            | 0 -> "true"
+            | 1 -> aux (Set.minElement cs)
+            | _ ->
                 let strs = Set.map aux cs
-                Common.Set.joinBy " or " strs
+                let all = Common.Set.joinBy " or " strs
+                "(" + all + ")"
 
 let bot = Bot 
 

@@ -572,8 +572,27 @@ let testCompilation() =
 
 let run () =
     printfn ""
+
+    let a = Predicate.community "A"
+    let b = Predicate.prefix (0u, 0u, 0u, 0u) 0u
+    let c = Predicate.conj a b
+    let d = Predicate.bot 
+    let e = Predicate.disj c d
+
+    let x = Predicate.prefix (0u, 0u, 0u, 0u) 0u
+    let y = Predicate.conj a x
+    let z = Predicate.disj c y
+
+    let f = Predicate.community "B"
+    let g = Predicate.conj z f
+    let h = Predicate.negate g
+
+    printfn "%s" (string g)
+    printfn "%s" (string h)
+
+    (*
     testPrefixes ()
     testPrefixMerging () 
     testRegexWellFormedness ()
     testTopologyWellFormedness ()
-    testCompilation ()
+    testCompilation () *)
