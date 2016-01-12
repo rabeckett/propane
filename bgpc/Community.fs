@@ -28,8 +28,35 @@ let top = Val Set.empty
 
 let value v = Val (Set.singleton (Set.singleton v, Set.empty))
 
-(* TODO *)
-let simplify xs = xs
+let factor (a,b) (c,d) = 
+    let allSame = (Set.union a b = Set.union c d)
+    if allSame then
+        Some (Set.intersect a c, Set.intersect b d)
+    else None
+
+let find2 xs = 
+    let mutable found = None
+    for x in xs do 
+        for y in xs do 
+            if x <> y then 
+                match factor x y with
+                | None -> ()
+                | Some z -> found <- Some (x,y,z)
+    found
+
+let simplify xs =
+    let mutable change = true
+    let mutable xs = xs
+    while change do
+        change <- false
+        match find2 xs with
+        | None -> ()
+        | Some (x,y,z) -> 
+            change <- true
+            xs <- Set.remove x xs 
+            xs <- Set.remove y xs
+            xs <- Set.add z xs
+    xs
 
 let disj c1 c2 =
     match c1, c2 with
@@ -43,8 +70,6 @@ let conj c1 c2 =
     | Bot, _ -> Bot
     | _, Bot -> Bot
     | Val xs, Val ys ->
-        printfn "xs: %A" xs
-        printfn "ys: %A" ys
         if Set.isEmpty xs then c2 
         else if Set.isEmpty ys then c1
         else
@@ -65,13 +90,8 @@ let negate c1 =
     | Val xs -> 
         if Set.isEmpty xs then bot
         else
-            let clauses = 
-                Set.map (fun (p,n) -> 
-                    Val (Set.union 
-                        (Set.map (fun s -> (Set.singleton s, Set.empty)) n)
-                        (Set.map (fun s -> (Set.empty, Set.singleton s)) p))
-                ) xs
-            printfn "Clauses: %A" clauses
-            let ret = Set.fold conj top clauses
-            printfn "Negated: %A" ret
-            ret
+            Set.map (fun (p,n) -> 
+                Val (Set.union 
+                    (Set.map (fun s -> (Set.singleton s, Set.empty)) n)
+                    (Set.map (fun s -> (Set.empty, Set.singleton s)) p)) ) xs
+            |> Set.fold conj top
