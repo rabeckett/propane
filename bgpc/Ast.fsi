@@ -17,6 +17,7 @@ type Re =
     | Difference of Re * Re
     | Negate of Re
     | Star of Re
+    | Shr of Re * Re
     | Ident of string * Re list
 
 type Expr =
@@ -25,7 +26,7 @@ type Expr =
     | IntLiteral of uint32
     | IdentExpr of string
 
-type PathConstraint = Predicate * (Re list)
+type PathConstraint = Predicate * Re
 type PathConstraints = PathConstraint list
 
 type ConcretePathConstraint = Predicate.T * Re list

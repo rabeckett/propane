@@ -21,6 +21,7 @@ type Re =
     | Difference of Re * Re
     | Negate of Re
     | Star of Re
+    | Shr of Re * Re
     | Ident of string * Re list
 
 type Expr =
@@ -29,7 +30,7 @@ type Expr =
     | IntLiteral of uint32
     | IdentExpr of string
 
-type PathConstraint = Predicate * (Re list)
+type PathConstraint = Predicate * Re
 type PathConstraints = PathConstraint list
 
 type ConcretePathConstraint = Predicate.T * Re list
@@ -57,6 +58,34 @@ type T =
      Policy: Re}
 
 exception InvalidPrefixException of Prefix.T
+
+let rec bubblePrefsToTop (r: Re) : Re list = 
+    match r with 
+    | Empty -> [Empty]
+    | Concat (x,y) -> merge r (x,y) (fun a b -> Concat(a,b))
+    | Inter (x,y) -> merge r (x,y) (fun a b -> Inter(a,b))
+    | Union (x,y) -> merge r (x,y) (fun a b -> Union(a,b))
+    | Difference (x,y) -> merge r (x,y) (fun a b -> Difference(a,b))
+    | Star x -> mergeSingle r x "star"
+    | Negate x -> mergeSingle r x "negation"
+    | Shr (x,y) -> (bubblePrefsToTop x) @ (bubblePrefsToTop y)
+    | Ident _ -> [r] (* TODO: invariant - no prefs in expansion, remove from REBuilder code *)
+and merge r (x,y) f =
+    let xs = bubblePrefsToTop x 
+    let ys = bubblePrefsToTop y
+    match xs, ys with
+    | [a], _ -> List.map (fun b -> f a b) ys
+    | _, [b] -> List.map (fun a -> f a b) xs
+    | a::_, b::_ -> 
+        let sx, sy, sr = string x, string y, string r 
+        error (sprintf "invalid use of preferences in regex, cannot merge: %s and %s in %s" sx sy sr)
+    | _, _ -> failwith "impossible"
+and mergeSingle r x op =
+    let xs = bubblePrefsToTop x
+    if xs.Length > 1 then
+        error (sprintf "invalid use of preferences in regex, cannot nest under %s operator: %s" op (string r))
+    else xs 
+
 
 let rec buildRegex (ast: T) (reb: Regex.REBuilder) (r: Re) : Regex.LazyT =
     let checkParams id n args =
@@ -96,6 +125,7 @@ let rec buildRegex (ast: T) (reb: Regex.REBuilder) (r: Re) : Regex.LazyT =
             | Some r ->
                 (* TODO: check for recursive definition *)
                 buildRegex ast reb r
+    | Shr _ -> failwith "unreachable"
 
 let validatePrefix (a,b,c,d,adjBits) =
     let p = Prefix.prefix (a,b,c,d) adjBits
@@ -152,7 +182,7 @@ type Typ =
 let paramInfo = 
     Map.ofList [
         ("aggregate", (2, [PredicateType; LinkTyp]));
-        ("tag", (3, [PredicateType; LinkTyp; IdentTyp]));
+        ("tag", (3, [PredicateType; LinkTyp; PredicateType]));
         ("maxroutes", (1, [IntTyp]));
         ("longest_path", (1, [IntTyp]));
     ]
@@ -195,9 +225,9 @@ let buildCConstraint ast (topo: Topology.T) cc =
     | "tag" -> 
         let (PredicateExpr p) = List.head args
         let (LinkExpr(x,y)) = List.nth args 1
-        let (IdentExpr c) = List.nth args 2
+        let (PredicateExpr c) = List.nth args 2
         let (xs,ys) = getLinkLocations (x,y)
-        CCommunity (Prefix.toPrefixes (toPrefixes p), xs, ys, c)
+        CCommunity (Prefix.toPrefixes (toPrefixes p), xs, ys, "") (* TODO *)
     | "maxroutes" -> 
         let (IntLiteral i) = List.head args
         let (LinkExpr(x,y)) = List.nth args 1
@@ -284,9 +314,10 @@ let rec mergeTasks (re: Re) disjoints : ConcretePathConstraints =
         if res <> [] then
             error (sprintf "parameters given for identifier %s in main policy definition" x) 
         Map.find x disjoints
+    | Shr _ -> failwith "unreachable"
 
 let addPair acc s =
-    let cconstrs = List.map (fun (p,r) -> (toPredicate p,r)) s.PConstraints
+    let cconstrs = List.map (fun (p,r) -> (toPredicate p, bubblePrefsToTop r)) s.PConstraints
     checkPredicates s.Name cconstrs
     Map.add s.Name cconstrs acc
 

@@ -12,6 +12,7 @@ type CgState =
     {States: int array; 
      Accept: Set<int>; 
      Node: Topology.State}
+
      override this.ToString() = 
         "(State=" + (List.ofArray this.States).ToString() + ", Loc=" + this.Node.Loc + ")"
 
@@ -492,12 +493,11 @@ module Consistency =
     type Ordering = Map<string, Preferences>
     type Constraints = BidirectionalGraph<CgState ,TaggedEdge<CgState,unit>>
 
-    let simulate idx _ restrict (x,y) (i,j) =
+    let simulate idx cg restrict (x,y) (i,j) =
         let restrict_i = copyGraph (Map.find i restrict)
         let restrict_j = copyGraph (Map.find j restrict)
         restrict_i.Graph.RemoveVertexIf (fun v -> v.Node.Loc = x.Node.Loc && v <> x) |> ignore
         restrict_j.Graph.RemoveVertexIf (fun v -> v.Node.Loc = y.Node.Loc && v <> y) |> ignore
-
         if not (restrict_i.Graph.ContainsVertex x) then false
         else if not (restrict_j.Graph.ContainsVertex y) then true
         else
