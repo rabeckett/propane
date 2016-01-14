@@ -39,7 +39,10 @@ type Task =
      PConstraints: PathConstraints}
 
 type CConstraint = 
-    | Aggregate of Prefix.T list * Set<string> * Set<string>
+    | CAggregate of Prefix.T list * Set<string> * Set<string>
+    | CCommunity of Prefix.T list * Set<string> * Set<string> * string
+    | CMaxRoutes of uint32 * Set<string> * Set<string>
+    | CLongestPath of uint32
 
 type PolicyPair = (Predicate.T * Regex.REBuilder * Regex.T list)
 

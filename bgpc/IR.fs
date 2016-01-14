@@ -688,7 +688,7 @@ let checkAggregateLocs (ins: Set<string>) prefix links =
 
 let getAggregates topo aggs =
     let mutable acc = Map.empty
-    for (Ast.Aggregate (prefix,ins,outs)) in Seq.ofList aggs do
+    for (Ast.CAggregate (prefix,ins,outs)) in Seq.ofList aggs do
         let links = Topology.findLinks topo (ins,outs)
         checkAggregateLocs ins prefix links
         let pairs = 

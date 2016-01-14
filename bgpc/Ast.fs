@@ -43,7 +43,10 @@ type Task =
      PConstraints: PathConstraints}
 
 type CConstraint = 
-    | Aggregate of Prefix.T list * Set<string> * Set<string>
+    | CAggregate of Prefix.T list * Set<string> * Set<string>
+    | CCommunity of Prefix.T list * Set<string> * Set<string> * string
+    | CMaxRoutes of uint32 * Set<string> * Set<string>
+    | CLongestPath of uint32
 
 type PolicyPair = (Predicate.T * Regex.REBuilder * Regex.T list)
 
@@ -132,27 +135,78 @@ let rec toPrefixes (p: Predicate) : Prefix.Pred =
         Prefix.toPredicate [Prefix.prefix (a,b,c,d) adjBits]
     | Community(x,y) -> 
         parseError (sprintf "Invalid Community predicate: (%d: %d) " x y)
-        
+ 
+type Typ = 
+    | PredicateType
+    | LinkTyp
+    | IntTyp
+    | IdentTyp
+
+    override this.ToString() = 
+        match this with
+        | PredicateType -> "Predicate"
+        | LinkTyp -> "Links (X -> Y)"
+        | IntTyp -> "Int"
+        | IdentTyp -> "Identifier"
+
+let paramInfo = 
+    Map.ofList [
+        ("aggregate", (2, [PredicateType; LinkTyp]));
+        ("tag", (3, [PredicateType; LinkTyp; IdentTyp]));
+        ("maxroutes", (1, [IntTyp]));
+        ("longest_path", (1, [IntTyp]));
+    ]
+
+let checkArgs name args = 
+    match Map.tryFind name paramInfo with
+    | None -> error (sprintf "unrecognized constraint: %s" name)
+    | Some (n, typs) -> 
+        let len = List.length args
+        if len <> n then 
+            error (sprintf "invalid number of parameters to: %s. Expected: %d, but received %d" name n len)
+        let mutable i = 0
+        for (x,y) in List.zip args typs do 
+            i <- i + 1
+            match x,y with
+            | PredicateExpr _, PredicateType -> ()
+            | LinkExpr(x,y), LinkTyp -> ()
+            | IntLiteral _, IntTyp -> ()
+            | IdentExpr _, IdentTyp -> ()
+            | _, _ -> error (sprintf "expected parameter %d of constraint (%s) to be of type: %s" i name (string y))
+
 let buildCConstraint ast (topo: Topology.T) cc =
     let reb = Regex.REBuilder(topo) 
     let (name, args) = cc
+    checkArgs name args
+
+    let getLinkLocations (x,y) =
+        let locsX = Regex.singleLocations (reb.Topo()) (buildRegex ast reb x)
+        let locsY = Regex.singleLocations (reb.Topo()) (buildRegex ast reb y)
+        match locsX, locsY with 
+        | Some xs, Some ys -> (xs,ys)
+        | _, _ -> error (sprintf "link expression must denote single locations in parameter to: %s" name)
+
     match name with
     | "aggregate" ->
-        match args with 
-        | [a; b] ->
-            match a with
-            | PredicateExpr p -> 
-                match b with
-                | LinkExpr(x,y) ->
-                    let locsX = Regex.singleLocations (reb.Topo()) (buildRegex ast reb x)
-                    let locsY = Regex.singleLocations (reb.Topo()) (buildRegex ast reb y)
-                    match locsX, locsY with 
-                    | Some xs, Some ys -> Aggregate (Prefix.toPrefixes (toPrefixes p), xs, ys)
-                    | _, _ -> error (sprintf "link expression parameter 2 to aggregate must denote single locations")
-                | _ -> error (sprintf "parameter 2 to aggregate must be a link expression (e.g., in -> out)")
-            | _ -> error (sprintf "parameter 1 to aggregate must be a prefix")
-        | _ -> error (sprintf "aggregate constraint takes 2 arguments")
-    | _ -> error (sprintf "unknown control constraint: %s" name)
+        let (PredicateExpr p) = List.head args
+        let (LinkExpr(x,y)) = List.nth args 1
+        let (xs,ys) = getLinkLocations (x,y)
+        CAggregate (Prefix.toPrefixes (toPrefixes p), xs, ys)
+    | "tag" -> 
+        let (PredicateExpr p) = List.head args
+        let (LinkExpr(x,y)) = List.nth args 1
+        let (IdentExpr c) = List.nth args 2
+        let (xs,ys) = getLinkLocations (x,y)
+        CCommunity (Prefix.toPrefixes (toPrefixes p), xs, ys, c)
+    | "maxroutes" -> 
+        let (IntLiteral i) = List.head args
+        let (LinkExpr(x,y)) = List.nth args 1
+        let (xs,ys) = getLinkLocations (x,y)
+        CMaxRoutes (i,xs,ys)
+    | "longest_path" -> 
+        let (IntLiteral i) = List.head args
+        CLongestPath i
+    | _ -> failwith "unreachable"
 
 let getControlConstraints (ast: T) topo = 
     List.map (buildCConstraint ast topo) ast.CConstraints
