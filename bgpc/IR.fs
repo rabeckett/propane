@@ -52,26 +52,39 @@ type DeviceConfig =
 type PredConfig = Predicate.T * Map<string, DeviceConfig>
 
 type DeviceAggregates = (Prefix.T list * seq<string>) list
-type Aggregates = Map<string, DeviceAggregates>
+type DeviceTags = ((string * Prefix.T list) * seq<string>) list
+type DeviceMaxRoutes = (uint32 * seq<string>) list
+
+type Aggregates = Map<string, (Prefix.T list * seq<string>) list>
+type Tags = Map<string, ((string * Prefix.T list) * seq<string>) list>
+type MaxRoutes = Map<string, (uint32 * seq<string>) list>
+
+type DeviceControl = 
+    {Aggregates: DeviceAggregates;
+     Tags: DeviceTags;
+     MaxRoutes: DeviceMaxRoutes}
 
 type RouterConfig = 
     {Actions: (Predicate.T * DeviceConfig) list;
-     Aggregates: DeviceAggregates}
+     Control: DeviceControl}
 
 type T = Map<string, RouterConfig>
 
-let joinConfigs aggs (pairs: PredConfig list) : T =
+let joinConfigs (aggs, comms, maxroutes) (pairs: PredConfig list) : T =
     let mutable result = Map.empty
     for (prefix, config) in pairs do 
         for kv in config do
-            let value = (prefix, kv.Value)
-            match Map.tryFind kv.Key result with
-            | None -> result <- Map.add kv.Key [value] result
-            | Some x -> result <- Map.add kv.Key (x @ [value]) result
+            let dc = kv.Value
+            let router = kv.Key
+            let value = (prefix, dc)
+            match Map.tryFind router result with
+            | None -> result <- Map.add router [value] result
+            | Some x -> result <- Map.add router (x @ [value]) result
     Map.map (fun router vs ->
-        match Map.tryFind router aggs with
-        | None -> {Actions=vs; Aggregates=[]}
-        | Some xs -> {Actions=vs; Aggregates=xs}) result
+        let a = Common.Map.getOrDefault router [] aggs
+        let b = Common.Map.getOrDefault router [] comms
+        let c = Common.Map.getOrDefault router [] maxroutes
+        {Actions=vs; Control={Aggregates=a; Tags=b; MaxRoutes=c}}) result
 
 let format (config: T) = 
     let sb = System.Text.StringBuilder ()
@@ -80,9 +93,15 @@ let format (config: T) =
         let routerConfig = kv.Value
         sb.Append("\nRouter ") |> ignore
         sb.Append(routerName) |> ignore
-        for (prefix, peers) in routerConfig.Aggregates do
+        for (prefix, peers) in routerConfig.Control.Aggregates do
             for peer in peers do
-                sb.Append("\n  Aggregate(" + string prefix + ", " + peer + ")") |> ignore
+                sb.Append (sprintf "\n  Aggregate(%s, %s)" (string prefix) peer) |> ignore
+        for ((c, prefix), peers) in routerConfig.Control.Tags do 
+            for peer in peers do 
+                sb.Append (sprintf "\n  Tag(%s, %s, %s)" c (string prefix) peer) |> ignore
+        for (i, peers)  in routerConfig.Control.MaxRoutes do 
+            for peer in peers do 
+                sb.Append (sprintf "\n  MaxRoutes(%d)" i) |> ignore
         for (pred, deviceConf) in routerConfig.Actions do
             let predStr = string pred
             for ((m, lp), es) in deviceConf.Filters do
@@ -104,7 +123,7 @@ let format (config: T) =
     sb.ToString()
 
 let formatPrefix pconfig = 
-    format (joinConfigs Map.empty [pconfig])
+    format (joinConfigs (Map.empty, Map.empty, Map.empty) [pconfig])
 
 (* Ensure well-formedness for controlling 
    traffic entering the network. MED and prepending allow
@@ -679,31 +698,65 @@ let compileForSinglePrefix fullName idx (pred, reb, res) =
     with Topology.InvalidTopologyException -> 
         error (sprintf "Invalid Topology: internal topology must be weakly connected")
 
-let checkAggregateLocs (ins: Set<string>) prefix links = 
-    if ins.Contains "out" then
+let checkAggregateLocs ins _ prefix links = 
+    if Set.contains "out" ins then
         error (sprintf "Cannot aggregate on external location: out for prefix: %s" (string prefix))
     match List.tryFind (fst >> Topology.isOutside) links with
     | None -> ()
-    | Some x -> error (sprintf "Cannot aggregate on external location: %s for prefix: %s" (fst x).Loc (string prefix))
+    | Some x -> 
+        error (sprintf "Cannot aggregate on external location: %s for prefix: %s" (fst x).Loc (string prefix))
 
-let getAggregates topo aggs =
+let checkCommunityTagLocs ins _ (c, prefix) links =
+    if Set.contains "out" ins then
+        error (sprintf "Cannot tag communities on external location: out for community %s, prefix: %s" c (string prefix))
+    match List.tryFind (fst >> Topology.isOutside) links with
+    | None -> ()
+    | Some x -> 
+        error (sprintf "Cannot tag communities on external location: %s for community %s prefix: %s" (fst x).Loc c (string prefix))
+
+let checkMaxRouteLocs ins outs i links =
+    let v = List.exists (fun (a,b) -> Topology.isOutside a && Topology.isOutside b) links
+    let w = Set.contains "out" ins
+    let x = Set.contains "out" outs
+    let y = List.exists (fst >> Topology.isOutside) links
+    let z = List.exists (snd >> Topology.isOutside) links
+    if v || ((w || y) && (x || z)) then 
+        error (sprintf "cannot set maxroutes(%d) on links without and edge in the internal topology" i)
+
+let splitByLocation f topo (vs: _ list) = 
     let mutable acc = Map.empty
-    for (Ast.CAggregate (prefix,ins,outs)) in Seq.ofList aggs do
+    for (k, ins, outs) in vs do 
         let links = Topology.findLinks topo (ins,outs)
-        checkAggregateLocs ins prefix links
+        f ins outs k links
         let pairs = 
             links
             |> List.map (fun (x,y) -> (x.Loc, y.Loc))
             |> Seq.ofList
             |> Seq.groupBy fst
-            |> Seq.map (fun (x,y) -> (x, [(prefix, Seq.map snd y)]))
+            |> Seq.map (fun (x,y) -> (x, [(k, Seq.map snd y)]))
             |> Map.ofSeq
         acc <- Common.Map.merge acc pairs (fun _ (xs,ys) -> xs @ ys)
     acc
 
-let compileAllPrefixes fullName topo (pairs: Ast.PolicyPair list) aggs : T =
-    let aggs = getAggregates topo aggs
+let splitConstraints topo (constraints: _ list) =
+    let aggs, comms, maxroutes = 
+        List.fold (fun ((x,y,z) as acc) c -> 
+            match c with
+            | Ast.CAggregate (p,ins,outs) -> ((p,ins,outs)::x, y, z)
+            | Ast.CCommunity (s,p,ins,outs) -> (x, ((s,p),ins,outs)::y, z)
+            | Ast.CMaxRoutes (i,ins,outs) -> (x, y, (i,ins,outs)::z)
+            | _ -> acc
+        ) ([], [], []) constraints
+    let aggInfo = splitByLocation checkAggregateLocs topo aggs
+    let commInfo = splitByLocation checkCommunityTagLocs topo comms
+    let maxRouteInfo = splitByLocation checkMaxRouteLocs topo maxroutes
+    (aggInfo, commInfo, maxRouteInfo)
+    
+
+
+let compileAllPrefixes fullName topo (pairs: Ast.PolicyPair list) constraints : T =
+    let info = splitConstraints topo constraints
     Array.ofList pairs
     |> Array.Parallel.mapi (compileForSinglePrefix fullName)
     |> Array.toList
-    |> joinConfigs aggs
+    |> joinConfigs info

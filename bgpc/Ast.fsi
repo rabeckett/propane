@@ -41,7 +41,7 @@ type Task =
 
 type CConstraint = 
     | CAggregate of Prefix.T list * Set<string> * Set<string>
-    | CCommunity of Prefix.T list * Set<string> * Set<string> * string
+    | CCommunity of string * Prefix.T list * Set<string> * Set<string>
     | CMaxRoutes of uint32 * Set<string> * Set<string>
     | CLongestPath of uint32
 

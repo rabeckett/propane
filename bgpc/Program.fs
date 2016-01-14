@@ -5,19 +5,19 @@ open Common.Error
 
 [<EntryPoint>]
 let main argv =
-    (* Parse command line settings *)
+    // Parse command line settings
     ignore (Args.parse argv)
     let settings = Args.getSettings ()
 
-    (* Run unit tests if in test mode *)
+    // Run unit tests if in test mode
     if settings.Test then
         Test.run ()
         exit 0
 
-    (* Set debugging output file *)
+    // Set debugging output file
     let fullName = settings.DebugDir + (Common.Option.getOrDefault "output" settings.OutFile)
 
-    (* Get the topology *)
+    // Get the topology
     let topo = Examples.topoDatacenterSmall()
 
     match settings.PolFile with 
@@ -28,9 +28,11 @@ let main argv =
         let aggs = Ast.getControlConstraints ast topo
         let pairs = Ast.makePolicyPairs ast topo
 
-        printfn "pairs: %A" pairs
+        printfn "constraints: %A" aggs
 
         let ir = IR.compileAllPrefixes fullName topo pairs aggs
+
+        // printfn "IR: %A" ir
 
         match settings.OutFile with
         | None -> ()

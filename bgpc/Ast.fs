@@ -44,7 +44,7 @@ type Task =
 
 type CConstraint = 
     | CAggregate of Prefix.T list * Set<string> * Set<string>
-    | CCommunity of Prefix.T list * Set<string> * Set<string> * string
+    | CCommunity of string * Prefix.T list * Set<string> * Set<string>
     | CMaxRoutes of uint32 * Set<string> * Set<string>
     | CLongestPath of uint32
 
@@ -295,7 +295,7 @@ let buildCConstraint ast (topo: Topology.T) cc =
         let (x,y) = getLinks (List.nth args 2)
         let (xs,ys) = getLinkLocations (x,y)
         let str = (string a) + ":" + (string b)
-        CCommunity (Prefix.toPrefixes (toPrefixes p), xs, ys, str)
+        CCommunity (str, Prefix.toPrefixes (toPrefixes p), xs, ys)
     | "maxroutes" ->
         let i = getInt (List.head args)
         let (x,y) = getLinks (List.nth args 1)
