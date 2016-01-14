@@ -5,6 +5,8 @@ control {
 }
 
 task Routing {
+
+
     10.10.0.0/32 => waypoint(M) >> waypoint(N) >> any
     10.10.0.1/32 => any 
     true => any
@@ -16,7 +18,7 @@ task Ownership {
     true => end(A)
 }
 
-Routing and Ownership
+Routing
 
 
 /* 

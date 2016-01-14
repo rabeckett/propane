@@ -89,7 +89,7 @@ let simplify xs =
             xs <- Set.remove x xs 
             xs <- Set.remove y xs
             xs <- Set.add z xs
-    xs <- Set.map (fun x -> if x.Prefix = Prefix.bot || x.Comm = Community.bot then botPair else x) xs
+    xs <- Set.filter (fun x -> x.Prefix <> Prefix.bot && x.Comm <> Community.bot) xs
     if Set.contains topPair xs then Set.singleton topPair 
     else Set.remove botPair xs
 

@@ -11,6 +11,7 @@ type Predicate =
     | Community of uint32 * uint32 
     | Or of Predicate * Predicate
     | And of Predicate * Predicate
+    | Not of Predicate
 
 type Re = 
     | Empty
@@ -105,6 +106,7 @@ let rec toPredicate (p: Predicate) : Predicate.T =
     | False -> Predicate.bot
     | And(a,b) -> Predicate.conj (toPredicate a) (toPredicate b)
     | Or(a,b) -> Predicate.disj (toPredicate a) (toPredicate b)
+    | Not a -> Predicate.negate (toPredicate a)
     | Prefix(a,b,c,d,bits) ->
         let adjBits = 
             match bits with
@@ -120,6 +122,7 @@ let rec toPrefixes (p: Predicate) : Prefix.Pred =
     | False -> Prefix.bot 
     | And(a,b) -> Prefix.conj (toPrefixes a) (toPrefixes b)
     | Or(a,b) -> Prefix.disj (toPrefixes a) (toPrefixes b)
+    | Not a -> Prefix.negation (toPrefixes a)
     | Prefix(a,b,c,d,bits) ->
         let adjBits = 
             match bits with
@@ -209,7 +212,6 @@ let checkPredicates (sName: string) (pcs: ConcretePathConstraints) =
             let p = Predicate.conj pred rollingPred
             rollingPred <- Predicate.conj rollingPred (Predicate.negate p)
         if rollingPred <> Predicate.bot then
-            printfn "rollingPred: %s" (string rollingPred)
             let s = Predicate.example rollingPred
             error (sprintf "Incomplete prefixes in scope (%s). An example of a prefix that is not matched: %s" sName s)
     with InvalidPrefixException p ->

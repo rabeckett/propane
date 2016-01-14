@@ -125,6 +125,7 @@ predicate:
     | FALSE                                 { Ast.False }
     | predicate OR predicate                { Ast.Or($1, $3) }
     | predicate AND predicate               { Ast.And($1, $3) }
+	| NOT predicate                         { Ast.Not $2 }
     | LPAREN predicate RPAREN               { $2 }
 
 definitions:

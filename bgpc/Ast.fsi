@@ -7,6 +7,7 @@ type Predicate =
     | Community of uint32 * uint32 
     | Or of Predicate * Predicate
     | And of Predicate * Predicate
+    | Not of Predicate
 
 type Re = 
     | Empty

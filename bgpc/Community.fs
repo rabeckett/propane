@@ -7,8 +7,8 @@ type Pred =
     
     override this.ToString() =
         let aux (p,n) =
-            let x = if Set.isEmpty p then "" else Common.Set.joinBy " and " (Set.map (fun s -> "@" + s) p)
-            let y = if Set.isEmpty n then "" else Common.Set.joinBy " and " (Set.map (fun s -> "!@" + s) n)
+            let x = if Set.isEmpty p then "" else Common.Set.joinBy " and " p
+            let y = if Set.isEmpty n then "" else Common.Set.joinBy " and " (Set.map (fun s -> "not " + s) n)
             let str = 
                 match x, y with
                 | "", "" -> "true"

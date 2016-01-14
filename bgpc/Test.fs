@@ -90,7 +90,7 @@ let rDatacenterMedium1 (reb: Regex.REBuilder) =
     [reb.Build pref1]
 
 let rDatacenterMedium2 (reb: Regex.REBuilder) =
-    let pref1 = reb.Inter [reb.Waypoint("X"); reb.EndsAt("F")]
+    let pref1 = reb.Inter [reb.StartsAtAny ["A"];reb.Waypoint("X"); reb.EndsAt("F")]
     [reb.Build pref1]
 
 let rDatacenterMedium3 (reb: Regex.REBuilder) =
