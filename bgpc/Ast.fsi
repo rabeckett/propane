@@ -53,8 +53,13 @@ type BinOp =
     | OUnion 
     | ODifference
 
+type Def = 
+    | DRegex of Re
+    | DExpr of Expr
+    | DBuiltin
+
 type T = 
-    {Defs: Map<string, Re>;
+    {Defs: Map<string, Def>;
      CConstraints: ControlConstraints;
      Tasks: Task list;
      Policy: Re}

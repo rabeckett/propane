@@ -78,14 +78,16 @@ task:
 
 pconstrs:
     | pconstr                               { [$1] }
-    | pconstr pconstrs                      { $1 :: $2 }
+	| pconstr COMMA                         { [$1] }
+    | pconstr COMMA pconstrs                { $1 :: $3 }
 
 pconstr:
     | predicate ROCKET regex                { ($1, $3) }
 
 cconstrs:
     | cconstr                               { [$1] }
-    | cconstr cconstrs                      { $1 :: $2 }
+	| cconstr COMMA                         { [$1] }
+    | cconstr COMMA cconstrs                { $1 :: $3 }
 
 cconstr:
     | ID                                    { ($1, []) }
@@ -95,19 +97,25 @@ exprs:
     | expr                                  { [$1] }
     | expr COMMA exprs                      { $1 :: $3 }
 
-expr:
-    | ID                                    { Ast.IdentExpr $1 }
+rawexpr:
     | INT                                   { Ast.IntLiteral $1 }
     | predicate	                            { Ast.PredicateExpr $1 }
     | regex RARROW regex                    { Ast.LinkExpr ($1, $3) }
 
-regexes:
+expr:
+	| ID									{ Ast.IdentExpr $1 }
+    | rawexpr                               { $1 }
+
+regexes: 
     | regex                                 { [$1] }
     | regex COMMA regexes                   { $1 :: $3 }
 
+regexdef:
+	| ID                                    { Ast.Ident ($1, []) }
+	| ID LPAREN regexes RPAREN              { Ast.Ident ($1, $3) }
+
 regex:
-    | ID                                    { Ast.Ident ($1, []) }
-    | ID LPAREN regexes RPAREN              { Ast.Ident ($1, $3) }
+    | regexdef                              { $1 }
     | LBRACKET RBRACKET                     { Ast.Empty }
     | regex SEMICOLON regex                 { Ast.Concat ($1, $3) }
     | regex AND regex                       { Ast.Inter ($1, $3) }
@@ -118,7 +126,7 @@ regex:
 	| regex SHR regex						{ Ast.Shr ($1, $3) }
     | LPAREN regex RPAREN                   { $2 }
 
-predicate:
+predicate: 
     | INT DOT INT DOT INT DOT INT           { Ast.Prefix($1, $3, $5, $7, None) }
     | INT DOT INT DOT INT DOT INT SLASH INT { Ast.Prefix($1, $3, $5, $7, Some $9) }
 	| INT COLON INT						    { Ast.Community ($1, $3) }
@@ -134,4 +142,5 @@ definitions:
     | definition definitions                { $1 :: $2 }
 
 definition:
-    | DEFINE ID	EQUAL regex	                { ($2, $4) }
+    | DEFINE ID	EQUAL regex	                { ($2, Ast.DRegex $4) }
+	| DEFINE ID EQUAL rawexpr               { ($2, Ast.DExpr $4) }
