@@ -667,7 +667,7 @@ let compileForSinglePrefix fullName idx (pred, reb, res) =
             | UnusedPreferences m ->
                 error (sprintf "Unused preferences %A" m)
             | NoPathForRouters rs ->
-                unimplementable (sprintf "Unable to find a path for routers: %A" rs)
+                unimplementable (sprintf "Unable to find a path for routers: %s" (string rs))
             | InconsistentPrefs(x,y) ->
                 let xs = x.ToString()
                 let ys = y.ToString() 

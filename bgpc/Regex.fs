@@ -467,11 +467,6 @@ type REBuilder(topo: Topology.T) =
         if not finalAlphabet then 
             failwith "Builder must be final before computing starting locations"
         startingLocs dfa
-        (* Set.fold (fun acc a -> 
-            if derivative alphabet a r <> Empty 
-            then Set.add a acc 
-            else acc 
-        ) Set.empty alphabet *)
 
     member this.Path(ls) =
         this.Concat (List.map this.Loc ls)
@@ -491,40 +486,24 @@ type REBuilder(topo: Topology.T) =
     member this.Any() =
         this.Concat [this.MaybeOutside(); this.Internal(); this.MaybeOutside()]
 
-    member this.Waypoint(x) =
-        if isInternal x
-        then this.Concat [this.MaybeOutside(); this.MaybeInside(); this.Loc x; this.MaybeInside(); this.MaybeOutside()]
-        else this.Concat [this.MaybeOutside(); this.Internal(); this.MaybeInside(); this.Loc x; this.MaybeOutside()]
-
-    member this.WaypointAny(xs) =
+    member this.Through(xs) =
         let (ins,outs) = List.partition isInternal xs
         this.Union 
             [this.Concat [this.MaybeOutside(); this.MaybeInside(); this.Locs ins; this.MaybeInside(); this.MaybeOutside()];
-            this.Concat [this.MaybeOutside(); this.Internal(); this.MaybeInside(); this.Locs outs; this.MaybeOutside()]]
+             this.Union 
+                [this.Concat [this.MaybeOutside(); this.Internal(); this.MaybeInside(); this.MaybeOutside(); this.Locs outs; this.MaybeOutside()]
+                 this.Concat [this.MaybeOutside(); this.Locs outs; this.Internal(); this.MaybeOutside()] ]]
 
-    member this.Avoid(x) =
-        this.Negate (this.Waypoint(x))
+    member this.Avoid(xs) =
+        this.Negate (this.Through(xs))
 
-    member this.AvoidAny(xs) =
-        this.Negate (this.WaypointAny(xs))
-
-    member this.EndsAt(x) =
-        if isInternal x 
-        then this.Concat [this.MaybeOutside(); this.MaybeInside(); this.Loc x]
-        else this.Concat [this.MaybeOutside(); this.Internal(); this.MaybeOutside(); this.Loc x]
-
-    member this.EndsAtAny(xs) =
+    member this.End(xs) =
         let (ins,outs) = List.partition isInternal xs
         this.Union
             [this.Concat [this.MaybeOutside(); this.MaybeInside(); this.Locs ins];
              this.Concat [this.MaybeOutside(); this.Internal(); this.MaybeOutside(); this.Locs outs]]
 
-    member this.StartsAt(x) =
-        if isInternal x 
-        then this.Concat [this.Loc x;  this.MaybeInside(); this.MaybeOutside()]
-        else this.Concat [this.Loc x;  this.MaybeOutside(); this.Internal(); this.MaybeOutside()]
-
-    member this.StartsAtAny(xs) =
+    member this.Start(xs) =
         let (ins,outs) = List.partition isInternal xs
         this.Union
             [this.Concat [this.Locs ins;  this.MaybeInside(); this.MaybeOutside()];
@@ -542,18 +521,14 @@ type REBuilder(topo: Topology.T) =
                 (Some tierx, this.Inter [acc; avoid])
         List.fold aux (None, this.Any()) xs |> snd
 
-    member this.EnterIn(x) =
-        let enter = this.Inter [this.Inside; this.Loc x]
-        this.Concat [this.External(); enter; this.MaybeInside(); this.MaybeOutside()]
+    member this.Enter(xs) =
+        let (ins,outs) = List.partition isInternal xs
+        this.Union
+            [this.Concat [this.External(); this.Locs ins; this.MaybeInside(); this.MaybeOutside()];
+             this.Concat [this.MaybeOutside(); this.Locs outs; this.Internal(); this.MaybeOutside()]]
 
-    member this.EnterOut(x) = 
-        let enter = this.Inter [this.Outside; this.Loc x]
-        this.Concat [this.MaybeOutside(); enter; this.Internal(); this.MaybeOutside()]
-
-    member this.ExitIn(x) = 
-        let exit = this.Inter [this.Inside; this.Loc x]
-        this.Concat [this.MaybeOutside(); this.MaybeInside(); exit; this.External()]
-
-    member this.ExitOut(x) = 
-        let exit = this.Inter [this.Outside; this.Loc x]
-        this.Concat [this.MaybeOutside(); this.Internal(); exit; this.MaybeOutside()]
+    member this.Exit(xs) =
+        let (ins,outs) = List.partition isInternal xs 
+        this.Union 
+            [this.Concat [this.MaybeOutside(); this.MaybeInside(); this.Locs ins; this.External()];
+             this.Concat [this.MaybeOutside(); this.Internal(); this.Locs outs; this.MaybeOutside()]]

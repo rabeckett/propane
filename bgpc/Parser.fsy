@@ -116,7 +116,7 @@ regexdef:
 
 regex:
     | regexdef                              { $1 }
-    | LBRACKET RBRACKET                     { Ast.Empty }
+    | LBRACE RBRACE                         { Ast.Empty }
     | regex SEMICOLON regex                 { Ast.Concat ($1, $3) }
     | regex AND regex                       { Ast.Inter ($1, $3) }
     | regex OR regex                        { Ast.Union ($1, $3) }

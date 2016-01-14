@@ -2,7 +2,6 @@
 
 open Topology
 open Common.Error
-open Common.Debug
 
 type Predicate =
     | True
@@ -93,7 +92,7 @@ and mergeSingle r x op =
 
 let builtInRes = 
     Set.ofList 
-        ["start"; "end"; "valleyfree"; "waypoint"; "avoid"; 
+        ["start"; "end"; "enter"; "exit"; "valleyfree"; "through"; "avoid"; 
          "internal"; "external"; "any"; "none"; "in"; "out"]
 
 let builtInConstraints = 
@@ -140,10 +139,12 @@ let rec buildRegex (ast: T) (reb: Regex.REBuilder) (r: Re) : Regex.LazyT =
     | Ident(id, args) ->
         match id with
         | "valleyfree" -> let locs = checkParams id args.Length args in reb.ValleyFree locs
-        | "start" -> let locs = checkParams id 1 args in reb.StartsAtAny locs.Head
-        | "end" -> let locs = checkParams id 1 args in reb.EndsAtAny locs.Head
-        | "waypoint" -> let locs = checkParams id 1 args in reb.WaypointAny locs.Head
-        | "avoid" -> let locs = checkParams id 1 args in reb.AvoidAny locs.Head
+        | "start" -> let locs = checkParams id 1 args in reb.Start locs.Head
+        | "end" -> let locs = checkParams id 1 args in reb.End locs.Head
+        | "enter" -> let locs = checkParams id 1 args in reb.Enter locs.Head
+        | "exit" -> let locs = checkParams id 1 args in reb.Exit locs.Head
+        | "through" -> let locs = checkParams id 1 args in reb.Through locs.Head
+        | "avoid" -> let locs = checkParams id 1 args in reb.Avoid locs.Head
         | "internal" -> ignore (checkParams id 0 args); reb.Internal()
         | "external" -> ignore (checkParams id 0 args); reb.External()
         | "any" -> ignore (checkParams id 0 args); reb.Any()
@@ -151,7 +152,8 @@ let rec buildRegex (ast: T) (reb: Regex.REBuilder) (r: Re) : Regex.LazyT =
         | "in" -> ignore (checkParams id 0 args); reb.Inside 
         | "out" -> ignore (checkParams id 0 args);  reb.Outside
         | l -> 
-            ignore (checkParams id 0 args)
+            if args.Length > 0 then 
+                error (sprintf "undefined macro %s" l)
             (* TODO: check for recursive definition *)
             match lookupDefinition ast.Defs l with 
             | Some (DRegex r) -> buildRegex ast reb r

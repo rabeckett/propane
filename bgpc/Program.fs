@@ -28,8 +28,7 @@ let main argv =
         let aggs = Ast.getControlConstraints ast topo
         let pairs = Ast.makePolicyPairs ast topo
 
-        printfn "Aggregates: %A" aggs
-        printfn "Pairs: %A" pairs
+        printfn "pairs: %A" pairs
 
         let ir = IR.compileAllPrefixes fullName topo pairs aggs
 

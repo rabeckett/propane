@@ -79,16 +79,10 @@ type REBuilder  =
     member Internal: unit -> LazyT
     member External: unit -> LazyT
     member Any: unit -> LazyT
-    member Waypoint: string -> LazyT
-    member WaypointAny: string list -> LazyT
-    member Avoid: string -> LazyT 
-    member AvoidAny: string list -> LazyT
-    member EndsAt: string -> LazyT
-    member EndsAtAny: string list -> LazyT
-    member StartsAt: string -> LazyT
-    member StartsAtAny: string list -> LazyT
+    member Through: string list -> LazyT
+    member Avoid: string list -> LazyT
+    member End: string list -> LazyT
+    member Start: string list -> LazyT
     member ValleyFree: seq<string list> -> LazyT
-    member EnterIn: string -> LazyT
-    member EnterOut: string -> LazyT
-    member ExitIn: string -> LazyT
-    member ExitOut: string -> LazyT
+    member Enter: string list -> LazyT
+    member Exit: string list -> LazyT

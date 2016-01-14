@@ -1,4 +1,4 @@
-﻿define foo = in
+﻿define foo = M
 
 control {
     aggregate(10.0.0.0/31, in -> out),
@@ -8,17 +8,15 @@ control {
 }
 
 task Routing {
-    true => waypoint(M) >> waypoint(N) >> any,
-    
-    /* 10.10.0.1/32 => any,
-    true 		 => any, */
+    10.10.0.0/32 => through(M) >> avoid(N) >> any,
+    10.10.0.1/32 => any,
+    true 		 => any,
 }
 
 task Ownership {
-    true => end(A),
-    
-    /* 10.10.0.1/32 => end(B),
-    true 		 => end(A), */
+    10.10.0.0/32 => end(A),
+    10.10.0.1/32 => end(B),
+    true 		 => end(A),
 }
 
-Routing and Ownership \ (in*;F)
+Routing and Ownership
