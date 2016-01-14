@@ -1,0 +1,45 @@
+\section{Motivation}
+\label{sec:motivation}
+
+We motivate our work by describing the current practice in network configuration and its shortcomings.
+In traditional networks with distributed control planes, the operators’ goal is to generate the configuration of individual devices. Based on its configuration, the device exchanges information with other (e.g., links costs or best known paths) devices, filters and ranks incoming information, and decides how to forward packets to various destinations.
+
+Device configuration languages are low-level and indirect. For instance, instead of allowing operators to express directly the paths they want through the network, they require operators to specify link costs that result in those paths; instead of allowing operators to express directly the types of traffic to not carry through the network, they require operators to select and program an appropriate filtering mechanism (e.g., route maps, null routing,  access control lists) and instantiate it on topologically appropriate devices; instead of allowing operators to directly specify that they prefer to send traffic via customer, peer, and provider networks, in that order, they require operators to program BGP local preferences at each router and ensure that the preferences are consistent across routers.
+
+In many networks today, device configurations are generated manually by operators, without the support of many automated tools. It is easy to see the problems with this approach, such as typos, inconsistency across devices, and no guarantees of policy compliance.
+
+To reduce such problems, some networks use a template-based approach. Configuration templates abstract certain constants into variables (e.g., instead of concrete interface IP address, they may contain a variable {\small \sf{\$$Rtr1\_Int1\_IP$)}} and may use a device vendor-neutral syntax. Operators manually generate the templates, and then use tools to translate them into device configuration, by replacing variables with appropriate constants using a database of network information.
+ 
+ %and replacing vendor-neutral constructs with their vendor-specific counterparts.
+
+%In practice, most networks use a hybrid of templates and manual generation of device configuration. Templates are used for standardized and common configuration elements across devices and the result is manually tweaked to obtain the exact desired network behavior.
+
+While templates avoids some pitfalls of the fully manual approach, they too are far from ideal. The fundamental issue is the semantic mismatch between desirable policies and the level of abstraction that templates offer. While desirable policies are network-wide (e.g., prefer customer networks, or link $A$ should serve as backup for link $B$), templates are device-level (e.g., BGP local preferences or link costs to use). Operators must still manually decompose network-wide policies into device-level policies that can produce the desired network-wide behavior.
+
+This decomposition is not always straightforward and ensuring policy-compliance can be hard, especially in the face of failures. We illustrate this point using two examples, based on policies that we have seen in practice. 
+
+
+
+\subsection{OLD -- Overview}
+\todo{this subsection can be deleted once we have captured everything in it}
+
+Sources of bugs we fix. (It seems like the main advantage of our approach is not just fixing bugs though - it is easily describing high-level intention).
+Perhaps the best way to do this is by going through a bunch of examples in section 2 and showing how you could easily introduce bugs:
+
+\begin{itemize}
+	\item Out of sync, or copy paste errors due to replicated configs (never an issue due to centralized control)
+	\item Correct filtering to ensure no undesired traffic can flow through the network (e.g., best practices, like an AS should filter customers for their prefix, are implemented automatically )
+	\item Failures can easily lead to unexpected behavior (e.g., a datacenter failure scenario w/instability.)
+	\item Trying to do anything interesting, like get backups correct is difficult (e.g., setting up aggregation wrong)
+	\item Related to the last point, things like aggregation can introduce black holes. We have the information needed to prevent this
+\end{itemize}
+
+
+Possible Examples:
+\begin{itemize}
+	\item Basic datacenter with spine preference
+	\item Simple AS that prefers customers over peers over providers
+	\item Combined internal backup routing with preference based entrance into the network using aggregation.
+	\item Something like cold potato routing
+\end{itemize}
+
