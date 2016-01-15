@@ -524,11 +524,12 @@ module Compress =
             let topoNode = 
                 cg.Topo.Vertices
                 |> Seq.find (fun v -> v.Loc = loc)
+            let topoPeers = 
+                cg.Topo.OutEdges topoNode
+                |> Seq.map (fun e -> e.Target.Loc)
+                |> Set.ofSeq
             for f in filters do 
                 let ((m,lp), es) = f 
-                let topoPeers = 
-                    cg.Topo.OutEdges topoNode
-                    |> Seq.map (fun e -> e.Target.Loc)
                 let eqActions =
                     es
                     |> List.map snd 
@@ -539,12 +540,15 @@ module Compress =
                     match m with 
                     | Match.Peer(x) -> Some x
                     | _ -> None
-                let coversPeer p = 
+                let exports = Set.ofList (List.map fst es)
+                let exports = 
+                    match import with 
+                    | Some x -> Set.add x exports
+                    | None -> exports
+                (* let coversPeer p = 
                     (Option.isSome import && p = Option.get import) || 
-                    (List.exists (fun  (peer,_) -> peer = p) es)
-                let allPeers = 
-                    topoPeers
-                    |> Seq.forall coversPeer
+                    (List.exists (fun  (peer,_) -> peer = p) es) *)
+                let allPeers = (Set.isEmpty (Set.difference topoPeers exports))  // Seq.forall coversPeer topoPeers
                 if eqActions && allPeers && List.length es <= Seq.length topoPeers then 
                     newFilters <- ((m,lp), [("*", snd es.Head)]) :: newFilters
                 else newFilters <- f :: newFilters
@@ -589,9 +593,7 @@ module Compress =
                     | Match.Peer(x) -> x = p
                     | _ -> false
                 ) filters
-            let allPeers = 
-                topoPeers
-                |> Seq.forall coversPeer
+            let allPeers = Seq.forall coversPeer topoPeers
             let allSame = eqActions && eqLP && noComms && allPeers
             let newFilters = 
                 if allSame && List.length filters = Seq.length topoPeers && not (List.isEmpty filters)

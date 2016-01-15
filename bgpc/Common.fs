@@ -41,7 +41,7 @@ module List =
             let mutable acc = hd 
             for i in tl do 
                 acc <- f acc i 
-            acc
+            acc 
 
     let inline joinBy sep ss = 
         fold1 (fun a b -> a + sep + b) ss

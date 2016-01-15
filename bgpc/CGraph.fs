@@ -424,12 +424,17 @@ module Minimize =
                 assert (ie.Source = e.Target)
                 assert (ie.Target = e.Source)
                 (Set.contains e.Target (dom.[e.Source]) || Set.contains e.Source (domRev.[e.Target])) &&
-                not (e.Target = e.Source)
-        ) |> ignore
+                not (e.Target = e.Source) ) |> ignore
         (* Remove nodes dominated by a similar location *)
         cg.Graph.RemoveVertexIf (fun v -> 
             dom.[v]
             |> Set.exists (fun u -> u <> v && u.Node.Loc = v.Node.Loc)) |> ignore
+        (* Remove edges where the outgoing is dominated by a similar location *)
+        cg.Graph.RemoveEdgeIf (fun e ->
+            let x = e.Source
+            let y = e.Target
+            Set.exists (fun x' -> x'.Node.Loc = x.Node.Loc && x' <> x) domRev.[y]
+        ) |> ignore
 
     let removeDeadEdgesHeuristic (cg: T) =
         cg.Graph.RemoveEdgeIf (fun (e: TaggedEdge<CgState,unit>) -> 
@@ -530,8 +535,8 @@ module Minimize =
             logInfo1(idx, sprintf "Node count (remove dominated): %d" cg.Graph.VertexCount)
             removeNodesThatStartCantReach cg
             logInfo1(idx, sprintf "Node count (start cant reach): %d" cg.Graph.VertexCount)
-            removeDeadEdgesHeuristic cg
-            logInfo1(idx, sprintf "Node count (edge heuristic): %d" cg.Graph.VertexCount)
+            // removeDeadEdgesHeuristic cg
+            // logInfo1(idx, sprintf "Node count (edge heuristic): %d" cg.Graph.VertexCount)
             removeRedundantExternalNodes cg
             logInfo1(idx, sprintf "Node count (redundant external nodes): %d" cg.Graph.VertexCount)
             compressRepeatedUnknowns cg
@@ -611,24 +616,23 @@ module Consistency =
                     logInfo1 (idx, sprintf "%s is NOT preferred to %s" (x.ToString()) (y.ToString()))
         g, edges
 
-    let encodeConstraints idx f cg r nodes =
+    let encodeConstraints idx f (cg, reachMap) r nodes =
         let g = BidirectionalGraph<CgState ,TaggedEdge<CgState,unit>>()
         for n in nodes do 
             g.AddVertex n |> ignore
-        let reachMap = getReachabilityMap cg nodes
         addPrefConstraints idx f cg g r nodes reachMap
 
-    let findPrefAssignment idx f r cg nodes = 
-        let g, edges = encodeConstraints idx f cg r nodes
+    let findPrefAssignment idx f r (cg, reachMap) nodes = 
+        let g, edges = encodeConstraints idx f (cg, reachMap) r nodes
         getOrdering g edges
 
-    let addForLabel idx f r cg map l =
+    let addForLabel idx f r (cg, reachMap) map l =
         let (ain, _) = Topology.alphabet cg.Topo
         let ain = Set.map (fun (v: Topology.State) -> v.Loc) ain
         if ain.Contains l then
             if not (Map.containsKey l map) then 
                 let nodes = Seq.filter (fun v -> v.Node.Loc = l) cg.Graph.Vertices
-                Map.add l (findPrefAssignment idx f r cg nodes) map
+                Map.add l (findPrefAssignment idx f r (cg, reachMap) nodes) map
             else map
         else Map.add l Seq.empty map
 
@@ -641,16 +645,17 @@ module Consistency =
             Map.add i r acc
         Set.fold aux Map.empty prefs
 
-    let findOrdering idx f (cg: T) outName : Result<Ordering, CounterExample> =
+    let findOrdering idx f cg outName : Result<Ordering, CounterExample> =
         let prefs = preferences cg 
         let rs = restrictedGraphs cg prefs
+        let reachMap = getReachabilityMap cg cg.Graph.Vertices
         debug2 (fun () -> Map.iter (fun i g -> generatePNG g (outName + "-min-restricted" + string i)) rs)
         let labels = 
             cg.Graph.Vertices
             |> Seq.filter (fun v -> Topology.isTopoNode v.Node)
             |> Seq.map (fun v -> v.Node.Loc)
             |> Set.ofSeq 
-        try Ok(Set.fold (addForLabel idx f rs cg) Map.empty labels)
+        try Ok(Set.fold (addForLabel idx f rs (cg, reachMap)) Map.empty labels)
         with ConsistencyException(x,y) ->
             Err((x,y) )
 
