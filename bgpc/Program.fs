@@ -23,8 +23,8 @@ let main argv =
     ignore (Args.parse argv)
     let settings = Args.getSettings ()
 
-    datacenter ()
-    exit 0
+    (* datacenter ()
+    exit 0 *)
 
     // Run unit tests if in test mode
     if settings.Test then

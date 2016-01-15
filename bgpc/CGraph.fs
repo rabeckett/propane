@@ -8,13 +8,33 @@ open QuickGraph
 open QuickGraph.Algorithms
 open QuickGraph.Algorithms
 
-type CgState = 
-    {States: int array; 
+[<CustomEquality; CustomComparison>]
+type CgState =
+    {Id: int;
+     States: int array; 
      Accept: Set<int>; 
      Node: Topology.State}
 
-     override this.ToString() = 
-        "(State=" + (List.ofArray this.States).ToString() + ", Loc=" + this.Node.Loc + ")"
+    override this.ToString() = 
+       "(Id=" + string this.Id + ", State=" + (List.ofArray this.States).ToString() + ", Loc=" + this.Node.Loc + ")"
+
+    override x.Equals(other) =
+       match other with
+        | :? CgState as y -> (x.Id = y.Id)
+        | _ -> false
+ 
+    override x.GetHashCode() = hash x.Id
+
+    interface System.IComparable with
+        member x.CompareTo other =
+          match other with
+          | :? CgState as y -> x.Id - y.Id
+          | _ -> failwith "cannot compare values of different types"
+
+type CgStateTmp =
+    {TStates: int array; 
+     TAccept: Set<int>; 
+     TNode: Topology.State}
 
 type T = 
     {Start: CgState;
@@ -25,9 +45,11 @@ type T =
 type Direction = Up | Down
 
 let copyGraph (cg: T) : T = 
-    let newCG = QuickGraph.BidirectionalGraph() 
-    for v in cg.Graph.Vertices do newCG.AddVertex v |> ignore
-    for e in cg.Graph.Edges do newCG.AddEdge e |> ignore
+    let newCG = QuickGraph.BidirectionalGraph()
+    for v in cg.Graph.Vertices do 
+        newCG.AddVertex v |> ignore
+    for e in cg.Graph.Edges do
+        newCG.AddEdge e |> ignore
     {Start=cg.Start; Graph=newCG; End=cg.End; Topo=cg.Topo}
 
 let copyReverseGraph (cg: T) : T = 
@@ -37,15 +59,38 @@ let copyReverseGraph (cg: T) : T =
         let e' = TaggedEdge(e.Target, e.Source, ())
         newCG.AddEdge e' |> ignore
     {Start=cg.Start; Graph=newCG; End=cg.End; Topo=cg.Topo}
+   
+let index ((graph, topo, startNode, endNode): BidirectionalGraph<CgStateTmp, TaggedEdge<CgStateTmp,unit>> * Topology.T * CgStateTmp * CgStateTmp) =
+    let newCG = QuickGraph.BidirectionalGraph()
+    let nstart = {Id=0; Node=startNode.TNode; States=startNode.TStates; Accept=startNode.TAccept}
+    let nend = {Id=1; Node=endNode.TNode; States=endNode.TStates; Accept=endNode.TAccept}
+    newCG.AddVertex nstart |> ignore
+    newCG.AddVertex nend |> ignore
+    let mutable i = 2
+    let mutable idxMap = 
+        Map.ofList [((nstart.Node.Loc, nstart.States), nstart); ((nend.Node.Loc, nend.States), nend)]
+    for v in graph.Vertices do
+        if Topology.isTopoNode v.TNode then
+            let newv = {Id=i; Node=v.TNode; States = v.TStates; Accept=v.TAccept}
+            i <- i + 1
+            idxMap <- Map.add (v.TNode.Loc, v.TStates) newv idxMap
+            newCG.AddVertex newv |> ignore
+    for e in graph.Edges do
+        let v = e.Source 
+        let u = e.Target
+        let x = Map.find (v.TNode.Loc, v.TStates) idxMap
+        let y = Map.find (u.TNode.Loc, u.TStates) idxMap
+        newCG.AddEdge (TaggedEdge(x,y,())) |> ignore
+    {Start=nstart; Graph=newCG; End=nend; Topo=topo}
 
 let buildFromAutomata (topo: Topology.T) (autos : Regex.Automaton array) : T =
     if not (Topology.isWellFormed topo) then
         raise Topology.InvalidTopologyException
     let alphabetIn, alphabetOut = Topology.alphabet(topo)
     let alphabetAll = Set.union alphabetIn alphabetOut
-    let graph = BidirectionalGraph<CgState, TaggedEdge<CgState,unit>>()
+    let graph = BidirectionalGraph<CgStateTmp, TaggedEdge<CgStateTmp,unit>>()
     let starting = Array.map (fun (x: Regex.Automaton) -> x.q0) autos
-    let newStart = {States = starting; Accept = Set.empty; Node = {Loc="start"; Typ = Topology.Start} }
+    let newStart = {TStates = starting; TAccept = Set.empty; TNode = {Loc="start"; Typ = Topology.Start} }
     graph.AddVertex newStart |> ignore
     let marked = HashSet(HashIdentity.Structural)
     let todo = Queue()
@@ -54,7 +99,7 @@ let buildFromAutomata (topo: Topology.T) (autos : Regex.Automaton array) : T =
         let currState = todo.Dequeue()
         if not (marked.Contains currState) then 
             marked.Add currState |> ignore
-            let {States=ss; Node=t} = currState
+            let {TStates=ss; TNode=t} = currState
             let adj = 
                 if t.Typ = Topology.Start then 
                     Set.filter Topology.canOriginateTraffic alphabetAll 
@@ -69,21 +114,22 @@ let buildFromAutomata (topo: Topology.T) (autos : Regex.Automaton array) : T =
                     let key = Map.findKey (fun (q,S) _ -> q = v && Set.contains c.Loc S) g.trans
                     let newState = Map.find key g.trans
                     let accept =
-                        if (Topology.canOriginateTraffic c) && (Set.contains newState g.F) then 
-                            Set.singleton (i+1)
+                        if (Topology.canOriginateTraffic c) && (Set.contains newState g.F) 
+                        then Set.singleton (i+1)
                         else Set.empty
                     newState, accept)
                 let nextStates, nextAccept = Array.unzip nextInfo
                 let accept = Array.fold Set.union Set.empty nextAccept
-                let state = {States=nextStates; Accept=accept; Node=c}
+                let state = {TStates=nextStates; TAccept=accept; TNode=c}
                 graph.AddVertex state |> ignore
                 graph.AddEdge(TaggedEdge(currState, state, ())) |> ignore
                 todo.Enqueue state 
-    let newEnd = {States = [||]; Accept = Set.empty; Node = {Loc="end"; Typ = Topology.End}}
+    let newEnd = {TStates = [||]; TAccept = Set.empty; TNode = {Loc="end"; Typ = Topology.End}}
     graph.AddVertex newEnd |> ignore
-    let accepting = Seq.filter (fun v -> not (Set.isEmpty v.Accept)) graph.Vertices
+    let accepting = Seq.filter (fun v -> not (Set.isEmpty v.TAccept)) graph.Vertices
     Seq.iter (fun v -> graph.AddEdge(TaggedEdge(v, newEnd, ())) |> ignore) accepting
-    {Start=newStart; Graph=graph; End=newEnd; Topo=topo}
+    index (graph, topo, newStart, newEnd)
+
 
 let inline preferences (cg: T) : Set<int> = 
     let mutable all = Set.empty
@@ -116,7 +162,7 @@ let inline isRepeatedOut (cg: T) (state: CgState) =
     (state.Node.Typ = Topology.Unknown) &&
     (Seq.exists (fun n -> n = state) ns)
 
-let restrict (cg: T) (i: int) : T = 
+let restrict (cg: T) (i: int) = 
     if Set.contains i (preferences cg) then 
         let copy = copyGraph cg
         copy.Graph.RemoveVertexIf (fun v -> 
@@ -180,45 +226,44 @@ module Reachable =
     let dfs (cg: T) (source: CgState) direction : seq<CgState> = seq { 
         let f = if direction = Up then neighborsIn else neighbors
         let s = Stack()
-        let marked = ref Set.empty
+        let marked = HashSet()
         s.Push source
         while s.Count > 0 do 
             let v = s.Pop()
-            if not (Set.contains v !marked) then 
-                marked := Set.add v !marked
+            if not (marked.Contains v) then 
+                ignore (marked.Add v)
                 yield v
                 for w in f cg v do 
                     s.Push w }
 
     let srcWithout (cg: T) source without direction =
-        let f = if direction = Up then neighborsIn else  neighbors
+        let f = if direction = Up then neighborsIn else neighbors
         let s = Stack()
         let mutable marked = Set.empty
         s.Push source
         while s.Count > 0 do 
             let v = s.Pop()
             if not (marked.Contains v) && not (without v) then 
-                marked <- Set.add v marked
+                marked <- marked.Add v
                 for w in f cg v do 
                     s.Push w
         marked
 
-    let srcDstWithout (cg: T) source sink without direction = 
+    let inline srcDstWithout (cg: T) source sink without direction = 
         if without sink || without source then false
         else Set.contains sink (srcWithout cg source without direction)
 
-    let src (cg: T) (source: CgState) direction : Set<CgState> =
+    let inline src (cg: T) (source: CgState) direction : Set<CgState> =
         srcWithout cg source (fun _ -> false) direction
 
-    let srcDst (cg: T) source sink direction = 
+    let inline srcDst (cg: T) source sink direction = 
         srcDstWithout cg source sink (fun _ -> false) direction
 
-    let srcAcceptingWithout cg src without direction = 
-        let aux acc cg = 
-            Set.union cg.Accept acc
-        srcWithout cg src without direction |> Set.fold aux Set.empty
+    let inline srcAcceptingWithout cg src without direction = 
+        srcWithout cg src without direction 
+        |> Set.fold (fun acc cg -> Set.union cg.Accept acc) Set.empty
 
-    let srcAccepting cg src direction = 
+    let inline srcAccepting cg src direction = 
         srcAcceptingWithout cg src (fun _ -> false) direction
 
 (*
@@ -346,30 +391,31 @@ module Reachable =
 
 module Minimize =
 
-    type DominationSet = Map<CgState, Set<CgState>>
+    type DominationSet = Dictionary<CgState, Set<CgState>>
 
     let dominators (cg: T) root direction : DominationSet =
         let f = if direction = Up then neighbors else neighborsIn
-        let dom = ref Map.empty
+        let dom = Dictionary()
         let nodes = Reachable.dfs cg root direction
         let allNodes = cg.Graph.Vertices |> Set.ofSeq
         for n in allNodes do 
-            dom := Map.add n allNodes !dom
+            dom.[n] <- allNodes
         let mutable changed = true 
         while changed do 
             changed <- false 
             for n in nodes do
-                let preds = seq {for p in (f cg n) do yield Map.find p !dom}
+                let preds = seq {for p in (f cg n) do yield dom.[p]}
                 let interAll = if Seq.isEmpty preds then Set.empty else Set.intersectMany preds
                 let newSet = Set.union (Set.singleton n) interAll
-                if (newSet <> Map.find n !dom) then 
-                    dom := Map.add n newSet !dom 
+                if (newSet <> dom.[n]) then 
+                    dom.[n] <- newSet
                     changed <- true
-        !dom
+        dom
 
-    let removeEdgesForDominatedNodes (cg: T) = 
+    let removeDominated (cg: T) = 
         let dom = dominators cg cg.Start Down
         let domRev = dominators cg cg.End Up
+        (* Remove dominated edges *)
         cg.Graph.RemoveEdgeIf (fun (e: TaggedEdge<CgState,unit>) -> 
             let ies = cg.Graph.OutEdges e.Target
             match Seq.tryFind (fun (ie: TaggedEdge<CgState,unit>) -> ie.Target = e.Source) ies with 
@@ -377,9 +423,13 @@ module Minimize =
             | Some ie ->
                 assert (ie.Source = e.Target)
                 assert (ie.Target = e.Source)
-                (Set.contains e.Target (Map.find e.Source dom) || Set.contains e.Source (Map.find e.Target domRev)) &&
+                (Set.contains e.Target (dom.[e.Source]) || Set.contains e.Source (domRev.[e.Target])) &&
                 not (e.Target = e.Source)
         ) |> ignore
+        (* Remove nodes dominated by a similar location *)
+        cg.Graph.RemoveVertexIf (fun v -> 
+            dom.[v]
+            |> Set.exists (fun u -> u <> v && u.Node.Loc = v.Node.Loc)) |> ignore
 
     let removeDeadEdgesHeuristic (cg: T) =
         cg.Graph.RemoveEdgeIf (fun (e: TaggedEdge<CgState,unit>) -> 
@@ -392,6 +442,7 @@ module Minimize =
         cg.Graph.RemoveVertexIf(fun v -> 
             Topology.isTopoNode v.Node && not (Set.contains v canReach)
         ) |> ignore
+        
 
     let removeNodesThatStartCantReach (cg: T) = 
         let canReach = Reachable.src cg cg.Start Down
@@ -403,11 +454,11 @@ module Minimize =
         let canReach = Reachable.simplePathSrc cg cg.Start Down
         cg.Graph.RemoveVertexIf (fun v -> Topology.isTopoNode v.Node && not (Set.contains v canReach)) |> ignore *)
 
-    let removeNodesNotOnAnySimplePathToEnd (cg: T) = 
+    (* let removeNodesNotOnAnySimplePathToEnd (cg: T) = 
         let canReach = Reachable.alongSimplePathSrcDst cg cg.Start cg.End Down
-        cg.Graph.RemoveVertexIf (fun v -> Topology.isTopoNode v.Node && not (Set.contains v canReach)) |> ignore
+        cg.Graph.RemoveVertexIf (fun v -> Topology.isTopoNode v.Node && not (Set.contains v canReach)) |> ignore *)
 
-    let delMissingSuffixPaths (cg: T) =
+    let delMissingSuffixPaths cg = 
         let starting = neighbors cg cg.Start |> Seq.filter isRealNode |> Set.ofSeq
         cg.Graph.RemoveVertexIf (fun v -> 
             v.Node.Typ = Topology.InsideOriginates && 
@@ -467,15 +518,25 @@ module Minimize =
         cg.Graph.RemoveVertexIf (fun v -> toDelNodes.Contains v) |> ignore
            
     let minimize (idx: int) (cg: T) =
-        let count cg = cg.Graph.VertexCount + cg.Graph.EdgeCount
         logInfo1(idx, sprintf "Node count: %d" cg.Graph.VertexCount)
-        let prune () = 
+        // count vertices + edges to detect change
+        let inline count cg = 
+            cg.Graph.VertexCount + cg.Graph.EdgeCount
+        // repeatedly apply reductions until no change
+        let inline prune () = 
             removeNodesThatCantReachEnd cg
-            removeEdgesForDominatedNodes cg
-            (* removeDeadEdgesHeuristic cg *)
+            logInfo1(idx, sprintf "Node count (cant reach end): %d" cg.Graph.VertexCount)
+            removeDominated cg
+            logInfo1(idx, sprintf "Node count (remove dominated): %d" cg.Graph.VertexCount)
+            removeNodesThatStartCantReach cg
+            logInfo1(idx, sprintf "Node count (start cant reach): %d" cg.Graph.VertexCount)
+            removeDeadEdgesHeuristic cg
+            logInfo1(idx, sprintf "Node count (edge heuristic): %d" cg.Graph.VertexCount)
             removeRedundantExternalNodes cg
+            logInfo1(idx, sprintf "Node count (redundant external nodes): %d" cg.Graph.VertexCount)
             compressRepeatedUnknowns cg
-            removeNodesNotOnAnySimplePathToEnd cg
+            logInfo1(idx, sprintf "Node count (compress out*): %d" cg.Graph.VertexCount)
+            (* removeNodesNotOnAnySimplePathToEnd cg*)
         let mutable sum = count cg
         prune() 
         while count cg <> sum do
@@ -501,12 +562,12 @@ module Consistency =
         if not (restrict_i.Graph.ContainsVertex x) then false
         else if not (restrict_j.Graph.ContainsVertex y) then true
         else
-            (* Remove nodes that appear 'above' for the more preferred, to avoid considering simple paths *)
-            (* cheaper approximation of simple paths - can do better at cost of speed *)
+            // Remove nodes that appear 'above' for the more preferred, to avoid considering simple paths
+            // cheaper approximation of simple paths - can do better at cost of speed
             let exclude = (fun v -> v.Node.Loc = x.Node.Loc && v <> x)
             let reach = Reachable.srcWithout restrict_i x exclude Up |> Set.map (fun v -> v.Node.Loc)
             restrict_i.Graph.RemoveVertexIf (fun v -> v <> x && Set.contains v.Node.Loc reach) |> ignore
-            (* Check if the more preferred simulates the less preferred *)
+            // Check if the more preferred simulates the less preferred
             Reachable.supersetPaths idx (restrict_i, x) (restrict_j, y) 
 
     let isPreferred f cg restrict (x,y) (reachX, reachY) =

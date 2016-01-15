@@ -218,7 +218,7 @@ let tests (settings: Args.T) =
      Fail = None};
    
     {Name= "DCsmall2";
-     Explanation="Through through spine no backup (should fail)";
+     Explanation="Through spine no backup (should fail)";
      Topo= tDatacenterSmall;
      Rf= rDatacenterSmall2; 
      Receive= None;
@@ -227,7 +227,7 @@ let tests (settings: Args.T) =
      Fail = Some NoPathForRouters};
 
     {Name= "DCsmall3";
-     Explanation="Through through spine with backup";
+     Explanation="Through spine with backup";
      Topo= tDatacenterSmall;
      Rf= rDatacenterSmall3; 
      Receive= Some [("X", "A"); ("M", "X"); ("N", "X"); ("B", "X"); ("Y", "M"); ("Y", "N"); ("C", "Y"); ("D", "Y")];
@@ -245,7 +245,7 @@ let tests (settings: Args.T) =
      Fail = None };
 
     {Name= "DCsmall5";
-     Explanation="Through through spine to single location (should fail)";
+     Explanation="Through spine to single location (should fail)";
      Topo= tDatacenterSmall;
      Rf= rDatacenterSmall5; 
      Receive= None;
@@ -263,7 +263,7 @@ let tests (settings: Args.T) =
      Fail = None};
 
     {Name= "DCmedium2";
-     Explanation="Through through spine (should fail)";
+     Explanation="Through spine (should fail)";
      Topo= tDatacenterMedium;
      Rf= rDatacenterMedium2; 
      Receive= None;
@@ -272,7 +272,7 @@ let tests (settings: Args.T) =
      Fail = Some InconsistentPrefs}; 
 
     {Name= "DCmedium3";
-     Explanation="Through through spine, valley free (should fail)";
+     Explanation="Through spine, valley free (should fail)";
      Topo= tDatacenterMedium;
      Rf= rDatacenterMedium3; 
      Receive= None;
@@ -281,7 +281,7 @@ let tests (settings: Args.T) =
      Fail = Some InconsistentPrefs};
 
     {Name= "DCmedium4";
-     Explanation="Through through spine, valley free with simple backup";
+     Explanation="Through spine, valley free with simple backup";
      Topo= tDatacenterMedium;
      Rf= rDatacenterMedium4; 
      Receive= Some [("G", "F"); ("H", "F"); ("E","G"); ("E","H"); ("X", "G"); 
@@ -293,7 +293,7 @@ let tests (settings: Args.T) =
      Fail = None};
 
     {Name= "DClarge1";
-     Explanation="Through through spine (should fail)";
+     Explanation="Through spine (should fail)";
      Topo= tDatacenterLarge;
      Rf= rDatacenterLarge1; 
      Receive= None;
@@ -302,7 +302,7 @@ let tests (settings: Args.T) =
      Fail = Some NoPathForRouters};
 
     {Name= "DClarge2";
-     Explanation="Through through spine with backup (should fail due to valleys)";
+     Explanation="Through spine with backup (should fail due to valleys)";
      Topo= tDatacenterLarge;
      Rf= rDatacenterLarge2; 
      Receive= None;
@@ -311,7 +311,7 @@ let tests (settings: Args.T) =
      Fail = Some InconsistentPrefs};
 
     {Name= "DClarge3";
-     Explanation="Through through spines with preference and backup (should fail due to valleys)";
+     Explanation="Through spines with preference and backup (should fail due to valleys)";
      Topo= tDatacenterLarge;
      Rf= rDatacenterLarge3; 
      Receive= None;
@@ -509,13 +509,13 @@ let testCompilation() =
         let spaces = String.replicate (longest - test.Name.Length + 3) " "
         let msg = sprintf "%s%s%s" test.Name spaces test.Explanation
         printfn "%s" msg
-        logInfo0(0, "\n" + msg)
+        logInfo1(0, "\n" + msg)
         let reb = Regex.REBuilder(test.Topo)
         let built = test.Rf reb
         if not (Topology.isWellFormed test.Topo) then 
             let msg = sprintf "\n[Failed]:\n  Topology for (%s) is not well-formed" test.Name 
             printfn "%s" msg
-            logInfo0(0, msg)
+            logInfo1(0, msg)
         else
             let pred = Predicate.top
             match IR.compileToIR (settings.DebugDir + test.Name) 0 pred reb built with 
@@ -526,7 +526,7 @@ let testCompilation() =
                     Option.isNone test.Fail) then 
                     let msg = sprintf "\n[Failed]:\n  Name: %s\n  Message: Should compile but did not\n  Error: %A\n" test.Name x
                     printfn "%s" msg
-                    logInfo0(0, msg)
+                    logInfo1(0, msg)
                 match test.Fail, x with 
                 | Some NoPathForRouters, IR.NoPathForRouters _ -> ()
                 | Some InconsistentPrefs, IR.InconsistentPrefs _ -> ()
@@ -535,7 +535,7 @@ let testCompilation() =
                 | _ ->
                     let msg = sprintf "\n[Failed]:\n  Name: %s\n  Message: Expected Error %A\n" test.Name test.Fail
                     printfn "%s" msg
-                    logInfo0(0, msg)
+                    logInfo1(0, msg)
             | Ok(config) -> 
                 if (Option.isNone test.Receive || 
                     Option.isNone test.Originate || 
@@ -543,7 +543,7 @@ let testCompilation() =
                     Option.isSome test.Fail) then
                     let msg = sprintf "\n[Failed]:\n  Name: %s\n  Message: Should not compile but did\n" test.Name
                     printfn "%s" msg
-                    logInfo0(0, msg)
+                    logInfo1(0, msg)
                 else
                     (* Check receiving from peers *)
                     let rs = Option.get test.Receive
@@ -551,7 +551,7 @@ let testCompilation() =
                         if not (receiveFrom config x y) then
                             let msg = sprintf "\n[Failed]: (%s) - %s should receive from %s but did not\n" test.Name x y
                             printfn "%s" msg
-                            logInfo0(0, msg)
+                            logInfo1(0, msg)
                 
                     (* Check originating routes *)
                     let os = Option.get test.Originate
@@ -559,7 +559,7 @@ let testCompilation() =
                         if not (originates config x) then 
                             let msg = sprintf "\n[Failed]: (%s) - %s should originate a route but did not" test.Name x
                             printfn "%s" msg
-                            logInfo0(0, msg)
+                            logInfo1(0, msg)
 
                     (* Test preferences *)
                     let ps = Option.get test.Prefs
@@ -567,13 +567,13 @@ let testCompilation() =
                         if not (prefersPeer config x (a,b)) then 
                             let msg = sprintf "\n[Failed]: (%s) - %s should prefer %s to %s but did not" test.Name x a b
                             printfn "%s" msg
-                            logInfo0(0, msg)
+                            logInfo1(0, msg)
 
 
 let run () =
     printfn ""
-    testPrefixes ()
-    (* testPrefixMerging () *)
-    testRegexWellFormedness ()
-    testTopologyWellFormedness ()
+    // testPrefixes ()
+    // testPrefixMerging ()
+    // testRegexWellFormedness ()
+    // testTopologyWellFormedness ()
     testCompilation ()

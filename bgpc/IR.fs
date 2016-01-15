@@ -662,7 +662,8 @@ let compileToIR fullName idx pred (reb: Regex.REBuilder) res : Result<PredConfig
         let prefs = CGraph.preferences cg
         let unusedPrefs = Set.difference numberedRegexes prefs
         if not (Set.isEmpty unusedPrefs) then
-            let cexamples = Set.fold (fun acc p -> Map.add p (List.nth res (p-1)) acc) Map.empty unusedPrefs
+            let cexamples = Set.fold (fun acc p -> 
+                Map.add p (List.item (p-1) res) acc) Map.empty unusedPrefs
             Err(UnusedPreferences(cexamples))
         else
             try 

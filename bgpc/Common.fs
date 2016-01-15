@@ -9,7 +9,6 @@ module Debug =
         if settings.Debug >= n then
             f ()
 
-    let debug0 f = debug 0 f
     let debug1 f = debug 1 f
     let debug2 f = debug 2 f
     let debug3 f = debug 3 f
@@ -18,11 +17,10 @@ module Debug =
     let logInfo n idx str =
         let settings = Args.getSettings ()
         let logFile = settings.DebugDir + "debug(" + string idx + ").log"
-        let indent = String.replicate n "\t"
+        let indent = String.replicate (n-1) "\t"
         if settings.Debug >= n then
             System.IO.File.AppendAllText(logFile, indent + str + "\n")
 
-    let logInfo0(idx, f) = logInfo 0 idx f
     let logInfo1(idx, f) = logInfo 1 idx f
     let logInfo2(idx, f) = logInfo 2 idx f
     let logInfo3(idx, f) = logInfo 3 idx f

@@ -2,10 +2,14 @@
 open QuickGraph
 open Common.Error
 
+[<CustomEquality; CustomComparison>]
 type CgState = 
-    {States: int array; 
+    {Id: int; 
+     States: int array; 
      Accept: Set<int>; 
      Node: Topology.State}
+
+     interface System.IComparable
 
 type T = 
     {Start: CgState;
@@ -65,19 +69,19 @@ module Reachable =
         member Cg: T
         member ReachInfo: Map<CgState, Set<CgState>>
 
-    /// Check if src can reach dst while avoiding certain nodes
-    val srcDstWithout: T -> CgState -> CgState -> (CgState -> bool) -> Direction -> bool
-
-    /// Check if src can reach dst
-    val srcDst: T -> CgState -> CgState -> Direction -> bool
-
     /// Find all destinations reachable from src while avoiding certain nodes
     val srcWithout: T -> CgState -> (CgState -> bool) -> Direction -> Set<CgState>
 
-    /// Find all destinations reachable from src
-    val src: T -> CgState -> Direction -> Set<CgState>
+    /// Check if src can reach dst while avoiding certain nodes
+    val inline srcDstWithout: T -> CgState -> CgState -> (CgState -> bool) -> Direction -> bool
 
-    val srcAccepting: T -> CgState -> Direction -> Set<int>
+    /// Check if src can reach dst
+    val inline srcDst: T -> CgState -> CgState -> Direction -> bool
+
+    /// Find all destinations reachable from src
+    val inline src: T -> CgState -> Direction -> Set<CgState>
+
+    val inline srcAccepting: T -> CgState -> Direction -> Set<int>
 
     /// Check if paths from n1 in cg1 are a superset of paths from n2 in cg2
     val supersetPaths: int -> T * CgState -> T * CgState -> bool

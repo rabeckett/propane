@@ -286,19 +286,19 @@ let buildCConstraint ast (topo: Topology.T) cc =
     match name with
     | "aggregate" ->
         let p = getPredicate (List.head args)
-        let (x,y) = getLinks (List.nth args 1)
+        let (x,y) = getLinks (List.item 1 args)
         let (xs,ys) = getLinkLocations (x,y)
         CAggregate (Prefix.toPrefixes (toPrefixes p), xs, ys)
     | "tag" -> 
         let (a,b) = getComm (getPredicate (List.head args))
-        let p = getPredicate (List.nth args 1)
-        let (x,y) = getLinks (List.nth args 2)
+        let p = getPredicate (List.item 1 args)
+        let (x,y) = getLinks (List.item 2 args)
         let (xs,ys) = getLinkLocations (x,y)
         let str = (string a) + ":" + (string b)
         CCommunity (str, Prefix.toPrefixes (toPrefixes p), xs, ys)
     | "maxroutes" ->
         let i = getInt (List.head args)
-        let (x,y) = getLinks (List.nth args 1)
+        let (x,y) = getLinks (List.item 1 args)
         let (xs,ys) = getLinkLocations (x,y)
         CMaxRoutes (i,xs,ys)
     | "longest_path" -> 
