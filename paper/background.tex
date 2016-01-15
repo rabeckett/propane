@@ -1,0 +1,19 @@
+\section{Background on BGP}
+\label{sec:background}
+
+We focus on BGP as it is the most common and flexible way to implement distributed control planes today. Before delving into the details of our work, we provide here relevant background on BGP.
+
+BGP is a path vector protocol that connects autonomous systems (ASes). An AS has one or more routers controlled by the same administrative entity. ASes exchange routing announcements with their neighbors. Each announcement has a destination IP prefix and some attributes (see below), and it indicates that the sending AS is willing to carry traffic to that prefix from the receiving AS. (Traffic flows in the opposite direction, from announcement receivers to senders.)
+
+When an AS receives an announcement from a neighbor, it is processed by import filters that may drop the announcement or modify some attributes. If multiple announcements for the same prefix survive import filters, the router selects the best one based on local policy, expressed in terms of route attributes. This route is then used to send traffic to the destination. It is also advertised to the neighbors, after passing them through neighbor-specific export filters that may stop the announcement or modify some attributes.
+
+A few route attributes are notable. The AS-path attribute accompanies all announcements and it has the ordered list of ASes that the announcement has traversed thus far. While AS-path attribute has a global meaning, some attributes are meaningful only within an AS or between neighboring ASes.  Two such attributes are communities and multi-exit discriminator (MED). Communities are opaque, string attributes that ASes use to color incoming routes on different criteria (e.g., ``entered on West Coast"). They can also be used to signal to neighbors about how the announcement should be handled (e.g., do not export it further). MEDs are used when an AS has more than one link to a neighboring AS. They are numeric values that signal to the receiving AS which link the sender prefers to receive traffic on. 
+
+The route selection process assigns a {\em local preference} to each route that survives the import filters. Routes with higher local preference are preferred. For routes with equal preference, other factors such as AS path length, MEDs, internal routing cost, are considered in order. Because they are considered first in the selection process, they This preference can be based on any route attribute. It can also be based on the sending neighbor, which is a common practice.
+ 
+ , or other existing attributes.  Local preference is an internal attribute that is not carried beteeen the first criterion in selecting the best route and higher numbers are assigned to preferred routes. BGP conside
+
+aggregation
+
+
+

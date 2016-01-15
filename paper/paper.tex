@@ -3,15 +3,13 @@
 \usepackage{amsmath}
 \usepackage{xcolor}
 \usepackage{times}
-
-
-%\definecolor{red}{rgb}{0.8,0,0}
-%\definecolor{green}{rgb}{0,0.33,0}
-%\definecolor{blue}{rgb}{0.8,0,0}
+\usepackage{xspace}
 
 \newcommand{\todo}[1]{\textcolor{red}{[TODO: #1]}}
 \newcommand{\ratul}[1]{\textcolor{blue}{[ratul: #1]}}
 \newcommand{\ryan}[1]{\textcolor{green}{[ryan: #1]}}
+
+\newcommand{\sysname}{{\small \sf Propane}\xspace}
 
 \begin{document}
 
@@ -33,6 +31,7 @@
 %keyword1, keyword2
 
 \input{introduction}
+\input{background}
 \input{motivation}
 \input{language}
 \input{compilation}
