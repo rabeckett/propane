@@ -3,21 +3,28 @@ open Common.Debug
 open Common.Error
 
 let datacenter () = 
-    let (topo, _, _) = Examples.dataCenter [(2,2); (2,2); (2,1)]
+    let (topo, _, _) = Examples.dataCenter [(4,4); (4,4); (4,1)]
     printfn "number of vertices: %d" (Seq.length topo.Vertices)
     printfn "number of edges: %d" (Seq.length topo.Edges)
     for v in topo.Vertices do 
         printfn "  %s" v.Loc
 
+    let reb = Regex.REBuilder(topo)
+    let pol = reb.Build (reb.End ["T0_0"])
+
+    match IR.compileToIR "config" 0 Predicate.top reb [pol] with
+    | Ok _ -> printfn "OK"
+    | Err _ -> printfn "ERR"
+
 
 [<EntryPoint>]
-let main argv =
-    datacenter ()
-    exit 0
-    
+let main argv =    
     // Parse command line settings
     ignore (Args.parse argv)
     let settings = Args.getSettings ()
+
+    datacenter ()
+    exit 0
 
     // Run unit tests if in test mode
     if settings.Test then
