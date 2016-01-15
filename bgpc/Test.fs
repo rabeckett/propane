@@ -69,20 +69,20 @@ let rDatacenterSmall1 (reb: Regex.REBuilder) =
     [reb.Build pref1]
 
 let rDatacenterSmall2 (reb: Regex.REBuilder) = 
-    let pref1 = reb.Inter [reb.Waypoint("M"); reb.EndsAt("A")]
+    let pref1 = reb.Inter [reb.Through ["M"]; reb.End ["A"]]
     [reb.Build pref1]
 
 let rDatacenterSmall3 (reb: Regex.REBuilder) =
-    let pref1 = reb.Inter [reb.Waypoint "M"; reb.EndsAt "A"]
-    let pref2 = reb.Inter [reb.Internal(); reb.EndsAt "A"]
+    let pref1 = reb.Inter [reb.Through ["M"]; reb.End ["A"]]
+    let pref2 = reb.Inter [reb.Internal(); reb.End ["A"]]
     [reb.Build pref1; reb.Build pref2]
 
 let rDatacenterSmall4 (reb: Regex.REBuilder) =
-    let pref1 = reb.EndsAt("A")
+    let pref1 = reb.End(["A"])
     [reb.Build pref1]
 
 let rDatacenterSmall5 (reb: Regex.REBuilder) =
-    let pref1 = reb.Inter [reb.Waypoint("M"); reb.EndsAt("A")]
+    let pref1 = reb.Inter [reb.Through ["M"]; reb.End ["A"]]
     [reb.Build pref1]
 
 let rDatacenterMedium1 (reb: Regex.REBuilder) =
@@ -90,75 +90,75 @@ let rDatacenterMedium1 (reb: Regex.REBuilder) =
     [reb.Build pref1]
 
 let rDatacenterMedium2 (reb: Regex.REBuilder) =
-    let pref1 = reb.Inter [reb.StartsAtAny ["A"];reb.Waypoint("X"); reb.EndsAt("F")]
+    let pref1 = reb.Inter [reb.Start ["A"]; reb.Through ["X"]; reb.End ["F"]]
     [reb.Build pref1]
 
 let rDatacenterMedium3 (reb: Regex.REBuilder) =
     let vf = reb.ValleyFree([["A";"B";"E";"F"]; ["C";"D";"G";"H"]; ["X";"Y"]])
-    let pref1 = reb.Inter [reb.Waypoint("X"); reb.EndsAt("F"); vf]
+    let pref1 = reb.Inter [reb.Through ["X"]; reb.End ["F"]; vf]
     [reb.Build pref1]
 
 let rDatacenterMedium4 (reb: Regex.REBuilder) =
     let vf = reb.ValleyFree([["A";"B";"E";"F"]; ["C";"D";"G";"H"]; ["X";"Y"]])
-    let start = reb.StartsAtAny(["A"; "B"])
-    let pref1 = reb.Inter [start; reb.Waypoint("X"); reb.EndsAt("F"); vf]
-    let pref2 = reb.Inter [reb.EndsAt("F"); vf]
+    let start = reb.Start(["A"; "B"])
+    let pref1 = reb.Inter [start; reb.Through ["X"]; reb.End ["F"]; vf]
+    let pref2 = reb.Inter [reb.End ["F"]; vf]
     [reb.Build pref1; reb.Build pref2]
 
 let rDatacenterLarge1 (reb: Regex.REBuilder) =
-    let pref1 = reb.Inter [reb.Waypoint("M"); reb.EndsAt("A")]
+    let pref1 = reb.Inter [reb.Through ["M"]; reb.End ["A"]]
     [reb.Build pref1]
 
 let rDatacenterLarge2 (reb: Regex.REBuilder) =
-    let pref1 = reb.Inter [reb.Waypoint("M"); reb.EndsAt("A")]
-    let pref2 = reb.EndsAt("A")
+    let pref1 = reb.Inter [reb.Through ["M"]; reb.End ["A"]]
+    let pref2 = reb.End ["A"]
     [reb.Build pref1; reb.Build pref2]
 
 let rDatacenterLarge3 (reb: Regex.REBuilder) =
-    let pref1 = reb.Inter [reb.Waypoint("M"); reb.EndsAt("A")]
-    let pref2 = reb.Inter [reb.Waypoint("N"); reb.EndsAt("A")]
-    let pref3 = reb.EndsAt("A")
+    let pref1 = reb.Inter [reb.Through ["M"]; reb.End ["A"]]
+    let pref2 = reb.Inter [reb.Through ["N"]; reb.End ["A"]]
+    let pref3 = reb.End ["A"]
     [reb.Build pref1; reb.Build pref2; reb.Build pref3]
 
 let rBrokenTriangle1 (reb: Regex.REBuilder) =
-    let pref1 = reb.Union [reb.Path(["C"; "A"; "E"; "D"]); reb.Path(["A"; "B"; "D"])]
+    let pref1 = reb.Union [reb.Path ["C"; "A"; "E"; "D"]; reb.Path ["A"; "B"; "D"]]
     [reb.Build pref1]
 
 let rBigDipper1 (reb: Regex.REBuilder) =
-    let op1 = reb.Path(["C"; "A"; "E"; "D"])
-    let op2 = reb.Path(["A"; "E"; "D"])
-    let op3 = reb.Path(["A"; "D"])
+    let op1 = reb.Path ["C"; "A"; "E"; "D"]
+    let op2 = reb.Path ["A"; "E"; "D"]
+    let op3 = reb.Path ["A"; "D"]
     let pref1 = reb.Union [op1; op2; op3]
     [reb.Build pref1]
 
 let rBadGadget1 (reb: Regex.REBuilder) =
-    let op1 = reb.Path(["A"; "C"; "D"])
-    let op2 = reb.Path(["B"; "A"; "D"])
-    let op3 = reb.Path(["C"; "B"; "D"])
+    let op1 = reb.Path ["A"; "C"; "D"]
+    let op2 = reb.Path ["B"; "A"; "D"]
+    let op3 = reb.Path ["C"; "B"; "D"]
     let pref1 = reb.Union [op1; op2; op3]
-    let op4 = reb.Path(["A"; "D"]) 
-    let op5 = reb.Path(["B"; "D"])
-    let op6 = reb.Path(["C"; "D"])
+    let op4 = reb.Path ["A"; "D"]
+    let op5 = reb.Path ["B"; "D"]
+    let op6 = reb.Path ["C"; "D"]
     let pref2 = reb.Union [op4; op5; op6]
     [reb.Build pref1; reb.Build pref2]
 
 let rBadGadget2 (reb: Regex.REBuilder) =
-    let op1 = reb.Path(["A"; "C"; "D"])
-    let op2 = reb.Path(["B"; "A"; "D"])
-    let op3 = reb.Path(["C"; "B"; "D"])
-    let op4 = reb.Path(["A"; "D"]) 
-    let op5 = reb.Path(["B"; "D"])
-    let op6 = reb.Path(["C"; "D"])
+    let op1 = reb.Path ["A"; "C"; "D"]
+    let op2 = reb.Path ["B"; "A"; "D"]
+    let op3 = reb.Path ["C"; "B"; "D"]
+    let op4 = reb.Path ["A"; "D"]
+    let op5 = reb.Path ["B"; "D"]
+    let op6 = reb.Path ["C"; "D"]
     let pref1 = reb.Union [op1; op2; op3; op4; op5; op6]
     [reb.Build pref1]
 
 let rSeesaw1 (reb: Regex.REBuilder) = 
-    let op1 = reb.Path(["A"; "X"; "N"; "M"])
-    let op2 = reb.Path(["B"; "X"; "N"; "M"])
-    let op3 = reb.Path(["A"; "X"; "O"; "M"])
-    let op4 = reb.Path(["X"; "O"; "M"])
+    let op1 = reb.Path ["A"; "X"; "N"; "M"]
+    let op2 = reb.Path ["B"; "X"; "N"; "M"]
+    let op3 = reb.Path ["A"; "X"; "O"; "M"]
+    let op4 = reb.Path ["X"; "O"; "M"]
     let pref1 = reb.Union [op1; op2; op3; op4]
-    let pref2 = reb.Path(["X"; "N"; "M"])
+    let pref2 = reb.Path ["X"; "N"; "M"]
     [reb.Build pref1; reb.Build pref2]
 
 let rStretchingManWAN1 (reb: Regex.REBuilder) = 
@@ -181,7 +181,7 @@ let rPinCushionWAN1 (reb: Regex.REBuilder) =
     [reb.Build pref1; reb.Build pref2]
 
 let rBackboneWAN1 (reb: Regex.REBuilder) =
-    let pref1 = reb.EndsAt("A")
+    let pref1 = reb.End(["A"])
     [reb.Build pref1]
 
 let tests (settings: Args.T) = 
@@ -218,7 +218,7 @@ let tests (settings: Args.T) =
      Fail = None};
    
     {Name= "DCsmall2";
-     Explanation="Waypoint through spine no backup (should fail)";
+     Explanation="Through through spine no backup (should fail)";
      Topo= tDatacenterSmall;
      Rf= rDatacenterSmall2; 
      Receive= None;
@@ -227,7 +227,7 @@ let tests (settings: Args.T) =
      Fail = Some NoPathForRouters};
 
     {Name= "DCsmall3";
-     Explanation="Waypoint through spine with backup";
+     Explanation="Through through spine with backup";
      Topo= tDatacenterSmall;
      Rf= rDatacenterSmall3; 
      Receive= Some [("X", "A"); ("M", "X"); ("N", "X"); ("B", "X"); ("Y", "M"); ("Y", "N"); ("C", "Y"); ("D", "Y")];
@@ -245,7 +245,7 @@ let tests (settings: Args.T) =
      Fail = None };
 
     {Name= "DCsmall5";
-     Explanation="Waypoint through spine to single location (should fail)";
+     Explanation="Through through spine to single location (should fail)";
      Topo= tDatacenterSmall;
      Rf= rDatacenterSmall5; 
      Receive= None;
@@ -263,7 +263,7 @@ let tests (settings: Args.T) =
      Fail = None};
 
     {Name= "DCmedium2";
-     Explanation="Waypoint through spine (should fail)";
+     Explanation="Through through spine (should fail)";
      Topo= tDatacenterMedium;
      Rf= rDatacenterMedium2; 
      Receive= None;
@@ -272,7 +272,7 @@ let tests (settings: Args.T) =
      Fail = Some InconsistentPrefs}; 
 
     {Name= "DCmedium3";
-     Explanation="Waypoint through spine, valley free (should fail)";
+     Explanation="Through through spine, valley free (should fail)";
      Topo= tDatacenterMedium;
      Rf= rDatacenterMedium3; 
      Receive= None;
@@ -281,7 +281,7 @@ let tests (settings: Args.T) =
      Fail = Some InconsistentPrefs};
 
     {Name= "DCmedium4";
-     Explanation="Waypoint through spine, valley free with simple backup";
+     Explanation="Through through spine, valley free with simple backup";
      Topo= tDatacenterMedium;
      Rf= rDatacenterMedium4; 
      Receive= Some [("G", "F"); ("H", "F"); ("E","G"); ("E","H"); ("X", "G"); 
@@ -293,7 +293,7 @@ let tests (settings: Args.T) =
      Fail = None};
 
     {Name= "DClarge1";
-     Explanation="Waypoint through spine (should fail)";
+     Explanation="Through through spine (should fail)";
      Topo= tDatacenterLarge;
      Rf= rDatacenterLarge1; 
      Receive= None;
@@ -302,7 +302,7 @@ let tests (settings: Args.T) =
      Fail = Some NoPathForRouters};
 
     {Name= "DClarge2";
-     Explanation="Waypoint through spine with backup (should fail due to valleys)";
+     Explanation="Through through spine with backup (should fail due to valleys)";
      Topo= tDatacenterLarge;
      Rf= rDatacenterLarge2; 
      Receive= None;
@@ -311,7 +311,7 @@ let tests (settings: Args.T) =
      Fail = Some InconsistentPrefs};
 
     {Name= "DClarge3";
-     Explanation="Waypoint through spines with preference and backup (should fail due to valleys)";
+     Explanation="Through through spines with preference and backup (should fail due to valleys)";
      Topo= tDatacenterLarge;
      Rf= rDatacenterLarge3; 
      Receive= None;

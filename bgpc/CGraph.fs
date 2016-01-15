@@ -472,7 +472,7 @@ module Minimize =
         let prune () = 
             removeNodesThatCantReachEnd cg
             removeEdgesForDominatedNodes cg
-            removeDeadEdgesHeuristic cg
+            (* removeDeadEdgesHeuristic cg *)
             removeRedundantExternalNodes cg
             compressRepeatedUnknowns cg
             removeNodesNotOnAnySimplePathToEnd cg

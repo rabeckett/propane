@@ -41,7 +41,7 @@ type Task =
 
 type CConstraint = 
     | CAggregate of Prefix.T list * Set<string> * Set<string>
-    | CCommunity of Prefix.T list * Set<string> * Set<string> * string
+    | CCommunity of string * Prefix.T list * Set<string> * Set<string>
     | CMaxRoutes of uint32 * Set<string> * Set<string>
     | CLongestPath of uint32
 
@@ -53,8 +53,13 @@ type BinOp =
     | OUnion 
     | ODifference
 
+type Def = 
+    | DRegex of Re
+    | DExpr of Expr
+    | DBuiltin
+
 type T = 
-    {Defs: Map<string, Re>;
+    {Defs: Map<string, Def>;
      CConstraints: ControlConstraints;
      Tasks: Task list;
      Policy: Re}

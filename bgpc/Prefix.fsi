@@ -19,6 +19,9 @@ val prefix: (uint32*uint32*uint32*uint32) -> uint32 -> T
 /// Human readable for for a prefix
 val str: Pred -> string
 
+///
+val binaryPred: Pred -> string
+
 /// Construct a prefix from an integer range
 val fromRange: uint32 * uint32 -> Pred
 

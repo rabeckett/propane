@@ -136,6 +136,11 @@ let binaryStr x =
         result <- result + (if isOne x i then "1" else "0")
     result
 
+let binaryPred x = 
+    match x with 
+    | Pred [(a,b)] -> binaryStr a + "\n" + binaryStr b
+    | _ -> failwith "binaryPred"
+
 let rangeOfPrefix (p: T) =
     let lowermask = shl 0xffffffffu (32 - int p.Slash)
     let uppermask = shr 0xffffffffu (int p.Slash)

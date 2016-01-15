@@ -2,7 +2,6 @@
 
 open Topology
 open Common.Error
-open Common.Debug
 
 type Predicate =
     | True
@@ -45,21 +44,26 @@ type Task =
 
 type CConstraint = 
     | CAggregate of Prefix.T list * Set<string> * Set<string>
-    | CCommunity of Prefix.T list * Set<string> * Set<string> * string
+    | CCommunity of string * Prefix.T list * Set<string> * Set<string>
     | CMaxRoutes of uint32 * Set<string> * Set<string>
     | CLongestPath of uint32
 
 type PolicyPair = (Predicate.T * Regex.REBuilder * Regex.T list)
 
+type Def = 
+    | DRegex of Re
+    | DExpr of Expr
+    | DBuiltin
+
 type T = 
-    {Defs: Map<string, Re>;
+    {Defs: Map<string, Def>;
      CConstraints: ControlConstraints;
      Tasks: Task list;
      Policy: Re}
 
 exception InvalidPrefixException of Prefix.T
 
-let rec bubblePrefsToTop (r: Re) : Re list = 
+let rec pushPrefsToTop (r: Re) : Re list = 
     match r with 
     | Empty -> [Empty]
     | Concat (x,y) -> merge r (x,y) (fun a b -> Concat(a,b))
@@ -68,11 +72,11 @@ let rec bubblePrefsToTop (r: Re) : Re list =
     | Difference (x,y) -> merge r (x,y) (fun a b -> Difference(a,b))
     | Star x -> mergeSingle r x "star"
     | Negate x -> mergeSingle r x "negation"
-    | Shr (x,y) -> (bubblePrefsToTop x) @ (bubblePrefsToTop y)
+    | Shr (x,y) -> (pushPrefsToTop x) @ (pushPrefsToTop y)
     | Ident _ -> [r] (* TODO: invariant - no prefs in expansion, remove from REBuilder code *)
 and merge r (x,y) f =
-    let xs = bubblePrefsToTop x 
-    let ys = bubblePrefsToTop y
+    let xs = pushPrefsToTop x 
+    let ys = pushPrefsToTop y
     match xs, ys with
     | [a], _ -> List.map (fun b -> f a b) ys
     | _, [b] -> List.map (fun a -> f a b) xs
@@ -81,11 +85,38 @@ and merge r (x,y) f =
         error (sprintf "invalid use of preferences in regex, cannot merge: %s and %s in %s" sx sy sr)
     | _, _ -> failwith "impossible"
 and mergeSingle r x op =
-    let xs = bubblePrefsToTop x
+    let xs = pushPrefsToTop x
     if xs.Length > 1 then
         error (sprintf "invalid use of preferences in regex, cannot nest under %s operator: %s" op (string r))
     else xs 
 
+let builtInRes = 
+    Set.ofList 
+        ["start"; "end"; "enter"; "exit"; "valleyfree"; "through"; "avoid"; 
+         "internal"; "external"; "any"; "none"; "in"; "out"]
+
+let builtInConstraints = 
+    Set.ofList ["aggregate"; "tag"; "maxroutes"; "longest_path"]
+
+let builtIns = Set.union builtInRes builtInConstraints
+
+let validateDefinitions defs = 
+    Map.iter (fun l _ -> 
+        if builtIns.Contains l then
+            error (sprintf "invalid redefinition of %s" l)
+        else ()) defs
+
+let rec lookupDefinition defs l = 
+    match Map.tryFind l defs with
+    | None -> None
+    | Some x -> 
+        match x with 
+        | DRegex (Ident(s,[]))
+        | DExpr (IdentExpr s) ->
+            match lookupDefinition defs s with
+            | None -> Some x
+            | Some y -> Some y
+        | _ -> Some x
 
 let rec buildRegex (ast: T) (reb: Regex.REBuilder) (r: Re) : Regex.LazyT =
     let checkParams id n args =
@@ -108,10 +139,12 @@ let rec buildRegex (ast: T) (reb: Regex.REBuilder) (r: Re) : Regex.LazyT =
     | Ident(id, args) ->
         match id with
         | "valleyfree" -> let locs = checkParams id args.Length args in reb.ValleyFree locs
-        | "start" -> let locs = checkParams id 1 args in reb.StartsAtAny locs.Head
-        | "end" -> let locs = checkParams id 1 args in reb.EndsAtAny locs.Head
-        | "waypoint" -> let locs = checkParams id 1 args in reb.WaypointAny locs.Head
-        | "avoid" -> let locs = checkParams id 1 args in reb.AvoidAny locs.Head
+        | "start" -> let locs = checkParams id 1 args in reb.Start locs.Head
+        | "end" -> let locs = checkParams id 1 args in reb.End locs.Head
+        | "enter" -> let locs = checkParams id 1 args in reb.Enter locs.Head
+        | "exit" -> let locs = checkParams id 1 args in reb.Exit locs.Head
+        | "through" -> let locs = checkParams id 1 args in reb.Through locs.Head
+        | "avoid" -> let locs = checkParams id 1 args in reb.Avoid locs.Head
         | "internal" -> ignore (checkParams id 0 args); reb.Internal()
         | "external" -> ignore (checkParams id 0 args); reb.External()
         | "any" -> ignore (checkParams id 0 args); reb.Any()
@@ -119,19 +152,21 @@ let rec buildRegex (ast: T) (reb: Regex.REBuilder) (r: Re) : Regex.LazyT =
         | "in" -> ignore (checkParams id 0 args); reb.Inside 
         | "out" -> ignore (checkParams id 0 args);  reb.Outside
         | l -> 
-            ignore (checkParams id 0 args)
-            match Map.tryFind l ast.Defs with 
-            | None -> reb.Loc l
-            | Some r ->
-                (* TODO: check for recursive definition *)
-                buildRegex ast reb r
+            if args.Length > 0 then 
+                error (sprintf "undefined macro %s" l)
+            (* TODO: check for recursive definition *)
+            match lookupDefinition ast.Defs l with 
+            | Some (DRegex r) -> buildRegex ast reb r
+            | Some (DExpr e) -> 
+                error (sprintf "expected regex, but got %s in expansion of definition %s for regex %s" (string e) l (string r))
+            | None -> reb.Loc l 
+            | Some (DBuiltin) -> failwith "impossible"
     | Shr _ -> failwith "unreachable"
 
 let validatePrefix (a,b,c,d,adjBits) =
     let p = Prefix.prefix (a,b,c,d) adjBits
     if (a > 255u || b > 255u || c > 255u || d > 255u || adjBits > 32u) then
         raise (InvalidPrefixException p)
-
 
 let rec toPredicate (p: Predicate) : Predicate.T = 
     match p with 
@@ -168,46 +203,78 @@ let rec toPrefixes (p: Predicate) : Prefix.Pred =
  
 type Typ = 
     | PredicateType
+    | CommunityType
     | LinkTyp
     | IntTyp
-    | IdentTyp
 
     override this.ToString() = 
         match this with
         | PredicateType -> "Predicate"
-        | LinkTyp -> "Links (X -> Y)"
+        | CommunityType -> "Community"
+        | LinkTyp -> "Links"
         | IntTyp -> "Int"
-        | IdentTyp -> "Identifier"
 
 let paramInfo = 
     Map.ofList [
         ("aggregate", (2, [PredicateType; LinkTyp]));
-        ("tag", (3, [PredicateType; LinkTyp; PredicateType]));
-        ("maxroutes", (1, [IntTyp]));
+        ("tag", (3, [CommunityType; PredicateType; LinkTyp]));
+        ("maxroutes", (2, [IntTyp; LinkTyp]));
         ("longest_path", (1, [IntTyp]));
     ]
 
-let checkArgs name args = 
+let rec checkArgs ast name args = 
     match Map.tryFind name paramInfo with
     | None -> error (sprintf "unrecognized constraint: %s" name)
     | Some (n, typs) -> 
         let len = List.length args
         if len <> n then 
             error (sprintf "invalid number of parameters to: %s. Expected: %d, but received %d" name n len)
+        let subst_args = 
+            List.mapi (fun i arg -> 
+                match arg with
+                | IdentExpr s -> 
+                    match lookupDefinition ast.Defs s with
+                    | Some (DExpr e) -> e
+                    | Some (DRegex _)
+                    | Some DBuiltin ->
+                        error (sprintf "parameter %d, (%s) to constraint %s is a regular expression" i s name)
+                    | None -> error (sprintf "parameter %d, (%s) to constraint %s is undefined" i s name)
+                | _ -> arg ) args
         let mutable i = 0
         for (x,y) in List.zip args typs do 
             i <- i + 1
             match x,y with
             | PredicateExpr _, PredicateType -> ()
+            | PredicateExpr (Community _), CommunityType -> ()
             | LinkExpr(x,y), LinkTyp -> ()
             | IntLiteral _, IntTyp -> ()
-            | IdentExpr _, IdentTyp -> ()
+            | IdentExpr _, _ -> failwith "impossible"
             | _, _ -> error (sprintf "expected parameter %d of constraint (%s) to be of type: %s" i name (string y))
+
+let getPredicate x = 
+    match x with 
+    | PredicateExpr p -> p
+    | _ -> failwith "unreachable"
+
+let getLinks x = 
+    match x with 
+    | LinkExpr(x,y) -> (x,y)
+    | _ -> failwith "unreachable"
+
+let getInt x = 
+    match x with 
+    | IntLiteral i -> i 
+    | _ -> failwith "unreachable"
+
+let getComm x = 
+    match x with 
+    | Community(a,b) -> (a,b)
+    | _ -> failwith "unreachable"
 
 let buildCConstraint ast (topo: Topology.T) cc =
     let reb = Regex.REBuilder(topo) 
     let (name, args) = cc
-    checkArgs name args
+    checkArgs ast name args
 
     let getLinkLocations (x,y) =
         let locsX = Regex.singleLocations (reb.Topo()) (buildRegex ast reb x)
@@ -218,23 +285,24 @@ let buildCConstraint ast (topo: Topology.T) cc =
 
     match name with
     | "aggregate" ->
-        let (PredicateExpr p) = List.head args
-        let (LinkExpr(x,y)) = List.nth args 1
+        let p = getPredicate (List.head args)
+        let (x,y) = getLinks (List.nth args 1)
         let (xs,ys) = getLinkLocations (x,y)
         CAggregate (Prefix.toPrefixes (toPrefixes p), xs, ys)
     | "tag" -> 
-        let (PredicateExpr p) = List.head args
-        let (LinkExpr(x,y)) = List.nth args 1
-        let (PredicateExpr c) = List.nth args 2
+        let (a,b) = getComm (getPredicate (List.head args))
+        let p = getPredicate (List.nth args 1)
+        let (x,y) = getLinks (List.nth args 2)
         let (xs,ys) = getLinkLocations (x,y)
-        CCommunity (Prefix.toPrefixes (toPrefixes p), xs, ys, "") (* TODO *)
-    | "maxroutes" -> 
-        let (IntLiteral i) = List.head args
-        let (LinkExpr(x,y)) = List.nth args 1
+        let str = (string a) + ":" + (string b)
+        CCommunity (str, Prefix.toPrefixes (toPrefixes p), xs, ys)
+    | "maxroutes" ->
+        let i = getInt (List.head args)
+        let (x,y) = getLinks (List.nth args 1)
         let (xs,ys) = getLinkLocations (x,y)
         CMaxRoutes (i,xs,ys)
     | "longest_path" -> 
-        let (IntLiteral i) = List.head args
+        let i = getInt (List.head args)
         CLongestPath i
     | _ -> failwith "unreachable"
 
@@ -301,27 +369,32 @@ let checkPredicates (sName: string) (pcs: ConcretePathConstraints) =
     with InvalidPrefixException p ->
         error (sprintf "Invalid prefix: %s" (p.ToString()))
 
-let rec mergeTasks (re: Re) disjoints : ConcretePathConstraints =
+let rec mergeTasks ast (re: Re) disjoints : ConcretePathConstraints =
     match re with
     | Empty -> error (sprintf "Empty constraint not allowed in main policy expression")
-    | Concat(x,y) -> combineConstraints (mergeTasks x disjoints) (mergeTasks y disjoints) OConcat
-    | Union(x,y) -> combineConstraints (mergeTasks x disjoints) (mergeTasks y disjoints) OUnion
-    | Inter(x,y) -> combineConstraints (mergeTasks x disjoints) (mergeTasks y disjoints) OInter
-    | Difference(x,y) -> combineConstraints (mergeTasks x disjoints) (mergeTasks y disjoints) ODifference
+    | Concat(x,y) -> combineConstraints (mergeTasks ast x disjoints) (mergeTasks ast y disjoints) OConcat
+    | Union(x,y) -> combineConstraints (mergeTasks ast x disjoints) (mergeTasks ast y disjoints) OUnion
+    | Inter(x,y) -> combineConstraints (mergeTasks ast x disjoints) (mergeTasks ast y disjoints) OInter
+    | Difference(x,y) -> combineConstraints (mergeTasks ast x disjoints) (mergeTasks ast y disjoints) ODifference
     | Negate x -> error (sprintf "Negation not allowed in main policy definition, in expression: %s" (x.ToString()))
     | Star x -> error (sprintf "Star operator not allowed in main policy definition, in expression: %s" (x.ToString()))
-    | Ident(x,res) -> 
-        if res <> [] then
-            error (sprintf "parameters given for identifier %s in main policy definition" x) 
-        Map.find x disjoints
+    | Ident(x,[]) -> 
+        match Map.tryFind x disjoints with 
+        | Some d -> d
+        | None -> 
+            match lookupDefinition ast.Defs x, builtInRes.Contains x with 
+            | Some _, _ | _, true -> [(Predicate.top, [re])]
+            | None, false -> error (sprintf "undefined identifier %s in main policy expression" x)
+    | Ident(x,args) -> [(Predicate.top, [re])]
     | Shr _ -> failwith "unreachable"
 
 let addPair acc s =
-    let cconstrs = List.map (fun (p,r) -> (toPredicate p, bubblePrefsToTop r)) s.PConstraints
+    let cconstrs = List.map (fun (p,r) -> (toPredicate p, pushPrefsToTop r)) s.PConstraints
     checkPredicates s.Name cconstrs
     Map.add s.Name cconstrs acc
 
 let makePolicyPairs (ast: T) (topo: Topology.T) : PolicyPair list =
+    validateDefinitions ast.Defs
     let names = List.map (fun s -> s.Name) ast.Tasks
     let unqNames = Set.ofList names
     if unqNames.Count <> names.Length then
@@ -333,7 +406,7 @@ let makePolicyPairs (ast: T) (topo: Topology.T) : PolicyPair list =
             |> Seq.map fst
         error (sprintf "duplicate named policies: %s" (dups.ToString()))
     let disjoints = List.fold addPair Map.empty ast.Tasks
-    let allPCs = mergeTasks ast.Policy disjoints
+    let allPCs = mergeTasks ast ast.Policy disjoints
     let mutable acc = []
     for (pred, res) in allPCs do 
         let reb = Regex.REBuilder(topo)

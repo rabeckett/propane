@@ -33,16 +33,26 @@ type DeviceConfig =
 type PredConfig = Predicate.T * Map<string, DeviceConfig>
 
 type DeviceAggregates = (Prefix.T list * seq<string>) list
-type Aggregates = Map<string, DeviceAggregates>
+type DeviceTags = ((string * Prefix.T list) * seq<string>) list
+type DeviceMaxRoutes = (uint32 * seq<string>) list
+
+type Aggregates = Map<string, (Prefix.T list * seq<string>) list>
+type Tags = Map<string, ((string * Prefix.T list) * seq<string>) list>
+type MaxRoutes = Map<string, (uint32 * seq<string>) list>
+
+type DeviceControl = 
+    {Aggregates: DeviceAggregates;
+     Tags: DeviceTags;
+     MaxRoutes: DeviceMaxRoutes}
 
 type RouterConfig = 
     {Actions: (Predicate.T * DeviceConfig) list;
-     Aggregates: DeviceAggregates}
+     Control: DeviceControl}
 
 type T = Map<string, RouterConfig>
 
 /// Convert per-prefix representation to a per-router representatoin
-val joinConfigs: Aggregates -> PredConfig list -> T
+val joinConfigs: Aggregates * Tags * MaxRoutes -> PredConfig list -> T
 
 /// Debug config output
 val format: T -> string
