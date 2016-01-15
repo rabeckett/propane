@@ -2,9 +2,19 @@
 open Common.Debug
 open Common.Error
 
+let datacenter () = 
+    let (topo, _, _) = Examples.dataCenter [(2,2); (2,2); (2,1)]
+    printfn "number of vertices: %d" (Seq.length topo.Vertices)
+    printfn "number of edges: %d" (Seq.length topo.Edges)
+    for v in topo.Vertices do 
+        printfn "  %s" v.Loc
+
 
 [<EntryPoint>]
 let main argv =
+    datacenter ()
+    exit 0
+    
     // Parse command line settings
     ignore (Args.parse argv)
     let settings = Args.getSettings ()

@@ -752,8 +752,6 @@ let splitConstraints topo (constraints: _ list) =
     let maxRouteInfo = splitByLocation checkMaxRouteLocs topo maxroutes
     (aggInfo, commInfo, maxRouteInfo)
     
-
-
 let compileAllPrefixes fullName topo (pairs: Ast.PolicyPair list) constraints : T =
     let info = splitConstraints topo constraints
     Array.ofList pairs
