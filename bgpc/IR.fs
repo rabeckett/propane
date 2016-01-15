@@ -331,7 +331,7 @@ module Compress =
             |> Seq.countBy (fun (a,b) -> (a.Node.Loc, b.Node.Loc))
             |> Map.ofSeq
 
-        let uniquePair (a,b) = 
+        let inline uniquePair (a,b) = 
             Map.find (a,b) pairCount = 1 
 
         let mutable newConfig = Map.empty

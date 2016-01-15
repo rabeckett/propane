@@ -595,12 +595,22 @@ module Consistency =
         checkIncomparableNodes g edges
         removeUnconstrainedEdges g edges
         g.TopologicalSort ()
-
-    let getReachabilityMap cg nodes = 
-        let mutable reachMap = Map.empty
-        for n in nodes do
-            reachMap <- Map.add n (Reachable.srcAccepting cg n Down) reachMap
-        reachMap
+    
+    let getReachabilityMap (cg:T) =
+        let prefs = 
+            cg.Graph.Vertices 
+            |> Seq.map (fun v -> v.Accept)
+            |> Seq.fold Set.union Set.empty
+        let getNodesWithPref acc i = 
+            let copy = copyGraph cg
+            copy.Graph.RemoveEdgeIf (fun e -> 
+                e.Target = copy.End && not (e.Source.Accept.Contains i)) |> ignore
+            let reach = Reachable.src copy copy.End Up
+            Set.fold (fun acc v ->
+                let existing = Common.Map.getOrDefault v Set.empty acc 
+                let updated = Map.add v (Set.add i existing) acc
+                updated) acc reach
+        Set.fold getNodesWithPref Map.empty prefs    
 
     let addPrefConstraints idx f cg (g: Constraints) r nodes reachMap =
         let mutable edges = Set.empty
@@ -648,7 +658,7 @@ module Consistency =
     let findOrdering idx f cg outName : Result<Ordering, CounterExample> =
         let prefs = preferences cg 
         let rs = restrictedGraphs cg prefs
-        let reachMap = getReachabilityMap cg cg.Graph.Vertices
+        let reachMap = getReachabilityMap cg
         debug2 (fun () -> Map.iter (fun i g -> generatePNG g (outName + "-min-restricted" + string i)) rs)
         let labels = 
             cg.Graph.Vertices
