@@ -407,30 +407,24 @@ module Minimize =
                 runner <- Option.get dom.[runner]
             ds
 
-    let inter poMap (dom: DominationTree) b1 b2 =
-        //printfn "      intersection with : %s, %s" (string b1) (string b2)
-        //for kv in dom do 
-        //    let state = kv.Key
-        //    let value = kv.Value
-        //    printfn "      key: %s, value: %s" (string state) (string value)
+    let inter (po: Dictionary<CgState,int>) (dom: DominationTree) b1 b2 =
         let mutable finger1 = b1
         let mutable finger2 = b2
-        while (Map.find finger1 poMap <> Map.find finger2 poMap) do 
-            while (Map.find finger1 poMap > Map.find finger2 poMap) do 
+        while (po.[finger1] <> po.[finger2]) do 
+            while (po.[finger1] > po.[finger2]) do 
                 finger1 <- Option.get dom.[finger1]
-            while (Map.find finger2 poMap > Map.find finger1 poMap) do
+            while (po.[finger2] > po.[finger1]) do
                 finger2 <- Option.get dom.[finger2]
-        //printfn "      intersected node is: %s" (string finger1)
         finger1
 
     let dominators' (cg: T) root direction : DominationSet = 
-        //printfn "\n\n"
         let f = if direction = Up then neighbors else neighborsIn
         let dom = Dictionary()
         let postorder = 
             Reachable.dfs cg root direction
             |> Seq.mapi (fun i n -> (n,i))
-        let postorderMap = Map.ofSeq postorder
+        let postorderMap = Dictionary() 
+        Seq.iter (fun (n,i) -> postorderMap.[n] <- i) postorder
         let allNodes = cg.Graph.Vertices |> Set.ofSeq
         for b in allNodes do 
             dom.[b] <- None
@@ -439,32 +433,17 @@ module Minimize =
         while changed do 
             changed <- false 
             for b, i in postorder do
-                //printfn "looking at: %s" (string b)
                 if b <> root then 
-                    //printfn "  it is not root"
                     let preds = f cg b
-                    //printfn "  predecessors: %A" (string (Seq.toList preds))
-                    let mutable newIDom = Seq.find (fun x -> Map.find x postorderMap < i) preds
-                    //printfn "  newIDom: %s" (string newIDom)
-                    //printfn "  others: %s" (string (Seq.toList preds))
+                    let mutable newIDom = Seq.find (fun x -> postorderMap.[x] < i) preds
                     for p in preds do
                         if p <> newIDom then 
-                            //printfn "    looking at other: %s" (string p)
                             if dom.[p] <> None then 
-                                //printfn "      dominator is not undefined, so taking intersection with newIDom"
                                 newIDom <- inter postorderMap dom p newIDom
                     let x = dom.[b]
                     if Option.isNone x || Option.get x <> newIDom then
-                        //printfn "  change in immediate dominator"
                         dom.[b] <- Some newIDom
                         changed <- true
-        
-        (* conform to set repr *)
-        //for kv in dom do 
-        //    let state = kv.Key
-        //    let value = kv.Value
-        //    printfn "      key: %s, value: %s" (string state) (string value)
-
         let res = Dictionary()
         for v in cg.Graph.Vertices do 
             res.[v] <- dominators dom v
@@ -493,7 +472,7 @@ module Minimize =
     let removeDominated (cg: T) = 
         let dom = dominators' cg cg.Start Down
         let domRev = dominators' cg cg.End Up
-        (* Remove dominated edges *)
+        // Remove dominated edges
         cg.Graph.RemoveEdgeIf (fun (e: TaggedEdge<CgState,unit>) -> 
             let ies = cg.Graph.OutEdges e.Target
             match Seq.tryFind (fun (ie: TaggedEdge<CgState,unit>) -> ie.Target = e.Source) ies with 
@@ -503,16 +482,14 @@ module Minimize =
                 assert (ie.Target = e.Source)
                 (Set.contains e.Target (dom.[e.Source]) || Set.contains e.Source (domRev.[e.Target])) &&
                 not (e.Target = e.Source) ) |> ignore
-        (* Remove nodes dominated by a similar location *)
+        // Remove nodes dominated by a similar location
         cg.Graph.RemoveVertexIf (fun v -> 
-            dom.[v]
-            |> Set.exists (fun u -> u <> v && u.Node.Loc = v.Node.Loc)) |> ignore
-        (* Remove edges where the outgoing is dominated by a similar location *)
+            Set.exists (fun u -> u <> v && u.Node.Loc = v.Node.Loc) dom.[v]) |> ignore
+        // Remove edges where the outgoing is dominated by a similar location
         cg.Graph.RemoveEdgeIf (fun e ->
             let x = e.Source
             let y = e.Target
-            Set.exists (fun x' -> x'.Node.Loc = x.Node.Loc && x' <> x) domRev.[y]
-        ) |> ignore
+            Set.exists (fun x' -> x'.Node.Loc = x.Node.Loc && x' <> x) domRev.[y]) |> ignore
 
     let removeDeadEdgesHeuristic (cg: T) =
         cg.Graph.RemoveEdgeIf (fun (e: TaggedEdge<CgState,unit>) -> 
