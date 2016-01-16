@@ -714,8 +714,7 @@ module Consistency =
         let g, edges = encodeConstraints idx f (cg, reachMap) r nodes
         getOrdering g edges
 
-    let addForLabel idx f r (cg, reachMap) map l =
-        let (ain, _) = Topology.alphabet cg.Topo
+    let addForLabel idx ain f r (cg, reachMap) map l =
         let ain = Set.map (fun (v: Topology.State) -> v.Loc) ain
         if ain.Contains l then
             if not (Map.containsKey l map) then 
@@ -737,13 +736,14 @@ module Consistency =
         let prefs = preferences cg 
         let rs = restrictedGraphs cg prefs
         let reachMap = getReachabilityMap cg
+        let (ain, _) = Topology.alphabet cg.Topo
         debug2 (fun () -> Map.iter (fun i g -> generatePNG g (outName + "-min-restricted" + string i)) rs)
         let labels = 
             cg.Graph.Vertices
             |> Seq.filter (fun v -> Topology.isTopoNode v.Node)
             |> Seq.map (fun v -> v.Node.Loc)
             |> Set.ofSeq 
-        try Ok(Set.fold (addForLabel idx f rs (cg, reachMap)) Map.empty labels)
+        try Ok(Set.fold (addForLabel idx ain f rs (cg, reachMap)) Map.empty labels)
         with ConsistencyException(x,y) ->
             Err((x,y) )
 
