@@ -83,11 +83,20 @@ let index ((graph, topo, startNode, endNode): BidirectionalGraph<CgStateTmp, Tag
         newCG.AddEdge (TaggedEdge(x,y,())) |> ignore
     {Start=nstart; Graph=newCG; End=nend; Topo=topo}
 
+let getTransitions autos =
+    let aux (auto: Regex.Automaton) = 
+        Map.fold (fun acc (q1,S) q2 ->
+            Set.fold (fun acc s ->
+                Map.add (q1,s) q2 acc) acc S
+        ) Map.empty auto.trans
+    Array.map aux autos
+
 let buildFromAutomata (topo: Topology.T) (autos : Regex.Automaton array) : T =
     if not (Topology.isWellFormed topo) then
         raise Topology.InvalidTopologyException
     let alphabetIn, alphabetOut = Topology.alphabet(topo)
     let alphabetAll = Set.union alphabetIn alphabetOut
+    let transitions = getTransitions autos
     let graph = BidirectionalGraph<CgStateTmp, TaggedEdge<CgStateTmp,unit>>()
     let starting = Array.map (fun (x: Regex.Automaton) -> x.q0) autos
     let newStart = {TStates = starting; TAccept = Set.empty; TNode = {Loc="start"; Typ = Topology.Start} }
@@ -111,8 +120,7 @@ let buildFromAutomata (topo: Topology.T) (autos : Regex.Automaton array) : T =
             for c in Set.intersect alphabetAll adj do
                 let nextInfo = Array.init autos.Length (fun i ->
                     let g, v = autos.[i], ss.[i]
-                    let key = Map.findKey (fun (q,S) _ -> q = v && Set.contains c.Loc S) g.trans
-                    let newState = Map.find key g.trans
+                    let newState = Map.find (v,c.Loc) transitions.[i]
                     let accept =
                         if (Topology.canOriginateTraffic c) && (Set.contains newState g.F) 
                         then Set.singleton (i+1)
@@ -423,7 +431,7 @@ module Minimize =
         let postorder = 
             Reachable.dfs cg root direction
             |> Seq.mapi (fun i n -> (n,i))
-        let postorderMap = Dictionary() 
+        let postorderMap = Dictionary()
         Seq.iter (fun (n,i) -> postorderMap.[n] <- i) postorder
         let allNodes = cg.Graph.Vertices |> Set.ofSeq
         for b in allNodes do 
