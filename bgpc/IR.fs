@@ -3,6 +3,7 @@
 open CGraph
 open Common.Debug
 open Common.Error
+open System.Collections.Generic
 
 exception UncontrollableEnterException of string
 exception UncontrollablePeerPreferenceException of string
@@ -307,7 +308,14 @@ let genConfig (cg: CGraph.T) (pred: Predicate.T) (ord: Consistency.Ordering) (in
 /// or making regexes more readable etc
 module Compress =
 
-    let isCommunityTag (action: Action) : bool = 
+    [<Struct>]
+    type Edge = struct 
+        val X: string
+        val Y: string
+        new(X, Y) = {X=X; Y=Y}
+    end
+
+    let inline isCommunityTag (action: Action) : bool = 
         match action with
         | SetComm _ -> true
         | _ -> false
@@ -328,11 +336,13 @@ module Compress =
             cg.Graph.Vertices
             |> Seq.map ((fun v -> (v, neighbors cg v)) >> (fun (v, ns) -> Seq.map (fun n -> (v,n)) ns))
             |> Seq.fold Seq.append Seq.empty 
-            |> Seq.countBy (fun (a,b) -> (a.Node.Loc, b.Node.Loc))
-            |> Map.ofSeq
+            |> Seq.countBy (fun (a,b) -> Edge(a.Node.Loc, b.Node.Loc))
+        
+        let pCount = Dictionary()
+        for e, count in pairCount do 
+            pCount.[e] <- count
 
-        let inline uniquePair (a,b) = 
-            Map.find (a,b) pairCount = 1 
+        let inline uniquePair e = pCount.[e] = 1 
 
         let mutable newConfig = Map.empty
         for kv in config do
@@ -342,14 +352,20 @@ module Compress =
             for ((m,lp), es) in deviceConf.Filters do
                 let m' = 
                     match m with 
-                    | Match.State(is,x) -> if uniquePair (x,loc) then Match.Peer(x) else m
+                    | Match.State(is,x) -> 
+                        if uniquePair (Edge(x,loc)) then 
+                            Match.Peer(x) 
+                        else m
                     | _ -> m
                 let mutable newEs = []
                 for (peer,acts) in es do
-                    let acts' = 
-                        match getTag acts, uniquePair (loc,peer) with 
-                        | None, _ | _, false -> acts
-                        | Some is, true -> List.filter (isCommunityTag >> not) acts
+                    let acts' =
+                        match getTag acts with 
+                        | None -> acts 
+                        | Some is -> 
+                            if uniquePair (Edge(loc,peer)) then
+                                List.filter (isCommunityTag >> not) acts
+                            else acts
                     newEs <- (peer, acts') :: newEs
                 let newFilt = ((m', lp), List.rev newEs)
                 newFilters <- newFilt :: newFilters
@@ -476,17 +492,18 @@ module Compress =
     (* Avoids tagging with a community from A to B, when B never
        needs to distinguish based on that particular community value *)
     let compressTaggingWhenNotImported ((pred, config): PredConfig) : PredConfig =
-        let importCommNeeded = ref Map.empty 
+        let importCommNeeded = Dictionary()
         for kv in config do 
             let loc = kv.Key 
             let deviceConf = kv.Value 
             for ((m,_), _) in deviceConf.Filters do
                 match m with 
                 | Match.State(is,x) ->
-                    let edge = (loc,x)
-                    match Map.tryFind edge !importCommNeeded with
-                    | None -> importCommNeeded := Map.add (loc,x) (Set.singleton is) !importCommNeeded
-                    | Some iss -> importCommNeeded := Map.add (loc,x) (Set.add is iss) !importCommNeeded
+                    let edge = Edge(loc,x)
+                    if importCommNeeded.ContainsKey edge then
+                        let iss = importCommNeeded.[edge]
+                        importCommNeeded.[edge] <- Set.add is iss
+                    else importCommNeeded.[edge] <- (Set.singleton is)
                 | _ -> ()
         let newConfig = 
             Map.map (fun loc dc ->
@@ -498,10 +515,9 @@ module Compress =
                                     List.filter (fun a ->
                                         match a with
                                         | SetComm is ->
-                                            Map.containsKey (peer,loc) !importCommNeeded &&
-                                            !importCommNeeded
-                                            |> Map.find (peer,loc)
-                                            |> Set.contains is
+                                            let edge = Edge(peer,loc)
+                                            importCommNeeded.ContainsKey edge &&
+                                            importCommNeeded.[edge].Contains is
                                         | _ -> true
                                     ) acts
                                 (peer,acts')
@@ -626,6 +642,7 @@ module Compress =
 /// byte-code-like, vendor-independent representation for BGP 
 
 let compileToIR fullName idx pred (reb: Regex.REBuilder) res : Result<PredConfig, CounterExample> =
+    let settings = Args.getSettings ()
     let fullName = fullName + "(" + (string idx) + ")"
     (* compute the automata and product graph *)
     let dfas = 
@@ -673,8 +690,10 @@ let compileToIR fullName idx pred (reb: Regex.REBuilder) res : Result<PredConfig
                 match Consistency.findOrderingConservative idx cg fullName with 
                 | Ok ord ->
                     let config = genConfig cg pred ord inExports
-                    let config = Compress.compress cg config fullName
-                    Ok (config)
+                    if settings.Compression then 
+                        let compressed = Compress.compress cg config fullName
+                        Ok (compressed)
+                    else Ok (config)
                 | Err((x,y)) -> Err(InconsistentPrefs(x,y))
             with 
                 | UncontrollableEnterException s -> Err(UncontrollableEnter s)

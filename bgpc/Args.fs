@@ -17,7 +17,8 @@ type T =
      UseNoExport: bool;
      Test: bool;
      Debug: int; 
-     DebugDir: string}
+     DebugDir: string;
+     Compression: bool}
 
 exception InvalidArgException of string
 
@@ -30,6 +31,7 @@ let useNoExport = ref false
 let test = ref false
 let debug = ref 0
 let debugDir = ref ("debug" + string System.IO.Path.DirectorySeparatorChar)
+let compression = ref true
 
 let settings = ref None
 
@@ -74,6 +76,12 @@ let setDebug s =
         raise (InvalidArgException ("Invalid debug level: " + s))
     debug := i
 
+let setCompression s = 
+    match s with 
+    | "on" -> compression := true
+    | "off" -> compression := false
+    | _ -> raise (InvalidArgException (sprintf "Invalid compression value: %s" s))
+
 let usage = "Usage: bgpc.exe [options]"
 let args = 
     [|("--pol", String (fun s -> polFile := Some s), "Policy file");
@@ -83,6 +91,7 @@ let args =
       ("--med:on|off", String setMED, "Use MED attribute (default off)");
       ("--prepending:on|off", String setPrepending, "Use AS path prepending (default off)");
       ("--no-export:on|off", String setNoExport, "Use no-export community (default off)");
+      ("--compression:on|off", String setCompression, "Compress rules (default on)");
       ("--format:IR|Templ", String setFormat, "Output format (IR, Template)");
       ("--test", Unit (fun () -> test := true), "Run unit tests");
       ("--help", Unit (fun () -> ()), "Display this message");
@@ -105,19 +114,23 @@ let lookup (s: string) next i =
     try 
         let arr = s.Split(':')
         let s = arr.[0]
-        let (p, run, descr) = Array.find (fun (s' : string,_,_) -> s = s'.Split(':').[0]) args
-        match run with
-        | Unit f -> f (); i + 1
-        | String f ->
-            if arr.Length > 1 then 
-                let s' = arr.[1]
-                f s'; i + 1
-            else
-                match next with 
-                | None ->
-                    printfn "Invalid usage: %s, %s" p descr
-                    exit ()
-                | Some s' -> f s'; i + 2
+        match Array.tryFind (fun (s' : string,_,_) -> s = s'.Split(':').[0]) args with
+        | None -> 
+            printfn "Unrecognized option: %s" s
+            exit ()
+        | Some (p,run,descr) ->
+            match run with
+            | Unit f -> f (); i + 1
+            | String f ->
+                if arr.Length > 1 then 
+                    let s' = arr.[1]
+                    f s'; i + 1
+                else
+                    match next with 
+                    | None ->
+                        printfn "Invalid usage: %s, %s" p descr
+                        exit ()
+                    | Some s' -> f s'; i + 2
     with InvalidArgException msg -> 
         printfn "%s" msg
         exit ()
@@ -145,7 +158,8 @@ let parse (argv: string[]) : unit =
               Format = !format; 
               Test = !test; 
               Debug = !debug; 
-              DebugDir = !debugDir}
+              DebugDir = !debugDir;
+              Compression = !compression}
 
 let getSettings () = 
     match !settings with

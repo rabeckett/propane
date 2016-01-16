@@ -3,7 +3,7 @@ open Common.Debug
 open Common.Error
 
 let datacenter () = 
-    let (topo, _, _) = Examples.dataCenter [(24,4); (8,8)] 32
+    let (topo, _, _) = Examples.dataCenter [(24,6); (8,16)] 32
     printfn "number of vertices: %d" (Seq.length topo.Vertices)
     printfn "number of edges: %d" (Seq.length topo.Edges)
     // for v in topo.Vertices do 

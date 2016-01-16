@@ -117,7 +117,7 @@ let buildFromAutomata (topo: Topology.T) (autos : Regex.Automaton array) : T =
                     |> Seq.map (fun e -> e.Target)
                     |> Set.ofSeq
             let adj = if t.Typ = Topology.Unknown then Set.add t adj else adj
-            for c in Set.intersect alphabetAll adj do
+            for c in adj do
                 let nextInfo = Array.init autos.Length (fun i ->
                     let g, v = autos.[i], ss.[i]
                     let newState = Map.find (v,c.Loc) transitions.[i]

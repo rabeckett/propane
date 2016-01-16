@@ -13,7 +13,8 @@ type T =
      UseNoExport: bool;
      Test: bool;
      Debug: int; 
-     DebugDir: string}
+     DebugDir: string;
+     Compression: bool}
 
 /// Get the command-line settings
 val getSettings: unit -> T
