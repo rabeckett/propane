@@ -41,7 +41,7 @@ val inline acceptingStates: T -> Set<CgState>
 val inline acceptingLocations: T -> Set<string>
 
 /// Returns the (outgoing) neighbors of a state in the graph
-val inline neighbors: T -> CgState -> seq<CgState> 
+val inline neighbors: T -> CgState -> seq<CgState>
 
 /// Returns the (incoming) neighbors of a state in the graph
 val inline neighborsIn: T -> CgState -> seq<CgState> 
@@ -89,10 +89,10 @@ module Reachable =
 
 module Minimize =
     /// Get rid of nodes that can originate traffic but aren't accepting
-    val delMissingSuffixPaths: T -> unit
+    val delMissingSuffixPaths: T -> T
 
     /// Fixpoint removal of nodes and edges, including nodes not on any simple path
-    val minimize: int -> T -> unit
+    val minimize: int -> T -> T
 
 
 module Consistency =

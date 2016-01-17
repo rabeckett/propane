@@ -3,11 +3,11 @@ open Common.Debug
 open Common.Error
 
 let datacenter () = 
-    let (topo, _, _) = Examples.dataCenter [(24,16); (8,16)] 32
+    let (topo, _, _) = Topology.Examples.megaDC [(2,2); (3,3)] 4
+
+    // let (topo, _, _) = Examples.dataCenter [(24,4); (8,16)] 32
     printfn "number of vertices: %d" (Seq.length topo.Vertices)
     printfn "number of edges: %d" (Seq.length topo.Edges)
-    // for v in topo.Vertices do 
-    //    printfn "  %s" v.Loc
 
     let reb = Regex.REBuilder(topo)
     let pol = reb.Build (reb.End ["T0_0"])
@@ -23,8 +23,9 @@ let main argv =
     ignore (Args.parse argv)
     let settings = Args.getSettings ()
 
-    datacenter ()
-    exit 0
+    if settings.Experiment then
+        datacenter ()
+        exit 0
 
     // Run unit tests if in test mode
     if settings.Test then

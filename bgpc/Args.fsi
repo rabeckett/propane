@@ -12,6 +12,7 @@ type T =
      UsePrepending: bool;
      UseNoExport: bool;
      Test: bool;
+     Experiment: bool;
      Debug: int; 
      DebugDir: string;
      Compression: bool}

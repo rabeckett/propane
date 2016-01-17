@@ -16,6 +16,7 @@ type T =
      UsePrepending: bool;
      UseNoExport: bool;
      Test: bool;
+     Experiment: bool;
      Debug: int; 
      DebugDir: string;
      Compression: bool}
@@ -32,6 +33,7 @@ let test = ref false
 let debug = ref 0
 let debugDir = ref ("debug" + string System.IO.Path.DirectorySeparatorChar)
 let compression = ref true
+let experiment = ref false
 
 let settings = ref None
 
@@ -94,6 +96,7 @@ let args =
       ("--compression:on|off", String setCompression, "Compress rules (default on)");
       ("--format:IR|Templ", String setFormat, "Output format (IR, Template)");
       ("--test", Unit (fun () -> test := true), "Run unit tests");
+      ("--experiment", Unit (fun () -> experiment := true), "Run DC example");
       ("--help", Unit (fun () -> ()), "Display this message");
     |]
 
@@ -157,6 +160,7 @@ let parse (argv: string[]) : unit =
               UseNoExport = !useNoExport; 
               Format = !format; 
               Test = !test; 
+              Experiment = !experiment
               Debug = !debug; 
               DebugDir = !debugDir;
               Compression = !compression}

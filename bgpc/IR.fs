@@ -219,7 +219,7 @@ let configureIncomingTraffic cg : IncomingExportMap =
 
 (* Order config by preference and then router name. 
    This makes it easier to minimize the config *)
-let comparePrefThenLoc (x,i1) (y,i2) = 
+let inline comparePrefThenLoc (x,i1) (y,i2) = 
     let cmp = compare i1 i2
     if cmp = 0 then
         compare x.Node.Loc y.Node.Loc
@@ -255,11 +255,10 @@ let genConfig (cg: CGraph.T) (pred: Predicate.T) (ord: Consistency.Ordering) (in
             let mutable filters = []
             let prefNeighborsIn =
                 prefs
-                |> Seq.mapi (fun i v -> (neighborsIn cg v, i))
-                |> Seq.map (fun (ns,i) -> Seq.map (fun n -> (n,i)) ns) 
-                |> Seq.fold Seq.append Seq.empty 
-                |> List.ofSeq
-                |> List.sortWith comparePrefThenLoc
+                |> Seq.mapi (fun i v -> Seq.map (fun n -> (n,i)) (neighborsIn cg v))
+                |> Seq.fold Seq.append Seq.empty
+                |> Seq.toArray 
+                |> Array.sortWith comparePrefThenLoc
             (* Generate filters *)
             let mutable lp = 101
             let mutable lastPref = None
@@ -280,12 +279,11 @@ let genConfig (cg: CGraph.T) (pred: Predicate.T) (ord: Consistency.Ordering) (in
                     else NoMatch
                 let node = 
                     neighbors cg v
-                    |> Seq.filter (fun x -> x.Node.Loc = loc) 
-                    |> Seq.head
+                    |> Seq.find (fun x -> x.Node.Loc = loc)
                 let expNeighbors = 
                     neighbors cg node
-                    |> Seq.toList
-                    |> List.filter (fun x -> x.Node.Loc <> v.Node.Loc && Topology.isTopoNode x.Node)
+                    |> Seq.toArray
+                    |> Array.filter (fun x -> x.Node.Loc <> v.Node.Loc && Topology.isTopoNode x.Node)
                 
                 (* Set exports *)
                 let mutable exports = Map.empty
@@ -339,7 +337,7 @@ module Compress =
             |> Seq.countBy (fun (a,b) -> Edge(a.Node.Loc, b.Node.Loc))
         
         let pCount = Dictionary()
-        for e, count in pairCount do 
+        for e, count in pairCount do
             pCount.[e] <- count
 
         let inline uniquePair e = pCount.[e] = 1 
@@ -644,19 +642,17 @@ module Compress =
 let compileToIR fullName idx pred (reb: Regex.REBuilder) res : Result<PredConfig, CounterExample> =
     let settings = Args.getSettings ()
     let fullName = fullName + "(" + (string idx) + ")"
-    (* compute the automata and product graph *)
     let dfas = 
         res 
         |> List.map (fun r -> reb.MakeDFA (Regex.rev r))
         |> Array.ofList
     let cg = CGraph.buildFromAutomata (reb.Topo()) dfas
     debug1 (fun () -> CGraph.generatePNG cg fullName )
-    (* Ensure the path suffix property and dont conside simple paths *)
-    CGraph.Minimize.delMissingSuffixPaths cg
-    CGraph.Minimize.minimize idx cg
-    (* Save graphs to file *)
+    // Ensure the path suffix property and dont conside simple paths
+    let cg = CGraph.Minimize.delMissingSuffixPaths cg
+    let cg = CGraph.Minimize.minimize idx cg
     debug1 (fun () -> CGraph.generatePNG cg (fullName + "-min"))
-    (* Check for errors *)
+    // Check for errors
     let startingLocs = Array.fold (fun acc dfa -> Set.union (reb.StartingLocs dfa) acc) Set.empty dfas
     let originators = 
         CGraph.neighbors cg cg.Start
@@ -676,7 +672,7 @@ let compileToIR fullName idx pred (reb: Regex.REBuilder) res : Result<PredConfig
     if not (Set.isEmpty lost) then 
         Err(NoPathForRouters(lost))
     else
-        (* Find unused preferences *)
+        // Find unused preferences
         let numberedRegexes = seq {for i in 1.. List.length res do yield i}  |> Set.ofSeq
         let prefs = CGraph.preferences cg
         let unusedPrefs = Set.difference numberedRegexes prefs

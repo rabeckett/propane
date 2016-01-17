@@ -116,3 +116,53 @@ let findLinks (topo: T) (froms, tos) =
                     pairs <- (s, d) :: pairs
             | _, _ -> ()
     pairs
+
+
+module Examples =
+    type Tiers = Map<State,int>
+    type Prefixes = Map<State,Prefix.T>
+
+    let megaDC (tiers: (int*int) list) top =
+        let loc t i = 
+            "T" + string t + "_" + string i 
+        // generate and store new prefixes as we go
+        let currPrefix = ref 0
+        let prefixMap = ref Map.empty
+        // remeber what tier nodes are in
+        let tierMap = ref Map.empty
+        // build a topology from tiers of a datacenter
+        let g = BidirectionalGraph<State, TaggedEdge<State,unit>>()
+        let maxTier = List.length tiers
+        // recursively construct a data center from the top down
+        let rec aux currTier i parents (tiers: _ list) =
+            match tiers with
+            | [] -> ()
+            | (routers,blocks)::tl ->
+                for b in 0..blocks-1 do
+                    let mutable newParents = []
+                    for r in 0..routers-1 do
+                        let idx = (b*routers + r) + blocks*routers*i
+                        let l = loc currTier idx
+                        let v = {Loc=l; Typ=if currTier=0 then InsideOriginates else Inside}
+                        printfn "Adding vertex: %s" v.Loc
+                        g.AddVertex v |> ignore
+                        tierMap := Map.add v currTier !tierMap
+                        if currTier = 0 then 
+                            let a = uint32 (!currPrefix % 256 * 256 * 256)
+                            let b = uint32 (!currPrefix % 256 * 256)
+                            let c = uint32 (!currPrefix % 256)
+                            let p = Prefix.prefix (a, b, c, 0u) 24u
+                            prefixMap := Map.add v p !prefixMap
+                            currPrefix := !currPrefix + 1
+                        for u in parents do
+                            printfn "Adding edge: %s to %s" v.Loc u.Loc
+                            g.AddEdge (TaggedEdge(v,u,())) |> ignore
+                            g.AddEdge (TaggedEdge(u,v,())) |> ignore
+                        newParents <- v :: newParents
+                    if currTier = 0 then () 
+                    else aux (currTier - 1) b newParents tl
+        aux maxTier 0 [] ((top,1) :: List.rev tiers)
+        (g, !prefixMap, !tierMap)
+
+    let fatTree (k: int) : T * Prefixes * Tiers = 
+        failwith ""
