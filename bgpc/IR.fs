@@ -301,17 +301,18 @@ let genConfig (cg: CGraph.T) (pred: Predicate.T) (ord: Consistency.Ordering) (in
     (pred, config)
 
 
-/// Compress configs to make them more readable by 
-/// e.g., removing unnecessary community tagging 
-/// or making regexes more readable etc
 module Compress =
 
-    [<Struct>]
-    type Edge = struct 
-        val X: string
-        val Y: string
-        new(X, Y) = {X=X; Y=Y}
-    end
+    let updateDC ((pred, config): PredConfig) f =
+        let nConfig = 
+            Map.fold (fun acc router dc ->
+                let filters = List.choose (f router) dc.Filters
+                let dc' = {Originates=dc.Originates; Filters=filters}
+                Map.add router dc' acc ) Map.empty config
+        (pred,nConfig)
+
+    let updateExports (es: Export list) f : Export list = 
+        List.choose f es
 
     let inline isCommunityTag (action: Action) : bool = 
         match action with
@@ -329,47 +330,26 @@ module Compress =
     (* For each pair of (X,Y) edges in the product graph
        if the pair is unique, then there is no need to 
        match/tag on the community, so we can remove it *)
-    let compressUniquePairs (cg: CGraph.T) ((pred, config): PredConfig) : PredConfig =
-        let pairCount = 
-            cg.Graph.Vertices
-            |> Seq.map ((fun v -> (v, neighbors cg v)) >> (fun (v, ns) -> Seq.map (fun n -> (v,n)) ns))
-            |> Seq.fold Seq.append Seq.empty 
-            |> Seq.countBy (fun (a,b) -> Edge(a.Node.Loc, b.Node.Loc))
-        
+    let compressUniquePairs (cg: CGraph.T) (config: PredConfig) : PredConfig =
+        let pairCount =
+            cg.Graph.Edges
+            |> Seq.countBy (fun e -> (e.Source.Node.Loc, e.Target.Node.Loc))
         let pCount = Dictionary()
         for e, count in pairCount do
             pCount.[e] <- count
-
-        let inline uniquePair e = pCount.[e] = 1 
-
-        let mutable newConfig = Map.empty
-        for kv in config do
-            let loc = kv.Key
-            let deviceConf = kv.Value 
-            let mutable newFilters = []
-            for ((m,lp), es) in deviceConf.Filters do
-                let m' = 
-                    match m with 
-                    | Match.State(is,x) -> 
-                        if uniquePair (Edge(x,loc)) then 
-                            Match.Peer(x) 
-                        else m
-                    | _ -> m
-                let mutable newEs = []
-                for (peer,acts) in es do
-                    let acts' =
-                        match getTag acts with 
-                        | None -> acts 
-                        | Some is -> 
-                            if uniquePair (Edge(loc,peer)) then
-                                List.filter (isCommunityTag >> not) acts
-                            else acts
-                    newEs <- (peer, acts') :: newEs
-                let newFilt = ((m', lp), List.rev newEs)
-                newFilters <- newFilt :: newFilters
-            let newDeviceConf = {Originates=deviceConf.Originates; Filters=List.rev newFilters}
-            newConfig <- Map.add loc newDeviceConf newConfig
-        (pred, newConfig)
+        let inline unqPair e = pCount.[e] = 1 
+        updateDC config (fun loc ((m,lp),es) -> 
+            let m' = 
+                match m with
+                | Match.State(is,x) -> if unqPair (x,loc) then Match.Peer(x) else m
+                | _ -> m
+            let es' = updateExports es (fun (peer, acts) -> 
+                let acts' =
+                    match getTag acts with
+                    | None -> acts
+                    | Some is -> if unqPair (loc,peer) then List.filter (isCommunityTag >> not) acts else acts
+                Some (peer, acts'))
+            Some ((m', lp), es'))
 
     (*
     (* Find the longest consecutive sequence of imports for each peer. 
@@ -438,7 +418,8 @@ module Compress =
             | _ -> arg
         let newFilters = List.map replace dc.Filters
         {Originates=dc.Originates; Filters=newFilters}
-
+    
+    
     (* Removes redundant community matches when ultimately nobody else
        will ever care about the difference in community value.
        We have to be careful to avoid removing the community match when
@@ -497,7 +478,7 @@ module Compress =
             for ((m,_), _) in deviceConf.Filters do
                 match m with 
                 | Match.State(is,x) ->
-                    let edge = Edge(loc,x)
+                    let edge = (loc,x)
                     if importCommNeeded.ContainsKey edge then
                         let iss = importCommNeeded.[edge]
                         importCommNeeded.[edge] <- Set.add is iss
@@ -513,7 +494,7 @@ module Compress =
                                     List.filter (fun a ->
                                         match a with
                                         | SetComm is ->
-                                            let edge = Edge(peer,loc)
+                                            let edge = (peer,loc)
                                             importCommNeeded.ContainsKey edge &&
                                             importCommNeeded.[edge].Contains is
                                         | _ -> true
@@ -639,20 +620,7 @@ module Compress =
 /// Given a topology and a policy, generate a low-level configuration in an intermediate
 /// byte-code-like, vendor-independent representation for BGP 
 
-let compileToIR fullName idx pred (reb: Regex.REBuilder) res : Result<PredConfig, CounterExample> =
-    let settings = Args.getSettings ()
-    let fullName = fullName + "(" + (string idx) + ")"
-    let dfas = 
-        res 
-        |> List.map (fun r -> reb.MakeDFA (Regex.rev r))
-        |> Array.ofList
-    let cg = CGraph.buildFromAutomata (reb.Topo()) dfas
-    debug1 (fun () -> CGraph.generatePNG cg fullName )
-    // Ensure the path suffix property and dont conside simple paths
-    let cg = CGraph.Minimize.delMissingSuffixPaths cg
-    let cg = CGraph.Minimize.minimize idx cg
-    debug1 (fun () -> CGraph.generatePNG cg (fullName + "-min"))
-    // Check for errors
+let getLocsThatCantGetPath idx cg (reb: Regex.REBuilder) dfas = 
     let startingLocs = Array.fold (fun acc dfa -> Set.union (reb.StartingLocs dfa) acc) Set.empty dfas
     let originators = 
         CGraph.neighbors cg cg.Start
@@ -668,14 +636,33 @@ let compileToIR fullName idx pred (reb: Regex.REBuilder) res : Result<PredConfig
     let locsThatGetPath = CGraph.acceptingLocations cg
     logInfo1(idx, sprintf "Locations that need path: %s" (locsThatNeedPath.ToString()))
     logInfo1(idx, sprintf "Locations that get path: %s" (locsThatGetPath.ToString()))
-    let lost = Set.difference locsThatNeedPath locsThatGetPath
+    Set.difference locsThatNeedPath locsThatGetPath
+
+let getUnusedPrefs cg res = 
+    let numberedRegexes = seq {for i in 1.. List.length res do yield i}  |> Set.ofSeq
+    let prefs = CGraph.preferences cg
+    Set.difference numberedRegexes prefs
+
+let compileToIR fullName idx pred (reb: Regex.REBuilder) res : Result<PredConfig, CounterExample> =
+    let settings = Args.getSettings ()
+    let fullName = fullName + "(" + (string idx) + ")"
+
+    let dfas = 
+        res 
+        |> List.map (fun r -> reb.MakeDFA (Regex.rev r))
+        |> Array.ofList
+    let cg = CGraph.buildFromAutomata (reb.Topo()) dfas
+    debug1 (fun () -> CGraph.generatePNG cg fullName )
+
+    let cg = CGraph.Minimize.delMissingSuffixPaths cg
+    let cg = CGraph.Minimize.minimize idx cg
+    debug1 (fun () -> CGraph.generatePNG cg (fullName + "-min"))
+
+    let lost = getLocsThatCantGetPath idx cg reb dfas
     if not (Set.isEmpty lost) then 
         Err(NoPathForRouters(lost))
     else
-        // Find unused preferences
-        let numberedRegexes = seq {for i in 1.. List.length res do yield i}  |> Set.ofSeq
-        let prefs = CGraph.preferences cg
-        let unusedPrefs = Set.difference numberedRegexes prefs
+        let unusedPrefs = getUnusedPrefs cg res
         if not (Set.isEmpty unusedPrefs) then
             let cexamples = Set.fold (fun acc p -> 
                 Map.add p (List.item (p-1) res) acc) Map.empty unusedPrefs

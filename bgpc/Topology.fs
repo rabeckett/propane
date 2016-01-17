@@ -191,20 +191,32 @@ module Examples =
             tiers.[v] <- 2
             v)
         let perPod = (k/2)
-        for i in 0 .. iT0-1 do
+        for i = 0 to  iT0-1 do
             let pod = i / (perPod)
-            for j in 0 .. perPod-1 do
+            for j = 0 to perPod-1 do
                 // printfn "(%d,%d)" i (pod*perPod + j)
                 let x = routersT0.[i]
                 let y = routersT1.[pod*perPod + j]
                 g.AddEdge (TaggedEdge(x,y,())) |> ignore
                 g.AddEdge (TaggedEdge(y,x,())) |> ignore
-        for i in 0 .. iT1-1 do 
-            for j in 0 .. perPod-1 do
+        for i = 0 to iT1-1 do 
+            for j = 0 to perPod-1 do
                 let rem = i % perPod
-                printfn "(%d,%d)" i (rem*perPod + j)
                 let x = routersT1.[i]
                 let y = routersT2.[rem*perPod + j]
                 g.AddEdge (TaggedEdge(x,y,())) |> ignore
                 g.AddEdge (TaggedEdge(y,x,())) |> ignore
         (g, prefixes, tiers)
+
+    let complete n = 
+        let g = BidirectionalGraph<State, TaggedEdge<State,unit>>()
+        for i = 0 to n-1 do
+            let name = "R" + string i
+            let v = {Loc=name; Typ=InsideOriginates}
+            ignore (g.AddVertex v)
+        for v1 in g.Vertices do 
+            for v2 in g.Vertices do 
+                if v1 <> v2 then 
+                    g.AddEdge (TaggedEdge(v1,v2,())) |> ignore
+                    g.AddEdge (TaggedEdge(v2,v1,())) |> ignore
+        g

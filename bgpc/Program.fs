@@ -3,7 +3,7 @@ open Common.Debug
 open Common.Error
 
 let datacenter () = 
-    let (topo, _, _) = Topology.Examples.fatTree 70
+    let (topo, _, _) = Topology.Examples.fatTree 40
     // let (topo, _, _) = Examples.megaDC [(24,4); (8,16)] 32
     printfn "number of vertices: %d" (Seq.length topo.Vertices)
     printfn "number of edges: %d" (Seq.length topo.Edges)

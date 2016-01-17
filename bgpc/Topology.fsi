@@ -58,6 +58,7 @@ val findLinks: T -> Set<string> * Set<string> -> (State * State) list
 
 
 module Examples = 
+
     type Tiers = Dictionary<State,int>
     type Prefixes = Dictionary<State,Prefix.T>
 
@@ -66,3 +67,6 @@ module Examples =
 
     /// generate a fattree topology with k pods
     val fatTree: int -> T * Prefixes * Tiers
+
+    /// full mesh topology modeling iBGP
+    val complete: int -> T
