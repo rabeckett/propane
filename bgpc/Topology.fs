@@ -125,15 +125,11 @@ module Examples =
     let megaDC (tiers: (int*int) list) top =
         let loc t i = 
             "T" + string t + "_" + string i 
-        // generate and store new prefixes as we go
         let currPrefix = ref 0
         let prefixMap = Dictionary()
-        // remeber what tier nodes are in
         let tierMap = Dictionary()
-        // build a topology from tiers of a datacenter
         let g = BidirectionalGraph<State, TaggedEdge<State,unit>>()
         let maxTier = List.length tiers
-        // recursively construct a data center from the top down
         let rec aux currTier i parents (tiers: _ list) =
             match tiers with
             | [] -> ()
@@ -164,25 +160,51 @@ module Examples =
         aux maxTier 0 [] ((top,1) :: List.rev tiers)
         (g, prefixMap, tierMap)
 
-    let fatTree (k: int) : T * Prefixes * Tiers = 
-        let iT0 = 2*k
-        let iT1 = 2*k
-        let iT2 = k
+    let fatTree k : T * Prefixes * Tiers = 
+        let iT0 = (k * k) / 2
+        let iT1 = (k * k) / 2
+        let iT2 = (k * k) / 4
         let g = BidirectionalGraph<State, TaggedEdge<State,unit>>()
         let prefixes = Dictionary()
+        let tiers = Dictionary()
         let routersT0 = Array.init iT0 (fun i ->
             let name = "T0_" + string i
+            let v = {Loc=name; Typ=InsideOriginates}
+            ignore (g.AddVertex v)
             let a = uint32 (i % 256 * 256 * 256)
             let b = uint32 (i % 256 * 256)
             let c = uint32 (i % 256)
             let p = Prefix.prefix (a, b, c, 0u) 24u
-            prefixes.[name] <- p
-            name)
-        let routersT1 = Array.init iT1 (fun i -> "T1_" + string i)
-        let routesrT2 = Array.init iT2 (fun i -> "T2_" + string i)
-
-        for i in 0 .. iT1 .. 2 do 
-            
-            ()
-
-        failwith ""
+            prefixes.[v] <- p
+            tiers.[v] <- 0
+            v)
+        let routersT1 = Array.init iT1 (fun i -> 
+            let name = "T1_" + string i
+            let v = {Loc=name; Typ=Inside}
+            ignore (g.AddVertex v)
+            tiers.[v] <- 1
+            v)
+        let routersT2 = Array.init iT2 (fun i ->
+            let name = "T2_" + string i
+            let v = {Loc=name; Typ=Inside}
+            ignore (g.AddVertex v)
+            tiers.[v] <- 2
+            v)
+        let perPod = (k/2)
+        for i in 0 .. iT0-1 do
+            let pod = i / (perPod)
+            for j in 0 .. perPod-1 do
+                // printfn "(%d,%d)" i (pod*perPod + j)
+                let x = routersT0.[i]
+                let y = routersT1.[pod*perPod + j]
+                g.AddEdge (TaggedEdge(x,y,())) |> ignore
+                g.AddEdge (TaggedEdge(y,x,())) |> ignore
+        for i in 0 .. iT1-1 do 
+            for j in 0 .. perPod-1 do
+                let rem = i % perPod
+                printfn "(%d,%d)" i (rem*perPod + j)
+                let x = routersT1.[i]
+                let y = routersT2.[rem*perPod + j]
+                g.AddEdge (TaggedEdge(x,y,())) |> ignore
+                g.AddEdge (TaggedEdge(y,x,())) |> ignore
+        (g, prefixes, tiers)

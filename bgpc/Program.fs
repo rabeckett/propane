@@ -3,15 +3,12 @@ open Common.Debug
 open Common.Error
 
 let datacenter () = 
-    let (topo, _, _) = Topology.Examples.megaDC [(2,2); (3,3)] 4
-
-    // let (topo, _, _) = Examples.dataCenter [(24,4); (8,16)] 32
+    let (topo, _, _) = Topology.Examples.fatTree 70
+    // let (topo, _, _) = Examples.megaDC [(24,4); (8,16)] 32
     printfn "number of vertices: %d" (Seq.length topo.Vertices)
     printfn "number of edges: %d" (Seq.length topo.Edges)
-
     let reb = Regex.REBuilder(topo)
     let pol = reb.Build (reb.End ["T0_0"])
-
     match IR.compileToIR "config" 0 Predicate.top reb [pol] with
     | Ok _ -> printfn "OK"
     | Err _ -> printfn "ERR"
