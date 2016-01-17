@@ -4,6 +4,75 @@
 \subsection{Syntax}
 Define the grammar of each of the languages - regular language, the macro language on top of it, and maybe the IR language.
 
+% grammar
+\newcommand{\BNFALT}{\;\;|\;\;}
+\newcommand{\hdr}[2]{\flushleft \chdr{#1}{#2}}
+\newcommand{\chdr}[2]{\textbf{#1} {#2} \\ \centering}
+
+\begin{figure*}
+  \begin{minipage}[t]{.42\linewidth}
+  \hdr{\large Syntax}{}
+  \vspace*{-1\baselineskip}
+  %
+  \[ \begin{array}{rclr}
+    \hline
+     pol &::=& c_1, \dots, c_n & \textit{constraints} \\
+     c   &::=& p \Rightarrow r_1 \gg \dots \gg r_m & \textit{preferences} \\
+     p   &::=& true & \textit{true} \\
+      &\BNFALT& \neg p & \textit{negation} \\
+      &\BNFALT& p_1 \vee p_2 & \textit{disjunction} \\
+      &\BNFALT& p_1 \wedge p_2 & \textit{conjunction} \\
+      &\BNFALT& prefix = x & \textit{prefix test} \\
+      &\BNFALT& comm = t & \textit{community test} \\
+     r   &::=& n & \textit{AS number} \\
+      &\BNFALT& in & \textit{internal loc} \\
+      &\BNFALT& out & \textit{external loc} \\
+      &\BNFALT& r_1 \cup r_2 & \textit{union} \\
+      &\BNFALT& r_1 \cap r_2 & \textit{intersection} \\
+      &\BNFALT& r_1 \cdot r_2 & \textit{concatenation} \\
+      &\BNFALT& !(r) & \textit{path negation} \\
+      &\BNFALT& r^* & \textit{repetition} \\
+  \end{array} \]
+
+  \end{minipage}
+  %
+  ~~
+  \vrule
+  ~~
+  %
+  \begin{minipage}[t]{.5\linewidth}
+  \hdr{\large Propane Macros}{}
+  \vspace*{-1\baselineskip}
+  %
+  \[ \begin{array}{rcl}
+    \hline
+    only(X)       & = & X^* \\
+    never(X)      & = & (!X)^* \\
+    through(X)    & = & out^* \cdot in^* \cdot X \cdot in^* \cdot out^* \\
+    upstream(X)   & = & out^* \cdot (X \cap out) \cdot out^* \cdot in^+ \cdot out^* \\
+    downstream(X) & = & out^* \cdot in^+ \cdot out^* \cdot (X \cap out) \cdot out^* \\
+    end(X)        & = & (out^* \cdot in^* \cdot (X \cap in)) \cup \\
+                  & = & (out^* \cdot in^+ \cdot out^* \cdot (X \cap out)) \\
+    start(X)      & = & ((X \cap in) \cdot in^* \cdot out^*) \cup \\
+                  & = & ((X \cap out) \cdot out^* \cdot in^+ \cdot out^*) \\
+    exit(X)       & = & (out^* \cdot in^* \cdot (X \cap in) \cdot out \cdot out^*) \cup \\
+                  &        & (out^* \cdot in^+ \cdot (X \cap out) \cdot out^*) \\
+    enter(X)      & = & (out^* \cdot out \cdot (X \cap in) \cdot in^* \cdot out^*) \cup \\
+                  &        & (out^* \cdot (X \cap out) \cdot in^+ \cdot out^*) \\
+    link(X,Y)     & = & (out^* \cdot in^* \cdot X \cdot Y \cdot in^* \cdot out^*) \cup \\
+                  & = & (out^* \cdot (X \cap out) \cdot (Y \cap in) \cdot in^* \cdot out^*) \cup \\
+                  & = & (out^* \cdot in^* \cdot (X \cap in) \cdot (Y \cap out) \cdot out^*) \\
+  \end{array} \]
+
+  \end{minipage}
+
+  \hrulefill
+
+  \caption{Regular Intemediate Language (RIL) syntax (left), and 
+           Propane language expansions (right).}
+  \label{fig:semantics}
+\end{figure*}
+
 \subsection{Semantics}
 Give the semantics in terms of ranked paths.
 Extension of regular expression semantics with the
