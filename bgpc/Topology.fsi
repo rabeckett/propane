@@ -1,5 +1,7 @@
 ﻿module Topology
+
 open QuickGraph
+open System.Collections.Generic
 
 type NodeType = 
     | Start
@@ -56,8 +58,8 @@ val findLinks: T -> Set<string> * Set<string> -> (State * State) list
 
 
 module Examples = 
-    type Tiers = Map<State,int>
-    type Prefixes = Map<State,Prefix.T>
+    type Tiers = Dictionary<State,int>
+    type Prefixes = Dictionary<State,Prefix.T>
 
     /// generate a random mega datacenter with a given row, block and T3 information
     val megaDC: (int*int) list -> int -> T * Prefixes * Tiers

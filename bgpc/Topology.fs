@@ -119,17 +119,17 @@ let findLinks (topo: T) (froms, tos) =
 
 
 module Examples =
-    type Tiers = Map<State,int>
-    type Prefixes = Map<State,Prefix.T>
+    type Tiers = Dictionary<State,int>
+    type Prefixes = Dictionary<State,Prefix.T>
 
     let megaDC (tiers: (int*int) list) top =
         let loc t i = 
             "T" + string t + "_" + string i 
         // generate and store new prefixes as we go
         let currPrefix = ref 0
-        let prefixMap = ref Map.empty
+        let prefixMap = Dictionary()
         // remeber what tier nodes are in
-        let tierMap = ref Map.empty
+        let tierMap = Dictionary()
         // build a topology from tiers of a datacenter
         let g = BidirectionalGraph<State, TaggedEdge<State,unit>>()
         let maxTier = List.length tiers
@@ -146,13 +146,13 @@ module Examples =
                         let v = {Loc=l; Typ=if currTier=0 then InsideOriginates else Inside}
                         printfn "Adding vertex: %s" v.Loc
                         g.AddVertex v |> ignore
-                        tierMap := Map.add v currTier !tierMap
+                        tierMap.[v] <- currTier
                         if currTier = 0 then 
                             let a = uint32 (!currPrefix % 256 * 256 * 256)
                             let b = uint32 (!currPrefix % 256 * 256)
                             let c = uint32 (!currPrefix % 256)
                             let p = Prefix.prefix (a, b, c, 0u) 24u
-                            prefixMap := Map.add v p !prefixMap
+                            prefixMap.[v] <- p
                             currPrefix := !currPrefix + 1
                         for u in parents do
                             printfn "Adding edge: %s to %s" v.Loc u.Loc
@@ -162,7 +162,27 @@ module Examples =
                     if currTier = 0 then () 
                     else aux (currTier - 1) b newParents tl
         aux maxTier 0 [] ((top,1) :: List.rev tiers)
-        (g, !prefixMap, !tierMap)
+        (g, prefixMap, tierMap)
 
     let fatTree (k: int) : T * Prefixes * Tiers = 
+        let iT0 = 2*k
+        let iT1 = 2*k
+        let iT2 = k
+        let g = BidirectionalGraph<State, TaggedEdge<State,unit>>()
+        let prefixes = Dictionary()
+        let routersT0 = Array.init iT0 (fun i ->
+            let name = "T0_" + string i
+            let a = uint32 (i % 256 * 256 * 256)
+            let b = uint32 (i % 256 * 256)
+            let c = uint32 (i % 256)
+            let p = Prefix.prefix (a, b, c, 0u) 24u
+            prefixes.[name] <- p
+            name)
+        let routersT1 = Array.init iT1 (fun i -> "T1_" + string i)
+        let routesrT2 = Array.init iT2 (fun i -> "T2_" + string i)
+
+        for i in 0 .. iT1 .. 2 do 
+            
+            ()
+
         failwith ""
