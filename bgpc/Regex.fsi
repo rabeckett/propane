@@ -86,3 +86,4 @@ type REBuilder  =
     member ValleyFree: seq<string list> -> LazyT
     member Enter: string list -> LazyT
     member Exit: string list -> LazyT
+    member Only: LazyT -> LazyT

@@ -234,23 +234,6 @@ let generatePNG (cg: T) (file: string) : unit =
 
 module Reachable =
 
-    let floydWarshall (cg: T) : Map<CgState, Set<CgState>> = 
-        let fw = ShortestPath.FloydWarshallAllShortestPathAlgorithm(cg.Graph, fun _ -> 1.0)
-        fw.Compute ()
-        let mutable reachability = Map.empty
-        for src in cg.Graph.Vertices do 
-            let mutable toDst = Set.singleton src
-            for dst in cg.Graph.Vertices do 
-                if fw.TryGetPath(src, dst, ref Seq.empty) then 
-                    toDst <- Set.add dst toDst
-            reachability <- Map.add src toDst reachability
-        reachability
-
-    type AnnotatedCG(cg: T) =
-        let reachability = floydWarshall cg
-        member this.Cg = cg
-        member this.ReachInfo = reachability
-
     let dfs (cg: T) (source: CgState) direction : seq<CgState> = seq { 
         let f = if direction = Up then neighborsIn else neighbors
         let s = Stack()
@@ -439,6 +422,16 @@ module Minimize =
     let removeDominated (cg: T) = 
         let dom = dominators cg cg.Start Down
         let domRev = dominators cg cg.End Up
+        // Remove nodes dominated by a similar location
+        cg.Graph.RemoveVertexIf (fun v -> 
+            Set.exists (fun u -> u <> v && u.Node.Loc = v.Node.Loc) dom.[v]) |> ignore
+        // only remove edges when it might help
+        (* let numUnqLocs = 
+            cg.Graph.Vertices 
+            |> Seq.map (fun v -> v.Node.Loc) 
+            |> Set.ofSeq 
+            |> Set.count
+        if cg.Graph.VertexCount > numUnqLocs then *)
         // Remove dominated edges
         cg.Graph.RemoveEdgeIf (fun (e: TaggedEdge<CgState,unit>) -> 
             let ies = cg.Graph.OutEdges e.Target
@@ -449,9 +442,6 @@ module Minimize =
                 assert (ie.Target = e.Source)
                 (Set.contains e.Target (dom.[e.Source]) || Set.contains e.Source (domRev.[e.Target])) &&
                 (e.Target <> e.Source) ) |> ignore
-        // Remove nodes dominated by a similar location
-        cg.Graph.RemoveVertexIf (fun v -> 
-            Set.exists (fun u -> u <> v && u.Node.Loc = v.Node.Loc) dom.[v]) |> ignore
         // Remove edges where the outgoing is dominated by a similar location
         cg.Graph.RemoveEdgeIf (fun e ->
             let x = e.Source
@@ -480,8 +470,15 @@ module Minimize =
             not (Set.contains v starting) ) |> ignore
         cg
 
+    let inline isFullMesh cg scc = 
+        let size = Set.count scc - 1
+        Set.forall (fun x -> 
+            let nOut = Seq.length (neighbors cg x)
+            let nIn = Seq.length (neighborsIn cg x)
+            nOut >= size && nIn >= size) scc
+
     let compressRepeatedUnknowns (cg: T) = 
-        let components = ref (Dictionary(HashIdentity.Structural) :> IDictionary<CgState,int>)
+        let components = ref (Dictionary() :> IDictionary<CgState,int>)
         ignore (cg.Graph.StronglyConnectedComponents(components))
         let mutable sccs = Map.empty 
         for kv in !components do
@@ -498,10 +495,14 @@ module Minimize =
         let sccs = List.map snd (Map.toList sccs)
         for scc in sccs do 
             let locs = Set.map (fun v -> v.Node.Loc) scc
+            let topoPeers = Topology.peers cg.Topo
             if (allOutTopo.Count = scc.Count) && 
                (locs = allOutTopoLocs) && 
-               (Set.exists (isRepeatedOut cg) scc) then
+               (Set.exists (isRepeatedOut cg) scc) && 
+               isFullMesh cg scc then
                 let outStar = Set.filter (isRepeatedOut cg) scc |> Set.minElement
+                let exportPeers = Set.filter (fun v -> Seq.exists (fun u -> Topology.isInside u.Node) (neighborsIn cg v)) scc
+                cg.Graph.RemoveVertexIf (fun v -> v <> outStar && scc.Contains v && not (exportPeers.Contains v)) |> ignore
                 cg.Graph.RemoveEdgeIf (fun e -> e.Source = outStar && isRealNode e.Target && e.Target <> e.Source) |> ignore
         cg
 
@@ -683,6 +684,7 @@ module Consistency =
 module ToRegex =
 
     let constructRegex (cg: T) (state: CgState) : Regex.T =
+        let cg = copyGraph cg
         (* Store regex transitions in a separate map *)
         let reMap = ref Map.empty
         let get v = Common.Map.getOrDefault v Regex.empty !reMap

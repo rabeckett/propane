@@ -67,5 +67,11 @@ val compileToIR: string -> int -> Predicate.T -> Regex.REBuilder -> Regex.T list
 /// Gives a counterexample and quits the program if compilation is not possible.
 val compileForSinglePrefix: string -> int -> Ast.PolicyPair -> PredConfig
 
+type Stats = 
+    {TotalTime: int64;
+     JoinTime: int64;
+     NumPrefixes: int;
+     PerPrefixTimes: int64 array}
+
 /// Compile for all prefixes
-val compileAllPrefixes: string -> Topology.T -> Ast.PolicyPair list -> Ast.CConstraint list -> T
+val compileAllPrefixes: string -> Topology.T -> Ast.PolicyPair list -> Ast.CConstraint list -> T * Stats

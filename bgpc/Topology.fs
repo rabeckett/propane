@@ -117,6 +117,14 @@ let findLinks (topo: T) (froms, tos) =
             | _, _ -> ()
     pairs
 
+let peers (topo:T) = 
+    Seq.filter (fun v ->
+        isOutside v && 
+        topo.OutEdges v 
+        |> Seq.map (fun e -> e.Target) 
+        |> Seq.exists isInside
+    ) topo.Vertices 
+
 
 module Examples =
     type Tiers = Dictionary<State,int>
@@ -165,6 +173,10 @@ module Examples =
         let iT1 = (k * k) / 2
         let iT2 = (k * k) / 4
         let g = BidirectionalGraph<State, TaggedEdge<State,unit>>()
+        let core = {Loc="CORE"; Typ=Outside}
+        let idfx = {Loc="IDFX"; Typ=Outside}
+        ignore (g.AddVertex core)
+        ignore (g.AddVertex idfx)
         let prefixes = Dictionary()
         let tiers = Dictionary()
         let routersT0 = Array.init iT0 (fun i ->
@@ -194,18 +206,19 @@ module Examples =
         for i = 0 to  iT0-1 do
             let pod = i / (perPod)
             for j = 0 to perPod-1 do
-                // printfn "(%d,%d)" i (pod*perPod + j)
                 let x = routersT0.[i]
                 let y = routersT1.[pod*perPod + j]
-                g.AddEdge (TaggedEdge(x,y,())) |> ignore
-                g.AddEdge (TaggedEdge(y,x,())) |> ignore
+                addEdgesUndirected g [(x,y)]
         for i = 0 to iT1-1 do 
             for j = 0 to perPod-1 do
                 let rem = i % perPod
                 let x = routersT1.[i]
                 let y = routersT2.[rem*perPod + j]
-                g.AddEdge (TaggedEdge(x,y,())) |> ignore
-                g.AddEdge (TaggedEdge(y,x,())) |> ignore
+                addEdgesUndirected g [(x,y)]
+        for i = 0 to iT2-1 do 
+            let x = routersT2.[i]
+            addEdgesUndirected g [(core, x)]
+            addEdgesUndirected g [(idfx, x)]
         (g, prefixes, tiers)
 
     let complete n = 

@@ -37,6 +37,18 @@ type Automaton =
      F: Set<int>;
      trans: Map<int*Set<string>, int>}
 
+     override this.ToString() =
+        let header = "=======================\n"
+        let states = sprintf "States: %s\n" (Common.Set.toString this.Q)
+        let init = sprintf "Initial: %d\n" this.q0
+        let final = sprintf "Final: %s\n" (Common.Set.toString this.F)
+        let trans = 
+            Map.fold (fun acc (q,S) v ->
+                let t = sprintf "  State: %d, chars: %s ---> %d\n" q (Common.Set.toString S) v 
+                acc + t) "" this.trans
+        let trans = sprintf "Transitions:\n%s" trans
+        header + states + init + final + trans + header
+
 let isLoc r = 
     match r with
     | Locs xs when xs.Count = 1 -> 
@@ -432,7 +444,9 @@ type REBuilder(topo: Topology.T) =
         finalAlphabet <- true
         match this.WellFormed re with
         | None -> convert re
-        | Some cs -> raise (InvalidPathShapeException cs)
+        | Some cs ->
+            printfn "Counter example: %A" cs 
+            raise (InvalidPathShapeException cs)
 
     member __.Empty = LEmpty
     member __.Epsilon = LEpsilon
@@ -458,7 +472,7 @@ type REBuilder(topo: Topology.T) =
 
     member this.Locs (xs: string list) = 
         List.fold (fun acc x -> this.Union [acc; this.Loc x]) this.Empty xs
-
+        
     member __.MakeDFA r =
         assert (finalAlphabet)
         makeDFA alphabet r
@@ -491,11 +505,20 @@ type REBuilder(topo: Topology.T) =
         this.Union 
             [this.Concat [this.MaybeOutside(); this.MaybeInside(); this.Locs ins; this.MaybeInside(); this.MaybeOutside()];
              this.Union 
-                [this.Concat [this.MaybeOutside(); this.Internal(); this.MaybeInside(); this.MaybeOutside(); this.Locs outs; this.MaybeOutside()]
-                 this.Concat [this.MaybeOutside(); this.Locs outs; this.Internal(); this.MaybeOutside()] ]]
+                [this.Concat [this.MaybeOutside(); this.Locs outs; this.MaybeOutside(); this.Internal(); this.MaybeInside(); this.MaybeOutside()]
+                 this.Concat [this.MaybeOutside(); this.Internal(); this.Locs outs; this.MaybeOutside()] ]]
 
     member this.Avoid(xs) =
-        this.Negate (this.Through(xs))
+        let (ins,outs) = List.partition isInternal xs
+        let inLocs = this.Locs ins
+        let outLocs = this.Locs outs
+        let notInLocs = this.Inter [this.Negate inLocs; this.Inside]
+        let notOutLocs = this.Inter [this.Negate outLocs; this.Outside]
+        let valid = 
+            this.Union
+                [this.Concat [this.Star notInLocs; notInLocs; this.Star notOutLocs];
+                 this.Concat [this.MaybeOutside(); notOutLocs; this.Star notInLocs; notInLocs; this.Star notOutLocs]]
+        this.Inter [this.Any(); valid]
 
     member this.End(xs) =
         let (ins,outs) = List.partition isInternal xs
@@ -532,3 +555,5 @@ type REBuilder(topo: Topology.T) =
         this.Union 
             [this.Concat [this.MaybeOutside(); this.MaybeInside(); this.Locs ins; this.External()];
              this.Concat [this.MaybeOutside(); this.Internal(); this.Locs outs; this.MaybeOutside()]]
+    
+    member this.Only(xs) = this.Concat [xs; this.Star xs]

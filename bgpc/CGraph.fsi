@@ -60,15 +60,6 @@ val generatePNG: T -> string -> unit
 
 
 module Reachable =
-    /// All pairs reachability in the constraint graph
-    val floydWarshall: T -> Map<CgState, Set<CgState>>
-
-    /// Object to wrap the constraint graph and provide reachability info
-    type AnnotatedCG =
-        new: T -> AnnotatedCG
-        member Cg: T
-        member ReachInfo: Map<CgState, Set<CgState>>
-
     /// Find all destinations reachable from src while avoiding certain nodes
     val srcWithout: T -> CgState -> (CgState -> bool) -> Direction -> Set<CgState>
 

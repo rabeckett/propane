@@ -1,6 +1,7 @@
 ﻿module IR
 
 open CGraph
+open Common
 open Common.Debug
 open Common.Error
 open System.Collections.Generic
@@ -646,18 +647,15 @@ let getUnusedPrefs cg res =
 let compileToIR fullName idx pred (reb: Regex.REBuilder) res : Result<PredConfig, CounterExample> =
     let settings = Args.getSettings ()
     let fullName = fullName + "(" + (string idx) + ")"
-
     let dfas = 
         res 
         |> List.map (fun r -> reb.MakeDFA (Regex.rev r))
         |> Array.ofList
     let cg = CGraph.buildFromAutomata (reb.Topo()) dfas
     debug1 (fun () -> CGraph.generatePNG cg fullName )
-
     let cg = CGraph.Minimize.delMissingSuffixPaths cg
     let cg = CGraph.Minimize.minimize idx cg
     debug1 (fun () -> CGraph.generatePNG cg (fullName + "-min"))
-
     let lost = getLocsThatCantGetPath idx cg reb dfas
     if not (Set.isEmpty lost) then 
         Err(NoPathForRouters(lost))
@@ -757,9 +755,21 @@ let splitConstraints topo (constraints: _ list) =
     let maxRouteInfo = splitByLocation checkMaxRouteLocs topo maxroutes
     (aggInfo, commInfo, maxRouteInfo)
     
-let compileAllPrefixes fullName topo (pairs: Ast.PolicyPair list) constraints : T =
+type Stats = 
+    {TotalTime: int64;
+     JoinTime: int64;
+     NumPrefixes: int;
+     PerPrefixTimes: int64 array}
+
+let compileAllPrefixes fullName topo (pairs: Ast.PolicyPair list) constraints : T * Stats =
     let info = splitConstraints topo constraints
-    Array.ofList pairs
-    |> Array.Parallel.mapi (compileForSinglePrefix fullName)
-    |> Array.toList
-    |> joinConfigs info
+    let pairs = Array.ofList pairs
+    let timedConfigs = Array.Parallel.mapi (fun i x -> Profile.time (compileForSinglePrefix fullName i) x) pairs
+    let configs, times = Array.unzip timedConfigs
+    let joined, joinTime = Profile.time (joinConfigs info) (Array.toList configs)
+    let stats = 
+        {TotalTime=joinTime; 
+         JoinTime=joinTime; 
+         NumPrefixes=Array.length configs;
+         PerPrefixTimes=times}
+    joined, stats

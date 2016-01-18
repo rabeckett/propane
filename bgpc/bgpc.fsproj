@@ -36,7 +36,7 @@
     <PlatformTarget>AnyCPU</PlatformTarget>
     <DocumentationFile>bin\Release\bgpc.XML</DocumentationFile>
     <Prefer32Bit>true</Prefer32Bit>
-    <StartArguments>--experiment --compression:off</StartArguments>
+    <StartArguments>--experiment --compression:on --debug:1 --out:config</StartArguments>
     <DebugSymbols>true</DebugSymbols>
   </PropertyGroup>
   <ItemGroup>
@@ -100,6 +100,7 @@
     <Compile Include="IR.fs" />
     <Compile Include="Test.fsi" />
     <Compile Include="Test.fs" />
+    <Compile Include="Experiment.fs" />
     <Compile Include="Program.fs" />
     <None Include="App.config" />
     <None Include="packages.config" />

@@ -56,6 +56,8 @@ val addEdgesUndirected: T -> (State*State) list -> unit
 /// Find all the valid topology links corresponding to pairs of locations
 val findLinks: T -> Set<string> * Set<string> -> (State * State) list
 
+/// Get all immediate peers
+val peers: T -> seq<State>
 
 module Examples = 
 

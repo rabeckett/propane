@@ -3,7 +3,6 @@
 
 module Debug =
 
-    /// run a function if in debug mode
     let debug n f =
         let settings = Args.getSettings ()
         if settings.Debug >= n then
@@ -13,7 +12,6 @@ module Debug =
     let debug2 f = debug 2 f
     let debug3 f = debug 3 f
 
-    /// Log information to a file
     let logInfo n idx str =
         let settings = Args.getSettings ()
         let logFile = settings.DebugDir + "debug(" + string idx + ").log"
@@ -24,6 +22,16 @@ module Debug =
     let logInfo1(idx, f) = logInfo 1 idx f
     let logInfo2(idx, f) = logInfo 2 idx f
     let logInfo3(idx, f) = logInfo 3 idx f
+
+
+module Profile =
+
+    let time f x = 
+        let s = System.Diagnostics.Stopwatch()
+        s.Start()
+        let ret = f x
+        s.Stop()
+        (ret, s.ElapsedMilliseconds)
 
 
 module List = 
@@ -45,6 +53,13 @@ module List =
 
     let inline joinBy sep ss = 
         fold1 (fun a b -> a + sep + b) ss
+
+    let inline toString xs = 
+        match xs with 
+        | [] -> "[]"
+        | _ -> 
+            let s = joinBy "," (List.map string xs)
+            sprintf "[%s]" s
 
     let combinations n ls = 
         let rec aux acc size set = seq {
@@ -69,6 +84,12 @@ module Set =
 
     let inline joinBy sep ss =
         fold1 (fun a b -> a + sep + b) ss
+
+    let inline toString ss = 
+        if Set.isEmpty ss then "{}"
+        else 
+            let s = joinBy "," (Set.map string ss)
+            sprintf "{%s}" s
 
 
 module Option =
