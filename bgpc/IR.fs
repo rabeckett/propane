@@ -152,7 +152,7 @@ let collectForPeer cg acc peer =
     | false, false -> Map.add peer (Nothing peer.Node.Loc) acc
     | true, false -> Map.add peer Anything acc
     | _, true ->
-        let cexample = CGraph.ToRegex.constructRegex cg peer
+        let cexample = CGraph.ToRegex.constructRegex (copyGraph cg) peer
         Map.add peer (Specific cexample) acc 
 
 let collectIncomingInfo (cg: CGraph.T) : IncomingInfo =
@@ -177,7 +177,7 @@ let addExports (settings: Args.T) info peers actions exportMap =
                 actions <- (SetComm "no-export") :: actions
             else raise (UncontrollableEnterException ("enable no-export to limit incoming traffic to peer: " + x))
         | Specific re -> 
-            raise (UncontrollableEnterException ("incoming traffic cannot conform to: " + re.ToString()))
+            raise (UncontrollableEnterException (sprintf "(%s) incoming traffic cannot conform to: %s" p.Node.Loc (string re)))
         exportMap <- Map.add p actions exportMap
     exportMap
 
@@ -757,19 +757,23 @@ let splitConstraints topo (constraints: _ list) =
     
 type Stats = 
     {TotalTime: int64;
-     JoinTime: int64;
      NumPrefixes: int;
-     PerPrefixTimes: int64 array}
+     PrefixTime: int64;
+     PerPrefixTimes: int64 array
+     JoinTime: int64;}
 
 let compileAllPrefixes fullName topo (pairs: Ast.PolicyPair list) constraints : T * Stats =
     let info = splitConstraints topo constraints
     let pairs = Array.ofList pairs
-    let timedConfigs = Array.Parallel.mapi (fun i x -> Profile.time (compileForSinglePrefix fullName i) x) pairs
+    let timedConfigs, prefixTime = 
+        Profile.time (Array.Parallel.mapi (fun i x -> 
+            Profile.time (compileForSinglePrefix fullName i) x)) pairs
     let configs, times = Array.unzip timedConfigs
     let joined, joinTime = Profile.time (joinConfigs info) (Array.toList configs)
     let stats = 
-        {TotalTime=joinTime; 
+        {TotalTime=prefixTime + joinTime;
+         PrefixTime=prefixTime;
+         PerPrefixTimes=times
          JoinTime=joinTime; 
-         NumPrefixes=Array.length configs;
-         PerPrefixTimes=times}
+         NumPrefixes=Array.length configs;}
     joined, stats

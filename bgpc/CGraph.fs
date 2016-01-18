@@ -295,11 +295,14 @@ module Reachable =
                     (Set.intersect v v' |> Set.isEmpty |> not) ) b)) b
 
         let stepNodeNode n1 n2 =
-            logInfo3 (idx, sprintf "Simulate: %s -- %s" (n1.ToString()) (n2.ToString())) 
+            // printfn "Simulate: %s -- %s" (string n1) (string n2)
+            logInfo3 (idx, sprintf "Simulate: %s -- %s" (string n1) (string n2))
             let neighbors1 = neighbors cg1 n1 |> Seq.filter isRealNode |> Set.ofSeq
             let neighbors2 = neighbors cg2 n2 |> Seq.filter isRealNode |> Set.ofSeq
             let nchars1 = Set.map (fun v -> v.Node.Loc) neighbors1
             let nchars2 = Set.map (fun v -> v.Node.Loc) neighbors2
+            // printfn "neighbors n1: %A" nchars1
+            // printfn "neighbors n2: %A" nchars2
             if not (Set.isSuperset nchars1 nchars2) then
                 None
             else
@@ -470,12 +473,12 @@ module Minimize =
             not (Set.contains v starting) ) |> ignore
         cg
 
-    let inline isFullMesh cg scc = 
-        let size = Set.count scc - 1
+    let inline allConnected cg outStar scc = 
         Set.forall (fun x -> 
-            let nOut = Seq.length (neighbors cg x)
-            let nIn = Seq.length (neighborsIn cg x)
-            nOut >= size && nIn >= size) scc
+            let nOut = Set.ofSeq (neighbors cg x)
+            let nIn = Set.ofSeq (neighborsIn cg x)
+            x = outStar || 
+            (nOut.Contains outStar && nIn.Contains outStar) ) scc
 
     let compressRepeatedUnknowns (cg: T) = 
         let components = ref (Dictionary() :> IDictionary<CgState,int>)
@@ -498,12 +501,14 @@ module Minimize =
             let topoPeers = Topology.peers cg.Topo
             if (allOutTopo.Count = scc.Count) && 
                (locs = allOutTopoLocs) && 
-               (Set.exists (isRepeatedOut cg) scc) && 
-               isFullMesh cg scc then
+               (Set.exists (isRepeatedOut cg) scc) then
                 let outStar = Set.filter (isRepeatedOut cg) scc |> Set.minElement
-                let exportPeers = Set.filter (fun v -> Seq.exists (fun u -> Topology.isInside u.Node) (neighborsIn cg v)) scc
-                cg.Graph.RemoveVertexIf (fun v -> v <> outStar && scc.Contains v && not (exportPeers.Contains v)) |> ignore
-                cg.Graph.RemoveEdgeIf (fun e -> e.Source = outStar && isRealNode e.Target && e.Target <> e.Source) |> ignore
+                if allConnected cg outStar scc then
+                    let exportPeers = Set.filter (fun v -> Seq.exists (fun u -> Topology.isInside u.Node) (neighborsIn cg v)) scc
+                    // check we are on the right side of the graph
+                    if exportPeers.Count > 0 then
+                        cg.Graph.RemoveVertexIf (fun v -> v <> outStar && scc.Contains v && not (exportPeers.Contains v)) |> ignore
+                        cg.Graph.RemoveEdgeIf (fun e -> e.Source = outStar && isRealNode e.Target && e.Target <> e.Source) |> ignore
         cg
 
     let removeRedundantExternalNodes (cg: T) =
@@ -578,8 +583,10 @@ module Consistency =
         else
             // Remove nodes that appear 'above' for the more preferred, to avoid considering simple paths
             // cheaper approximation of simple paths - can do better at cost of speed
+            // printfn "Removing nodes with location: %s" x.Node.Loc
             let exclude = (fun v -> v.Node.Loc = x.Node.Loc && v <> x)
             let reach = Reachable.srcWithout restrict_i x exclude Up |> Set.map (fun v -> v.Node.Loc)
+            // printfn "Removing nodes: %A" reach
             restrict_i.Graph.RemoveVertexIf (fun v -> v <> x && Set.contains v.Node.Loc reach) |> ignore
             // Check if the more preferred simulates the less preferred
             Reachable.supersetPaths idx (restrict_i, x) (restrict_j, y) 
@@ -684,7 +691,6 @@ module Consistency =
 module ToRegex =
 
     let constructRegex (cg: T) (state: CgState) : Regex.T =
-        let cg = copyGraph cg
         (* Store regex transitions in a separate map *)
         let reMap = ref Map.empty
         let get v = Common.Map.getOrDefault v Regex.empty !reMap

@@ -69,9 +69,10 @@ val compileForSinglePrefix: string -> int -> Ast.PolicyPair -> PredConfig
 
 type Stats = 
     {TotalTime: int64;
-     JoinTime: int64;
      NumPrefixes: int;
-     PerPrefixTimes: int64 array}
+     PrefixTime: int64;
+     PerPrefixTimes: int64 array
+     JoinTime: int64;}
 
 /// Compile for all prefixes
 val compileAllPrefixes: string -> Topology.T -> Ast.PolicyPair list -> Ast.CConstraint list -> T * Stats
