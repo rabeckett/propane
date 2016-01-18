@@ -1,5 +1,5 @@
-\section{Language}
-\label{sec:language}
+\section{Regular IR}
+\label{sec:rir}
 
 \subsection{Syntax}
 Define the grammar of each of the languages - regular language, the macro language on top of it, and maybe the IR language.
@@ -10,28 +10,33 @@ Define the grammar of each of the languages - regular language, the macro langua
 \newcommand{\chdr}[2]{\textbf{#1} {#2} \\ \centering}
 
 \begin{figure*}
-  \begin{minipage}[t]{.42\linewidth}
+  \begin{minipage}[t]{.45\linewidth}
   \hdr{\large Syntax}{}
   \vspace*{-1\baselineskip}
   %
   \[ \begin{array}{rclr}
     \hline
-     pol &::=& c_1, \dots, c_n & \textit{constraints} \\
-     c   &::=& p \Rightarrow r_1 \gg \dots \gg r_m & \textit{preferences} \\
-     p   &::=& true & \textit{true} \\
-      &\BNFALT& \neg p & \textit{negation} \\
-      &\BNFALT& p_1 \vee p_2 & \textit{disjunction} \\
-      &\BNFALT& p_1 \wedge p_2 & \textit{conjunction} \\
-      &\BNFALT& prefix = x & \textit{prefix test} \\
-      &\BNFALT& comm = t & \textit{community test} \\
-     r   &::=& n & \textit{AS number} \\
-      &\BNFALT& in & \textit{internal loc} \\
-      &\BNFALT& out & \textit{external loc} \\
-      &\BNFALT& r_1 \cup r_2 & \textit{union} \\
-      &\BNFALT& r_1 \cap r_2 & \textit{intersection} \\
-      &\BNFALT& r_1 \cdot r_2 & \textit{concatenation} \\
-      &\BNFALT& !(r) & \textit{path negation} \\
-      &\BNFALT& r^* & \textit{repetition} \\
+
+     pol     &::=& p_1, \dots, p_n & \textit{constraints} \\
+     p       &::=& t \text{ with } r_1 \gg \dots \gg r_m & \textit{preferences} \\
+     t       &::=& & \textit{test} \\
+         &\BNFALT& true & \textit{true} \\
+         &\BNFALT& \neg t & \textit{negation} \\
+         &\BNFALT& t_1 \vee t_2 & \textit{disjunction} \\
+         &\BNFALT& t_1 \wedge t_2 & \textit{conjunction} \\
+         &\BNFALT& prefix = x & \textit{prefix test} \\
+         &\BNFALT& comm = c & \textit{community test} \\
+     r       &::=& & \textit{regular paths} \\ 
+         &\BNFALT& n & \textit{AS number} \\
+         &\BNFALT& in & \textit{internal loc} \\
+         &\BNFALT& out & \textit{external loc} \\
+         &\BNFALT& r_1 \cup r_2 & \textit{union} \\
+         &\BNFALT& r_1 \cap r_2 & \textit{intersection} \\
+         &\BNFALT& r_1 \cdot r_2 & \textit{concatenation} \\
+         &\BNFALT& !(r) & \textit{path negation} \\
+         &\BNFALT& r^* & \textit{repetition} \\
+     l       &::=& r_1 \rightarrow r_2 & \textit{link pairs} \\
+     cc     &::=& agg(x, l) \BNFALT tag(c, t, l) & \textit{control constraints} \\
   \end{array} \]
 
   \end{minipage}
@@ -41,27 +46,30 @@ Define the grammar of each of the languages - regular language, the macro langua
   ~~
   %
   \begin{minipage}[t]{.5\linewidth}
-  \hdr{\large Propane Macros}{}
+  \hdr{\large Propane Expansions}{}
   \vspace*{-1\baselineskip}
   %
   \[ \begin{array}{rcl}
     \hline
-    only(X)       & = & X^* \\
-    never(X)      & = & (!X)^* \\
+    any           & = & out^* \cdot in^+ \cdot out^* \\
+    internal      & = & in^+ \\
+    external      & = & out^+ \\
+    only(X)       & = & any \cap X^* \\
+    never(X)      & = & any \cap (!X)^* \\
     through(X)    & = & out^* \cdot in^* \cdot X \cdot in^* \cdot out^* \\
-    upstream(X)   & = & out^* \cdot (X \cap out) \cdot out^* \cdot in^+ \cdot out^* \\
-    downstream(X) & = & out^* \cdot in^+ \cdot out^* \cdot (X \cap out) \cdot out^* \\
-    end(X)        & = & (out^* \cdot in^* \cdot (X \cap in)) \cup \\
-                  & = & (out^* \cdot in^+ \cdot out^* \cdot (X \cap out)) \\
-    start(X)      & = & ((X \cap in) \cdot in^* \cdot out^*) \cup \\
-                  & = & ((X \cap out) \cdot out^* \cdot in^+ \cdot out^*) \\
+    after(X)      & = & out^* \cdot (X \cap out) \cdot out^* \cdot in^+ \cdot out^* \\
+    before(X)     & = & out^* \cdot in^+ \cdot out^* \cdot (X \cap out) \cdot out^* \\
+    end(X)        & = & any \cap (\Sigma^* \cdot X) \\
+    start(X)      & = & any \cap (X \cdot \Sigma^*) \\
     exit(X)       & = & (out^* \cdot in^* \cdot (X \cap in) \cdot out \cdot out^*) \cup \\
                   &        & (out^* \cdot in^+ \cdot (X \cap out) \cdot out^*) \\
     enter(X)      & = & (out^* \cdot out \cdot (X \cap in) \cdot in^* \cdot out^*) \cup \\
                   &        & (out^* \cdot (X \cap out) \cdot in^+ \cdot out^*) \\
-    link(X,Y)     & = & (out^* \cdot in^* \cdot X \cdot Y \cdot in^* \cdot out^*) \cup \\
-                  & = & (out^* \cdot (X \cap out) \cdot (Y \cap in) \cdot in^* \cdot out^*) \cup \\
-                  & = & (out^* \cdot in^* \cdot (X \cap in) \cdot (Y \cap out) \cdot out^*) \\
+    link(X,Y)     & = & any \cap (\Sigma^* \cdot X \cdot Y \cdot \Sigma^*) \\
+    path(\vec{X}) & = & any \cap (\Sigma^* \cdot X_1 \dots X_n \cdot \Sigma^*) \\
+    novalley(\vec{X}) & = & any ~ \cap \\
+                  &   & !path(X_2,X_1,X_2) ~ \cap \dots \cap \\ 
+                  &   & !path(X_n,X_{n-1},X_n) \\
   \end{array} \]
 
   \end{minipage}
