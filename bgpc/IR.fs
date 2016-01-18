@@ -81,12 +81,12 @@ let joinConfigs (aggs, comms, maxroutes) (pairs: PredConfig list) : T =
             let value = (prefix, dc)
             match Map.tryFind router result with
             | None -> result <- Map.add router [value] result
-            | Some x -> result <- Map.add router (x @ [value]) result
+            | Some x -> result <- Map.add router (value :: x) result
     Map.map (fun router vs ->
         let a = Common.Map.getOrDefault router [] aggs
         let b = Common.Map.getOrDefault router [] comms
         let c = Common.Map.getOrDefault router [] maxroutes
-        {Actions=vs; Control={Aggregates=a; Tags=b; MaxRoutes=c}}) result
+        {Actions=List.rev vs; Control={Aggregates=a; Tags=b; MaxRoutes=c}}) result
 
 let format (config: T) = 
     let sb = System.Text.StringBuilder ()
