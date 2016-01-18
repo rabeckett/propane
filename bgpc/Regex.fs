@@ -256,14 +256,19 @@ and explore alphabet Q trans q =
     Set.fold (goto alphabet q) (Q,trans) charClasses
 
 /// Re-index states by integers starting from 0 rather than regular expressions
+
+open System.Collections.Generic
+
 let indexStates (q0, Q, F, trans) = 
-    let aQ = Set.toSeq Q
-    let idxs = seq {for i in 0..(Seq.length aQ - 1) -> i}
-    let idxMap = idxs |> Seq.zip aQ |> Map.ofSeq
-    let q0' = Map.find q0 idxMap
-    let Q' = Set.ofSeq idxs
-    let F' = Set.map (fun q -> Map.find q idxMap) F
-    let trans' = Map.fold (fun acc (re,c) v -> Map.add ((Map.find re idxMap),c) (Map.find v idxMap) acc) Map.empty trans
+    let aQ = Set.toArray Q
+    let mutable Q' = Set.empty
+    let idxMap = Dictionary()
+    for i = 0 to Array.length aQ - 1 do
+        Q' <- Set.add i Q'
+        idxMap.[aQ.[i]] <- i   
+    let q0' = idxMap.[q0]
+    let F' = Set.map (fun q -> idxMap.[q]) F
+    let trans' = Map.fold (fun acc (re,c) v -> Map.add (idxMap.[re],c) idxMap.[v] acc) Map.empty trans
     (q0', Q', F', trans')
 
 /// Build a DFA for a regular expression directly using regular 

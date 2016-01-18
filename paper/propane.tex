@@ -1,6 +1,56 @@
 \section{Propane}
 \label{sec:propane}
 
-Show how to solve examples from the previous section.
+
+\sysname simplifies network configuration by automatically generating low-level BGP configurations from a high-level specification of the network's routing policy. 
+%
+The operator configures the network with the abstraction that he or she has centralized control over routing and uses a set of high-level constraints to describe the different routes traffic may (or may not) take and their relative preferences. 
+%
+The \sysname compiler generates BGP configurations for each device in the network that operate in a completely distributed fashion and are correct by construction -- automatically synthesizing import/export filters, local preference and MED attributes, and community tags to ensure policy compliance under all possible failure scenarios.
+%
+We now demonstrate \sysname by showing how to configure the networks from the previous examples.
+
+\example{1}
 
 
+
+\example{2}
+
+Consider again the datacenter from Section~\ref{sec:motivation}. In this example, there are primarily three main concerns: (1) traffic for the prefix block allocated to each top-of-rack router can reach that router, (2) local services do not leak outside the datacenter, and (3) aggregation is performed on global prefixes to reduce churn in the network. 
+
+\sysname allows us to decompose and specify each of these constraints in a modular fashion. The first constraint is about prefix ownership -- namely, that we only want traffic for certain prefixes to end up at a particular locations. The following definition in propane captures this intent:
+
+\begin{lstlisting}[mathescape=true]
+define Ownership = {
+    $\path{p_{g1}}{end(A)}$
+    $\path{p_{g2}}{end(B)}$
+    $\path{p_{l1}}{end(E)}$
+    $\path{p_{l2}}{end(F)}$
+}
+\end{lstlisting}
+
+The constraints in the ownership task are read in a top-down fashion. Traffic for prefix $p_{g1}$ is only allowed to to follow paths that end at router A. Similarly, traffic not matching $p_{g1}$, but which matches $p_{g2}$ must end at router B and so on. 
+%
+To capture the second constraint, we can define another task for the core routing policy:
+
+\begin{lstlisting}[mathescape=true]
+define Routing = {
+    $\path{p_{g*}}{any}$
+    $\path{p_{l*}}{\neg enter(out)}$
+    $\path{true}{exit(out)}$
+}
+\end{lstlisting}
+
+The first line states that there is no restriction on how traffic must traverse the network for global prefixes. This means traffic for $p_{g*}$ may be sent either from other routers in the datacenter, or from external ASes. The second line ensures that traffic for local prefixes never enters the network from an outside location. This  guarantees that the services remain reachable only to locations internal to the data center.
+
+Finally, we can combine these constraints logically to specify the network-wide policy.
+
+\begin{lstlisting}[mathescape=true]
+Ownership $\wedge$ Routing $\wedge$ agg($p_{agg}$, $in \rightarrow out$)
+\end{lstlisting}
+
+In addition to constraints on the shape of paths, \sysname allows the operator to specify constraints on the BGP control plane. Above, a constraint on aggregation is included to ensure that an aggregation for $p_{agg}$ is performed from locations inside the network to locations outside the network.
+
+% correct by construction
+% mention centralized
+% mention attributes

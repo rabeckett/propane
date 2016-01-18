@@ -629,8 +629,7 @@ let getLocsThatCantGetPath idx cg (reb: Regex.REBuilder) dfas =
         |> Set.ofSeq
     let canOriginate = 
         cg.Topo.Vertices
-        |> Seq.filter Topology.isInside
-        |> Seq.filter Topology.canOriginateTraffic
+        |> Seq.filter (fun v -> Topology.isInside v && Topology.canOriginateTraffic v)
         |> Seq.map (fun v -> v.Loc)
         |> Set.ofSeq
     let locsThatNeedPath = Set.difference (Set.intersect startingLocs canOriginate) originators
@@ -647,10 +646,7 @@ let getUnusedPrefs cg res =
 let compileToIR fullName idx pred (reb: Regex.REBuilder) res : Result<PredConfig, CounterExample> =
     let settings = Args.getSettings ()
     let fullName = fullName + "(" + (string idx) + ")"
-    let dfas = 
-        res 
-        |> List.map (fun r -> reb.MakeDFA (Regex.rev r))
-        |> Array.ofList
+    let dfas = List.map (fun r -> reb.MakeDFA (Regex.rev r)) res |> Array.ofList
     let cg = CGraph.buildFromAutomata (reb.Topo()) dfas
     debug1 (fun () -> CGraph.generatePNG cg fullName )
     let cg = CGraph.Minimize.delMissingSuffixPaths cg
