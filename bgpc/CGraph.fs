@@ -23,7 +23,7 @@ type CgState =
         | :? CgState as y -> (x.Id = y.Id)
         | _ -> false
  
-    override x.GetHashCode() = hash x.Id
+    override x.GetHashCode() = x.Id
 
     interface System.IComparable with
         member x.CompareTo other =
@@ -82,29 +82,6 @@ let index ((graph, topo, startNode, endNode): BidirectionalGraph<CgStateTmp, Tag
         let y = Map.find (u.TNode.Loc, u.TStates) idxMap
         newCG.AddEdge (TaggedEdge(x,y,())) |> ignore
     {Start=nstart; Graph=newCG; End=nend; Topo=topo}
-
-(* let reindex (cg: T) =
-    let newCG = QuickGraph.BidirectionalGraph()
-    let nstart = {Id=0; Node=cg.Start.Node; States=cg.Start.States; Accept=cg.Start.Accept}
-    let nend = {Id=1; Node=cg.End.Node; States=cg.End.States; Accept=cg.End.Accept}
-    ignore (newCG.AddVertex nstart)
-    ignore (newCG.AddVertex nend)
-    let mutable i = 2
-    let mutable idxMap = 
-        Map.ofList [((nstart.Node.Loc, nstart.States), nstart); ((nend.Node.Loc, nend.States), nend)]
-    for v in cg.Graph.Vertices do
-        if Topology.isTopoNode v.Node then
-            let newv = {Id=i; Node=v.Node; States = v.States; Accept=v.Accept}
-            i <- i + 1
-            idxMap <- Map.add (v.Node.Loc, v.States) newv idxMap
-            newCG.AddVertex newv |> ignore
-    for e in cg.Graph.Edges do
-        let v = e.Source 
-        let u = e.Target
-        let x = Map.find (v.Node.Loc, v.States) idxMap
-        let y = Map.find (u.Node.Loc, u.States) idxMap
-        newCG.AddEdge (TaggedEdge(x,y,())) |> ignore
-    {Start=nstart; Graph=newCG; End=nend; Topo=cg.Topo} *)
 
 let getTransitions autos =
     let aux (auto: Regex.Automaton) = 
@@ -281,67 +258,46 @@ module Reachable =
         srcAcceptingWithout cg src (fun _ -> false) direction
 
 
-    let supersetPaths (idx: int) (cg1, n1) (cg2, n2) : bool =
-        let add k v map = 
-            match Map.tryFind k map with 
-            | None -> Map.add k (Set.singleton v) map
-            | Some vs -> Map.add k (Set.add v vs) map
+    [<Struct; NoComparison; CustomEquality>]
+    type Node = struct 
+        val depth: int 
+        val more: CgState
+        val less: CgState
+        new(d, m, l) = {depth=d; more=m; less=l}
 
-        let inline addAll k vs map = Set.fold (fun acc v -> add k v acc) map vs
+        override x.Equals(other) =
+           match other with
+            | :? Node as y -> (x.more.Id = y.more.Id && x.less.Id = y.less.Id)
+            | _ -> false
 
-        let inline merge x y = Map.fold (fun acc k v -> addAll k v acc) x y
+        override x.GetHashCode() = x.more.Id + x.less.Id
+    end
 
-        let remainsSuperset b = 
-            Map.forall (fun k v -> 
-                not (Map.exists (fun k' v' -> 
-                    (shadows k k') &&
-                    (Set.intersect v v' |> Set.isEmpty |> not) ) b)) b
-
-        let stepNodeNode n1 n2 =
-            logInfo3 (idx, sprintf "Simulate: %s -- %s" (string n1) (string n2))
-            let neighbors1 = neighbors cg1 n1 |> Seq.filter isRealNode |> Set.ofSeq
-            let neighbors2 = neighbors cg2 n2 |> Seq.filter isRealNode |> Set.ofSeq
-            let nchars1 = Set.map (fun v -> v.Node.Loc) neighbors1
-            let nchars2 = Set.map (fun v -> v.Node.Loc) neighbors2
-            if not (Set.isSuperset nchars1 nchars2) then
-                None
-            else
-                let mutable newBisim = Map.empty
-                let common = Set.intersect nchars1 nchars2 
-                for c in common do 
-                    let v1 = Set.filter (fun v -> v.Node.Loc = c) neighbors1 |> Set.minElement
-                    let v2 = Set.filter (fun v -> v.Node.Loc = c) neighbors2 |> Set.minElement
-                    newBisim <- add v1 v2 newBisim
-                Some newBisim
- 
-        let stepNodeNodes n1 n2s = 
-            Set.fold (fun acc n2 ->
-                match acc, stepNodeNode n1 n2 with 
-                | None, _ | _, None -> None 
-                | Some acc, Some x -> Some (merge acc x)
-            ) (Some Map.empty) n2s
-
-        let updateBisim b n1 n2s = 
-            match b, stepNodeNodes n1 n2s with 
-            | None, _ | _, None -> None
-            | Some b, Some x -> Some (merge b x)
-
-        let rec iter n bisim = 
-            match n with 
-            | 0 -> true
-            | _ ->
-                if Map.isEmpty bisim then true else
-                if not (remainsSuperset bisim) then false else 
-                let b = Map.fold updateBisim (Some Map.empty) bisim
-                match b with 
-                | None -> false
-                | Some b -> iter (n-1) b
-
-        if n1.Node.Loc <> n2.Node.Loc then false 
-        else
-            let bisim = Map.add n1 (Set.singleton n2) Map.empty
-            let steps = max cg1.Graph.VertexCount cg2.Graph.VertexCount 
-            iter steps bisim
+    let supersetPaths (idx: int) (cg1,n1) (cg2,n2) : bool = 
+        if n1.Node.Loc <> n2.Node.Loc then false else
+        let mutable d = 0
+        let maxd = max cg1.Graph.VertexCount cg2.Graph.VertexCount
+        let q = Queue()
+        let seen = HashSet()
+        let init = Node(0,n1,n2)
+        q.Enqueue init
+        ignore(seen.Add init)
+        let mutable counterEx = None
+        while q.Count > 0 && d <= maxd && Option.isNone counterEx do
+            let n = q.Dequeue()
+            let x = n.more 
+            let y = n.less 
+            let nsx = neighbors cg1 x
+            let nsy = neighbors cg2 y
+            for y' in nsy do 
+                match Seq.tryFind (fun x' -> x'.Node.Loc = y'.Node.Loc) nsx with
+                | None -> counterEx <- Some (x,y)
+                | Some x' -> 
+                    let n' = Node(n.depth+1, x', y')
+                    if not (seen.Contains n') then
+                        ignore (seen.Add n')
+                        q.Enqueue n'
+        Option.isNone counterEx
 
 
 module Minimize =

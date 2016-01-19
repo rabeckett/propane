@@ -87,6 +87,6 @@ let singleDatacenter k =
 
 let datacenter () = 
     displayHeader ()
-    for i in 3..3 do
+    for i in 6..6 do
         singleDatacenter (i*2)
 
