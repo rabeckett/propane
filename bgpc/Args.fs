@@ -105,7 +105,7 @@ let usage = "Usage: bgpc.exe [options]"
 let args = 
     [|("--pol", String (fun s -> polFile := Some s), "Policy file");
       ("--out", String (fun s -> outFile := Some s), "Output file");
-      ("--failures:any|i", String setFailures, "Failure safety for aggregation (default any)");
+      ("--failures:any|n", String setFailures, "Failure safety for aggregation (default any)");
       ("--med:on|off", String setMED, "Use MED attribute (default off)");
       ("--prepending:on|off", String setPrepending, "Use AS path prepending (default off)");
       ("--no-export:on|off", String setNoExport, "Use no-export community (default off)");

@@ -1,7 +1,6 @@
 \section{Propane}
 \label{sec:propane}
 
-
 \sysname simplifies network configuration by automatically generating low-level BGP configurations from a high-level specification of the network's routing policy. 
 %
 The operator configures the network with the abstraction that he or she has centralized control over routing and uses a set of high-level constraints to describe the different routes traffic may (or may not) take and their relative preferences. 
@@ -12,7 +11,40 @@ We now demonstrate \sysname by showing how to configure the networks from the pr
 
 \para{Example 1}
 
-We now show how to write the routing policy for the backbone network in Section~\ref{sec:motivation}.
+We now show how to write the routing policy for the backbone network in Section~\ref{sec:motivation}. \sysname allows to address each of the requirements in turn. First we address requirements (P1), (P3), and (P4) that customers are preferred over peers over providers, and that a customer appear on the path for its prefix. The following \sysname code accomplishes these two objectives:
+
+\begin{lstlisting}[mathescape=true]
+define ExitCust = $exit(R_1 \gg R_2)$
+
+define Routing = {
+    $\path{C_{pfx}}{ExitCust \gg end(Cust) }$
+    $\path{I_{pfx}}{end(in)}$
+    $\path{true}{ExitCust \gg exit(Peer) \gg exit(Prov)}$
+}
+\end{lstlisting}
+
+The first definition defines paths that exit our network to the customer. The statement $exit(R_1 \gg R_2)$ restricts us to paths that leave our network through either router $R_1$ or $R_2$, with a preference for $R_1$. 
+The first line of the \textsf{Routing} policy ensures that traffic destined for customer prefixes ($C_{pfx}$) either leaves the network directly to the customer (with a preference for leaving through $R_1$), or simply ends at the customer. Not leaving directly to the customer by going through \textit{Peer} or \textit{Prov} is less preferred than leaving directly, and thus serves as a backup route in a direct route is not available.
+
+The second line state that traffic for internal prefixes $I_{pfx}$ must end in our network, and is otherwise unconstrained. The last line applies to any other traffic, and allows for any routes that leave through a peer with a preference for customers over peers over providers. While this still allows transit traffic (e.g., traffic can enter from \textit{Peer} and leave through \textit{Prov}), we can restrict this behavior separately as follows:
+
+\begin{lstlisting}[mathescape=true]
+define PP = Peer or Prov
+define PPTransit = $enter(PP) \wedge exit(PP)$
+define CustTransit = $later(Cust) \wedge later(Prov)$
+
+define NoTransit = {
+    $\path{true}{\neg PPTransit \wedge \neg CustTransit}$
+}
+\end{lstlisting}
+
+The \textsf{NoTransit} constraint above ensures that requirements (P2) and (P5) are satisfied. In particular, it says that, for any prefix, traffice should never both enter and exit the network from \textit{Peer} or \textit{Prov}. Similarly it prevents traffic from ever following paths that leave our network and later go through both \textit{Prov} and \textit{Cust}.
+
+\begin{lstlisting}[mathescape=true]
+Routing $\wedge$  NoTransit
+\end{lstlisting}
+
+The final policy is simply the conjunction of the routing and no transit constraints. \sysname will generate per-device import and export filters, local preferences and MED attributes, and community tags to ensure that the policy is met under all failure scenarios.
 
 
 \para{Example 2}
