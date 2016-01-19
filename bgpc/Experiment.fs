@@ -1,5 +1,6 @@
 ﻿module Experiment
 
+
 let displayHeader () = 
     let headers = 
         ["Pods";
@@ -70,13 +71,13 @@ let singleDatacenter k =
         let re = reb.End [loc]
         pairs <- (pred, reb, [reb.Build re]) :: pairs
 
-    (* let other = 
+    let other = 
         let reb = Regex.REBuilder(topo)
         let re1 = reb.Inter [reb.Exit ["IDFX"]; reb.Negate (reb.Enter ["CORE"; "IDFX"])]
         let re2 = reb.Inter [reb.Exit ["CORE"]; reb.Negate (reb.Enter ["CORE"; "IDFX"])]
         reb, [reb.Build re1; reb.Build re2]
-    
-    pairs <- [(Predicate.top, fst other, snd other)] *)
+   
+    pairs <- (Predicate.top, fst other, snd other) :: pairs
 
     let (ir, stats) = IR.compileAllPrefixes "output" topo (List.rev pairs) []
     displayStats k nNodes nEdges stats
@@ -86,6 +87,6 @@ let singleDatacenter k =
 
 let datacenter () = 
     displayHeader ()
-    for i in 4..4 do
+    for i in 3..3 do
         singleDatacenter (i*2)
 

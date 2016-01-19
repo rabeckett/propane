@@ -36,7 +36,7 @@
     <PlatformTarget>AnyCPU</PlatformTarget>
     <DocumentationFile>bin\Release\bgpc.XML</DocumentationFile>
     <Prefer32Bit>true</Prefer32Bit>
-    <StartArguments>--experiment --compression:on</StartArguments>
+    <StartArguments>--experiment</StartArguments>
     <DebugSymbols>true</DebugSymbols>
   </PropertyGroup>
   <ItemGroup>

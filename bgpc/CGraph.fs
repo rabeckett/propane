@@ -190,6 +190,9 @@ let inline isRepeatedOut (cg: T) (state: CgState) =
     (state.Node.Typ = Topology.Unknown) &&
     (Seq.exists (fun n -> n = state) ns)
 
+let inline shadows x y = 
+    (x <> y) && (x.Node.Loc = y.Node.Loc)
+
 let restrict (cg: T) (i: int) = 
     if Set.contains i (preferences cg) then 
         let copy = copyGraph cg
@@ -291,7 +294,7 @@ module Reachable =
         let remainsSuperset b = 
             Map.forall (fun k v -> 
                 not (Map.exists (fun k' v' -> 
-                    (k.Node.Loc = k'.Node.Loc && k <> k') &&
+                    (shadows k k') &&
                     (Set.intersect v v' |> Set.isEmpty |> not) ) b)) b
 
         let stepNodeNode n1 n2 =
@@ -426,15 +429,9 @@ module Minimize =
         let dom = dominators cg cg.Start Down
         let domRev = dominators cg cg.End Up
         // Remove nodes dominated by a similar location
-        cg.Graph.RemoveVertexIf (fun v -> 
-            Set.exists (fun u -> u <> v && u.Node.Loc = v.Node.Loc) dom.[v]) |> ignore
-        // only remove edges when it might help
-        (* let numUnqLocs = 
-            cg.Graph.Vertices 
-            |> Seq.map (fun v -> v.Node.Loc) 
-            |> Set.ofSeq 
-            |> Set.count
-        if cg.Graph.VertexCount > numUnqLocs then *)
+        cg.Graph.RemoveVertexIf (fun v ->
+            Set.union dom.[v] domRev.[v]
+            |> Set.exists (shadows v) ) |> ignore
         // Remove dominated edges
         cg.Graph.RemoveEdgeIf (fun (e: TaggedEdge<CgState,unit>) -> 
             let ies = cg.Graph.OutEdges e.Target
@@ -449,7 +446,7 @@ module Minimize =
         cg.Graph.RemoveEdgeIf (fun e ->
             let x = e.Source
             let y = e.Target
-            Set.exists (fun x' -> x'.Node.Loc = x.Node.Loc && x' <> x) domRev.[y]) |> ignore
+            Set.exists (shadows x) domRev.[y]) |> ignore
         cg
 
     let removeNodesThatCantReachEnd (cg: T) = 
@@ -576,18 +573,26 @@ module Consistency =
     let simulate idx cg restrict (x,y) (i,j) =
         let restrict_i = copyGraph (Map.find i restrict)
         let restrict_j = copyGraph (Map.find j restrict)
-        restrict_i.Graph.RemoveVertexIf (fun v -> v.Node.Loc = x.Node.Loc && v <> x) |> ignore
-        restrict_j.Graph.RemoveVertexIf (fun v -> v.Node.Loc = y.Node.Loc && v <> y) |> ignore
+        restrict_i.Graph.RemoveVertexIf (fun v -> shadows x v) |> ignore
+        restrict_j.Graph.RemoveVertexIf (fun v -> shadows y v) |> ignore
         if not (restrict_i.Graph.ContainsVertex x) then false
         else if not (restrict_j.Graph.ContainsVertex y) then true
         else
             // Remove nodes that appear 'above' for the more preferred, to avoid considering simple paths
             // cheaper approximation of simple paths - can do better at cost of speed
+            
             // printfn "Removing nodes with location: %s" x.Node.Loc
-            let exclude = (fun v -> v.Node.Loc = x.Node.Loc && v <> x)
-            let reach = Reachable.srcWithout restrict_i x exclude Up |> Set.map (fun v -> v.Node.Loc)
+            let exclude = (shadows x)
+            let reach = Reachable.srcWithout restrict_i x exclude Up
+            let byLoc = Seq.groupBy (fun x -> x.Node.Loc) reach |> Map.ofSeq
+
+            let inline shouldRemove x = 
+                match Map.tryFind x.Node.Loc byLoc with
+                | None -> false
+                | Some xs -> Seq.exists (shadows x) xs
+
             // printfn "Removing nodes: %A" reach
-            restrict_i.Graph.RemoveVertexIf (fun v -> v <> x && Set.contains v.Node.Loc reach) |> ignore
+            restrict_i.Graph.RemoveVertexIf (fun v -> shouldRemove v) |> ignore
             // Check if the more preferred simulates the less preferred
             Reachable.supersetPaths idx (restrict_i, x) (restrict_j, y) 
 

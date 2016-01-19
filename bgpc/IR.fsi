@@ -28,7 +28,7 @@ type Export = Peer * Action list
 
 type DeviceConfig =
     {Originates: bool;
-     Filters: (Import * Export list) list}
+     Filters: ((Import * Export list) option) list}
 
 type PredConfig = Predicate.T * Map<string, DeviceConfig>
 

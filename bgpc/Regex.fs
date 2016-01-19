@@ -259,13 +259,13 @@ and explore alphabet Q trans q =
 
 open System.Collections.Generic
 
-let indexStates (q0, Q, F, trans) = 
+let indexStates (q0, Q, F, trans) =
     let aQ = Set.toArray Q
     let mutable Q' = Set.empty
     let idxMap = Dictionary()
     for i = 0 to Array.length aQ - 1 do
         Q' <- Set.add i Q'
-        idxMap.[aQ.[i]] <- i   
+        idxMap.[aQ.[i]] <- i
     let q0' = idxMap.[q0]
     let F' = Set.map (fun q -> idxMap.[q]) F
     let trans' = Map.fold (fun acc (re,c) v -> Map.add (idxMap.[re],c) idxMap.[v] acc) Map.empty trans

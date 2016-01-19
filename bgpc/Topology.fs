@@ -152,8 +152,8 @@ module Examples =
                         g.AddVertex v |> ignore
                         tierMap.[v] <- currTier
                         if currTier = 0 then 
-                            let a = uint32 (!currPrefix % 256 * 256 * 256)
-                            let b = uint32 (!currPrefix % 256 * 256)
+                            let a = uint32 (!currPrefix / 256 * 256)
+                            let b = uint32 (!currPrefix / 256)
                             let c = uint32 (!currPrefix % 256)
                             let p = Prefix.prefix (a, b, c, 0u) 24u
                             prefixMap.[v] <- p
@@ -183,8 +183,8 @@ module Examples =
             let name = "T0_" + string i
             let v = {Loc=name; Typ=InsideOriginates}
             ignore (g.AddVertex v)
-            let a = uint32 (i % 256 * 256 * 256)
-            let b = uint32 (i % 256 * 256)
+            let a = uint32 (i / (256 * 256))
+            let b = uint32 (i / 256)
             let c = uint32 (i % 256)
             let p = Prefix.prefix (a, b, c, 0u) 24u
             prefixes.[v] <- p

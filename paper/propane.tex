@@ -10,11 +10,12 @@ The \sysname compiler generates BGP configurations for each device in the networ
 %
 We now demonstrate \sysname by showing how to configure the networks from the previous examples.
 
-\example{1}
+\para{Example 1}
+
+We now show how to write the routing policy for the backbone network in Section~\ref{sec:motivation}.
 
 
-
-\example{2}
+\para{Example 2}
 
 Consider again the datacenter from Section~\ref{sec:motivation}. In this example, there are primarily three main concerns: (1) traffic for the prefix block allocated to each top-of-rack router can reach that router, (2) local services do not leak outside the datacenter, and (3) aggregation is performed on global prefixes to reduce churn in the network. 
 
@@ -43,14 +44,17 @@ define Routing = {
 
 The first line states that there is no restriction on how traffic must traverse the network for global prefixes. This means traffic for $p_{g*}$ may be sent either from other routers in the datacenter, or from external ASes. The second line ensures that traffic for local prefixes never enters the network from an outside location. This  guarantees that the services remain reachable only to locations internal to the data center.
 
-Finally, we can combine these constraints logically to specify the network-wide policy.
+Finally, we can combine these constraints logically to specify the network-wide policy:
 
 \begin{lstlisting}[mathescape=true]
 Ownership $\wedge$ Routing $\wedge$ agg($p_{agg}$, $in \rightarrow out$)
 \end{lstlisting}
 
+
 In addition to constraints on the shape of paths, \sysname allows the operator to specify constraints on the BGP control plane. Above, a constraint on aggregation is included to ensure that an aggregation for $p_{agg}$ is performed from locations inside the network to locations outside the network.
 
-% correct by construction
-% mention centralized
-% mention attributes
+Once \sysname compiles the policy, it is guaranteed to hold under all possible failure scenarios. Similarly, it can check for aggregate-induced black holes up to $k$ failures. 
+
+
+
+

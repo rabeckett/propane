@@ -24,7 +24,7 @@ This decomposition is not always straightforward and ensuring policy-compliance 
 \end{figure}
 
 
-\example{1}
+\para{Example 1}
 
 Consider the backbone network in Figure~\ref{fig:example1}. It has three neighbors, a customer $Cust$ , a peer $Peer$, and a provider $Prov$. The policy of this network is shown on the right. Per commercial relationships, it prefers the neighbors in a certain order ($P1$) and does not want to act as a transit between Peer and Prov ($P2$). It prefers to exchange traffic with Cust over $R1$ rather than $R2$ because $R2$ is a more expensive link ($P3$). To guard against another AS "hijacking" prefixes owned by Cust, it only sends traffic to those prefixes if Cust is on the AS path ($P4$). Finally, to guard against Cust accidentally becoming a transit for Prov, it does not use Cust for traffic that will later traverse Prov ($P5$).
 
@@ -39,7 +39,7 @@ We can now see that devising correct configuration for real, larger networks wil
 \label{fig:example2}
 \end{figure}
 
-\example{2}
+\para{Example 2}
 
 If configuring policies for a fully functional network is difficult, doing so in a way that ensures policy compliance in the face of failures can be almost impossible. Consider the data center network in Figure~\ref{fig:example2} with routers organized as a fat tree and running BGP.\footnote{To scale and to simplify policy implementation, data center networks increasingly use BGP internally, with a private AS number per router~\cite{bgp-in-dc-rfc}.} The network has two clusters, one that hosts services that should be reachable globally and one that hosts that should be accessible only internally. This policy is enabled by using non-overlapping address space in the two clusters and ensuring that only the address space for the global services is announced externally. In addition, to reduce the number of prefixes that are announced externally, the global space is aggregated into one larger, less-specific prefix $P_G$. The semantics of aggregation in BGP is that the aggregate prefix is announced as long as the router has a path to even one sub-prefix.
 
