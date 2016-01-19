@@ -36,6 +36,13 @@ type CgStateTmp =
      TStates: int array; 
      TAccept: Set<int>}
 
+[<Struct>]
+type Edge = struct
+    val X: int
+    val Y: int
+    new(x,y) = {X=x; Y=y}
+end
+
 type T = 
     {Start: CgState;
      End: CgState;
@@ -175,8 +182,7 @@ let restrict (cg: T) (i: int) =
         let copy = copyGraph cg
         copy.Graph.RemoveVertexIf (fun v -> 
             not (v.Accept.IsEmpty) && 
-            not (Set.exists (fun i' -> i' <= i) v.Accept)
-        ) |> ignore
+            not (Set.exists ((<=) i) v.Accept)) |> ignore
         copy
     else cg
 
@@ -532,8 +538,6 @@ module Consistency =
         else
             // Remove nodes that appear 'above' for the more preferred, to avoid considering simple paths
             // cheaper approximation of simple paths - can do better at cost of speed
-            
-            // printfn "Removing nodes with location: %s" x.Node.Loc
             let exclude = (shadows x)
             let reach = Reachable.srcWithout restrict_i x exclude Up
             let byLoc = Seq.groupBy (fun x -> x.Node.Loc) reach |> Map.ofSeq
@@ -543,7 +547,6 @@ module Consistency =
                 | None -> false
                 | Some xs -> Seq.exists (shadows x) xs
 
-            // printfn "Removing nodes: %A" reach
             restrict_i.Graph.RemoveVertexIf (fun v -> shouldRemove v) |> ignore
             // Check if the more preferred simulates the less preferred
             Reachable.supersetPaths idx (restrict_i, x) (restrict_j, y) 
@@ -576,7 +579,7 @@ module Consistency =
             |> Seq.fold Set.union Set.empty
         let getNodesWithPref acc i = 
             let copy = copyGraph cg
-            copy.Graph.RemoveEdgeIf (fun e -> 
+            copy.Graph.RemoveEdgeIf (fun e ->
                 e.Target = copy.End && not (e.Source.Accept.Contains i)) |> ignore
             let reach = Reachable.src copy copy.End Up
             Set.fold (fun acc v ->
@@ -652,24 +655,20 @@ module ToRegex =
         let reMap = ref Map.empty
         let get v = Common.Map.getOrDefault v Regex.empty !reMap
         let add k v = reMap := Map.add k v !reMap
-
         (* Simplify graph to only contain relevant nodes *)
         let reachable = Reachable.src cg state Down
         cg.Graph.RemoveVertexIf (fun v -> not (reachable.Contains v) && Topology.isTopoNode v.Node) |> ignore
         cg.Graph.AddEdge (TaggedEdge(cg.End, state, ())) |> ignore
-
         (* Populate the regex transition map *)
         add (cg.End, state) Regex.epsilon
         for e in cg.Graph.Edges do
             if e.Source <> cg.End then
                 add (e.Source, e.Target) (Regex.loc e.Source.Node.Loc)
-        
         (* we will remove all none start/end nodes one by one *)
         let queue = Queue()
         for v in cg.Graph.Vertices do
             if isRealNode v then
                 queue.Enqueue v
-        
         (* repeatedly pick a next node and remove it, updating path regexes *)
         while queue.Count > 0 do 
             let q = queue.Dequeue()
@@ -683,7 +682,6 @@ module ToRegex =
                         let re = Regex.union x (Regex.concatAll [y1; Regex.star y2; y3])
                         reMap := Map.add (q1,q2) re !reMap
             cg.Graph.RemoveVertex q |> ignore
-        
         Map.find (cg.End, cg.Start) !reMap
 
 
@@ -724,3 +722,42 @@ module Failure =
         failed.Graph.RemoveEdgeIf (fun e -> 
             List.exists ((=) (e.Source.Node.Loc, e.Target.Node.Loc)) failedEdges) |> ignore
         failed
+
+    let disconnect (cg: T) src dst : int =
+        let cg = copyGraph cg
+        let mutable removed = 0
+        let mutable hasPath = true
+        while hasPath do 
+            let sp = cg.Graph.ShortestPathsDijkstra((fun _ -> 1.0), src)
+            let mutable path = Seq.empty
+            ignore (sp.Invoke(dst, &path))
+            if Seq.isEmpty path then 
+                hasPath <- false
+            else 
+                removed <- removed + 1
+                cg.Graph.RemoveEdgeIf (fun e -> 
+                    Seq.exists ((=) e) path) |> ignore
+        removed
+
+    let disconnectAll (cg: T) srcs dsts =
+        if Seq.isEmpty srcs || Seq.isEmpty dsts then 
+            failwith "empty locations ins disconnectAll"
+        let mutable smallest = System.Int32.MaxValue
+        let mutable pair = None
+        for src in srcs do 
+            for dst in dsts do 
+                let k = disconnect cg src dst
+                if k < smallest then 
+                    smallest <- k
+                    pair <- Some (src,dst)
+        let (x,y) = Option.get pair
+        (smallest, x, y)
+
+    let disconnectLocs (cg: T) srcs dsts =
+        let srcs = 
+            cg.Graph.Vertices 
+            |> Seq.filter (fun v -> Set.contains v.Node.Loc srcs)
+        let dsts = 
+            cg.Graph.Vertices 
+            |> Seq.filter (fun v -> Set.contains v.Node.Loc dsts)
+        disconnectAll cg srcs dsts

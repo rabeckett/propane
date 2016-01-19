@@ -40,6 +40,9 @@ val top: Pred
 /// Logical Negation of a prefix
 val negation: Pred -> Pred
 
+/// Check if one prefix subsumes another
+val implies: Pred -> Pred -> bool
+
 /// Convert list of prefixes to a range-based representation
 val toPredicate: T list -> Pred
 

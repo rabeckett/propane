@@ -668,28 +668,26 @@ let compileToIR fullName idx pred (reb: Regex.REBuilder) res : Result<PredConfig
     let cg = CGraph.Minimize.minimize idx cg
     debug1 (fun () -> CGraph.generatePNG cg (fullName + "-min"))
     let lost = getLocsThatCantGetPath idx cg reb dfas
-    if not (Set.isEmpty lost) then 
-        Err(NoPathForRouters(lost))
+    if not (Set.isEmpty lost) then Err(NoPathForRouters(lost)) else
+    let unusedPrefs = getUnusedPrefs cg res
+    if not (Set.isEmpty unusedPrefs) then
+        let cexamples = Set.fold (fun acc p -> 
+            Map.add p (List.item (p-1) res) acc) Map.empty unusedPrefs
+        Err(UnusedPreferences(cexamples))
     else
-        let unusedPrefs = getUnusedPrefs cg res
-        if not (Set.isEmpty unusedPrefs) then
-            let cexamples = Set.fold (fun acc p -> 
-                Map.add p (List.item (p-1) res) acc) Map.empty unusedPrefs
-            Err(UnusedPreferences(cexamples))
-        else
-            try 
-                let inExports = configureIncomingTraffic cg
-                match Consistency.findOrderingConservative idx cg fullName with 
-                | Ok ord ->
-                    let config = genConfig cg pred ord inExports
-                    if settings.Compression then 
-                        let compressed = Compress.compress cg config fullName
-                        Ok (compressed)
-                    else Ok (config)
-                | Err((x,y)) -> Err(InconsistentPrefs(x,y))
-            with 
-                | UncontrollableEnterException s -> Err(UncontrollableEnter s)
-                | UncontrollablePeerPreferenceException s -> Err(UncontrollablePeerPreference s)
+        try 
+            let inExports = configureIncomingTraffic cg
+            match Consistency.findOrderingConservative idx cg fullName with 
+            | Ok ord ->
+                let config = genConfig cg pred ord inExports
+                if settings.Compression then 
+                    let compressed = Compress.compress cg config fullName
+                    Ok (compressed)
+                else Ok (config)
+            | Err((x,y)) -> Err(InconsistentPrefs(x,y))
+        with 
+            | UncontrollableEnterException s -> Err(UncontrollableEnter s)
+            | UncontrollablePeerPreferenceException s -> Err(UncontrollablePeerPreference s)
 
 let compileForSinglePrefix fullName idx (pred, reb, res) =
     try 
