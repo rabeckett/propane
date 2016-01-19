@@ -35,8 +35,9 @@ let topoDatacenterSmall () =
     let vY = {Loc="Y"; Typ=Inside}
     let vM = {Loc="M"; Typ=Inside}
     let vN = {Loc="N"; Typ=Inside}
-    Topology.addVertices g [vA; vB; vC; vD; vX; vY; vM; vN]
-    Topology.addEdgesUndirected g [(vA,vX); (vB,vX); (vC,vY); (vD,vY); (vX,vM); (vX,vN); (vY,vM); (vY,vN)]
+    let vOut = {Loc="CORE"; Typ=Outside}
+    Topology.addVertices g [vA; vB; vC; vD; vX; vY; vM; vN; vOut]
+    Topology.addEdgesUndirected g [(vA,vX); (vB,vX); (vC,vY); (vD,vY); (vX,vM); (vX,vN); (vY,vM); (vY,vN); (vN,vOut); (vM,vOut)]
     g
 
 let topoDatacenterMedium () = 

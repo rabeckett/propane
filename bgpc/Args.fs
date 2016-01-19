@@ -8,6 +8,10 @@ type Format =
     | IR 
     | Template
 
+type Failures = 
+    | Any
+    | Concrete of int
+
 type T = 
     {PolFile: string option;
      OutFile: string option;
@@ -19,7 +23,8 @@ type T =
      Experiment: bool;
      Debug: int; 
      DebugDir: string;
-     Compression: bool}
+     Compression: bool;
+     Failures: Failures}
 
 exception InvalidArgException of string
 
@@ -34,6 +39,7 @@ let debug = ref 0
 let debugDir = ref ("debug" + string System.IO.Path.DirectorySeparatorChar)
 let compression = ref true
 let experiment = ref false
+let failures = ref Any
 
 let settings = ref None
 
@@ -84,18 +90,30 @@ let setCompression s =
     | "off" -> compression := false
     | _ -> raise (InvalidArgException (sprintf "Invalid compression value: %s" s))
 
+let setFailures s = 
+    match s with 
+    | "any" -> failures := Any
+    | _ -> 
+        let i = 
+            try int s
+            with _ -> raise (InvalidArgException (sprintf "Invalid number: %s" s))
+        if i < 0  then 
+            raise (InvalidArgException ("Invalid number: " + s))
+        failures := Concrete i
+
 let usage = "Usage: bgpc.exe [options]"
 let args = 
     [|("--pol", String (fun s -> polFile := Some s), "Policy file");
       ("--out", String (fun s -> outFile := Some s), "Output file");
-      ("--debug-dir", String setDebugDir, "Debugging directory (default 'debug')");
-      ("--debug:0|1|2|3", String setDebug, "Debug level (default lowest 0)");
+      ("--failures:any|i", String setFailures, "Failure safety for aggregation (default any)");
       ("--med:on|off", String setMED, "Use MED attribute (default off)");
       ("--prepending:on|off", String setPrepending, "Use AS path prepending (default off)");
       ("--no-export:on|off", String setNoExport, "Use no-export community (default off)");
       ("--compression:on|off", String setCompression, "Compress rules (default on)");
       ("--format:IR|Templ", String setFormat, "Output format (IR, Template)");
       ("--test", Unit (fun () -> test := true), "Run unit tests");
+      ("--debug-dir", String setDebugDir, "Debugging directory (default 'debug')");
+      ("--debug:0|1|2|3", String setDebug, "Debug level (default lowest 0)");
       ("--experiment", Unit (fun () -> experiment := true), "Run DC example");
       ("--help", Unit (fun () -> ()), "Display this message");
     |]
@@ -163,7 +181,8 @@ let parse (argv: string[]) : unit =
               Experiment = !experiment
               Debug = !debug; 
               DebugDir = !debugDir;
-              Compression = !compression}
+              Compression = !compression;
+              Failures = !failures}
 
 let getSettings () = 
     match !settings with

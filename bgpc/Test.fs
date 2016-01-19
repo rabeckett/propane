@@ -531,14 +531,14 @@ let testCompilation() =
             logInfo1(0, msg)
         else
             let pred = Predicate.top
-            match IR.compileToIR (settings.DebugDir + test.Name) 0 pred reb built with 
+            match IR.compileToIR (settings.DebugDir + test.Name) 0 pred Map.empty reb built with 
             | Err(x) ->
                 if (Option.isSome test.Receive || 
                     Option.isSome test.Originate || 
                     Option.isSome test.Prefs || 
                     Option.isNone test.Fail) then 
                     let msg = sprintf "\n[Failed]:\n  Name: %s\n  Message: Should compile but did not\n  Error: %A\n" test.Name x
-                    printfn "%s" msg
+                    printfn "%s: %A" msg x
                     logInfo1(0, msg)
                 match test.Fail, x with 
                 | Some NoPathForRouters, IR.NoPathForRouters _ -> ()
@@ -549,7 +549,7 @@ let testCompilation() =
                     let msg = sprintf "\n[Failed]:\n  Name: %s\n  Message: Expected Error %A\n" test.Name test.Fail
                     printfn "%s" msg
                     logInfo1(0, msg)
-            | Ok(config) -> 
+            | Ok(_, config) -> 
                 if (Option.isNone test.Receive || 
                     Option.isNone test.Originate || 
                     Option.isNone test.Prefs || 

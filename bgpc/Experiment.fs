@@ -79,7 +79,7 @@ let singleDatacenter k =
    
     pairs <- (Predicate.top, fst other, snd other) :: pairs
 
-    let (ir, stats) = IR.compileAllPrefixes "output" topo (List.rev pairs) []
+    let (ir, _, stats) = IR.compileAllPrefixes "output" topo (List.rev pairs) []
     displayStats k nNodes nEdges stats
     match settings.OutFile with 
     | None -> ()

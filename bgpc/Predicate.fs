@@ -118,6 +118,9 @@ let negate x  =
         Pred (simplify (Set.ofList [a; b])) ) xs
     |> Common.Set.fold1 conj
 
+let getPrefixes (Pred x:T) = 
+    Seq.map (fun pair -> pair.Prefix) x
+
 let example x = 
     let (Pred xs) = x
     if Set.isEmpty xs then "false" else

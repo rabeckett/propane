@@ -118,3 +118,6 @@ module Failure =
 
     /// Create the corresponding failed product graph
     val failedGraph: T -> FailType list -> T
+
+    /// Find the minimal number of failures to disconnect from an aggregate
+    val disconnectLocs: T -> seq<CgState> -> string -> int

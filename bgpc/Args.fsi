@@ -4,6 +4,10 @@ type Format =
     | IR 
     | Template
 
+type Failures = 
+    | Any
+    | Concrete of int
+
 type T = 
     {PolFile: string option;
      OutFile: string option;
@@ -15,7 +19,8 @@ type T =
      Experiment: bool;
      Debug: int; 
      DebugDir: string;
-     Compression: bool}
+     Compression: bool;
+     Failures: Failures}
 
 /// Get the command-line settings
 val getSettings: unit -> T

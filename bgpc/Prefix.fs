@@ -63,16 +63,21 @@ let mergeInter r1 r2 =
     let (c,d) = r2
     (max a c, min b d)
 
-let rec union r rs =
-    match rs with
-    | [] -> [r]
-    | s::tl ->
-        if overlap r s then 
-            union (mergeUnion r s) tl
-        else if touch r s then 
-            union (mergeUnion r s) tl
-        (* else if isSmaller r s then r::rs *)
-        else s::(union r tl)
+let simplify x = 
+    List.sort x
+
+let  union r rs =
+    let rec aux r rs = 
+        match rs with
+        | [] -> [r]
+        | s::tl ->
+            if overlap r s then 
+                aux (mergeUnion r s) tl
+            else if touch r s then 
+                aux (mergeUnion r s) tl
+            (* else if isSmaller r s then r::rs *)
+            else s::(aux r tl)
+    simplify (aux r rs)
 
 let rec disj (Pred rs1) (Pred rs2) = 
      match rs1 with 
@@ -80,14 +85,16 @@ let rec disj (Pred rs1) (Pred rs2) =
      | r::rs -> 
         disj (Pred rs) (Pred (union r rs2)) 
 
-let rec inter r rs = 
-    match rs with 
-    | [] -> [] 
-    | s::tl -> 
-        if overlap r s then 
-            (mergeInter r s)::(inter r tl)
-        (* else if isSmaller r s then [] *)
-        else  inter r tl
+let inter r rs = 
+    let rec aux r rs = 
+        match rs with 
+        | [] -> [] 
+        | s::tl -> 
+            if overlap r s then 
+                (mergeInter r s)::(aux r tl)
+            (* else if isSmaller r s then [] *)
+            else aux r tl
+    simplify (aux r rs)
 
 let rec conj (Pred rs1) (Pred rs2) = 
     match rs1 with

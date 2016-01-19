@@ -72,9 +72,9 @@ type RouterConfig =
 
 type T = Map<string, RouterConfig>
 
-let joinConfigs (aggs, comms, maxroutes) (pairs: PredConfig list) : T =
+let joinConfigs (aggs, comms, maxroutes) (pairs: (int option * PredConfig) list) : T =
     let mutable result = Map.empty
-    for (prefix, config) in pairs do 
+    for (_ , (prefix, config)) in pairs do 
         for kv in config do
             let dc = kv.Value
             let router = kv.Key
@@ -658,7 +658,23 @@ let getUnusedPrefs cg res =
     let prefs = CGraph.preferences cg
     Set.difference numberedRegexes prefs
 
-let compileToIR fullName idx pred (reb: Regex.REBuilder) res : Result<PredConfig, CounterExample> =
+// TODO: only do this once total per prefix
+let getMinAggregateFailures (cg: CGraph.T) pred (aggInfo: Map<string, DeviceAggregates>) = 
+    let originators = CGraph.neighbors cg cg.Start
+    let prefixes = Predicate.getPrefixes pred
+    let mutable smallest = System.Int32.MaxValue
+    for p in prefixes do
+        for kv in aggInfo do 
+            let aggRouter = kv.Key 
+            let aggs = kv.Value 
+            let relevantAggs = List.filter (fun (prefix, _) -> Prefix.implies (Prefix.toPredicate prefix) p) aggs
+            for (rAgg, _) in relevantAggs do
+                let k = CGraph.Failure.disconnectLocs cg originators aggRouter    
+                smallest <- min smallest k
+    if smallest = System.Int32.MaxValue then  None
+    else Some smallest
+
+let compileToIR fullName idx pred (aggInfo: Map<string,DeviceAggregates>) (reb: Regex.REBuilder) res : Result<int option * PredConfig, CounterExample> =
     let settings = Args.getSettings ()
     let fullName = fullName + "(" + (string idx) + ")"
     let dfas = List.map (fun r -> reb.MakeDFA (Regex.rev r)) res |> Array.ofList
@@ -667,6 +683,7 @@ let compileToIR fullName idx pred (reb: Regex.REBuilder) res : Result<PredConfig
     let cg = CGraph.Minimize.delMissingSuffixPaths cg
     let cg = CGraph.Minimize.minimize idx cg
     debug1 (fun () -> CGraph.generatePNG cg (fullName + "-min"))
+    // check there is a route for each location specified
     let lost = getLocsThatCantGetPath idx cg reb dfas
     if not (Set.isEmpty lost) then Err(NoPathForRouters(lost)) else
     let unusedPrefs = getUnusedPrefs cg res
@@ -676,22 +693,26 @@ let compileToIR fullName idx pred (reb: Regex.REBuilder) res : Result<PredConfig
         Err(UnusedPreferences(cexamples))
     else
         try 
+            // check that BGP can ensure incoming traffic compliance
             let inExports = configureIncomingTraffic cg
+            // check aggregation failure consistency
+            let k = getMinAggregateFailures cg pred aggInfo
+            // check  that BGP preferences can be set properly
             match Consistency.findOrderingConservative idx cg fullName with 
             | Ok ord ->
                 let config = genConfig cg pred ord inExports
                 if settings.Compression then 
                     let compressed = Compress.compress cg config fullName
-                    Ok (compressed)
-                else Ok (config)
+                    Ok (k, compressed)
+                else Ok (k, config)
             | Err((x,y)) -> Err(InconsistentPrefs(x,y))
         with 
             | UncontrollableEnterException s -> Err(UncontrollableEnter s)
             | UncontrollablePeerPreferenceException s -> Err(UncontrollablePeerPreference s)
 
-let compileForSinglePrefix fullName idx (pred, reb, res) =
+let compileForSinglePrefix fullName idx (aggInfo: Map<string, DeviceAggregates>) (pred, reb, res) =
     try 
-        match compileToIR fullName idx pred reb res with 
+        match compileToIR fullName idx pred aggInfo reb res with 
         | Ok(config) -> config
         | Err(x) -> 
             match x with
@@ -771,12 +792,21 @@ type Stats =
      PerPrefixTimes: int64 array
      JoinTime: int64;}
 
-let compileAllPrefixes fullName topo (pairs: Ast.PolicyPair list) constraints : T * Stats =
+let minFails x y = 
+    match x, y with 
+    | None, _ -> y 
+    | _, None -> x 
+    | Some i, Some j -> Some (min i j)
+
+let compileAllPrefixes fullName topo (pairs: Ast.PolicyPair list) constraints : T * int option * Stats =
     let info = splitConstraints topo constraints
+    let (aggInfo, _, _) = info
     let pairs = Array.ofList pairs
     let timedConfigs, prefixTime =
         Profile.time (Array.Parallel.mapi (fun i x -> 
-            Profile.time (compileForSinglePrefix fullName i) x)) pairs
+            Profile.time (compileForSinglePrefix fullName i aggInfo) x)) pairs
+    let nAggFails = Array.map (fst >> fst) timedConfigs
+    let k = Array.fold minFails None nAggFails
     let configs, times = Array.unzip timedConfigs
     let joined, joinTime = Profile.time (joinConfigs info) (Array.toList configs)
     let stats = 
@@ -785,4 +815,4 @@ let compileAllPrefixes fullName topo (pairs: Ast.PolicyPair list) constraints : 
          PerPrefixTimes=times
          JoinTime=joinTime; 
          NumPrefixes=Array.length configs;}
-    joined, stats
+    joined, k, stats

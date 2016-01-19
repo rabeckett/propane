@@ -52,7 +52,7 @@ type RouterConfig =
 type T = Map<string, RouterConfig>
 
 /// Convert per-prefix representation to a per-router representatoin
-val joinConfigs: Aggregates * Tags * MaxRoutes -> PredConfig list -> T
+val joinConfigs: Aggregates * Tags * MaxRoutes -> (int option * PredConfig) list -> T
 
 /// Debug config output
 val format: T -> string
@@ -61,11 +61,11 @@ val format: T -> string
 /// implement the user policy under all possible failure scenarios for a given prefix. 
 /// This function returns either an intermediate representation (IR) 
 /// for BGP policies, or a counterexample indicating why compilation will not work.
-val compileToIR: string -> int -> Predicate.T -> Regex.REBuilder -> Regex.T list -> Result<PredConfig, CounterExample>
+val compileToIR: string -> int -> Predicate.T -> Map<string, DeviceAggregates> -> Regex.REBuilder -> Regex.T list -> Result<int option * PredConfig, CounterExample>
 
 /// Compile to an intermediate representation for a given prefix. 
 /// Gives a counterexample and quits the program if compilation is not possible.
-val compileForSinglePrefix: string -> int -> Ast.PolicyPair -> PredConfig
+val compileForSinglePrefix: string -> int -> Map<string, DeviceAggregates> -> Ast.PolicyPair -> int option * PredConfig
 
 type Stats = 
     {TotalTime: int64;
@@ -75,4 +75,4 @@ type Stats =
      JoinTime: int64;}
 
 /// Compile for all prefixes
-val compileAllPrefixes: string -> Topology.T -> Ast.PolicyPair list -> Ast.CConstraint list -> T * Stats
+val compileAllPrefixes: string -> Topology.T -> Ast.PolicyPair list -> Ast.CConstraint list -> T * int option * Stats

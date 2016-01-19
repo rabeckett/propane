@@ -21,7 +21,13 @@ let main argv =
         let ast = Input.readFromFile p
         let aggs = Ast.getControlConstraints ast topo
         let pairs = Ast.makePolicyPairs ast topo
-        let (ir, _) = IR.compileAllPrefixes fullName topo pairs aggs
+        let (ir, k, _) = IR.compileAllPrefixes fullName topo pairs aggs
+        match k, settings.Failures with
+        | Some i, Args.Any -> 
+            error (sprintf "required all-failure safety for aggregation, but only got %d-failure safety" i)
+        | Some i, Args.Concrete j when i < j ->
+            error (sprintf "required %d-failure safety for aggregation, but only got %d-failure safety" j i)
+        | _ -> ()
         match settings.OutFile with
         | None -> ()
         | Some out -> System.IO.File.WriteAllText(out + ".ir", IR.format ir)

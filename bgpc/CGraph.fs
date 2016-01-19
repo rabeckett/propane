@@ -182,7 +182,7 @@ let restrict (cg: T) (i: int) =
         let copy = copyGraph cg
         copy.Graph.RemoveVertexIf (fun v -> 
             not (v.Accept.IsEmpty) && 
-            not (Set.exists ((<=) i) v.Accept)) |> ignore
+            not (Set.exists (fun i' -> i' <= i) v.Accept)) |> ignore
         copy
     else cg
 
@@ -333,11 +333,10 @@ module Minimize =
         finger1
 
     let dominators (cg: T) root direction : DominationSet =
-        let inline adj x = if direction = Up then neighbors cg x else neighborsIn cg x
+        let adj = if direction = Up then neighbors cg else neighborsIn cg
         let dom = Dictionary()
-        let postorder = 
-            Reachable.dfs cg root direction
-            |> Seq.mapi (fun i n -> (n,i))
+        let reach = Reachable.dfs cg root direction
+        let postorder = Seq.mapi (fun i n -> (n,i)) reach
         let postorderMap = Dictionary()
         Seq.iter (fun (n,i) -> postorderMap.[n] <- i) postorder
         let allNodes = cg.Graph.Vertices |> Set.ofSeq
@@ -595,11 +594,11 @@ module Consistency =
                 let reachX = Map.find x reachMap
                 let reachY = Map.find y reachMap
                 if x <> y && (isPreferred f cg r (x,y) (reachX,reachY)) then
-                    logInfo1 (idx, sprintf "%s is preferred to %s" (x.ToString()) (y.ToString()))
+                    logInfo1 (idx, sprintf "%s is preferred to %s" (string x) (string y))
                     edges <- Set.add (x,y) edges
                     g.AddEdge (TaggedEdge(x, y, ())) |> ignore
                 else if x <> y then
-                    logInfo1 (idx, sprintf "%s is NOT preferred to %s" (x.ToString()) (y.ToString()))
+                    logInfo1 (idx, sprintf "%s is NOT preferred to %s" (string x) (string y))
         g, edges
 
     let encodeConstraints idx f (cg, reachMap) r nodes =
@@ -731,17 +730,17 @@ module Failure =
             let sp = cg.Graph.ShortestPathsDijkstra((fun _ -> 1.0), src)
             let mutable path = Seq.empty
             ignore (sp.Invoke(dst, &path))
-            if Seq.isEmpty path then 
-                hasPath <- false
-            else 
+            match path with 
+            | null -> hasPath <- false
+            | p ->
                 removed <- removed + 1
                 cg.Graph.RemoveEdgeIf (fun e -> 
-                    Seq.exists ((=) e) path) |> ignore
+                    Seq.exists ((=) e) p) |> ignore
         removed
 
     let disconnectAll (cg: T) srcs dsts =
         if Seq.isEmpty srcs || Seq.isEmpty dsts then 
-            failwith "empty locations ins disconnectAll"
+            failwith "empty locations in disconnectAll"
         let mutable smallest = System.Int32.MaxValue
         let mutable pair = None
         for src in srcs do 
@@ -751,13 +750,8 @@ module Failure =
                     smallest <- k
                     pair <- Some (src,dst)
         let (x,y) = Option.get pair
-        (smallest, x, y)
+        smallest
 
-    let disconnectLocs (cg: T) srcs dsts =
-        let srcs = 
-            cg.Graph.Vertices 
-            |> Seq.filter (fun v -> Set.contains v.Node.Loc srcs)
-        let dsts = 
-            cg.Graph.Vertices 
-            |> Seq.filter (fun v -> Set.contains v.Node.Loc dsts)
+    let disconnectLocs (cg: T) srcs dstLoc =
+        let dsts = Seq.filter (fun v -> v.Node.Loc = dstLoc) cg.Graph.Vertices 
         disconnectAll cg srcs dsts
