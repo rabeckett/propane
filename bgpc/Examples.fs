@@ -57,6 +57,26 @@ let topoDatacenterMedium () =
          (vC,vX); (vC,vY); (vD,vX); (vD,vY); (vG,vX); (vG,vY); (vH,vX); (vH,vY)]
     g
 
+let topoDatacenterMediumAggregation () = 
+    let g = BidirectionalGraph<State, TaggedEdge<State,unit>>()
+    let vA = {Loc="A"; Typ=InsideOriginates}
+    let vB = {Loc="B"; Typ=InsideOriginates}
+    let vC = {Loc="C"; Typ=Inside}
+    let vD = {Loc="D"; Typ=Inside}
+    let vE = {Loc="E"; Typ=InsideOriginates}
+    let vF = {Loc="F"; Typ=InsideOriginates}
+    let vG = {Loc="G"; Typ=Inside}
+    let vH = {Loc="H"; Typ=Inside}
+    let vX = {Loc="X"; Typ=Inside}
+    let vY = {Loc="Y"; Typ=Inside}
+    let vPeer = {Loc="PEER"; Typ=Outside}
+    Topology.addVertices g [vA; vB; vC; vD; vE; vF; vG; vH; vX; vY; vPeer]
+    Topology.addEdgesUndirected g 
+        [(vA,vC); (vA,vD); (vB,vC); (vB,vD); (vE,vG); (vE,vH); (vF,vG); (vF,vH); 
+         (vC,vX); (vC,vY); (vD,vX); (vD,vY); (vG,vX); (vG,vY); (vH,vX); (vH,vY);
+         (vX, vPeer); (vY, vPeer)]
+    g
+
 let topoDatacenterLarge () = 
     let g = BidirectionalGraph<State, TaggedEdge<State,unit>>()
     let vA = {Loc="A"; Typ=InsideOriginates}

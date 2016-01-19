@@ -509,6 +509,20 @@ let testTopologyWellFormedness () =
     if Topology.isWellFormed topo then 
         printfn "\n[Failed]:\n  Should mark disconnected topology as invalid"
 
+let  testAggregationFailure () = 
+    printfn "Testing aggregation failures"
+    let topo = Examples.topoDatacenterMedium () 
+    let reb = Regex.REBuilder(topo)
+    let pol = reb.End ["A"]
+    let aggs = Map.add "X" [([Prefix.prefix (10u, 0u, 0u, 0u) 31u], Seq.ofList ["PEER"])] Map.empty
+    let aggs = Map.add "Y" [([Prefix.prefix (10u, 0u, 0u, 0u) 31u], Seq.ofList["PEER"])] aggs
+    let res = IR.compileToIR "" 0 (Predicate.prefix (10u, 0u, 0u, 0u) 32u) aggs reb [reb.Build pol]
+    match res with
+    | Err _ -> printfn "[Failed]: policy failed to compile for testing aggregation black-holing"
+    | Ok(Some 2, _) -> ()
+    | Ok(Some i, _) -> printfn "[Failed]: aggregation failure, expected 2, but got (%d)" i
+    | Ok(None, _) -> printfn "[Failed]: aggregation failure, expected 2, but got (any)"
+
 /// Compiles various examples and ensures that they either don't compile,
 /// or they compile and the resulting configuration is correct
 let testCompilation() =
@@ -582,11 +596,11 @@ let testCompilation() =
                             printfn "%s" msg
                             logInfo1(0, msg)
 
-
 let run () =
     printfn ""
-    // testPrefixes ()
+    testPrefixes ()
     // testPrefixMerging ()
-    // testRegexWellFormedness ()
-    // testTopologyWellFormedness ()
+    testRegexWellFormedness ()
+    testTopologyWellFormedness ()
+    testAggregationFailure ()
     testCompilation ()

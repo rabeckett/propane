@@ -126,7 +126,7 @@ let rec negation (Pred rs) =
         let y = negation (Pred tl) 
         conj x y
 
-let implies x y = (conj x y = x)
+let inline implies x y = (disj x y = x)
 
 let inline shr x bits = 
     if bits >= 32 then 0u else x >>> bits

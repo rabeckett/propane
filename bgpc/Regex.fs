@@ -450,7 +450,6 @@ type REBuilder(topo: Topology.T) =
         match this.WellFormed re with
         | None -> convert re
         | Some cs ->
-            printfn "Counter example: %A" cs 
             raise (InvalidPathShapeException cs)
 
     member __.Empty = LEmpty
