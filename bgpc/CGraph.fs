@@ -280,16 +280,16 @@ module Reachable =
     let inline srcAccepting cg src direction = 
         srcAcceptingWithout cg src (fun _ -> false) direction
 
-    /// Checks if n1 in graph cg1 simulates n2 in cg2
+
     let supersetPaths (idx: int) (cg1, n1) (cg2, n2) : bool =
         let add k v map = 
             match Map.tryFind k map with 
             | None -> Map.add k (Set.singleton v) map
             | Some vs -> Map.add k (Set.add v vs) map
 
-        let addAll k vs map = Set.fold (fun acc v -> add k v acc) map vs
+        let inline addAll k vs map = Set.fold (fun acc v -> add k v acc) map vs
 
-        let merge x y = Map.fold (fun acc k v -> addAll k v acc) x y
+        let inline merge x y = Map.fold (fun acc k v -> addAll k v acc) x y
 
         let remainsSuperset b = 
             Map.forall (fun k v -> 
@@ -298,25 +298,21 @@ module Reachable =
                     (Set.intersect v v' |> Set.isEmpty |> not) ) b)) b
 
         let stepNodeNode n1 n2 =
-            // printfn "Simulate: %s -- %s" (string n1) (string n2)
             logInfo3 (idx, sprintf "Simulate: %s -- %s" (string n1) (string n2))
             let neighbors1 = neighbors cg1 n1 |> Seq.filter isRealNode |> Set.ofSeq
             let neighbors2 = neighbors cg2 n2 |> Seq.filter isRealNode |> Set.ofSeq
             let nchars1 = Set.map (fun v -> v.Node.Loc) neighbors1
             let nchars2 = Set.map (fun v -> v.Node.Loc) neighbors2
-            // printfn "neighbors n1: %A" nchars1
-            // printfn "neighbors n2: %A" nchars2
             if not (Set.isSuperset nchars1 nchars2) then
                 None
             else
-                let newBisim = ref Map.empty
+                let mutable newBisim = Map.empty
                 let common = Set.intersect nchars1 nchars2 
-                Set.iter (fun c ->
+                for c in common do 
                     let v1 = Set.filter (fun v -> v.Node.Loc = c) neighbors1 |> Set.minElement
                     let v2 = Set.filter (fun v -> v.Node.Loc = c) neighbors2 |> Set.minElement
-                    newBisim := add v1 v2 !newBisim
-                ) common
-                Some !newBisim
+                    newBisim <- add v1 v2 newBisim
+                Some newBisim
  
         let stepNodeNodes n1 n2s = 
             Set.fold (fun acc n2 ->
