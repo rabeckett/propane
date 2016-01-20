@@ -241,25 +241,12 @@ let inline comparePrefThenLoc (x,i1) (y,i2) =
         compare x.Node.Loc y.Node.Loc
     else cmp
 
-(* Remap community values to be more sensible *)
-let initMapper () =
-    let i = ref 0
-    let commMapper = ref Map.empty
-    (fun comm -> 
-        match Map.tryFind comm !commMapper with
-        | None -> 
-            i := !i + 1
-            commMapper := Map.add comm !i !commMapper 
-            !i
-        | Some x -> x) 
-
 (* Generate the configuration given preference-based ordering 
    that satisfies our completeness/fail resistance properties *)
 let genConfig (cg: CGraph.T) (pred: Predicate.T) (ord: Consistency.Ordering) (inExports: IncomingExportMap) : PredConfig =
     let settings = Args.getSettings ()
     let (ain, _) = Topology.alphabet cg.Topo
     let ain = Set.map (fun (v: Topology.State) -> v.Loc) ain
-    let commMapper = initMapper ()
     let mutable config = Map.empty
     for entry in ord do 
         let mutable rules = []
@@ -291,7 +278,7 @@ let genConfig (cg: CGraph.T) (pred: Predicate.T) (ord: Consistency.Ordering) (in
                             match Regex.isLoc re with
                             | Some x -> Match.Peer x 
                             | _ -> Match.PathRE re
-                        else Match.State(string (commMapper v.States), v.Node.Loc)
+                        else Match.State(string v.State, v.Node.Loc)
                     else NoMatch
                 let node = 
                     neighbors cg v
@@ -307,7 +294,7 @@ let genConfig (cg: CGraph.T) (pred: Predicate.T) (ord: Consistency.Ordering) (in
                     let loc = n.Node.Loc
                     if Topology.isOutside n.Node then
                         exports <- Map.add loc (Map.find n inExports) exports
-                    else exports <- Map.add loc [SetComm(string (commMapper node.States))] exports
+                    else exports <- Map.add loc [SetComm(string node.State)] exports
 
                 filters <- Some ((m,lp), Map.toList exports) :: filters
                 originates <- v.Node.Typ = Topology.Start
@@ -643,7 +630,7 @@ module Compress =
         let config = compressIdenticalImports config
         let config = compressTaggingWhenNotImported config
         let config = compressAllExports cg config
-        let config = compressAllImports cg config
+        (* let config = compressAllImports cg config *)
         let config = compressRedundantTagging cg config
         let config = compressNoRestriction cg config
         config

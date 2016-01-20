@@ -600,9 +600,9 @@ let testCompilation() =
 
 let run () =
     printfn ""
-    testPrefixes ()
+    (* testPrefixes () *)
     // testPrefixMerging ()
     testRegexWellFormedness ()
     testTopologyWellFormedness ()
-    testAggregationFailure ()
+    (* testAggregationFailure () *)
     testCompilation ()

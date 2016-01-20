@@ -414,11 +414,13 @@ type REBuilder(topo: Topology.T) =
     (* Add the unknown special node to the topology *)
     let unknown: Topology.State = {Loc=unknownName; Typ = Topology.Unknown}
     let topo =
-        ignore (topo.AddVertex unknown)
-        for v in topo.Vertices do
+        let t = Topology.copyTopology topo
+        ignore (t.AddVertex unknown)
+        for v in t.Vertices do
             if v.Typ = Topology.Outside then 
-                Topology.addEdgesUndirected topo [(v,unknown)]
-        Topology.copyTopology topo
+                Topology.addEdgesUndirected t [(v,unknown)]
+        t
+        
 
     let isInternal l = inside.Contains l
     
@@ -467,7 +469,7 @@ type REBuilder(topo: Topology.T) =
             outside <- Set.add x outside
             alphabet <- Set.add x alphabet
             let v = {Loc=x; Typ=Topology.Outside}
-            topo.AddVertex v |> ignore
+            ignore (topo.AddVertex v)
             let allOutside = topo.Vertices |> Seq.filter Topology.isOutside
             for u in allOutside do
                 if u <> v then

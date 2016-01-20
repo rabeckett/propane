@@ -11,12 +11,12 @@ open QuickGraph.Algorithms
 [<CustomEquality; CustomComparison>]
 type CgState =
     {Id: int;
-     States: int array; 
+     State: int;
      Accept: Set<int>; 
      Node: Topology.State}
 
     override this.ToString() = 
-       "(Id=" + string this.Id + ", State=" + (List.ofArray this.States).ToString() + ", Loc=" + this.Node.Loc + ")"
+       "(Id=" + string this.Id + ", State=" + string this.State + ", Loc=" + this.Node.Loc + ")"
 
     override x.Equals(other) =
        match other with
@@ -32,8 +32,8 @@ type CgState =
           | _ -> failwith "cannot compare values of different types"
 
 type CgStateTmp =
-    {TNode: Topology.State;
-     TStates: int array; 
+    {TStates: int array;
+     TNode: Topology.State; 
      TAccept: Set<int>}
 
 [<Struct>]
@@ -66,27 +66,39 @@ let copyReverseGraph (cg: T) : T =
         let e' = TaggedEdge(e.Target, e.Source, ())
         newCG.AddEdge e' |> ignore
     {Start=cg.Start; Graph=newCG; End=cg.End; Topo=cg.Topo}
-   
+
+let stateMapper () = 
+    let stateMap = ref Map.empty 
+    let counter = ref 0
+    (fun ss -> 
+        match Map.tryFind ss !stateMap with 
+        | None -> 
+            counter := !counter + 1
+            stateMap := Map.add ss !counter !stateMap
+            !counter
+        | Some i -> i)
+
 let index ((graph, topo, startNode, endNode): BidirectionalGraph<CgStateTmp, TaggedEdge<CgStateTmp,unit>> * _ * _ * _) =
     let newCG = QuickGraph.BidirectionalGraph()
-    let nstart = {Id=0; Node=startNode.TNode; States=startNode.TStates; Accept=startNode.TAccept}
-    let nend = {Id=1; Node=endNode.TNode; States=endNode.TStates; Accept=endNode.TAccept}
-    newCG.AddVertex nstart |> ignore
-    newCG.AddVertex nend |> ignore
+    let mapper = stateMapper ()
+    let nstart = {Id=0; Node=startNode.TNode; State=(mapper startNode.TStates); Accept=startNode.TAccept}
+    let nend = {Id=1; Node=endNode.TNode; State=(mapper endNode.TStates); Accept=endNode.TAccept}
+    ignore (newCG.AddVertex nstart)
+    ignore (newCG.AddVertex nend)
     let mutable i = 2
     let mutable idxMap = 
-        Map.ofList [((nstart.Node.Loc, nstart.States), nstart); ((nend.Node.Loc, nend.States), nend)]
+        Map.ofList [((nstart.Node.Loc, nstart.State), nstart); ((nend.Node.Loc, nend.State), nend)]
     for v in graph.Vertices do
         if Topology.isTopoNode v.TNode then
-            let newv = {Id=i; Node=v.TNode; States = v.TStates; Accept=v.TAccept}
+            let newv = {Id=i; Node=v.TNode; State = (mapper v.TStates); Accept=v.TAccept}
             i <- i + 1
-            idxMap <- Map.add (v.TNode.Loc, v.TStates) newv idxMap
+            idxMap <- Map.add (v.TNode.Loc, mapper v.TStates) newv idxMap
             newCG.AddVertex newv |> ignore
     for e in graph.Edges do
         let v = e.Source 
         let u = e.Target
-        let x = Map.find (v.TNode.Loc, v.TStates) idxMap
-        let y = Map.find (u.TNode.Loc, u.TStates) idxMap
+        let x = Map.find (v.TNode.Loc, mapper v.TStates) idxMap
+        let y = Map.find (u.TNode.Loc, mapper u.TStates) idxMap
         newCG.AddEdge (TaggedEdge(x,y,())) |> ignore
     {Start=nstart; Graph=newCG; End=nend; Topo=topo}
 
@@ -101,8 +113,7 @@ let getTransitions autos =
 let buildFromAutomata (topo: Topology.T) (autos : Regex.Automaton array) : T =
     if not (Topology.isWellFormed topo) then
         raise Topology.InvalidTopologyException
-    let alphabetIn, alphabetOut = Topology.alphabet(topo)
-    let alphabetAll = Set.union alphabetIn alphabetOut
+    let unqTopo = Set.ofSeq topo.Vertices
     let transitions = getTransitions autos
     let graph = BidirectionalGraph<CgStateTmp, TaggedEdge<CgStateTmp,unit>>()
     let starting = Array.map (fun (x: Regex.Automaton) -> x.q0) autos
@@ -113,32 +124,35 @@ let buildFromAutomata (topo: Topology.T) (autos : Regex.Automaton array) : T =
     todo.Enqueue newStart
     while todo.Count > 0 do
         let currState = todo.Dequeue()
-        if not (marked.Contains currState) then 
-            marked.Add currState |> ignore
-            let {TStates=ss; TNode=t} = currState
-            let adj = 
-                if t.Typ = Topology.Start then 
-                    Set.filter Topology.canOriginateTraffic alphabetAll 
-                else 
-                    topo.OutEdges t 
-                    |> Seq.map (fun e -> e.Target)
-                    |> Set.ofSeq
-            let adj = if t.Typ = Topology.Unknown then Set.add t adj else adj
-            for c in adj do
-                let nextInfo = Array.init autos.Length (fun i ->
-                    let g, v = autos.[i], ss.[i]
-                    let newState = Map.find (v,c.Loc) transitions.[i]
-                    let accept =
-                        if (Topology.canOriginateTraffic c) && (Set.contains newState g.F) 
-                        then Set.singleton (i+1)
-                        else Set.empty
-                    newState, accept)
-                let nextStates, nextAccept = Array.unzip nextInfo
-                let accept = Array.fold Set.union Set.empty nextAccept
-                let state = {TStates=nextStates; TAccept=accept; TNode=c}
-                graph.AddVertex state |> ignore
-                graph.AddEdge(TaggedEdge(currState, state, ())) |> ignore
+        //printfn "looking at (%s, %s)" (currState.TStates |> List.ofArray |> List.map string |> Common.List.joinBy ",") currState.TNode.Loc
+        let {TStates=ss; TNode=t} = currState
+        let adj = 
+            if t.Typ = Topology.Start 
+            then Seq.filter Topology.canOriginateTraffic unqTopo 
+            else topo.OutEdges t |> Seq.map (fun e -> e.Target)
+        let adj = if t.Typ = Topology.Unknown then Seq.append (Seq.singleton t) adj else adj
+        //printfn "  adjacent neighbors: %A" adj
+        for c in adj do
+            //printfn "      looking at neighbors: %s" c.Loc
+            let nextInfo = Array.init autos.Length (fun i ->
+                let g, v = autos.[i], ss.[i]
+                let newState = Map.find (v,c.Loc) transitions.[i]
+                let accept =
+                    if (Topology.canOriginateTraffic c) && (Set.contains newState g.F) 
+                    then Set.singleton (i+1)
+                    else Set.empty
+                newState, accept)
+            let nextStates, nextAccept = Array.unzip nextInfo
+            let accept = Array.fold Set.union Set.empty nextAccept
+            let state = {TStates=nextStates; TAccept=accept; TNode=c}
+            if not (marked.Contains state) then
+                //printfn "    adding state for %A, %s" nextStates c.Loc
+                ignore (marked.Add state)
+                ignore (graph.AddVertex state)
                 todo.Enqueue state 
+            //printfn "    adding edge: %A, %A" currState.TNode.Loc state.TNode.Loc
+            let edge = TaggedEdge(currState, state, ())
+            ignore (graph.AddEdge edge)
     let newEnd = {TStates = [||]; TAccept = Set.empty; TNode = {Loc="end"; Typ = Topology.End}}
     graph.AddVertex newEnd |> ignore
     let accepting = Seq.filter (fun v -> not (Set.isEmpty v.TAccept)) graph.Vertices
@@ -189,7 +203,7 @@ let restrict (cg: T) (i: int) =
 let toDot (cg: T) : string = 
     let onFormatEdge(e: Graphviz.FormatEdgeEventArgs<CgState, TaggedEdge<CgState,unit>>) = ()
     let onFormatVertex(v: Graphviz.FormatVertexEventArgs<CgState>) = 
-        let states = Array.map string v.Vertex.States |> String.concat ", "
+        let states = string v.Vertex.State
         let location = v.Vertex.Node.Loc.ToString()
         match v.Vertex.Node.Typ with 
         | Topology.Start -> v.VertexFormatter.Label <- "Start"

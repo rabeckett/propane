@@ -5,7 +5,7 @@ open Common.Error
 [<CustomEquality; CustomComparison>]
 type CgState = 
     {Id: int; 
-     States: int array; 
+     State: int; 
      Accept: Set<int>; 
      Node: Topology.State}
 
