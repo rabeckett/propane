@@ -519,9 +519,10 @@ let  testAggregationFailure () =
     let res = IR.compileToIR "" 0 (Predicate.prefix (10u, 0u, 0u, 0u) 32u) aggs reb [reb.Build pol]
     match res with
     | Err _ -> printfn "[Failed]: policy failed to compile for testing aggregation black-holing"
-    | Ok(Some 2, _) -> ()
-    | Ok(Some i, _) -> printfn "[Failed]: aggregation failure, expected 2, but got (%d)" i
-    | Ok(None, _) -> printfn "[Failed]: aggregation failure, expected 2, but got (any)"
+    | Ok(res) when res.K = Some 2 -> ()
+    | Ok(res) -> 
+        let str = if Option.isNone res.K then "any" else string (Option.get res.K)
+        printfn "[Failed]: aggregation failure, expected 2, but got (%s)" str
 
 /// Compiles various examples and ensures that they either don't compile,
 /// or they compile and the resulting configuration is correct
@@ -563,7 +564,8 @@ let testCompilation() =
                     let msg = sprintf "\n[Failed]:\n  Name: %s\n  Message: Expected Error %A\n" test.Name test.Fail
                     printfn "%s" msg
                     logInfo1(0, msg)
-            | Ok(_, config) -> 
+            | Ok(res) -> 
+                let config = res.Config
                 if (Option.isNone test.Receive || 
                     Option.isNone test.Originate || 
                     Option.isNone test.Prefs || 

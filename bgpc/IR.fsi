@@ -26,11 +26,25 @@ type Peer = string
 type Import = Match * LocalPref
 type Export = Peer * Action list
 
+/// Result from compiling a single prefix
+
 type DeviceConfig =
     {Originates: bool;
      Filters: ((Import * Export list) option) list}
 
 type PredConfig = Predicate.T * Map<string, DeviceConfig>
+
+type PrefixResult =
+    {K: int option;
+      BuildTime: int64;
+      MinimizeTime: int64;
+      ConfigTime: int64;
+      CompressTime: int64;
+      Config: PredConfig}
+
+type CompileResult = Result<PrefixResult, CounterExample>
+
+/// Result from compiling the entire policy
 
 type DeviceAggregates = (Prefix.T list * seq<string>) list
 type DeviceTags = ((string * Prefix.T list) * seq<string>) list
@@ -52,7 +66,7 @@ type RouterConfig =
 type T = Map<string, RouterConfig>
 
 /// Convert per-prefix representation to a per-router representatoin
-val joinConfigs: Aggregates * Tags * MaxRoutes -> (int option * PredConfig) list -> T
+val joinConfigs: Aggregates * Tags * MaxRoutes -> PrefixResult list -> T
 
 /// Debug config output
 val format: T -> string
@@ -61,17 +75,21 @@ val format: T -> string
 /// implement the user policy under all possible failure scenarios for a given prefix. 
 /// This function returns either an intermediate representation (IR) 
 /// for BGP policies, or a counterexample indicating why compilation will not work.
-val compileToIR: string -> int -> Predicate.T -> Map<string, DeviceAggregates> -> Regex.REBuilder -> Regex.T list -> Result<int option * PredConfig, CounterExample>
+val compileToIR: string -> int -> Predicate.T -> Map<string, DeviceAggregates> -> Regex.REBuilder -> Regex.T list -> CompileResult
 
 /// Compile to an intermediate representation for a given prefix. 
 /// Gives a counterexample and quits the program if compilation is not possible.
-val compileForSinglePrefix: string -> int -> Map<string, DeviceAggregates> -> Ast.PolicyPair -> int option * PredConfig
+val compileForSinglePrefix: string -> int -> Map<string, DeviceAggregates> -> Ast.PolicyPair -> PrefixResult
 
 type Stats = 
     {TotalTime: int64;
      NumPrefixes: int;
      PrefixTime: int64;
-     PerPrefixTimes: int64 array
+     PerPrefixTimes: int64 array;
+     PerPrefixBuildTimes: int64 array;
+     PerPrefixMinTimes: int64 array;
+     PerPrefixGenTimes: int64 array;
+     PerPrefixCompressTimes: int64 array;
      JoinTime: int64;}
 
 /// Compile for all prefixes
