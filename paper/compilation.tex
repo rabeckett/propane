@@ -2,6 +2,9 @@
 \label{sec:compilation}
 
 
+
+
+
 \subsection{Overview}
 
 \begin{figure}[t!]
@@ -14,13 +17,13 @@
 In this section we briefly describe our compilation strategy for \sysname. Figure~\ref{fig:pipeline} shows the 5 stage compilation pipeline to translate user-level \sysname policies into vendor-specific, device-local BGP policies. The first stage of the pipeline involves simple rewriting rules and substitutions from the user-level languae into the core Regular Intermediate Representation (RIR). Policies in RIR are checked for well-formedness (e.g., never constraining traffic that does not enter the network), before being combined with topological information to obtain Product Graph Intermediate Representation (PGIR). The PGIR is a data representation that compactly captures the control flow of all BGP advertisements subject to the policy and topology restrictions. We develop efficient algorithms that operate over the PGIR to ensure policy compliance, guarantee failure safety, avoid BGP instability, and prevent aggregation-induced black holes. Once the compiler determines the PGIR for the policy is safe, the compiler uses a simple translation to an abstract BGP (ABGP) representation. To make configurations more readable for human operators, and to reduce the size of the resulting configurations, the \sysname compiler makes several passes over ABGP form. Finally, vendor-specific adaptors can be added to \sysname to translate from ABGP to actual concrete configurations that go on the network devices.
 
 
+
+
+
 \subsection{Regular IR (RIR)} 
 \label{sec:rir}
 
-The high-level language presented in Section~\ref{sec:propane} is just a thin layer on top of a core, regular-expression-based language for describing preference-based path constraints. Regular expressions are an expressive formalism that have been studied extensively for their ability usefulness in describing paths through graphs~\cite{bib:todo}. We prese
-
-\para{Syntax}
-Define the grammar of each of the languages - regular language, the macro language on top of it, and maybe the IR language.
+The high-level language presented in Section~\ref{sec:propane} is just a thin layer on top of a core, regular-expression-based language for describing preference-based path constraints. Regular expressions are an expressive formalism that have been studied extensively for their ability utility in describing paths through graphs~\cite{bib:todo}, and applications to networks~\cite{bib:todo}. We present our core Regular language in the below.
 
 % grammar
 \newcommand{\BNFALT}{\;\;|\;\;}
@@ -96,19 +99,44 @@ Define the grammar of each of the languages - regular language, the macro langua
 
   \caption{Regular Intemediate Language (RIL) syntax (left), and 
            Propane language expansions (right).}
-  \label{fig:semantics}
+  \label{fig:rir-syntax}
 \end{figure*}
 
+
+\para{Syntax}
+
+The syntax for the RIR is shown in Figure~\ref{fig:rir-syntax}. A policy consists of one or more constraints, each of which consists of a test on the type of route, and a corresponding set of preferred regular paths. Regular paths are simply regular expressions where the base locations are AS numbers. Special \textit{in} and \textit{out} symbols are used to refer to any internal or external location respectively.
+For example, the constraint 
+$$prefix=74.125.28.0/24 \mapsto (200 \cdot in \cdot in^*) \gg (100 \cdot in \cdot in^*)$$
+describes a more-preferred set of paths for traffic announced by a prefixes no less specific than $74.125.28.0/24$, which starts at AS 200, before entering and staying inside the user's network to get to the destination, and a less-preferred set of paths that start at AS 100 and are otherwise the same. Tests over route types are allowed to be used with standard boolean connectives, and they can refer to both prefixes and community values (which are often important when interoperating with existing ASes).
+
+\sysname also supports constraints purely on the control-plane behavior of the BGP routing protocol. Thing like prefix aggregation, which should not affect routing behavior, is an important optimization to reduce routing table size and churn. Aggregation, for example from internal locations and external locations, is specified using the same regular syntax as before: 
+$$agg(128.17.0.0/16, in \rightarrow out)$$
+where the expression $in \rightarrow out$ refers to control messages flowing from any internal location to any external location.
+
+We list the route aggregation and community tagging constraints in Figure~\ref{fig:rir-syntax}, however our implementation also supports other constraints such as limiting the maximum number of routes, or enabling BGP multipath.
+
+
 \para{Semantics}
-Give the semantics in terms of ranked paths.
-Extension of regular expression semantics with the
-additional constraint that we take only valid topology paths and that their are no paths with
-repeated locations in the path. One tricky point is that we care about paths starting or ending at locations that are
-connected to end-hosts in some way. And we want the length of the path to be a secondary tie-breaker.
+
+The semantics of RIR can be thought of in terms of ranked paths. Each preference-based regular path constraint (of the form $r_1 \gg \dots \gg r_j$) maps to a set of concrete paths in the network that match one of $r_i$. We denote a network path as a string of ASes of the form: $n_1 n_2 \dots n_k$, and we say regular expression $r$ matches path $p$, if $p \in \mathcal{L}(r)$ and $p$ is a topologically-valid path. We denote the length of a path $p$ as $\abs{p}$. A path $p$ will have a rank: 
+$$(\min_i \set{ p \in \mathcal{L}(r_i) }, \abs{p})$$
+where the rank is lexicographically ordered according to (1) the most preferred regular expression matched, and (2) as a tie breaker, the length of the path. A lower rank indicates a \emph{more} preferred path. The desired semantics is to allow traffic to be sent along any of the most preferred paths for any pair of starting and ending locations that appear in some valid path. 
+
+The set of ranked paths depends on which paths are valid given the topology, and thus when failures occur, so do the most preferred routes. It is the job of the \sysname compiler to ensure that generated configurations for a policy always achieve the most preferred path possible given the failures in the topology, and it must do so using purely distributed mechanisms.
+
 
 \para{Propane to RIR}
 
 TODO
+
+
+
+
+
+
+
+
 
 
 
