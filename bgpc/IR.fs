@@ -576,18 +576,22 @@ module Compress =
     (* Whenever import identical routes from all peers, we can replace
        this with a simpler route import of the form: (Import: * ) for readability *)
     let compressAllImports (cg: CGraph.T) ((pred, config): PredConfig) : PredConfig =
+        let byLoc = 
+            cg.Topo.Vertices 
+            |> Seq.groupBy (fun v -> v.Loc)
+            |> Seq.map (fun (k,v) -> (k, Seq.head v))
+            |> Map.ofSeq
         let mutable newConfig = Map.empty
         for kv in config do
             let loc = kv.Key 
             let deviceConf = kv.Value
             let filters = deviceConf.Filters
             let mutable newFilters = []
-            let topoNode = 
-                cg.Topo.Vertices
-                |> Seq.find (fun v -> v.Loc = loc)
-            let topoPeers = 
+            let topoNode = Map.find loc byLoc
+            let topoPeers =
                 cg.Topo.OutEdges topoNode
                 |> Seq.map (fun e -> e.Target.Loc)
+                |> Set.ofSeq
             let eqActions =
                 filters
                 |> List.map (Option.get >> snd) 
@@ -602,15 +606,15 @@ module Compress =
                 |> ((=) 1)
             let noComms = 
                 filters
-                |> List.map (Option.get >> fst >> fst)
-                |> List.forall (fun x -> match x with Match.Peer _ -> true | _ -> false)
-            let coversPeer p = 
-                List.exists (fun  (Some ((m,lp),es)) -> 
+                |> List.forall (fun x -> match (Option.get >> fst >> fst) x with Match.Peer _ -> true | _ -> false)
+            let imports = 
+                List.filter (fun  (Some ((m,lp),es)) -> 
                     match m with
-                    | Match.Peer(x) -> x = p
-                    | _ -> false
-                ) filters
-            let allPeers = Seq.forall coversPeer topoPeers
+                    | Match.Peer(x) -> true
+                    | _ -> false) filters
+                |> List.map (fun  (Some ((Match.Peer x,lp),es)) -> x)
+                |> Set.ofSeq
+            let allPeers = Set.isEmpty (Set.difference topoPeers imports)
             let allSame = eqActions && eqLP && noComms && allPeers
             let newFilters = 
                 if allSame && List.length filters = Seq.length topoPeers && not (List.isEmpty filters)
@@ -630,7 +634,7 @@ module Compress =
         let config = compressIdenticalImports config
         let config = compressTaggingWhenNotImported config
         let config = compressAllExports cg config
-        (* let config = compressAllImports cg config *)
+        let config = compressAllImports cg config
         let config = compressRedundantTagging cg config
         let config = compressNoRestriction cg config
         config
