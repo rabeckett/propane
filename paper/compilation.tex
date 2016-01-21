@@ -191,7 +191,7 @@ where $\odot$ stands for an arbitrary regular binary operator. Preferences neste
     \state{1}{$1$}{right of=0}{}
     \state{2}{$2$}{right of=1}{}
     \state{3}{$3$}{right of=2}{}
-    \state{4}{$5$}{right of=3}{accepting}
+    \state{4}{$4$}{right of=3}{accepting}
     \transition{0}{1}{out}{}
     \transition{1}{2}{in}{}
     \transition{2}{2}{ACDE}{loop above}
@@ -240,13 +240,25 @@ a unique starting vertex $s$,
 and an preference function $P \colon V \rightarrow 2^{\set{1, \dots, j}}$ , which maps nodes in the graph to the set preferences for which the corresponding automata are accepting in state $Q_i$
 
 
-\para{Construction}
+\para{Example}
 
 Intuitively product graph tracks which states of each automaton the policy is in as traffic moves between different topology locations. 
 
-\todo{work out the exact details here}
+Consider the topology shown in Figure~\ref{fig:example-compilation}. Suppose we want to set up a primary route from W that enters the network from $A$, and utilizes the A -- C and C -- D links. We also would like a backup route that utilizes enters from node $B$, and utilizes the B -- C link, but is otherwise unconstrained. For the sake of simplicity, we will assume that the route can end in either $X$, $Y$, or $Z$. The RIR for the policy is:
+%
+$$(W \cdot A \cdot C \cdot D \cdot out) \gg (W \cdot B \cdot in^* \cdot out)$$
+%
+Figure~\ref{fig:example-compilation} shows the policy automata for each regular expression preference. Since we are interested in the flow of control messages, the automata match backwards. Figure~\ref{fig:example-compilation} shows the product graph obtained from intersecting the topology and policy automata. Every path in the product graph corresponds to a concrete path in the topology. In particular, every path through the product graph that ends at a node with an accepting preference is a valid topological path that satisfies the policy constraints and results in a particular preferenced path.
+%
+For example, the path $X D C A W$ is a valid path in the topology that BGP route advertisements might take, which would lead to obtaining the most prefered preference.
+BGP control messages can start from peer X, which would match the $out$ transition from both automata, leading to state $1$ in the first automaton, and state $1$ in the second automaton. This is reflected in the product graph by the node with state $(1,1) X$. From here, if X were to advertise this route to D, it would result in the path $D X$, which would lead to state $2$ in the first automaton, and state $2$ in the second automaton, and so on. Since node $(5,-) W$ is in an accepting state for the first automata, it indicates this path has preference 1.
 
+\todo{explain drop states}
+\todo{preferences are reversed in picture}
 
+\para{Minimization}
+
+TODO
 
 
 
