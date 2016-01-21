@@ -211,9 +211,7 @@ where $\odot$ stands for an arbitrary regular binary operator. Preferences neste
   \hdr{\large Product Graph}{}
   \vspace*{-1\baselineskip}
   %
-
   \includegraphics[width=.8\columnwidth]{figures/productgraph}
-  
   \end{minipage}
 
   \hrulefill
@@ -240,7 +238,7 @@ a unique starting vertex $s$,
 and an preference function $P \colon V \rightarrow 2^{\set{1, \dots, j}}$ , which maps nodes in the graph to the set preferences for which the corresponding automata are accepting in state $Q_i$
 
 
-\para{Example}
+\para{From RIR To PGIR}
 
 Intuitively product graph tracks which states of each automaton the policy is in as traffic moves between different topology locations. 
 
@@ -258,7 +256,31 @@ BGP control messages can start from peer X, which would match the $out$ transiti
 
 \para{Minimization}
 
-Although every path through the product graph is a valid path in the topology, we typically do not want to consider loops when configuring a network. In particular, BGP's loop prevention mechanism (where an AS rejects any route for which it is already in the AS path), means that loops should never occur \footnote{Misconfigured aggregation can still lead to loops in some cases}. When analyzing the user policy for correctness and failure safety, it is often useful to avoid considering possibilities that cannot  
+Although every path through the product graph is a valid path in the topology, we do not want to consider loops when configuring the network. In particular, BGP's loop prevention mechanism (where an AS rejects any route for which it is already in the AS path), means that loops should never occur.\footnote{Misconfigured aggregation can still lead to loops in BGP}
+%
+However, the product graph may contain many paths that form loops in the topology. For example, in Figure~\ref{fig:example-compilation}, the path $W A C B W$ is a valid path that BGP route advertisements might take through the topology, leading to a path that satisfies the preference 1 policy, but which contains a loop.
+%
+Since we are primarily concerned with guaranteeing user policy correctness and safety with respect to network failures, it is useful to avoid considering possibilities that are not possible due to loops. For example, if we can safely remove an edge from the product graph, then we don't have to consider the case that the edge has failed. 
+
+We can safely remove any node or edge from the product graph so long as it never appears on any \emph{simple} path from the \textit{start} node to some node with an accepting preference. For example, node $(1,1) W$ in Figure~\ref{fig:example-compilation} is never on a simple path to an accepting preference since both end at location $W$.
+%
+Although fully minimizing the product graph is an NP-complete problem, we find that a simple and efficient algorithm based on graph dominators achieves largely the same effect, without preventing compilation of most policies in practice. 
+
+A node $x$ dominates node $y$ if $x$ appears on every path leading to $y$ from the $start$ node. Many algorithms for finding graph dominators efficiently exist~\ref{bib:todo}. To minimize the product graph, we compute the dominator set for each node in both the product graph $G$, and the reversed product graph $G^R$ (with a source node attached to each accepting state). The following rules us to efficiently simplify the product graph.
+
+
+\begin{itemize}
+  \item Remove nodes that never reach an accepting state
+  \item Remove nodes not reachable from the $start$ node
+  \item Remove any node $x$ such that $x$ is dominated by $y$ in $G$ or $G^R$, and $loc(x) = loc(y)$
+  \item Remove any edge from $x$ to $y$ in $G$ or $G^R$ if there is some $z$ dominated by $y$ such that $loc(x) = loc(z)$
+\end{itemize}
+
+Repeated application of the 4 above rules leads to removing the colored nodes and dashed lines in Figure~\ref{fig:example-compilation}. 
+
+\para{Failure Safety}
+
+
 
 
 
