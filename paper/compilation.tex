@@ -258,7 +258,7 @@ BGP control messages can start from peer X, which would match the $out$ transiti
 
 \para{Minimization}
 
-TODO
+Although every path through the product graph is a valid path in the topology, we typically do not want to consider loops when configuring a network. In particular, BGP's loop prevention mechanism (where an AS rejects any route for which it is already in the AS path), means that loops should never occur \footnote{Misconfigured aggregation can still lead to loops in some cases}. When analyzing the user policy for correctness and failure safety, it is often useful to avoid considering possibilities that cannot  
 
 
 
