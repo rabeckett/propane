@@ -1,6 +1,32 @@
 \section{Introduction}
 \label{sec:introduction}
 
+It is well-known that network configuration is hard and error prone~\cite{x,y,z}; many studies of network incidents point to configuration errors as the leading cause.
+%
+One reason is that device configuration languages are low-level and several configuration elements must be kept consistent (e.g., interface addresses) for the device to behave as intended.
+%
+
+Another, more fundamental reason is the semantic mismatch between intended policies and configuring individual devices.
+%
+Many policies are network-wide (e.g., such as prefer certain external neighbors over others, never announce certain destination prefixes externally, use a certain path only if another fails), but configurations describe the behavior of individual devices.
+%
+Operators must manually decompose network-wide policy into device-level behaviors, such that their interactions produce the desired policy.
+%
+This decomposition is not always straightforward and ensuring policy-compliance is hard, especially in the face of failures. Certain decompositions that work correctly in the absence of failures, violate policies when failures occur.
+%
+As a result, many configuration errors manifest only during failures~\cite{batfish}.
+
+To simplify network configuration, the practitioner community is adopting a template-based approach~\cite{x,y}. While templates help with the low-level nature of configuration languages, they too suffer from the semantic mismatch between network policies and device-level configuration (\S\ref{sec:motivation}).
+
+Software-defined networking (SDN) was, in part, the research community's response to the difficulty of maintaining policy compliance in the face of this semantic mismatch~\cite{xx}. It completely eliminates distributed control planes. Instead of devices computing their forwarding behavior by interacting with each other, they are told by a centralized controller exactly how to forward packets. The controller is responsible for ensuring policy compliance at all times, including when failures occur. To program centralized control planes, researchers have developed increasingly sophisticated languages that let operators directly express network policies~\cite{x,y,z}.
+
+However, SDN does not help the vast majority of networks in the world, which  still operate a distributed control plane. Many of these networks will continue to operate a distributed control plane for the foreseeable future, due to the difficulty of migration, scaling challenges of centralized control, or the inherent robustness to failures of distributed control planes. Centralized control planes need careful design to be robust to failures---one must ensure that devices can communicate with the controller at all times, even under arbitrary combinations of failure.
+
+In this paper, we ask if distributed control planes can be centrally programmed. Operators should be able to directly express network-wide policies, which are automatically decomposed into individual device configurations in a way that ensures policy-compliance under all possible failures. If successful, this approach would combine the ease of programming of centralized control planes and robustness to failures of distributed control planes.
+
+\todo{new intro is not complete}
+
+\todo{OLD TEXT IS BELOW}
 
 %% Word vommit
 Why network configuration is hard:
