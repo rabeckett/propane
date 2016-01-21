@@ -21,14 +21,16 @@ To reduce configuration errors, the practitioner community is adopting a templat
 
 Software-defined networking (SDN) was, in part, the research community's response to the difficulty of maintaining policy compliance through distributed interaction of individual devices~\cite{xx}. It eliminates distributed control planes altogether. Instead of devices computing  forwarding tables through mutual interactions, they are told by a centralized controller exactly how to forward packets. The controller is responsible for ensuring policy compliance at all times. To program centralized control planes, researchers have developed increasingly sophisticated languages that let operators directly express network policies~\cite{x,y,z} that are then translated to forwarding tables at runtime.
 
-However, SDN does not help the vast majority of networks in the world, which  still operate a distributed control plane. For the foreseeable future, many of these networks will continue to operate a distributed control plane, due to the difficulty of migration or the challenges that centralized control planes face in terms of scaling and failure robustness. 
-%, scaling challenges of centralized control, or the inherent robustness of distributed control planes to failures.
-%It is difficult to scale centralized control planes both 
-Centralized control planes need careful design and engineering to be robust to failures at scale---one must ensure that all devices can communicate with the controller at all times, even under arbitrary combinations of failure~\cite{x,y,z}.\footnote{For this challenge, researchers are exploring multi-controller networks, with interacting controllers, thus bringing back distributed control planes~\cite{x,y,z} and their current programming difficulties.}
+Centralized control planes, however, are not a panacea. 
+%They face significant challenges related to scaling and failure robustness. 
+They require careful design and engineering to be robust to failures at scale---one must ensure that all devices can communicate with the controller at all times, even under arbitrary combinations of failure~\cite{x,y,z}. For this challenge, researchers are exploring multi-controller networks, with interacting controllers, thus bringing back distributed control planes~\cite{x,y,z} and their current programming difficulties.
 
 In this paper, we ask if it is possible to centrally program distributed control planes.
-Operators should be able to directly express network-wide policies, which are automatically decomposed into individual device configurations. The resulting forwarding behavior, which emerges through device interactions, must be policy-compliant even under failures.
-If successful, this approach would combine easy programmability of centralized control planes and failure robustness of distributed control planes.
+Operators should be able to directly express network-wide policies, which are automatically decomposed into individual device configurations. The resulting forwarding behavior, which emerges through device interactions, must be policy-compliant under all possible failures.
+If successful, this approach would combine easy programmability of centralized control planes and failure robustness of distributed control planes. 
+%
+More pragmatically, it would help many networks that, for the foreseeable future, will continue to use a distributed control plane, due to the difficulty of migrating to SDN or the inherent scalability and failure-robustness of distributed control.
+
 
 Through our system, called \sysname, we demonstrate the feasibility of centrally programming distributed control planes. We focus on BGP because it is a common and highly flexible way to implement such control planes.
 
