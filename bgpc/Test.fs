@@ -65,6 +65,7 @@ let tBigDipper = Examples.topoBigDipper ()
 let tBadGadget = Examples.topoBadGadget ()
 let tSeesaw = Examples.topoSeesaw ()
 let tStretchingManWAN = Examples.topoStretchingManWAN ()
+let tStretchingManWAN2 = Examples.topoStretchingManWAN2 ()
 let tPinCushionWAN = Examples.topoPinCushionWAN ()
 let tBackboneWAN = Examples.topoBackboneWAN ()
 
@@ -188,6 +189,11 @@ let rStretchingManWAN3 (reb: Regex.REBuilder) =
     let pref1 = reb.Concat [reb.Star reb.Outside; reb.Loc "A"; reb.Star reb.Inside; reb.Loc "Y"; reb.Star reb.Outside; reb.Loc "ASChina"]
     [reb.Build pref1]
 
+let rStretchingManWAN4 (reb: Regex.REBuilder) = 
+    let pref1 = reb.Concat [reb.Loc "W"; reb.Loc "A"; reb.Loc "C"; reb.Loc "D"; reb.Outside]
+    let pref2 = reb.Concat [reb.Loc "W"; reb.Loc "B"; reb.Internal(); reb.Outside]
+    [reb.Build pref1; reb.Build pref2]
+
 let rPinCushionWAN1 (reb: Regex.REBuilder) =
     let pref1 = reb.Concat [reb.Loc "W"; reb.Internal(); reb.Loc "Y"]
     let pref2 = reb.Concat [reb.Loc "X"; reb.Internal(); reb.Loc "Z"]
@@ -202,7 +208,7 @@ let tests (settings: Args.T) =
     let noExport = settings.UseNoExport
 
     [
-
+    
     {Name= "Diamond1";
      Explanation="A simple path";
      Topo= tDiamond;
@@ -425,6 +431,26 @@ let tests (settings: Args.T) =
      Prefs = Some [];
      Fail = None};
 
+     // TODO: test filters etc
+     (if controlIn && noExport then
+        {Name= "StretchingMan4";
+         Explanation="Use MED, Prepending, No-export, and Local-pref";
+         Topo= tStretchingManWAN2;
+         Rf= rStretchingManWAN4; 
+         Receive= Some [];
+         Originate = Some [];
+         Prefs = Some [];
+         Fail = None};
+     else 
+        {Name= "StretchingMan4";
+         Explanation="Use MED, Prepending, No-export, and Local-pref";
+         Topo= tStretchingManWAN2;
+         Rf= rStretchingManWAN4; 
+         Receive= None;
+         Originate = None;
+         Prefs = None;
+         Fail = Some CantControlPeers});
+     
     {Name= "PinCushion";
      Explanation="Unimplementable peer preference";
      Topo= tPinCushionWAN;

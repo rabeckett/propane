@@ -827,7 +827,7 @@ let compileAllPrefixes fullName topo (pairs: Ast.PolicyPair list) constraints : 
     let pairs = Array.ofList pairs
     let timedConfigs, prefixTime =
         Profile.time (Array.Parallel.mapi (fun i x -> 
-            Profile.time (compileForSinglePrefix fullName i aggInfo) x)) pairs
+            Profile.time (compileForSinglePrefix fullName (i+1) aggInfo) x)) pairs
     let nAggFails = Array.map (fun (res,_) -> res.K) timedConfigs
     let k = Array.fold minFails None nAggFails
     let configs, times = Array.unzip timedConfigs

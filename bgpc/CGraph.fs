@@ -113,6 +113,7 @@ let getTransitions autos =
 let buildFromAutomata (topo: Topology.T) (autos : Regex.Automaton array) : T =
     if not (Topology.isWellFormed topo) then
         raise Topology.InvalidTopologyException
+    Array.iter (fun a -> logInfo2 (0,string a)) autos
     let unqTopo = Set.ofSeq topo.Vertices
     let transitions = getTransitions autos
     let graph = BidirectionalGraph<CgStateTmp, TaggedEdge<CgStateTmp,unit>>()
@@ -210,9 +211,9 @@ let toDot (cg: T) : string =
         | Topology.End -> v.VertexFormatter.Label <- "End"
         | _ ->
             if Set.isEmpty v.Vertex.Accept then 
-                v.VertexFormatter.Label <- "(" + states + ", " + location + ")"
+                v.VertexFormatter.Label <- states + ", " + location
             else
-                v.VertexFormatter.Label <- "(" + states + ", " + location + ")" + "\npref=" + (v.Vertex.Accept.ToString ())
+                v.VertexFormatter.Label <- states + ", " + location + "\nAccept=" + (Common.Set.toString v.Vertex.Accept)
                 v.VertexFormatter.Shape <- Graphviz.Dot.GraphvizVertexShape.DoubleCircle
                 v.VertexFormatter.Style <- Graphviz.Dot.GraphvizVertexStyle.Filled
                 v.VertexFormatter.FillColor <- Graphviz.Dot.GraphvizColor.LightYellow
@@ -417,7 +418,8 @@ module Minimize =
         cg.Graph.RemoveEdgeIf (fun e ->
             let x = e.Source
             let y = e.Target
-            Set.exists (shadows x) domRev.[y]) |> ignore
+            Set.exists (shadows x) domRev.[y] || 
+            Set.exists (shadows y) dom.[x]) |> ignore
         cg
 
     let removeNodesThatCantReachEnd (cg: T) = 

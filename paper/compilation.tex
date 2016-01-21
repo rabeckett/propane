@@ -128,23 +128,123 @@ The set of ranked paths depends on which paths are valid given the topology, and
 
 \para{Propane to RIR}
 
-TODO
+The main differences between \sysname the regular language are: (1) \sysname allows the programmer to specify constraints separately, and combine them together modularly, (2) \sysname provides high-level names that abstract sets of routes, and (3) \sysname allows the preference operator to appear in more locations.
+The translation from \sysname to RIR is based on a set of simple rewriting rules.
+
+One of the main constraints when translating to RIR is to ensure that all specified routes are well-formed. In particular, each regular path constraint $r$ must satisfy $r \subseteq out^* \cdot in^+ \cdot out^*$. This ensures that one can only ever talk about controlling traffic that goes through the user's network at some point.
+
+The first step is to merge separate constraints. This is accomplished by simply taking the cross product of per-prefix constraints, where logical conjunction ($a \wedge b$) is replaced by intersection on regular constraints ($a \cap b$), logical disjunction is replaced by union, and logical negation ($\neg a$) is replaced by ($any \cap !(a)$).
+%
+For example, in the data center configuration from Section~\ref{sec:propane}, combining the \textit{Routing} and \textit{Ownership} constraints would result in the following RIR configuration:
+
+\begin{lstlisting}[mathescape=true]
+$\path{p_{g1}}{any \cap end(A)}$
+$\path{p_{g2}}{any \cap end(B)}$
+$\path{p_{l1}}{\neg enter(out) \cap end(E)}$
+$\path{p_{l2}}{\neg enter(out) \cap end(F)}$
+$\path{true}{exit(out)}$
+\end{lstlisting}
+
+The next step is to rewrite the high-level constraints such as \textit{enter} and \textit{exit} according to the equivalences listed in Figure~\ref{fig:rir-syntax}. Since preferences can only occur at the top level for RIR, the final step is to lift the preferences that occur in the regular expression. For example, the regular expression $a \cdot (b \gg c) \cdot d$ is lifted to $(a \cdot b \cdot d) \gg (a \cdot c \cdot d)$. In general, we employ the follwing:
+%
+$$x \odot (y_1 \gg \dots \gg y_n) = x \odot y_1 \gg \dots \gg x \odot y_n$$
+%
+where $\odot$ stands for an arbitrary regular binary operator. Preferences nested under a unary operator, \textit{star} or \textit{negation}, are invalid policies.
 
 
 
 
 
+\subsection{Product Graph IR}
 
 
+\newcommand{\state}[4]{\node[state,#3](#1)[#4]{#2};}
+\newcommand{\transition}[4]{\path[->] (#1) edge [#4] node {#3} (#2);} 
 
 
+\begin{figure*}
+  \begin{minipage}[t]{.5\linewidth}
+  \hdr{\large Topology}{}
+  \vspace*{-1\baselineskip}
+  
+  \includegraphics[width=.8\columnwidth]{figures/topology}
+  
+  \hdr{\large Policy Automata}{}
+  \vspace*{1\baselineskip}
+    
+  \begin{tikzpicture}[>=stealth',shorten >=1pt,auto,node distance=1.6cm]
+    \state{0}{$0$}{              }{}
+    \state{1}{$1$}{right of=0}{}
+    \state{2}{$2$}{right of=1}{}
+    \state{3}{$3$}{right of=2}{}
+    \state{4}{$4$}{right of=3}{}
+    \state{5}{$5$}{right of=4}{accepting}
+    \transition{0}{1}{out}{}
+    \transition{1}{2}{D}{}
+    \transition{2}{3}{C}{}
+    \transition{3}{4}{A}{}
+    \transition{4}{5}{W}{}
+  \end{tikzpicture}
+  
+  \begin{tikzpicture}[>=stealth',shorten >=1pt,auto,node distance=1.6cm]
+    \state{0}{$0$}{              }{}
+    \state{1}{$1$}{right of=0}{}
+    \state{2}{$2$}{right of=1}{}
+    \state{3}{$3$}{right of=2}{}
+    \state{4}{$5$}{right of=3}{accepting}
+    \transition{0}{1}{out}{}
+    \transition{1}{2}{in}{}
+    \transition{2}{2}{ACDE}{loop above}
+    \transition{2}{3}{B}{}
+    \transition{3}{3}{B}{loop above}
+    \transition{3}{2}{ACDE}{bend left}
+    \transition{3}{4}{W}{}
+  \end{tikzpicture}
+   
+  
+  \end{minipage}
+  %
+  ~~
+  ~~
+  %
+  \begin{minipage}[t]{.5\linewidth}
+  \hdr{\large Product Graph}{}
+  \vspace*{-1\baselineskip}
+  %
+
+  \includegraphics[width=.8\columnwidth]{figures/productgraph}
+  
+  \end{minipage}
+
+  \hrulefill
+
+  \caption{Example Product Graph construction.}
+  \label{fig:example-compilation}
+\end{figure*}
 
 
-\subsection{Theory}
-What are the properties of this language? Ideally, a proof here about its expressiveness. We can perhaps do everything
-BGP can do? We can't do shortest paths routing with BGP, but we could with OSPF though? Clearly we can only describe
-policies that are stable under all possible failure scenarios (at least internally stable, could still cause) routing
-loops with interactions with neighbors.
+Now that the user policy exists in a simplified form, we must take the topology into consideration. In particular, we are interested in a compact representation that describes all the possible ways BGP route advertisements can flow through the network subject to the policy and topology constraints. To this end, we use a Product Graph Intermediate Representation (PGIR) to capture these dependencies. The Product graph can be thought of as the intersection of each of the regular automata corresponding to the RIR path preferences, and the topology. Finding paths through a graph subject to regular constraints has been studied extensively in the database literature~\ref{bib:todo}, and has been applied to networks in the past~\ref{bib:todo}.
+
+\para{Formal definition}
+
+The translated user policy into RIR is of the form $r_1 \gg \dots \gg r_j$. While paths talk about the direction traffic flows through the network, to implement the policy with BGP we are concerned about the way control-plane information is disseminated (i.e., router advertisements flowing in the opposite direction). To capture this idea, for each regular expression $r_i$, we construct a deterministic finite state machine on the reversed regular expression. Each automaton is a tuple: ($\Sigma, Q_i, F_i, q_{0_i}, \sigma_i$). The alphabet $\Sigma$ consists of all internal and external ASes, $Q_i$ is a set of states, $F_i$ is the set of final states, $q_{0_i}$ is the initial state, and $\sigma_i \colon Q_i \times \Sigma \rightarrow Q_i$ the state transition function.
+
+The topology is modelled as a graph ($V, E$), which consists of a set of vertices $V$, and a set of directed edges $E \colon 2^{V \times V}$.
+
+\todo{use different symbols here}
+
+The combined product graph is a tuple: ($V'$, $E'$, $s$, $A$) with 
+vertices $V' \colon V \times 2^{Q_1 \times \dots \times Q_j}$, 
+edges $E' \colon 2^{V' \times V'}$, 
+a unique starting vertex $s$, 
+and an preference function $P \colon V \rightarrow 2^{\set{1, \dots, j}}$ , which maps nodes in the graph to the set preferences for which the corresponding automata are accepting in state $Q_i$
+
+
+\para{Construction}
+
+Intuitively product graph tracks which states of each automaton the policy is in as traffic moves between different topology locations. 
+
+\todo{work out the exact details here}
 
 
 
