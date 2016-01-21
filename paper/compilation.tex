@@ -280,6 +280,13 @@ Repeated application of the 4 above rules leads to removing the colored nodes an
 
 \para{Failure Safety}
 
+To implement backups in routing, BGP uses local preferences on a per-device basis. However, the distributed nature of BGP makes setting preferences locally to achieve a network-route routing policy difficult, particularly in the presence of failures. For example, imagine an extremely simple policy for the topology in Figure~\ref{fig:example-compilation}, which says to prefer $WACD$ over $WBCE$:
+%
+$$(W \cdot A \cdot C \cdot D) \gg (W \cdot B \cdot C \cdot E)$$
+%
+How could such a policy be implemented in BGP? Suppose we simply set the local preference at router $C$ to prefer $D$ over $E$. However, now if the A -- C link fails, then suddenly $C$ has made the wrong decision and can not get either the primary or backup route specified, despite the fact that $W \cdot B \cdot C \cdot E$ route is available.
+
+In particular, any time a router must make a decision locally between several route options, there is the possibility that it might choose incorrectly and regret its decision. The product graph representation captures this notion of choice precisely. For example, router $D$ in Figure~\ref{fig:example-compilation} appears only once in the product graph, possible receiving route advertisements from $Y$ or $X$. However, regardless of where 
 
 
 
@@ -289,6 +296,7 @@ Repeated application of the 4 above rules leads to removing the colored nodes an
 
 
 
+\para{Notes}
 
 \begin{itemize}
 	\item Separate prefixes so they are disjoint
