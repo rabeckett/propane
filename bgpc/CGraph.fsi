@@ -74,9 +74,6 @@ module Reachable =
 
     val inline srcAccepting: T -> CgState -> Direction -> Set<int>
 
-    /// Check if paths from n1 in cg1 are a superset of paths from n2 in cg2
-    val supersetPaths: int -> T * CgState -> T * CgState -> bool
-
 
 module Minimize =
     /// Get rid of nodes that can originate traffic but aren't accepting

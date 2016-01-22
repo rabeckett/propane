@@ -1,6 +1,4 @@
-﻿define foo = M
-
-control {
+﻿control {
     aggregate(10.0.0.0/31, A -> X),
 	tag(8075:420, 1.2.0.0/16, B -> X),
 	maxroutes(100, in -> out),

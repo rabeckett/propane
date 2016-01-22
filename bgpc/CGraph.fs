@@ -279,48 +279,6 @@ module Reachable =
         srcAcceptingWithout cg src (fun _ -> false) direction
 
 
-    [<Struct; NoComparison; CustomEquality>]
-    type Node = struct 
-        val depth: int 
-        val more: CgState
-        val less: CgState
-        new(d, m, l) = {depth=d; more=m; less=l}
-
-        override x.Equals(other) =
-           match other with
-            | :? Node as y -> (x.more.Id = y.more.Id && x.less.Id = y.less.Id)
-            | _ -> false
-
-        override x.GetHashCode() = x.more.Id + x.less.Id
-    end
-
-    let supersetPaths (idx: int) (cg1,n1) (cg2,n2) : bool = 
-        if n1.Node.Loc <> n2.Node.Loc then false else
-        let mutable d = 0
-        let maxd = max cg1.Graph.VertexCount cg2.Graph.VertexCount
-        let q = Queue()
-        let seen = HashSet()
-        let init = Node(0,n1,n2)
-        q.Enqueue init
-        ignore(seen.Add init)
-        let mutable counterEx = None
-        while q.Count > 0 && d <= maxd && Option.isNone counterEx do
-            let n = q.Dequeue()
-            let x = n.more 
-            let y = n.less 
-            let nsx = neighbors cg1 x
-            let nsy = neighbors cg2 y
-            for y' in nsy do 
-                match Seq.tryFind (fun x' -> x'.Node.Loc = y'.Node.Loc) nsx with
-                | None -> counterEx <- Some (x,y)
-                | Some x' -> 
-                    let n' = Node(n.depth+1, x', y')
-                    if not (seen.Contains n') then
-                        ignore (seen.Add n')
-                        q.Enqueue n'
-        Option.isNone counterEx
-
-
 module Minimize =
 
     type DominationSet = Dictionary<CgState, Set<CgState>>
@@ -543,7 +501,79 @@ module Consistency =
     type Ordering = Map<string, Preferences>
     type Constraints = BidirectionalGraph<CgState ,TaggedEdge<CgState,unit>>
 
-    let simulate idx cg restrict (x,y) (i,j) =
+    type Node = struct 
+        val More: CgState
+        val Less: CgState
+        new(m, l) = {More=m; Less=l}
+    end
+
+    type SupersetPathsResult =
+        | Yes of HashSet<Node>
+        | No
+
+    let supersetPaths (idx: int) (cg1,n1) (cg2,n2) : SupersetPathsResult = 
+        if n1.Node.Loc <> n2.Node.Loc then No else
+        let maxd = max cg1.Graph.VertexCount cg2.Graph.VertexCount
+        let q = Queue()
+        let seen = HashSet()
+        let init = Node(n1,n2)
+        q.Enqueue init
+        ignore(seen.Add init)
+        let mutable counterEx = None
+        while q.Count > 0 && Option.isNone counterEx do
+            let n = q.Dequeue()
+            let x = n.More 
+            let y = n.Less 
+            let nsx = neighbors cg1 x
+            let nsy = neighbors cg2 y
+            for y' in nsy do 
+                match Seq.tryFind (fun x' -> x'.Node.Loc = y'.Node.Loc) nsx with
+                | None -> counterEx <- Some (x,y)
+                | Some x' -> 
+                    let n' = Node(x', y')
+                    if not (seen.Contains n') then
+                        ignore (seen.Add n')
+                        q.Enqueue n'
+        match counterEx with 
+        | None -> Yes seen
+        | Some cex -> No
+
+
+    let inline isNoGood (above: Map<string, seq<CgState>>) curr = 
+        match Map.tryFind curr.Node.Loc above with 
+        | None -> false
+        | Some xs -> Seq.exists (shadows curr) xs
+
+    // TODO: separate exception that is more understandable
+    let checkNoSimpleProblemFor (cg:T) (x:CgState) = 
+        let reachUp = Reachable.srcWithout cg x (shadows x) Up |> Seq.filter (fun v -> Topology.isInside v.Node)
+        let reachDown = Reachable.srcWithout cg x (shadows x) Down |> Seq.filter (fun v -> Topology.isInside v.Node)
+        let byLoc = Seq.groupBy (fun v -> v.Node.Loc) reachUp |> Map.ofSeq
+        match Seq.tryFind (isNoGood byLoc) reachDown with 
+        | None -> ()
+        | Some cex -> 
+            // printfn "x: %s" (string x)
+            // printfn "counter example: %s" (string cex)
+            raise (ConsistencyException (x,x))
+
+   (*  let getDuplicateInternalNodes (cg: T) = 
+        cg.Graph.Vertices
+        |> Seq.filter (fun v -> Topology.isInside v.Node)
+        |> Seq.fold (fun acc v ->
+                let loc = v.Node.Loc
+                let existing = Common.Map.getOrDefault loc Set.empty acc
+                Map.add loc (Set.add v existing) acc) Map.empty
+        |> Map.filter (fun k v -> Set.count v > 1)
+        |> Map.fold (fun acc _ vs -> Set.union acc vs) Set.empty
+
+    let checkAllSafeFromSimple (cg: T) = 
+        if Set.count (getDuplicateInternalNodes cg) > 0 then
+            for v in cg.Graph.Vertices do 
+                if isRealNode v && Topology.isInside v.Node then
+                    checkNoSimpleProblemFor cg v *)
+
+    let simulate idx cg cache restrict (x,y) (i,j) =
+        if Set.contains (x,y,i,j) !cache then true else
         let restrict_i = copyGraph (Map.find i restrict)
         let restrict_j = copyGraph (Map.find j restrict)
         restrict_i.Graph.RemoveVertexIf (fun v -> shadows x v) |> ignore
@@ -551,24 +581,19 @@ module Consistency =
         if not (restrict_i.Graph.ContainsVertex x) then false
         else if not (restrict_j.Graph.ContainsVertex y) then true
         else
-            // Remove nodes that appear 'above' for the more preferred, to avoid considering simple paths
-            // cheaper approximation of simple paths - can do better at cost of speed
-            let exclude = (shadows x)
-            let reach = Reachable.srcWithout restrict_i x exclude Up
+            let reach = Reachable.srcWithout restrict_i x (shadows x) Up
             let byLoc = Seq.groupBy (fun x -> x.Node.Loc) reach |> Map.ofSeq
+            restrict_i.Graph.RemoveVertexIf (fun v -> isNoGood byLoc v) |> ignore
+            match supersetPaths idx (restrict_i, x) (restrict_j, y) with 
+            | No -> false
+            | Yes related -> 
+                for n in related do 
+                    cache := Set.add (n.More, n.Less, i, j) !cache
+                true
 
-            let inline shouldRemove x = 
-                match Map.tryFind x.Node.Loc byLoc with
-                | None -> false
-                | Some xs -> Seq.exists (shadows x) xs
-
-            restrict_i.Graph.RemoveVertexIf (fun v -> shouldRemove v) |> ignore
-            // Check if the more preferred simulates the less preferred
-            Reachable.supersetPaths idx (restrict_i, x) (restrict_j, y) 
-
-    let isPreferred f cg restrict (x,y) (reachX, reachY) =
+    let isPreferred idx cg cache restrict (x,y) (reachX, reachY) =
         let subsumes i j =
-            f cg restrict (x,y) (i,j)
+            simulate idx cg cache restrict (x,y) (i,j)
         Set.forall (fun j -> 
             (Set.exists (fun i' -> i' <= j && subsumes i' j) reachX) ) reachY
 
@@ -603,13 +628,13 @@ module Consistency =
                 updated) acc reach
         Set.fold getNodesWithPref Map.empty prefs    
 
-    let addPrefConstraints idx f cg (g: Constraints) r nodes reachMap =
+    let addPrefConstraints idx cg cache (g: Constraints) r nodes reachMap =
         let mutable edges = Set.empty
         for x in nodes do
             for y in nodes do
                 let reachX = Map.find x reachMap
                 let reachY = Map.find y reachMap
-                if x <> y && (isPreferred f cg r (x,y) (reachX,reachY)) then
+                if x <> y && (isPreferred idx cg cache r (x,y) (reachX,reachY)) then
                     logInfo1 (idx, sprintf "%s is preferred to %s" (string x) (string y))
                     edges <- Set.add (x,y) edges
                     g.AddEdge (TaggedEdge(x, y, ())) |> ignore
@@ -617,21 +642,21 @@ module Consistency =
                     logInfo1 (idx, sprintf "%s is NOT preferred to %s" (string x) (string y))
         g, edges
 
-    let encodeConstraints idx f (cg, reachMap) r nodes =
+    let encodeConstraints idx cache (cg, reachMap) r nodes =
         let g = BidirectionalGraph<CgState ,TaggedEdge<CgState,unit>>()
         for n in nodes do 
             g.AddVertex n |> ignore
-        addPrefConstraints idx f cg g r nodes reachMap
+        addPrefConstraints idx cg cache g r nodes reachMap
 
-    let findPrefAssignment idx f r (cg, reachMap) nodes = 
-        let g, edges = encodeConstraints idx f (cg, reachMap) r nodes
+    let findPrefAssignment idx cache r (cg, reachMap) nodes = 
+        let g, edges = encodeConstraints idx cache (cg, reachMap) r nodes
         getOrdering g edges
-
-    let addForLabel idx ain f r (cg, reachMap) map l =
+        
+    let addForLabel idx cache ain r (cg, reachMap) map l =
         if Set.contains l ain then
             if not (Map.containsKey l map) then 
                 let nodes = Seq.filter (fun v -> v.Node.Loc = l) cg.Graph.Vertices
-                Map.add l (findPrefAssignment idx f r (cg, reachMap) nodes) map
+                Map.add l (findPrefAssignment idx cache r (cg, reachMap) nodes) map
             else map
         else Map.add l Seq.empty map
 
@@ -644,23 +669,25 @@ module Consistency =
             Map.add i r acc
         Set.fold aux Map.empty prefs
 
-    let findOrdering idx f cg outName : Result<Ordering, CounterExample> =
+    let findOrdering idx cg outName : Result<Ordering, CounterExample> =
+        // checkAllSafeFromSimple cg
         let prefs = preferences cg 
         let rs = restrictedGraphs cg prefs
         let reachMap = getReachabilityMap cg
         let (ain, _) = Topology.alphabet cg.Topo
         let ain = Set.map (fun (v: Topology.State) -> v.Loc) ain
+        let cache = ref Set.empty  // cache pairs of related states TODO: set size limit
         debug2 (fun () -> Map.iter (fun i g -> generatePNG g (outName + "-min-restricted" + string i)) rs)
         let labels = 
             cg.Graph.Vertices
             |> Seq.filter (fun v -> Topology.isTopoNode v.Node)
             |> Seq.map (fun v -> v.Node.Loc)
-            |> Set.ofSeq 
-        try Ok(Set.fold (addForLabel idx ain f rs (cg, reachMap)) Map.empty labels)
+            |> Set.ofSeq
+        try Ok(Set.fold (addForLabel idx cache ain rs (cg, reachMap)) Map.empty labels)
         with ConsistencyException(x,y) ->
             Err((x,y) )
 
-    let findOrderingConservative (idx: int) = findOrdering idx (simulate idx)
+    let findOrderingConservative (idx: int) = findOrdering idx
 
 
 module ToRegex =

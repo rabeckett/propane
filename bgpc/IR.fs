@@ -59,6 +59,7 @@ type PrefixResult =
     {K: int option;
       BuildTime: int64;
       MinimizeTime: int64;
+      OrderingTime: int64;
       ConfigTime: int64;
       CompressTime: int64;
       Config: PredConfig}
@@ -704,7 +705,8 @@ let compileToIR fullName idx pred (aggInfo: Map<string,DeviceAggregates>) (reb: 
             // check aggregation failure consistency
             let k = getMinAggregateFailures cg pred aggInfo
             // check  that BGP preferences can be set properly
-            match Consistency.findOrderingConservative idx cg fullName with 
+            let (ordering, orderTime) = Profile.time (Consistency.findOrderingConservative idx cg) fullName
+            match ordering with 
             | Ok ord ->
                 let config, configTime = Profile.time (genConfig cg pred ord) inExports
                 let result = 
@@ -713,6 +715,7 @@ let compileToIR fullName idx pred (aggInfo: Map<string,DeviceAggregates>) (reb: 
                         {K=k; 
                           BuildTime=buildTime; 
                           MinimizeTime=minTime; 
+                          OrderingTime=orderTime;
                           ConfigTime=configTime; 
                           CompressTime=compressTime; 
                           Config=compressed}
@@ -720,6 +723,7 @@ let compileToIR fullName idx pred (aggInfo: Map<string,DeviceAggregates>) (reb: 
                         {K=k; 
                           BuildTime=buildTime; 
                           MinimizeTime=minTime; 
+                          OrderingTime=orderTime;
                           ConfigTime=configTime; 
                           CompressTime=int64 0; 
                           Config=config}
@@ -811,6 +815,7 @@ type Stats =
      PerPrefixTimes: int64 array;
      PerPrefixBuildTimes: int64 array;
      PerPrefixMinTimes: int64 array;
+     PerPrefixOrderTimes: int64 array;
      PerPrefixGenTimes: int64 array;
      PerPrefixCompressTimes: int64 array;
      JoinTime: int64;}
@@ -834,6 +839,7 @@ let compileAllPrefixes fullName topo (pairs: Ast.PolicyPair list) constraints : 
     let joined, joinTime = Profile.time (joinConfigs info) (Array.toList configs)
     let buildTimes = Array.map (fun c -> c.BuildTime) configs
     let minTimes = Array.map (fun c -> c.MinimizeTime) configs
+    let orderTimes = Array.map (fun c -> c.OrderingTime) configs
     let genTimes = Array.map (fun c -> c.ConfigTime) configs
     let compressTimes = Array.map (fun c -> c.CompressTime) configs
     let stats = 
@@ -843,6 +849,7 @@ let compileAllPrefixes fullName topo (pairs: Ast.PolicyPair list) constraints : 
          PerPrefixTimes=times
          PerPrefixBuildTimes=buildTimes;
          PerPrefixMinTimes=minTimes;
+         PerPrefixOrderTimes=orderTimes;
          PerPrefixGenTimes=genTimes;
          PerPrefixCompressTimes=compressTimes;
          JoinTime=joinTime}

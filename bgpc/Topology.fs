@@ -172,8 +172,6 @@ module Examples =
         let iT0 = (k * k) / 2
         let iT1 = (k * k) / 2
         let iT2 = (k * k) / 4
-        printfn "T0: %d" iT0
-        printfn "total: %d" (iT0 + iT1 + iT2)
         let g = BidirectionalGraph<State, TaggedEdge<State,unit>>()
         let core = {Loc="CORE"; Typ=Outside}
         let idfx = {Loc="IDFX"; Typ=Outside}

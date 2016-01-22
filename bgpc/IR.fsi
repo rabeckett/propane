@@ -1,4 +1,5 @@
 ﻿module IR
+
 open CGraph
 open Common.Error
 
@@ -38,6 +39,7 @@ type PrefixResult =
     {K: int option;
       BuildTime: int64;
       MinimizeTime: int64;
+      OrderingTime: int64;
       ConfigTime: int64;
       CompressTime: int64;
       Config: PredConfig}
@@ -88,6 +90,7 @@ type Stats =
      PerPrefixTimes: int64 array;
      PerPrefixBuildTimes: int64 array;
      PerPrefixMinTimes: int64 array;
+     PerPrefixOrderTimes: int64 array;
      PerPrefixGenTimes: int64 array;
      PerPrefixCompressTimes: int64 array;
      JoinTime: int64;}

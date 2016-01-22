@@ -38,14 +38,16 @@ let displayStats k v e (stats: IR.Stats) =
     let totalTimes = times stats.PerPrefixTimes
     let buildTimes = times stats.PerPrefixBuildTimes
     let minTimes = times stats.PerPrefixMinTimes
+    let orderTimes = times stats.PerPrefixOrderTimes
     let genTimes = times stats.PerPrefixGenTimes
     let compressTimes = times stats.PerPrefixCompressTimes
     let (avg, med, max) = triple totalTimes
     let (avgBuild, medBuild, maxBuild) = triple buildTimes
     let (avgMin, medMin, maxMin) = triple minTimes
+    let (avgOrd, medOrd, maxOrd) = triple orderTimes
     let (avgGen, medGen, maxGen) = triple minTimes
     let (avgComp, medComp, maxComp) = triple compressTimes
-    printfn "%d,%d,%d,%f,%f,%d,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f" 
+    printfn "%d,%d,%d,%f,%f,%d,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f" 
         k v e 
         (toSec stats.TotalTime) 
         (toSec stats.JoinTime) 
@@ -54,6 +56,7 @@ let displayStats k v e (stats: IR.Stats) =
         avg med max
         avgBuild medBuild maxBuild
         avgMin medMin maxMin
+        avgOrd medOrd maxOrd
         avgGen medGen maxGen
         avgComp medComp maxComp
 
@@ -116,6 +119,6 @@ let singleDatacenter k =
 
 let datacenter () = 
     displayHeader ()
-    for k in 4..2..34 do
+    for k in 4..2..28 do
         singleDatacenter k
 
