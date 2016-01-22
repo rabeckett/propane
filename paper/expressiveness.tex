@@ -1,8 +1,39 @@
-\section{Expressiveness}
+\section{Theory}
 
-In this section we investigate correctness and expressiveness properties of \sysname. We are mainly concerned with the following questions: (1) does the distributed, compiled policy faithfully implement the user's policy regardless of failures? (2) Are the resulting BGP configurations stable?, and (3) what polcies are or are not expressible in \sysname?
+\newtheorem{defn}{Proposition}[section]
 
+In this section we investigate the correctness and expressiveness properties of \sysname. We are mainly concerned with the following questions: (1) does the distributed, compiled policy faithfully implement the user's policy regardless of failures? (2) Are the resulting BGP configurations stable?, and (3) what polcies are or are not expressible in \sysname?
+
+\subsection{Correctness}
+
+We argue that, if \sysname compiles a user policy to a distributed implementation, then that distributed implementation faithfully meets the centralized policy's semantics under any failure scenario. We are primarily concerned with the steady state: that is, what happens after (if) the routing protocol converges.  We argue that \sysname is correct by breaking down the claim into two distinct parts:
+
+
+\begin{defn}
+A distributed BGP configuration is \textit{Sound} with respect to a \sysname policy, if the only routes that that traffic ever takes in the network, are those that are specified in the policy.
+\end{defn}
+
+The Soundness claim follows directly from compilation of the product graph. Since every path through the product graph (from start to end) must match the user's policy, and since the compiled configurations use communities to ensure only valid routes through the product graph are used, the resulting BGP configurations will be Sound. 
+
+\begin{defn}
+A distributed BGP configuration is \textit{Complete} with respect to a \sysname policy, if the distributed implementation always obtains a most preferred route between two nodes if the corresponding path exists in the network.
+\end{defn}
+
+The argument for completeness is as follows: Assume the most preferred path that exists in the network is between two nodes $X$ and $Y$.  This means there is a valid path in the product graph corresponding to this path, and which is available in the network. 
+Assume we are unable to achieve this route in the network. To not achieve this path means that some router along advertisement route from $Y$ to $X$ preferred to accept an advertisement from another peer instead. This implies that that router that makes the ``wrong'' choice appears as a separate node in the product graph. However, from our failure safety check, we know that the other, more-preferred node must have a superset of the paths to accepting states as the less preferred node has for at least as good of a final preference. However, this implies that a route advertisement will still reach $X$, resulting in a path with a preference between $X$ and $Y$ that is just as good.
+
+The combination of Soundness and Completeness ensures that the distributed implementation will always achieve the best routes possible, yet will never also achieve unwanted routes. 
+
+\begin{defn}
+The internal routers in a distributed BGP configuration produced by \sysname will be stable. 
+\end{defn}
+
+The argument for stability comes from the path suffix condition.
+
+
+\para{Expressiveness}
 
 In this section, we compare the expressiveness of the \sysname language to that of BGP.
+
 
 \todo{Do we need all of this}
