@@ -1,5 +1,29 @@
 \section{Evaluation}
 
+We have written a prototype compiler for \sysname that is implemented in roughly 5000 lines of F\# code. The compiler includes command-line flags for enabling or disabling the use of BGP MED, AS path prepending, the commonly used no-export community, as well as for ensuring k-failure safety for user-sepcified aggregates. The compiler uses regular expressions derivatives~\ref{bib:todo} with character classes to construct automata for large alphabets efficiently. The compiler uses the algorithm for computing graph dominators described in~\ref{bib:todo}. When computing local preferences and failure safety, as described in Section~\ref{sec:compilation}, the compiler performs memoization of the ``can prefer'' relation. \todo{this needs work}
+
+We have evaluated our compiler by translating and compiling real-world network configurations for data centers and a core backbone network into \sysname. We evaluate our compiler by measuring compilation times for these policies across topologies of different sizes.
+
+
+\para{Notes}
+
+\begin{itemize}
+    
+  \item Since our policy language can express things not implementable in BGP, we need a few checks.
+      First show some examples of what the problem is: why BGP cannot make a decision.
+      The reasons this can happen are:
+      (1) Single best path per router - no subset of paths specified is consistent (if A goes through B and C goes through A, then C goes through B).
+      (2) Failures - Have to make a decision without knowing what failures have occurred. Never want to prefer one peer over another and then not get a path when one was available
+\end{itemize}
+
+
+\subsection{Optimizations}
+
+\begin{itemize}
+  \item For config readability and number of route maps/communities, we avoid community tagging/matching whenever possible with a number of tricks.
+\end{itemize}
+
+
 \begin{enumerate}
 	\item Expressiveness of the policy language / BGP safe part of the language (maybe a proof earlier for this)
 	\item Compactness of the policy language (how verbose/concise, maybe in loc)

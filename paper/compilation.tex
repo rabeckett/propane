@@ -297,9 +297,6 @@ $$\forall i, \exists j, j \leq i \wedge protect(G_j, N_1, G_i, N_2)$$
 %
 where the \textit{protect} predicate means that, from $N_1$ on the product graph restricted to preferences $j$ or better, there are at least as many paths as from $N_2$ restricted to $G_i$
 
-The algorithm listed in Figure~\ref{alg:failures} defines what it means for one node to \textit{protect} against the failures of another. Intuitively, the algorithm walks from nodes $N_1$ and $N_2$ in $G_j$ and $G_i$ respectively, and ensures that for every \textit{step} $N_2$ can take to some new topology location, $N_1$ can, at the very least, take an equivalent step. Thus $N_1$ any paths leading from $N_2$ will have an equivalent path from $N_1$.
-
-
 \begin{algorithm}[t!]
 \caption{Failure Protection}
 \label{alg:failures}
@@ -326,56 +323,30 @@ The algorithm listed in Figure~\ref{alg:failures} defines what it means for one 
 \end{algorithmic}
 \end{algorithm}
 
+The algorithm listed in Algorithm~\ref{alg:failures} defines what it means for one node to \textit{protect} against the failures of another. Intuitively, the algorithm walks from nodes $N_1$ and $N_2$ in $G_j$ and $G_i$ respectively, and ensures that for every \textit{step} $N_2$ can take to some new topology location, $N_1$ can, at the very least, take an equivalent step. Thus $N_1$ any paths leading from $N_2$ will have an equivalent path from $N_1$. Algorithm~\ref{alg:failures} works because each node in the product graph can have at most one outgoing neighbor with the same topological location, so the next hop neighbors can be checked without backtracking. The algorithm terminates since the number of related states $(x,y)$ that can be expolored is finite.
 
+Local preferences are obtained by, for each router in the topology, sorting the corresponding nodes in the product graph according to \textit{can prefer} relation. If two nodes are incomparable, then the compiler rejects the policy as unimplementable.
 
+\para{Avoiding Simple Paths}
 
+The checks for failure safety described previously overlook one critical point: even if the analysis determines that a node $x$ protects against failures of another node $y$, it may be tricked into thinking $x$ has a particular path that will actually be discarded by BGP's loop prevention mechanism due to locations previously traversed before arriving at $x$. To avoid this situation, we simply conservatively check that $x$ protects against $y$ without using any nodes that shadow another node that appears above $x$ in the product graph (i.e., nodes reachable from $x$ in $G_j^R$). It is fine however, to reuse the same nodes that appear above $x$, since any path that went through another node $z$ to get to $x$, but then looped through $z$ again, would be obtainable from $z$ itself.
 
+\para{Aggregation-Induced Black Holes}
 
+As was demonstrated in Example 2 of Section~\ref{sec:motivation}, the use of aggregation in BGP can lead to black-holing traffic when failures occur. Deciding whether this can happen required knowledge of the routing policy and not just the topology. For example, a policy might require all traffic for a particular prefix going through a router where an aggregate is advertised to go over a single link, even if there are several available in the toplogy. However, the PGIR captures the both the policy and the topology information together. 
 
+We can frame the aggregation problem as a problem of connectivity in the PGIR. More specifically, for each prefix that falls under an aggregate, we find a lower bound on the number of failures that would disconnect the prefix from its more specific aggregate.
 
+\todo{explain in detail}
 
+\subsection{Abstract BGP}
 
-\para{Notes}
+The final stages of compilation consist in translating policies from PGIR to a simple, vendor-neutral abstraction of BGP (ABGP), and then translating from ABGP to actual device configurations. 
 
-\begin{itemize}
-	\item Separate prefixes so they are disjoint
-	
-	\item For each prefix, build a DFA from each of the regular path constraints
-		  We do this using character classes and regular expression derivatives.
-		  The accepting states are labeled with the particular preference.
-	
-	\item Build the constraint graph, which gives us valid paths through the network that satisfy one or
-		  more of the regular path constraints. We accept if we are in at least one of the accepting states
-		  for one or more of the DFAs. Add a new start and end node as well.
-		
-	\item Minimize the constraint graph by removing nodes and edges that never contribute to a solution.
-		  Required for soundness. Removing these makes it easier to check if things are implementable using BGP (see next point).
-		  We use several heuristics to make this faster (e.g., removing edges for dominated nodes)
-		
-	\item Since our policy language can express things not implementable in BGP, we need a few checks.
-		  First show some examples of what the problem is: why BGP cannot make a decision.
-		  The reasons this can happen are:
-		  (1) Single best path per router - no subset of paths specified is consistent (if A goes through B and C goes through A, then C goes through B).
-		  (2) Failures - Have to make a decision without knowing what failures have occurred. Never want to prefer one peer over another and then not get a path when one was available
+Having found a total ordering on node preferences in the product graph from the failure safety analysis, the translation to ABGP becomes very simple. The idea is to encode the state of the automaton using BGP community values. Each router will match based on its peer and a community value corresponding to the state of the product graph, and then update the state before exporting to the neighbors permitted according to the product graph. For example, router $A$ from the example in Figure~\ref{fig:example-compilation} will allow an advertisement from its peer $C$ with a community value for state $(3,2)$ (and deny anything else). If it sees such an advertisement, it will remove the old community value, and add a new community value for state $(4,2)$ before exporting the route to its neighbor $W$.  
 
-	\item We can check for these with a sufficient condition (that works often and is very fast),
+To ensure preferred paths are always obtained, for each router $r$, the compiler will simply set a higher local preference for neighbors of a more-preferred node for $r$ in the product graph. For example, $C$ will prefer an advertisement from $D$ in state $(2,2)$ over an advertisement from $E$ in state $(-,2)$.
 
-	\item For each router, build a preference pre-order, that defines the constraints between preferences.
-	
-	\item Finally, if we know BGP can make decision locally, then we can directly translate to local BGP configurations using
-		  information about the state machines from the neighbors. In particular, we tag (and test on) community values for the
-		  corresponding state and set preferences accordingly (example will be needed)
+Since the compiler is only able to control community tagging for routers under the control of the AS being programmed, it cannot match on communities for external ASes. Instead, it simply translates matches from external ASes into a BGP regular expression filter. For example, node $D$ in Figure~\ref{fig:example-compilation} would match the single hop external paths $X$ or $Y$ and prefer them equally. In general, if routes are allowed from beyond $X$ or $Y$, these will also be captured in the BGP regular expression filters.
 
-	\item Running example will be helpful here.	
-\end{itemize}
-
-
-\subsection{Optimizations}
-
-\begin{itemize}
-	\item For performance, the main bottleneck will probably be the minimization step. We use a number of heuristics here to make this faster.
-	\item For config readability and number of route maps/communities, we avoid community tagging/matching whenever possible with a number of tricks.
-\end{itemize}
-
-
-
+Finally, in our example, the external AS $W$ would need to prefer our internal router $A$ over $B$. In general, it is not possible to control traffic entering the network beyond certain special cases. In this example however, the BGP MED attribute can influence $W$ to prefer $A$ over $B$ since the preference is for a single external peer, and the BGP no-export community can ensure that no other AS beyond $W$ can send us traffic. The compiler can perform a simple analysis to determine when it can utilize various BGP special attributes to ensure traffic enters the network in a particular way. Aggregation is another tool commonly used to influence how traffic can enter the network, by relying on BGP's longest prefix matching default. Since aggregates are provided as additional user constraints, the compiler can also make use of this information to check that incoming preferences can be met given the aggregates specified (e.g., by having a more general aggregate on a backup preference).
