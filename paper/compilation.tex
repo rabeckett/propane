@@ -284,9 +284,42 @@ To implement backups in routing, BGP uses local preferences on a per-device basi
 %
 $$(W \cdot A \cdot C \cdot D) \gg (W \cdot B \cdot C \cdot E)$$
 %
-How could such a policy be implemented in BGP? Suppose we simply set the local preference at router $C$ to prefer $D$ over $E$. However, now if the A -- C link fails, then suddenly $C$ has made the wrong decision and can not get either the primary or backup route specified, despite the fact that $W \cdot B \cdot C \cdot E$ route is available.
+How could such a policy be implemented in BGP? Suppose we simply set the local preference at router $C$ to prefer $D$ over $E$. However, now if the A -- C link fails, then suddenly $C$ has made the wrong decision and can not get either the primary or backup route specified, despite the fact that the $W \cdot B \cdot C \cdot E$ path is available.
 
-In particular, any time a router must make a decision locally between several route options, there is the possibility that it might choose incorrectly and regret its decision. The product graph representation captures this notion of choice precisely. For example, router $D$ in Figure~\ref{fig:example-compilation} appears only once in the product graph, possible receiving route advertisements from $Y$ or $X$. However, regardless of where 
+At a first cut, any time a router must make a decision locally between several route options, there is the possibility that it might choose incorrectly. The product graph representation captures this notion of choice precisely. For example, router $D$ in Figure~\ref{fig:example-compilation} appears only once in the product graph, possibly receiving route advertisements from $Y$ or $X$. However, regardless of whether $D$ chooses a route from $X$ or $Y$, the set of paths allowed by the policy after going through $D$ will be the same in either case. This remains true despite any failures that might have occurred in the network. Thus $D$ can safely prefer $X$ and $Y$ equally. 
+
+The more challenging case is when a topology location occurs in mutliple contexts in the product graph. For example, the topology node $C$ can receive an advertisement from $E$ and later achieve the backup path, or it can receive an advertisement from its neighbor $D$ and later achieve either the primary or backup path. Is it safe for $C$ to prefer its neighbor $D$ over its other neighbor $C$? The important observation is that, if $C$ prefers $D$, then it will always achieve at least as good a path as if it had choosen $E$. 
+For example, suppose $C$ chooses a route from $D$, but cannot achieve its primary path because the $A$ -- $W$ link has failed. In this case, the advertisement from $C$ will still be sent along towards the ultimate backup location $W$. Since the $(-,2) C$ and $(3,2) C$ nodes in the product graph share the same next hops in either case, no possible failure will prevent a route advertisment from reaching $(-,4) W$ that wouldn't have otherwise prevented it if $C$ had choosen $E$.
+
+In general, ensuring that an individual router's preferences respect the policy under all possible failures is hard. A simple enumeration of failures is intractable. Instead, we adopt a conservative analysis based on the product graph representation, and the previous observations, which runs efficiently in practice. The high-level idea is to order each node in the product graph according to an \textit{can prefer} relation. For example, node $(3,2) C$ can be preferred to node $(-,2) C$, but not the other way around. Intuitively, a node $N_1$ can be preferred to another node $N_2$ when, for each preference $N_2$ might achieve, there is a better preference that $N_1$ will achieve regardless of failures. Formally this means that $N_1$ can be preferred to $N_2$ when:
+%
+$$\forall i, \exists j, j \leq i \wedge protect(G_j, N_1, G_i, N_2)$$
+%
+The algorithm listed in Figure~\ref{fig:algorithm} defines what it means for one node to \textit{protect} against the failures of another. Intuitively, the algorithm walks from nodes $N_1$ and $N_2$ in $G_j$ and $G_i$ respectively, and ensures that for every \textit{step} $N_2$ can take to some new topology location, $N_1$ can, at the very least, take an equivalent step. Thus $N_1$ any paths leading from $N_2$ will have an equivalent path from $N_1$.
+
+\makeatletter
+\def\BState{\State\hskip-\ALG@thistlm}
+\makeatother
+
+\begin{algorithm}
+\caption{Failure Protection}\label{euclid}
+\begin{algorithmic}[1]
+\Procedure{Protect($G_1$, $N_1$, $G_2$, $N_2$)}{}
+\If {$N_1.loc \neq N_2.loc$} \Return false
+\EndIf
+\State $q \gets Queue()$
+\State $q.Push (N_1, N_2)$
+\While {\textit{not} $q.Empty()$}
+\State TODO
+\State TODO
+\EndWhile
+\EndProcedure
+\end{algorithmic}
+\end{algorithm}
+
+TODO: how simple paths factor in 
+
+TODO:
 
 
 

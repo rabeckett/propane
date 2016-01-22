@@ -513,7 +513,6 @@ module Consistency =
 
     let supersetPaths (idx: int) (cg1,n1) (cg2,n2) : SupersetPathsResult = 
         if n1.Node.Loc <> n2.Node.Loc then No else
-        let maxd = max cg1.Graph.VertexCount cg2.Graph.VertexCount
         let q = Queue()
         let seen = HashSet()
         let init = Node(n1,n2)
