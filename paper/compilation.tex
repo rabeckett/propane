@@ -335,9 +335,15 @@ The checks for failure safety described previously overlook one critical point: 
 
 As was demonstrated in Example 2 of Section~\ref{sec:motivation}, the use of aggregation in BGP can lead to black-holing traffic when failures occur. Deciding whether this can happen required knowledge of the routing policy and not just the topology. For example, a policy might require all traffic for a particular prefix going through a router where an aggregate is advertised to go over a single link, even if there are several available in the toplogy. However, the PGIR captures the both the policy and the topology information together. 
 
-We can frame the aggregation problem as a problem of connectivity in the PGIR. More specifically, for each prefix that falls under an aggregate, we find a lower bound on the number of failures that would disconnect the prefix from its more specific aggregate.
+We can frame the aggregation problem as a problem of connectivity in the PGIR. More specifically, for each prefix that falls under an aggregate, we find a lower bound on the number of failures that would disconnect where the prefix originates from where its more specific aggregate is located. The difficulty lies in the fact that the same links in the topology can appear in multiples places in the PGIR. We adopt the following simple strategy to lower bound the number of failures:
 
-\todo{explain in detail}
+\begin{enumerate}
+	\item Pick a random path through the product graph from start to end.
+	\item Remove all edges in the product graph corresponding to the set of topological edges choosen.
+	\item Repeat until no path exists.
+\end{enumerate}
+
+Since each path through the PGIR will result in a new edge-disjoint path through the topology (since we have removed all already used edges), and since the number of edge-disjoint paths through the topology is no more than the min-cut. \todo{clarify this}
 
 \subsection{Abstract BGP}
 
