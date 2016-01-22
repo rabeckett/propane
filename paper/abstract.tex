@@ -1,14 +1,14 @@
 \textbf{Abstract---}
-Configuring networks correctly with distributed protocols while meeting network-wide objectives is difficult and error-prone in practice.
+Configuring networks correctly with distributed protocols while simultaneously meeting network-wide objectives is difficult and error-prone in practice.
 % failures
 The recent shift towards Software-defined networking has been, in part, motivated by the simplicity of the centralized model -- where a controller directly manages individual devices rather than letting them manage themselves. However distributed protocols have many important advantages over a completely centralized model, including scalability and fault tolerance.
 %
 In this paper, we describe a new system -- \sysname, which allows an operator to declaratively specify a high-level centralized routing policy, but then compile it to a purely distributed implementation, leveraging the BGP routing protocol to run on commodity hardware. 
 %
-Propane allows users to describe the types of paths traffic may take through the network, as well as relative preferences (or backups) that should exist. 
+Propane allows users to describe the types of paths traffic may take through the network, as well as relative preferences (or backups) between paths. 
 %
-Network policies compiled by \sysname are guaranteed to implement correct routing policy regardless of any number of failures that may occur in the network. 
+Network policies compiled with \sysname are guaranteed to implement the correct routing policy regardless of any number of failures that may occur in the network. 
 %
-Finally \sysname takes the centralized model farther by unifying inter and intra-domain routing. Operators can specify routing policy for their autonomous system by programming against the abstraction that they can control any route in the wider internet.
+In addition, \sysname takes the centralized model further by unifying inter and intra-domain routing. Operators can specify routing policy for an autonomous system by programming against the abstraction that they can control any route in the wider internet.
 %
-We have implemented a compiler for \sysname and evaluated it against several real-world configurations for data centers and core backbone networks. The \sysname compiler can easily scale to relatively large topologies.
+We have implemented a compiler for \sysname and evaluated it against several real-world configurations for data centers and core backbone networks. The current \sysname compiler can scale to relatively large topologies with thousands of routers.
