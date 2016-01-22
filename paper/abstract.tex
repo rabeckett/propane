@@ -18,8 +18,8 @@ implementation, which uses the BGP routing protocol to run on existing, commodit
 Propane allows operators to describe the types of paths traffic may (or may not) take 
 through the network, as well as relative preferences (or backups) between paths. 
 %
-Network policies compiled with \sysname are guaranteed to implement the correct routing policy 
-in a distributed fashion regardless of the number of failures that may occur in the network. 
+Network policies compiled with \sysname are guaranteed to implement the correct routing policy regardless of the number of failures, if possible.  If this is not possible, the compiler notifies the user at compile time rather than as the network is in 
+operation.
 %
 \sysname also takes the centralized model one step further by unifying inter and intra-domain routing. Operators can specify routing policy for an autonomous system by programming against the abstraction that they can control any route in the wider internet.
 %
