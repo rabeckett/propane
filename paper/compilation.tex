@@ -331,7 +331,95 @@ Local preferences are obtained by, for each router in the topology, sorting the 
 
 The checks for failure safety described previously overlook one critical point: even if the analysis determines that a node $x$ protects against failures of another node $y$, it may be tricked into thinking $x$ has a particular path that will actually be discarded by BGP's loop prevention mechanism due to locations previously traversed before arriving at $x$. To avoid this situation, we simply conservatively check that $x$ protects against $y$ without using any nodes that shadow another node that appears above $x$ in the product graph (i.e., nodes reachable from $x$ in $G_j^R$). It is fine however, to reuse the same nodes that appear above $x$, since any path that went through another node $z$ to get to $x$, but then looped through $z$ again, would be obtainable from $z$ itself.
 
-\para{Aggregation-Induced Black Holes}
+
+\subsection{Abstract BGP}
+
+%\begin{figure}[t!]
+%\centering
+%\includegraphics[width=.9\columnwidth]{figures/config}
+%\caption{Abstract BGP configuration.}
+%\label{fig:abgp-config}
+%\end{figure}
+
+\newcommand{\Router}[1]{ \textbf{Router #1:} }
+\newcommand{\REGEX}[1]{ \text{regex}(#1) }
+\newcommand{\PEER}{ \text{peer} }
+\newcommand{\COMM} {\text{comm}}
+\newcommand{\MED} {\text{MED}}
+
+\begin{figure}[t!]
+\begin{lstlisting}[frame=single, mathescape=true] 
+$\Router{A}$
+  Match $\PEER=C, \COMM=(3,2)$
+    Export $\COMM \leftarrow (4,2), \MED \leftarrow 80, \PEER \leftarrow W$
+$\Router{B}$
+  Match $\PEER = C, \COMM = (-,2)$
+    Export $\COMM \leftarrow (-,3), \COMM \leftarrow \text{noexport},$ 
+           $\MED \leftarrow 81, \PEER \leftarrow W$
+  Match $\PEER = C, \COMM = (3,2)$
+    Export $\COMM \leftarrow (-,3), \COMM \leftarrow \text{noexport},$ 
+           $\MED \leftarrow 81, \PEER \leftarrow W$
+$\Router{C}$
+  Match$[LP=99]$ $\PEER = E, \COMM = (-,2) $
+    Export $\COMM \leftarrow (-,2), \PEER \leftarrow B$
+  Match $\PEER = D, \COMM = (2,2)$
+    Export $\COMM \leftarrow (3,2), \PEER \leftarrow A,B$
+$\Router{D}$
+  Match $\REGEX{X + Y}$
+    Export $\COMM \leftarrow (2,2), \PEER \leftarrow C$
+$\Router{E}$
+  Match $\REGEX{Z}$
+    Export $\COMM \leftarrow (-,2), \PEER \leftarrow C$
+\end{lstlisting}
+\label{fig:config}
+\caption{Abstract BGP router configurations.}
+\end{figure}
+
+
+\begin{figure}[t!]
+\begin{lstlisting}[frame=single, mathescape=true] 
+$\Router{A}$
+  Match $\PEER=C$
+    Export $\MED \leftarrow 80, \PEER \leftarrow W$
+$\Router{B}$
+  Match $\PEER = C$
+    Export $\COMM \leftarrow \text{noexport}, \MED \leftarrow 81, \PEER \leftarrow W$
+$\Router{C}$
+  Match$[LP=99]$ $\PEER = E $
+    Export $\PEER \leftarrow B$
+  Match $\PEER = D$
+    Export $\PEER \leftarrow A,B$
+$\Router{D}$
+  Match $\REGEX{X + Y}$
+    Export $\PEER \leftarrow C$
+$\Router{E}$
+  Match $\REGEX{Z}$
+    Export $\PEER \leftarrow C$
+\end{lstlisting}
+\label{fig:config-min}
+\caption{Abstract BGP minimized configurations}
+\end{figure}
+
+The final stages of compilation consist in translating policies from PGIR to a simple, vendor-neutral abstraction of BGP (ABGP), and then translating from ABGP to actual device configurations. 
+
+Having found a total ordering on node preferences in the product graph from the failure safety analysis, the translation to ABGP becomes very simple. The idea is to encode the state of the automaton using BGP community values. Each router will match based on its peer and a community value corresponding to the state of the product graph, and then update the state before exporting to the neighbors permitted according to the product graph. For example, router $A$ from the example in Figure~\ref{fig:example-compilation} will allow an advertisement from its peer $C$ with a community value for state $(3,2)$ (and deny anything else). If it sees such an advertisement, it will remove the old community value, and add a new community value for state $(4,2)$ before exporting the route to its neighbor $W$.  
+
+To ensure preferred paths are always obtained, for each router $r$, the compiler will simply set a higher local preference for neighbors of a more-preferred node for $r$ in the product graph. For example, $C$ will prefer an advertisement from $D$ in state $(2,2)$ over an advertisement from $E$ in state $(-,2)$.
+
+Since the compiler is only able to control community tagging for routers under the control of the AS being programmed, it cannot match on communities for external ASes. Instead, it simply translates matches from external ASes into a BGP regular expression filter. For example, node $D$ in Figure~\ref{fig:example-compilation} would match the single hop external paths $X$ or $Y$ and prefer them equally. In general, if routes are allowed from beyond $X$ or $Y$, these will also be captured in the BGP regular expression filters.
+
+Finally, in our example, the external AS $W$ would need to prefer our internal router $A$ over $B$. In general, it is not possible to control traffic entering the network beyond certain special cases. In this example however, the BGP MED attribute can influence $W$ to prefer $A$ over $B$ since the preference is for a single external peer, and the BGP no-export community can ensure that no other AS beyond $W$ can send us traffic. The compiler can perform a simple analysis to determine when it can utilize various BGP special attributes to ensure traffic enters the network in a particular way. Aggregation is another tool commonly used to influence how traffic can enter the network, by relying on BGP's longest prefix matching default. Since aggregates are provided as additional user constraints, the compiler can also make use of this information to check that incoming preferences can be met given the aggregates specified (e.g., by having a more general aggregate on a backup preference).
+
+
+
+\subsection{Aggregation-Induced Black Holes}
+
+\begin{figure}[t!]
+\centering
+\includegraphics[width=\columnwidth]{figures/aggregation}
+\caption{Aggregation Safety.}
+\label{fig:aggregation-safety}
+\end{figure}
 
 As was demonstrated in Example 2 of Section~\ref{sec:motivation}, the use of aggregation in BGP can lead to black-holing traffic when failures occur. Deciding whether this can happen required knowledge of the routing policy and not just the topology. For example, a policy might require all traffic for a particular prefix going through a router where an aggregate is advertised to go over a single link, even if there are several available in the toplogy. However, the PGIR captures the both the policy and the topology information together. 
 
@@ -345,14 +433,14 @@ We can frame the aggregation problem as a problem of connectivity in the PGIR. M
 
 Since each path through the PGIR will result in a new edge-disjoint path through the topology (since we have removed all already used edges), and since the number of edge-disjoint paths through the topology is no more than the min-cut. \todo{clarify this}
 
-\subsection{Abstract BGP}
+For example, imagine we use the earlier data center example from Section~\ref{sec:motivation}, with the policy: $p_{g1} \mapsto end(A)$, where $p_{g1}$ falls under the $p_{g^*}$ aggregate. The data center topology and a simplification of the corresponding product graph are shown in Figure~\ref{fig:aggregation-safety}. Since the compiler knows an aggregate will be placed at $X$, and it knows that for prefix $p_{g1}$, the route will originate at $A$, we can compute the number of failures it would take to disconnect $A$ from $X$ in the product graph. In this case, we could remove the $A$ -- $D$ -- $X$ path first. We would then need to remove any other $A$ -- $D$ or $D$ -- $X$ links from the product graph, although in this case there are none. Next, we could remove the links along the $A$ -- $C$ -- $X$ path, repeating the process. Afterwards, $A$ is disconnected from $X$, so the compiler knowns that 2 is a lower bound from aggregation safety for prefix $p_{g1}$. This process is then repeated for other aggregation locations, in this case router $Y$.
 
-The final stages of compilation consist in translating policies from PGIR to a simple, vendor-neutral abstraction of BGP (ABGP), and then translating from ABGP to actual device configurations. 
 
-Having found a total ordering on node preferences in the product graph from the failure safety analysis, the translation to ABGP becomes very simple. The idea is to encode the state of the automaton using BGP community values. Each router will match based on its peer and a community value corresponding to the state of the product graph, and then update the state before exporting to the neighbors permitted according to the product graph. For example, router $A$ from the example in Figure~\ref{fig:example-compilation} will allow an advertisement from its peer $C$ with a community value for state $(3,2)$ (and deny anything else). If it sees such an advertisement, it will remove the old community value, and add a new community value for state $(4,2)$ before exporting the route to its neighbor $W$.  
 
-To ensure preferred paths are always obtained, for each router $r$, the compiler will simply set a higher local preference for neighbors of a more-preferred node for $r$ in the product graph. For example, $C$ will prefer an advertisement from $D$ in state $(2,2)$ over an advertisement from $E$ in state $(-,2)$.
 
-Since the compiler is only able to control community tagging for routers under the control of the AS being programmed, it cannot match on communities for external ASes. Instead, it simply translates matches from external ASes into a BGP regular expression filter. For example, node $D$ in Figure~\ref{fig:example-compilation} would match the single hop external paths $X$ or $Y$ and prefer them equally. In general, if routes are allowed from beyond $X$ or $Y$, these will also be captured in the BGP regular expression filters.
 
-Finally, in our example, the external AS $W$ would need to prefer our internal router $A$ over $B$. In general, it is not possible to control traffic entering the network beyond certain special cases. In this example however, the BGP MED attribute can influence $W$ to prefer $A$ over $B$ since the preference is for a single external peer, and the BGP no-export community can ensure that no other AS beyond $W$ can send us traffic. The compiler can perform a simple analysis to determine when it can utilize various BGP special attributes to ensure traffic enters the network in a particular way. Aggregation is another tool commonly used to influence how traffic can enter the network, by relying on BGP's longest prefix matching default. Since aggregates are provided as additional user constraints, the compiler can also make use of this information to check that incoming preferences can be met given the aggregates specified (e.g., by having a more general aggregate on a backup preference).
+
+
+
+
+
