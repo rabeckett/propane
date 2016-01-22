@@ -12,17 +12,27 @@ Many policies are network-wide (e.g., such as prefer certain external neighbors 
 %
 Operators must manually decompose network-wide policy into device-level behaviors, such that their interactions produce the desired policy.
 %
-This decomposition is not always straightforward and ensuring policy-compliance is hard, especially in the face of failures. Certain decompositions that work correctly in the absence of failures, violate policies when failures occur.
+Ensuring policy-compliance through this manual decomposition is hard and error-prone, especially in the face of failures. Certain decompositions that work correctly otherwise, violate policies when failures occur.
 %
 As a result, many configuration errors manifest only during failures~\cite{batfish}.
 
-To simplify network configuration, the practitioner community is adopting a template-based approach~\cite{x,y}. While templates help with the low-level nature of configuration languages, they too suffer from the semantic mismatch between network policies and device-level configuration (\S\ref{sec:motivation}).
+To reduce configuration errors, the practitioner community is adopting a template-based approach~\cite{x,y}, in which common configuration constructs are captured as parameterized templates.
+ While templates help with the low-level nature of configuration languages, they do not bridge the semantic divide between network policies and device-level configuration (\S\ref{sec:motivation}).
 
-Software-defined networking (SDN) was, in part, the research community's response to the difficulty of maintaining policy compliance in the face of this semantic mismatch~\cite{xx}. It completely eliminates distributed control planes. Instead of devices computing their forwarding behavior by interacting with each other, they are told by a centralized controller exactly how to forward packets. The controller is responsible for ensuring policy compliance at all times, including when failures occur. To program centralized control planes, researchers have developed increasingly sophisticated languages that let operators directly express network policies~\cite{x,y,z}.
+Software-defined networking (SDN) was, in part, the research community's response to the difficulty of maintaining policy compliance through distributed interaction of individual devices~\cite{xx}. It eliminates distributed control planes altogether. Instead of devices computing  forwarding tables through mutual interactions, they are told by a centralized controller exactly how to forward packets. The controller is responsible for ensuring policy compliance at all times. To program centralized control planes, researchers have developed increasingly sophisticated languages that let operators directly express network policies~\cite{x,y,z} that are then translated to forwarding tables at runtime.
 
-However, SDN does not help the vast majority of networks in the world, which  still operate a distributed control plane. Many of these networks will continue to operate a distributed control plane for the foreseeable future, due to the difficulty of migration, scaling challenges of centralized control, or the inherent robustness to failures of distributed control planes. Centralized control planes need careful design to be robust to failures---one must ensure that devices can communicate with the controller at all times, even under arbitrary combinations of failure.
+Centralized control planes, however, are not a panacea. 
+%They face significant challenges related to scaling and failure robustness. 
+They require careful design and engineering to be robust to failures at scale---one must ensure that all devices can communicate with the controller at all times, even under arbitrary combinations of failure~\cite{x,y,z}. For this challenge, researchers are exploring multi-controller networks, with interacting controllers, thus bringing back distributed control planes~\cite{x,y,z} and their current programming difficulties.
 
-In this paper, we ask if distributed control planes can be centrally programmed. Operators should be able to directly express network-wide policies, which are automatically decomposed into individual device configurations in a way that ensures policy-compliance under all possible failures. If successful, this approach would combine the ease of programming of centralized control planes and robustness to failures of distributed control planes.
+In this paper, we ask if it is possible to centrally program distributed control planes.
+Operators should be able to directly express network-wide policies, which are automatically decomposed into individual device configurations. The resulting forwarding behavior, which emerges through device interactions, must be policy-compliant under all possible failures.
+If successful, this approach would combine easy programmability of centralized control planes and failure robustness of distributed control planes. 
+%
+More pragmatically, it would help many networks that, for the foreseeable future, will continue to use a distributed control plane, due to the difficulty of migrating to SDN or the inherent scalability and failure-robustness of distributed control.
+
+
+Through our system, called \sysname, we demonstrate the feasibility of centrally programming distributed control planes. We focus on BGP, a common and highly flexible way to implement distributed control planes, and show how to automatically generate router BGP configurations from a program that directly expresses network policies.
 
 \todo{new intro is not complete}
 
