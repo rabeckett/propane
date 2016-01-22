@@ -28,7 +28,7 @@ The combination of Soundness and Completeness ensures that the distributed imple
 The internal routers in a distributed BGP configuration produced by \sysname will be stable. 
 \end{defn}
 
-The argument for stability comes from the path suffix condition.
+The reduction is via the well-known No-Dispute-Wheel condition~\ref{bib:todo}. If a set of BGP configurations do not have a dispute wheel, then they will converge to their best routes. Any BGP policy with a dispute wheel will not satisfy the failure safety condition in Section~\ref{sec:compilation}. Assume that there is a dispute wheel. Then that means each node $u_i$ in the dispute wheel prefers to go through 
 
 
 \para{Expressiveness}

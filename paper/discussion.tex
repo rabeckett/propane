@@ -1,8 +1,9 @@
 \section{Future Work}
 
-\begin{itemize}
-	\item Environments: Model environments using the same framework. (e.g., no-export allows certain paths that weren't before
-	\item Verification: (Language serves as a high-level abstraction of the low-level details, so we can perform verification directly on the high-level policies)
-	\item OSPF: language isn't inherently tied to BGP, and could use iBGP with OSPF or some other protocol. This would require different kinds of checks though.
-\end{itemize}
-
+There are a number of possible directions for future work in programming distributed control planes. One option would be to integrate a model of the environment into the compiler. For example, many ASes make use of informal peering agreements (e.g., tagging routes with certain communities) to enable a wider range of policies. A compiler with this information, could automatically derive routes conforming to these agreements. 
+%
+Another direction would be to perform policy verification at the level of centralized language. There has been great deal of work on verification of the data plane, but much less so on control plane verification. The \sysname language provides a high-level abstraction of the control plane, which could be amenable to verification or checking equivalence of policies. For example, an operator could check if adding aggregation at various points in the network as an optimization ever changes routing behavior. The automata-based representation of the product graph may lend itself well to this kinds of analysis.
+%
+While we target BGP in this paper as a distributed backend for \sysname due to its expressiveness, scalability, and uniformity, it should be possible to use other protocols to achieve different types of routing policies (e.g., OSPF). In particular, one could potentially combine different distributed routing protocols through route redistribution to achieve a larger variety of policies.
+%
+Another possible future direction is automate AS-wide load balancing for BGP. Load-balancing with BGP across external ASes is difficult since there are few mechanisms at the operators disposal. However BGP policies can artificially prepend to the AS path to increases its length, and influence peer decisions. The product graph representation describes, not only which neighbors routers should prefer, but also which neighbors it is indifferent towards. Thus the compiler knowns when it can safely perform load-balancing across different neighbors.
