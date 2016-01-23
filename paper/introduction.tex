@@ -36,37 +36,4 @@ Through our system, called \sysname, we demonstrate the feasibility of centrally
 
 \todo{new intro is not complete}
 
-\todo{OLD TEXT IS BELOW}
-
-%% Word vommit
-Why network configuration is hard:
-\begin{itemize}
-	\item Wide variety of considerations: Have preferences for certain routes over others, failure resistance, backups etc
-	\item Configurations are implemented locally and in a distributed fashion even though network intent is global
-	\item Often achieve intent through indirect means (i.e., backups through aggregation, preferences through MED, AS PATH length, local-pref values, filtering through communities)
-	\item Networks are distributed, asynchronous systems where the environment can be unknown, failures can occur ... which makes it difficult to consider all scenarios
-	\item Problems are compounded in inter-domain setting where factors like peering agreements and bad peer behavior need to be taken into account.
-	\item Protocol-specific issues such as lack of convergence in BGP
-\end{itemize}
-
-We present a new language that allows operators to directly express and compile high-level routing policies (both inter and intra-domain) from a centralized point of view.
-
-The language provides the operator with the abstraction that they can control the routes that all traffic through their network can take, even if the routes start and/or end in a different autonomous system.
-
-The core language consists of regular expression constraints on the set of allowed routes along with a preference operator between routes, which is used to specify both routing preferences and backup paths.
-On top of the core language, we provide a higher-level macro language to talk only about constraints on routes without specifying any particular route details.
-	
-A compiler takes a routing policy written in our language and synthesizes concrete, per-device configurations running BGP. Although the language is independent of any particular routing protocol, we target BGP due to its expressiveness, scalability, and use for both inter-domain and intra-domain routing.
-The compiler either guarantees that the resulting configurations correctly implement the policy and remain correct under all possible network failure scenarios, or it returns a counterexample.
-(Similar to SDN, you get centralized control, yet a distributed implementation that uses an existing, scalable, fault-tolerant protocol.)
-
-To allow for more fine-grained control over control-plane details, our language permits additional constraints on control protocol details (e.g., maximum number of allowed routes, whether to use multipath etc).
-
-
-Summary:
-	 (1) Centralized: (simpler reasoning, no copy paste error, more concise),
-	 (2) Synthesis: (no need for gory details, e.g., community values, local-pref, MED, ...),
-	 (3) Expressive: (backup routing, preferences, waypointing, directly say things like no transit or cold-potato routing),
-	 (4) Correct: (implement the policy, even under all failure scenarios)
-
 
