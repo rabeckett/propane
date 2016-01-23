@@ -46,6 +46,7 @@ color3 = "#FCF5C7"
 color4 = "#A0CED9"
 color5 = "#ADF7B6"
 
+# stacked plot showing different running times
 fig = plt.figure()
 plt.grid()
 ax1 = fig.add_subplot(111)
@@ -54,22 +55,23 @@ ax1.fill_between(num_pods, y_stack[0,:], y_stack[1,:], facecolor=color2, alpha=.
 ax1.fill_between(num_pods, y_stack[1,:], y_stack[2,:], facecolor=color3)
 ax1.fill_between(num_pods, y_stack[2,:], y_stack[3,:], facecolor=color4)
 ax1.fill_between(num_pods, y_stack[3,:], y_stack[4,:], facecolor=color5)
-ax1.set_xlabel('Fattree pods')
+ax1.set_xlabel('Fattree pod size')
 ax1.set_ylabel('Time (sec)')
-
+# custom legend for stack color
 p1 = plt.Rectangle((0, 0), 1, 1, fc=color1, alpha=.7)
 p2 = plt.Rectangle((0, 0), 1, 1, fc=color2, alpha=.7)
 p3 = plt.Rectangle((0, 0), 1, 1, fc=color3, alpha=.7)
 p4 = plt.Rectangle((0, 0), 1, 1, fc=color4, alpha=.7)
 p5 = plt.Rectangle((0, 0), 1, 1, fc=color5, alpha=.7)
+leg_boxes = [p1, p2, p3, p4, p5]
 descrs = ["Construct PG", "Minimize PG", "Find Preferences", "Generate ABGP", "Minimize ABGP"]
-ax1.legend([p1, p2, p3, p4, p5], descrs, loc=2)
+ax1.legend(leg_boxes, descrs, loc=2)
 fig.savefig('compilation-time-stacked.png')
 
 # plot figures 
 fig = plt.figure()
 plt.plot(num_pods, tpp_total_mean, label='Total')
-plt.xlabel('Fattree pods')
+plt.xlabel('Fattree pod size')
 plt.ylabel('Time (sec)')
 plt.legend(loc=2)
 fig.savefig('compilation-time.png')
