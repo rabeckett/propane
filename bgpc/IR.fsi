@@ -31,18 +31,20 @@ type Export = Peer * Action list
 
 type DeviceConfig =
     {Originates: bool;
-     Filters: ((Import * Export list) option) list}
+     Filters: (Import * Export list) list}
 
 type PredConfig = Predicate.T * Map<string, DeviceConfig>
 
 type PrefixResult =
     {K: int option;
-      BuildTime: int64;
-      MinimizeTime: int64;
-      OrderingTime: int64;
-      ConfigTime: int64;
-      CompressTime: int64;
-      Config: PredConfig}
+     BuildTime: int64;
+     MinimizeTime: int64;
+     OrderingTime: int64;
+     ConfigTime: int64;
+     CompressTime: int64;
+     CompressSizeInit: int;
+     CompressSizeFinal: int;
+     Config: PredConfig}
 
 type CompileResult = Result<PrefixResult, CounterExample>
 
@@ -84,8 +86,10 @@ val compileToIR: string -> int -> Predicate.T -> Map<string, DeviceAggregates> -
 val compileForSinglePrefix: string -> int -> Map<string, DeviceAggregates> -> Ast.PolicyPair -> PrefixResult
 
 type Stats = 
-    {TotalTime: int64;
-     NumPrefixes: int;
+    {NumPrefixes: int;
+     SizeRaw: int;
+     SizeCompressed: int;
+     TotalTime: int64;
      PrefixTime: int64;
      PerPrefixTimes: int64 array;
      PerPrefixBuildTimes: int64 array;

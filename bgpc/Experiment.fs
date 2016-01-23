@@ -5,9 +5,11 @@ let displayHeader () =
     let headers = 
         ["Pods";
          "Num Nodes"; "Num Edges";
+         "Num Prefixes";
+         "Size Raw";
+         "Size Compressed";
          "Total Time";
          "Join Time";
-         "Num Prefixes";
          "Prefix Time (total)";
          "Per Prefix (mean)"; "Per Prefix (median)"; "Per Prefix (max)";
          "Per Prefix Build Automaton (mean)"; "Per Prefix Build Automaton (median)"; "Per Prefix Build Automaton (max)";
@@ -47,11 +49,13 @@ let displayStats k v e (stats: IR.Stats) =
     let (avgOrd, medOrd, maxOrd) = triple orderTimes
     let (avgGen, medGen, maxGen) = triple minTimes
     let (avgComp, medComp, maxComp) = triple compressTimes
-    printfn "%d,%d,%d,%f,%f,%d,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f" 
+    printfn "%d,%d,%d,%d,%d,%d,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f" 
         k v e 
+        stats.NumPrefixes
+        stats.SizeRaw
+        stats.SizeCompressed
         (toSec stats.TotalTime) 
         (toSec stats.JoinTime) 
-        stats.NumPrefixes
         (toSec stats.PrefixTime)
         avg med max
         avgBuild medBuild maxBuild
