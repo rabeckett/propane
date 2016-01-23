@@ -20,7 +20,8 @@ type T =
      Debug: int; 
      DebugDir: string;
      Compression: bool;
-     Failures: Failures}
+     Failures: Failures;
+     Stats: bool}
 
 /// Get the command-line settings
 val getSettings: unit -> T

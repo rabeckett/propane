@@ -1,6 +1,5 @@
 ﻿module Experiment
 
-
 let displayHeader () = 
     let headers = 
         ["Pods";
@@ -8,14 +7,16 @@ let displayHeader () =
          "Num Prefixes";
          "Size Raw";
          "Size Compressed";
-         "Total Time";
-         "Join Time";
-         "Prefix Time (total)";
-         "Per Prefix (mean)"; "Per Prefix (median)"; "Per Prefix (max)";
-         "Per Prefix Build Automaton (mean)"; "Per Prefix Build Automaton (median)"; "Per Prefix Build Automaton (max)";
-         "Per Prefix Minimize Automaton (mean)"; "Per Prefix Minimize Automaton (med)"; "Per Prefix Minimize Automaton (max)";
-         "Per Prefix Gen Config (mean)"; "Per Prefix Gen Config (med)"; "Per Prefix Gen Config (max)";
-         "Per Prefix Compress (mean)"; "Per Prefix Compress (median)"; "Per Prefix Compress (max)"]
+         "Size Percent (Compressed/Raw)"
+         "Time Total";
+         "Time Join";
+         "Time Prefixes (total)";
+         "Time Per Prefix (mean)"; "Time Per Prefix (median)"; "Time Per Prefix (max)";
+         "Time Per Prefix Build Automaton (mean)"; "Time Per Prefix Build Automaton (median)"; "Time Per Prefix Build Automaton (max)";
+         "Time Per Prefix Minimize Automaton (mean)"; "Time Per Prefix Minimize Automaton (med)"; "Time Per Prefix Minimize Automaton (max)";
+         "Time Per Prefix Find Ordering (mean)"; "Time Per Prefix Find Ordering (med)"; "Time Per Prefix Find Ordering (max)";
+         "Time Per Prefix Gen Config (mean)"; "Time Per Prefix Gen Config (med)"; "Time Per Prefix Gen Config (max)";
+         "Time Per Prefix Compress (mean)"; "Time Per Prefix Compress (median)"; "Time Per Prefix Compress (max)"]
     printfn "%s" (Common.List.joinBy "," headers)
 
 let inline toSec v = (float v) / 1000.0
@@ -49,11 +50,12 @@ let displayStats k v e (stats: IR.Stats) =
     let (avgOrd, medOrd, maxOrd) = triple orderTimes
     let (avgGen, medGen, maxGen) = triple minTimes
     let (avgComp, medComp, maxComp) = triple compressTimes
-    printfn "%d,%d,%d,%d,%d,%d,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f" 
+    printfn "%d,%d,%d,%d,%d,%d,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f" 
         k v e 
         stats.NumPrefixes
         stats.SizeRaw
         stats.SizeCompressed
+        (float stats.SizeCompressed / float stats.SizeRaw)
         (toSec stats.TotalTime) 
         (toSec stats.JoinTime) 
         (toSec stats.PrefixTime)
@@ -63,6 +65,7 @@ let displayStats k v e (stats: IR.Stats) =
         avgOrd medOrd maxOrd
         avgGen medGen maxGen
         avgComp medComp maxComp
+
 
 let singleDatacenter k =
     let settings = Args.getSettings () 
@@ -123,6 +126,6 @@ let singleDatacenter k =
 
 let datacenter () = 
     displayHeader ()
-    for k in 4..2..34 do
+    for k in 4..2..28 do
         singleDatacenter k
 

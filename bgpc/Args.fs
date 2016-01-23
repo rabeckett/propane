@@ -24,7 +24,8 @@ type T =
      Debug: int; 
      DebugDir: string;
      Compression: bool;
-     Failures: Failures}
+     Failures: Failures;
+     Stats: bool}
 
 exception InvalidArgException of string
 
@@ -40,6 +41,7 @@ let debugDir = ref ("debug" + string System.IO.Path.DirectorySeparatorChar)
 let compression = ref true
 let experiment = ref false
 let failures = ref Any
+let stats = ref false
 
 let settings = ref None
 
@@ -101,6 +103,12 @@ let setFailures s =
             raise (InvalidArgException ("Invalid number: " + s))
         failures := Concrete i
 
+let setStats s = 
+    match s with 
+    | "csv" -> stats := true
+    | "none" -> stats := false
+    | _ -> raise (InvalidArgException (sprintf "Invalid stats value: %s" s))
+
 let usage = "Usage: bgpc.exe [options]"
 let args = 
     [|("--pol", String (fun s -> polFile := Some s), "Policy file");
@@ -111,10 +119,11 @@ let args =
       ("--no-export:on|off", String setNoExport, "Use no-export community (default off)");
       ("--compression:on|off", String setCompression, "Compress rules (default on)");
       ("--format:IR|Templ", String setFormat, "Output format (IR, Template)");
+      ("--stats:csv|none", String setStats, "Display performance statistics to stdout (default none)");
+      ("--experiment", Unit (fun () -> experiment := true), "Run DC example");
       ("--test", Unit (fun () -> test := true), "Run unit tests");
       ("--debug-dir", String setDebugDir, "Debugging directory (default 'debug')");
       ("--debug:0|1|2|3", String setDebug, "Debug level (default lowest 0)");
-      ("--experiment", Unit (fun () -> experiment := true), "Run DC example");
       ("--help", Unit (fun () -> ()), "Display this message");
     |]
 
@@ -182,7 +191,8 @@ let parse (argv: string[]) : unit =
               Debug = !debug; 
               DebugDir = !debugDir;
               Compression = !compression;
-              Failures = !failures}
+              Failures = !failures;
+              Stats = !stats}
 
 let getSettings () = 
     match !settings with

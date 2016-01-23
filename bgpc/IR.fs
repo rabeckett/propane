@@ -525,13 +525,13 @@ module Compress =
 
     let size (pconfig: PredConfig) = 
         let (_, config) = pconfig
-        Map.fold (fun acc router dc -> 
-            let ms = List.length dc.Filters
-            let mutable actions = 0 
-            for _, es in dc.Filters do
+        let mutable count = 0
+        for kv in config do 
+            let dc = kv.Value 
+            for _, es in dc.Filters do 
                 for _, acts in es do 
-                    actions <- actions + 1
-            acc + ms + actions) 0 config
+                    count <- count + 1
+        count
 
     let compress (cg: CGraph.T) (config: PredConfig) (outName: string) : PredConfig =
         let config = compressUniquePairs cg config
@@ -583,11 +583,14 @@ let getMinAggregateFailures (cg: CGraph.T) pred (aggInfo: Map<string, DeviceAggr
 let compileToIR fullName idx pred (aggInfo: Map<string,DeviceAggregates>) (reb: Regex.REBuilder) res : CompileResult =
     let settings = Args.getSettings ()
     let fullName = fullName + "(" + (string idx) + ")"
-    let dfas = List.map (fun r -> reb.MakeDFA (Regex.rev r)) res |> Array.ofList
-    let cg, buildTime = Profile.time (CGraph.buildFromAutomata (reb.Topo())) dfas
+    let dfas, dfaTime = Profile.time (List.map (fun r -> reb.MakeDFA (Regex.rev r))) res
+    let dfas = Array.ofList dfas
+    let cg, pgTime = Profile.time (CGraph.buildFromAutomata (reb.Topo())) dfas
+    let buildTime = dfaTime + pgTime
     debug1 (fun () -> CGraph.generatePNG cg fullName )
-    let cg = CGraph.Minimize.delMissingSuffixPaths cg
+    let cg, delTime = Profile.time (CGraph.Minimize.delMissingSuffixPaths) cg
     let cg, minTime = Profile.time (CGraph.Minimize.minimize idx) cg
+    let minTime = delTime + minTime
     debug1 (fun () -> CGraph.generatePNG cg (fullName + "-min"))
     // check there is a route for each location specified
     let lost = getLocsThatCantGetPath idx cg reb dfas
@@ -608,12 +611,12 @@ let compileToIR fullName idx pred (aggInfo: Map<string,DeviceAggregates>) (reb: 
             match ordering with 
             | Ok ord ->
                 let config, configTime = Profile.time (genConfig cg pred ord) inExports
-                let szInit = 0 // Compress.size config
+                let szInit = Compress.size config
                 let result = 
                     if settings.Compression then 
                         let compressed, compressTime = 
                             Profile.time (Compress.compress cg config) fullName
-                        let szFinal = 0 //Compress.size compressed
+                        let szFinal = Compress.size compressed
                         {K=k; 
                          BuildTime=buildTime; 
                          MinimizeTime=minTime; 
