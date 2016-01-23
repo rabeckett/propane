@@ -7,3 +7,73 @@
 	\item Logic programming BGP configs
 \end{itemize}
 
+\dpw{We could also consider citing Boon's stuff on declarative routing.}
+
+\paragraph*{SDN Programming Languages}
+The design of \sysname{} was heavily influenced by recent SDN programming
+languages such as Merlin~\cite{foster:merlin}, FatTire~\cite{fattire},
+NetKAT~\cite{netkat}, as well as Narayana's path queries~\cite{queries}.
+Each of these languages is oriented around regular expressions, which
+describe paths through a network, and predicates, which classify packets.
+In particular, FatTire allows programmers to define sets of paths together
+with a fault tolerance level (\emph{i.e.,} tolerate 1 or 2 faults)
+and the compiler will generate
+OpenFlow 1.3 rules that satisfy the policy.  \sysname is somewhat more
+expressive than FatTire as it allows users to specify preferences among
+routes and it automatically generates distributed
+implementations that will tolerate
+any number of faults.  Because FatTire generates data plane rules up front,
+before faults occur, specifying higher levels of fault tolerance comes 
+at the cost of generating additional rules, which must fit in switch
+memory.  In contrast, \sysname uses traditional distributed
+control plane mechanisms to react to faults as they occur and to the
+extent that they occur without imposing up front costs that may
+necessitate overprovisioning.
+Because of the differences in the underlying technology, the analyses
+and compilation algorithms used in \sysname are quite different from
+previous work on SDN.  Finally, in addition to using path-based abstractions
+for intra-domain routing, \sysname uses them for inter-domain routing as
+well, unlike any existing SDN language.
+
+\paragraph*{Configuration Analysis}  The notion that
+configuring network devices is difficult and error-prone is not new.  Past 
+researchers have
+tried to tackle this problem by analyzing existing 
+firewall configurations~\cite{fang,lumeta,margrave} and
+BGP configurations~\cite{feamster+:rcc,feamster:thesis,ipassure,batfish,bagpipe} and reporting errors or
+inconsistencies when they are detected. 
+Our research is complementary to these analysis
+efforts.  Propane hopes to eliminate bugs by using higher-level
+languages and a ``correct-by-construction''
+methodology.  By proposing network administrators write configurations
+at a high-level of abstraction, a whole host of low-level errors can be 
+avoided.  We also believe the high-level, centralized nature of propane policies
+has the benefit of making configurations
+easier to understand and maintain.
+
+\paragraph*{Configuration Synthesis}  
+ConfigAssure~\cite{narain:lisa05,narain+:configassure} 
+is another system designed to
+help users define and debug low-level router
+configurations.  Inputs to
+ConfigAssure include a \emph{configuration database}, which contains a
+collection of tuples over constants and configuration variables, and a
+\emph{requirement}, which is a set of constraints.  For instance, the
+tuple \texttt{hsrp(rexa,rA1,int(1),int(2))} states that interface
+\texttt{rA1} on device \texttt{rexa} belongs to the HSRP group defined
+by configuration variable \texttt{int(1)} with virtual IP address
+defined by configuration variable \texttt{int(2)}.  The constraint
+\texttt{hsrp\_subnet([rexa-rA1,rexb-rB1])} states that a database
+contains tuples defining HSRP group identifiers and virtual IPs for
+interfaces \texttt{rA1} and \texttt{rB1} on devices \texttt{rexa} and
+\texttt{rexb}.  The authors use a combination of logic programming and
+SAT solving to find concrete values for configuration variables such
+as \texttt{int(1)}.  ConfigAssure has very broad scope, handling
+configuration for a wide range of different protocols and many
+different concerns.  In contrast, the scope of \sysname is much
+narrower.  In return, \sysname offers compact, higher-level
+abstractions customized for our domain, such as regular paths, as well
+as domain-specific analyses customized to those abstractions, such as
+our failure safety analysis.  The implementation technology is also
+entirely different, as we define algorithms over automata and graphs
+as opposed to using logic programming and SAT-based model-finding.

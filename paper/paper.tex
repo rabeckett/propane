@@ -3,6 +3,7 @@
 \usepackage{amsmath}
 \usepackage{amssymb}
 \usepackage{xcolor}
+\usepackage{url}
 \usepackage{times}
 \usepackage{xspace}
 \usepackage{listings}
@@ -17,6 +18,7 @@
 \newcommand{\todo}[1]{\textcolor{red}{[TODO: #1]}}
 \newcommand{\ratul}[1]{\textcolor{blue}{[ratul: #1]}}
 \newcommand{\ryan}[1]{\textcolor{green}{[ryan: #1]}}
+\newcommand{\dpw}[1]{\textcolor{green}{[dpw: #1]}}
 
 \newcommand{\sysname}{{\small \sf Propane}\xspace}
 
@@ -24,7 +26,10 @@
 
 \newcommand{\set}[1]{\ensuremath{\{ #1 \} }}
 \newcommand{\abs}[1]{\ensuremath{ \lvert #1 \rvert }}
-\newcommand{\path}[2]{ #1 \mapsto \ensuremath{#2} }
+
+%\let\Url\url
+%\renewcommand*{\LaTeX}{\oldLaTeX\space}
+\renewcommand{\path}[2]{ #1 \mapsto \ensuremath{#2} }
 
 \begin{document}
 

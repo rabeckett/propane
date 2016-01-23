@@ -1,10 +1,13 @@
+SOURCES=*.tex
+BIB=references.bib
+
 all: quick
 
-bib:
+bib: $(SOURCES) $(BIB)
 	pdflatex paper
 	bibtex paper
 	pdflatex paper
 	pdflatex paper
 
-quick:
+quick:  $(SOURCES)
 	pdflatex paper
