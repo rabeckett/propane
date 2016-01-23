@@ -787,7 +787,6 @@ let splitByLocation f topo (vs: _ list) =
         let pairs = 
             links
             |> List.map (fun (x,y) -> (x.Loc, y.Loc))
-            |> Seq.ofList
             |> Seq.groupBy fst
             |> Seq.map (fun (x,y) -> (x, [(k, Seq.map snd y)]))
             |> Map.ofSeq
