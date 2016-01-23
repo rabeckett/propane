@@ -1,4 +1,4 @@
 \section{Conclusions}
 \label{sec:conclusions}
 
-TODO
+In this paper, we introduced \sysname, a language and compiler for implementing centralized network policies using a distributed set of devices running the Border Gateway Protocol. Propane allows operators to describe network-wide intent directly through high-level constraints, built on top of a regular-expression-based language for describing desired paths through the network and their relative preferences. When Propane compiles a policy, then the resulting BGP configurations are correct-by-construction, faithfully implementing the centralized policy in a distributed fashion, regardless of network failures. When \sysname can not implement the policy, it notifies the user during the compilation stage rather than after deployment.
