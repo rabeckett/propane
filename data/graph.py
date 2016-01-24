@@ -73,12 +73,12 @@ color5 = "#DCB8CB"
 fig = plt.figure()
 plt.grid()
 ax1 = fig.add_subplot(111)
-ax1.fill_between(num_pods, 0, y_stack[0,:], facecolor=color1, alpha=.7)
-ax1.fill_between(num_pods, y_stack[0,:], y_stack[1,:], facecolor=color2, alpha=.7)
-ax1.fill_between(num_pods, y_stack[1,:], y_stack[2,:], facecolor=color3)
-ax1.fill_between(num_pods, y_stack[2,:], y_stack[3,:], facecolor=color4)
-ax1.fill_between(num_pods, y_stack[3,:], y_stack[4,:], facecolor=color5)
-ax1.set_xlabel('Fattree pod size')
+ax1.fill_between(num_nodes, 0, y_stack[0,:], facecolor=color1, alpha=.7)
+ax1.fill_between(num_nodes, y_stack[0,:], y_stack[1,:], facecolor=color2, alpha=.7)
+ax1.fill_between(num_nodes, y_stack[1,:], y_stack[2,:], facecolor=color3)
+ax1.fill_between(num_nodes, y_stack[2,:], y_stack[3,:], facecolor=color4)
+ax1.fill_between(num_nodes, y_stack[3,:], y_stack[4,:], facecolor=color5)
+ax1.set_xlabel('Data center size (routers)')
 ax1.set_ylabel('Time (sec)')
 # custom legend for stack color
 p1 = plt.Rectangle((0, 0), 1, 1, fc=color1, alpha=.7)
@@ -106,16 +106,16 @@ fig.savefig('compilation-time.png')
 #
 #====================================================
 
-num_pods1 = num_pods 
-num_pods2 = map(lambda x: x, num_pods)
+num_nodes1 = num_pods 
+num_nodes2 = map(lambda x: x, num_nodes)
 sizes_raw_per = map(lambda (size,n): size/n, zip(sizes_raw, num_nodes))
 sizes_compressed_per = map(lambda (size,n): size/n, zip(sizes_compressed, num_nodes))
 
 fig = plt.figure()
 ax1 = fig.add_subplot(111)
-ax1.bar(num_pods1, sizes_raw_per, width=.5, color=color1, alpha=1, align='center') # use log=true
-ax1.bar(num_pods2, sizes_compressed_per, width=.5, color=color3, alpha=1, align='center')
-ax1.set_xlabel('Fattree pod size')
+ax1.bar(num_nodes1, sizes_raw_per, width=.5, color=color1, alpha=1, align='center') # use log=true
+ax1.bar(num_nodes2, sizes_compressed_per, width=.5, color=color3, alpha=1, align='center')
+ax1.set_xlabel('Data center size (routers)')
 ax1.set_ylabel('Config Size (lines of ABGP per router)')
 leg_boxes = [p1, p3]
 descrs = ["Raw Config", "Minimized Config"]

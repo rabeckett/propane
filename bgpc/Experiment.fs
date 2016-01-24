@@ -127,5 +127,6 @@ let singleDatacenter k =
 let datacenter () = 
     displayHeader ()
     for k in 4..2..40 do
+        System.GC.Collect ()
         singleDatacenter k
 
