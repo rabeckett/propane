@@ -240,6 +240,7 @@ let inline comparePrefThenLoc (x,i1) (y,i2) =
     else cmp
 
 
+(* Generate a configuration from the product graph *)
 
 type OutPeerMatch = 
     | PeerMatch of CgState
@@ -304,15 +305,16 @@ let getExports allTopoPeers x inExports (outgoing: seq<CgState>) =
         else exports
     else exports
 
-let genConfig (cg: CGraph.T) (pred: Predicate.T) (ord: Consistency.Ordering) (inExports: IncomingExportMap) : PredConfig =
+let genConfig (cg: CGraph.T) (pred: Predicate.T) (ord: Consistency.Ordering) (inExports: IncomingExportMap) : PredConfig * int * int =
     let settings = Args.getSettings ()
     let ain = Topology.alphabet cg.Topo |> fst |> Set.map (fun v -> v.Loc)
+    let szRaw = ref 0 
+    let szSmart = ref 0
     let mutable config = Map.empty
     for entry in ord do 
         let mutable rules = []
         let loc = entry.Key
         let prefs = entry.Value 
-        (* Only generate config for internal locations *)
         if ain.Contains loc then
             let mutable originates = false
             let mutable lp = 101
@@ -322,16 +324,20 @@ let genConfig (cg: CGraph.T) (pred: Predicate.T) (ord: Consistency.Ordering) (in
                     cg.Topo.OutEdges cgstate.Node
                     |> Seq.map (fun e -> e.Target.Loc)
                     |> Set.ofSeq
-                let receiveFrom = neighborsIn cg cgstate |> Seq.filter CGraph.isRealNode
-                let sendTo = neighbors cg cgstate |> Seq.filter CGraph.isRealNode
+                let nsIn = neighborsIn cg cgstate
+                let nsOut = neighbors cg cgstate
+                let receiveFrom = Seq.filter CGraph.isRealNode nsIn
+                let sendTo = Seq.filter CGraph.isRealNode nsOut
                 let peerTypes = Seq.map (getOutPeerType cg) receiveFrom
-                let matches = getMatches allTopoPeers peerTypes
+                let originates = Seq.exists ((=) cg.Start) nsIn
+                let matches =  if originates then [Match.NoMatch] else getMatches allTopoPeers peerTypes
                 let exports = getExports allTopoPeers cgstate inExports sendTo
                 let filters = List.map (fun m -> (m,lp), exports ) matches
-                let originates = Seq.exists ((=) cg.Start) receiveFrom
                 let deviceConf = {Originates=originates; Filters=filters}
+                szRaw := !szRaw + (Seq.length nsIn) * (Seq.length nsOut)
+                szSmart := !szSmart + (List.length filters) * (List.length exports)
                 config <- Map.add loc deviceConf config
-    (pred, config)
+    (pred, config), !szRaw, !szSmart
 
  
 (*
@@ -396,6 +402,7 @@ let genConfig (cg: CGraph.T) (pred: Predicate.T) (ord: Consistency.Ordering) (in
     (pred, config)
     *)
 
+
 module Compress =
 
     let updateDC ((pred, config): PredConfig) f =
@@ -430,6 +437,7 @@ module Compress =
     (* For each pair of (X,Y) edges in the product graph
        if the pair is unique, then there is no need to 
        match/tag on the community, so we can remove it *)
+
     let compressUniquePairs (cg: CGraph.T) (config: PredConfig) : PredConfig =
         let pairCount =
             cg.Graph.Edges
@@ -453,6 +461,9 @@ module Compress =
                 Some (peer, acts'))
             Some ((m', lp), es'))
 
+    (* Remove tags for the same state as is being matched on. E.g., 
+        community=4; community <- 4 *)
+
     let compressRedundantTagging (cg: CGraph.T) (config: PredConfig) : PredConfig = 
         updateDC config (fun router filter -> 
             let ((m,lp),es) = filter
@@ -465,7 +476,8 @@ module Compress =
 
 
     (* Removes less preferred, but otherwise identical imports.
-       These can never occur unless they are back-to-back in the configuration. *)
+       These can never occur unless they are back-to-back in the configuration. 
+
     let compressIdenticalImports ((pred, config): PredConfig) : PredConfig =
         let rec aux filters acc = 
             match filters with
@@ -482,10 +494,11 @@ module Compress =
             let newFilters = aux (List.rev deviceConf.Filters) []
             let newDeviceConf = {Originates=deviceConf.Originates; Filters=newFilters}
             newConfig <- Map.add loc newDeviceConf newConfig
-        (pred, newConfig)
+        (pred, newConfig) *)
 
     (* Avoids tagging with a community from A to B, when B never
        needs to distinguish based on that particular community value *)
+
     let compressTaggingWhenNotImported ((pred, config): PredConfig) : PredConfig =
         let importCommNeeded = Dictionary()
         for kv in config do 
@@ -526,6 +539,7 @@ module Compress =
 
     (* Whenever we export identical routes to all peers, we can replace
        this with a simpler route export of the form: (Export: * ) for readability *)
+
     let compressAllExports (cg: CGraph.T) ((pred, config): PredConfig) : PredConfig =
         let mutable newConfig = Map.empty
         for kv in config do
@@ -564,6 +578,7 @@ module Compress =
 
     (* Whenever import identical routes from all peers, we can replace
        this with a simpler route import of the form: (Import: * ) for readability *)
+
     let compressAllImports (cg: CGraph.T) ((pred, config): PredConfig) : PredConfig =
         let byLoc = 
             cg.Topo.Vertices 
@@ -615,23 +630,12 @@ module Compress =
             newConfig <- Map.add loc newDC newConfig
         (pred, newConfig)
 
-
-    let size (pconfig: PredConfig) = 
-        let (_, config) = pconfig
-        let mutable count = 0
-        for kv in config do 
-            let dc = kv.Value 
-            for _, es in dc.Filters do 
-                for _, acts in es do 
-                    count <- count + 1
-        count
-
     let compress (cg: CGraph.T) (config: PredConfig) (outName: string) : PredConfig =
-        let config = compressUniquePairs cg config
-        let config = compressIdenticalImports config
-        let config = compressTaggingWhenNotImported config
-        let config = compressAllExports cg config
-        let config = compressAllImports cg config
+        // let config = compressUniquePairs cg config
+        // let config = compressIdenticalImports config
+        // let config = compressTaggingWhenNotImported config
+        // let config = compressAllExports cg config
+        // let config = compressAllImports cg config
         let config = compressRedundantTagging cg config
         config
 
@@ -703,21 +707,18 @@ let compileToIR fullName idx pred (aggInfo: Map<string,DeviceAggregates>) (reb: 
             let (ordering, orderTime) = Profile.time (Consistency.findOrderingConservative idx cg) fullName
             match ordering with 
             | Ok ord ->
-                let config, configTime = Profile.time (genConfig cg pred ord) inExports
-                let szInit = Compress.size config
+                let (config, szRaw, szSmart), configTime = Profile.time (genConfig cg pred ord) inExports
                 let result = 
                     if settings.Compression then 
-                        let compressed, compressTime = 
-                            Profile.time (Compress.compress cg config) fullName
-                        let szFinal = Compress.size compressed
+                        let compressed, compressTime = Profile.time (Compress.compress cg config) fullName
                         {K=k; 
                          BuildTime=buildTime; 
                          MinimizeTime=minTime; 
                          OrderingTime=orderTime;
                          ConfigTime=configTime; 
                          CompressTime=compressTime; 
-                         CompressSizeInit=szInit;
-                         CompressSizeFinal=szFinal;
+                         CompressSizeInit=szRaw;
+                         CompressSizeFinal=szSmart;
                          Config=compressed}
                     else 
                         {K=k; 
@@ -726,8 +727,8 @@ let compileToIR fullName idx pred (aggInfo: Map<string,DeviceAggregates>) (reb: 
                          OrderingTime=orderTime;
                          ConfigTime=configTime; 
                          CompressTime=int64 0; 
-                         CompressSizeInit=szInit;
-                         CompressSizeFinal=szInit;
+                         CompressSizeInit=szRaw;
+                         CompressSizeFinal=szSmart;
                          Config=config}
                 Ok (result)
             | Err((x,y)) -> Err(InconsistentPrefs(x,y))
@@ -739,7 +740,7 @@ let compileForSinglePrefix fullName idx (aggInfo: Map<string, DeviceAggregates>)
     try 
         match compileToIR fullName idx pred aggInfo reb res with 
         | Ok(config) -> config
-        | Err(x) -> 
+        | Err(x) ->
             match x with
             | UnusedPreferences m ->
                 error (sprintf "Unused preferences %A" m)
