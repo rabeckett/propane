@@ -5,6 +5,9 @@ import matplotlib.pyplot as plt
 
 # collect stats from csv
 num_pods = []
+num_nodes = []
+sizes_raw = []
+sizes_compressed = []
 tpp_total_mean = []
 tpp_build_mean = []
 tpp_minimize_mean = []
@@ -14,10 +17,13 @@ tpp_compress_mean = []
 
 # read values from csv file
 direct = os.path.dirname(os.path.realpath(__file__))
-with open(direct + os.path.sep + 'stats.csv') as f:
+with open(direct + os.path.sep + 'stats-dc.csv') as f:
   r = csv.reader(f)
   for row in r:
     num_pods.append(row[0])
+    num_nodes.append(row[1])
+    sizes_raw.append(row[4])
+    sizes_compressed.append(row[5])
     tpp_total_mean.append(row[10])
     tpp_build_mean.append(row[13])
     tpp_minimize_mean.append(row[16])
@@ -25,8 +31,11 @@ with open(direct + os.path.sep + 'stats.csv') as f:
     tpp_gen_mean.append(row[22])
     tpp_compress_mean.append(row[25])
 
-# remove first row, and convert type
+# remove header info, and convert type
 num_pods = map(int, num_pods[2:])
+num_nodes = map(int, num_nodes[2:])
+sizes_raw = map(int, sizes_raw[2:])
+sizes_compressed = map(int, sizes_compressed[2:])
 tpp_total_mean = map(float, tpp_total_mean[2:])
 tpp_build_mean = map(float, tpp_build_mean[2:])
 tpp_minimize_mean = map(float, tpp_minimize_mean[2:])
@@ -34,17 +43,31 @@ tpp_order_mean = map(float, tpp_order_mean[2:])
 tpp_gen_mean = map(float, tpp_gen_mean[2:])
 tpp_compress_mean = map(float, tpp_compress_mean[2:])
 
+#====================================================
+# 
+# Stack plot of compilation times broken down by task
+#
+#====================================================
+
 # stack data lowest -> highest (build, minimize, order, gen, compress)
 data = (tpp_build_mean, tpp_minimize_mean, tpp_order_mean, tpp_gen_mean, tpp_compress_mean)
 foo = np.row_stack( data )
 y_stack = np.cumsum(foo, axis=0)
 
 # plot colors
-color1 = "#FFC09F"
-color2 = "#FFEE93"
-color3 = "#FCF5C7"
-color4 = "#A0CED9"
-color5 = "#ADF7B6"
+
+#color1 = "#FFC09F"
+#color2 = "#FFEE93"
+#color3 = "#FCF5C7"
+#color4 = "#A0CED9"
+#color5 = "#ADF7B6"
+
+color1 = "#828A95"
+color2 = "#CEEAF7"
+color3 = "#CCD7E4"
+color4 = "#D5C9DF"
+color5 = "#DCB8CB"
+
 
 # stacked plot showing different running times
 fig = plt.figure()
@@ -63,15 +86,38 @@ p2 = plt.Rectangle((0, 0), 1, 1, fc=color2, alpha=.7)
 p3 = plt.Rectangle((0, 0), 1, 1, fc=color3, alpha=.7)
 p4 = plt.Rectangle((0, 0), 1, 1, fc=color4, alpha=.7)
 p5 = plt.Rectangle((0, 0), 1, 1, fc=color5, alpha=.7)
-leg_boxes = [p1, p2, p3, p4, p5]
-descrs = ["Construct PG", "Minimize PG", "Find Preferences", "Generate ABGP", "Minimize ABGP"]
+leg_boxes = [p5, p4, p3, p2, p1]
+descrs = ["Minimize ABGP", "Generate ABGP", "Find Preferences", "Minimize PG", "Construct PG"]
 ax1.legend(leg_boxes, descrs, loc=2)
 fig.savefig('compilation-time-stacked.png')
 
 # plot figures 
 fig = plt.figure()
+plt.grid()
 plt.plot(num_pods, tpp_total_mean, label='Total')
 plt.xlabel('Fattree pod size')
 plt.ylabel('Time (sec)')
 plt.legend(loc=2)
 fig.savefig('compilation-time.png')
+
+#====================================================
+# 
+# Size of generated vs compressed ABGP (lines)
+#
+#====================================================
+
+num_pods1 = num_pods 
+num_pods2 = map(lambda x: x, num_pods)
+sizes_raw_per = map(lambda (size,n): size/n, zip(sizes_raw, num_nodes))
+sizes_compressed_per = map(lambda (size,n): size/n, zip(sizes_compressed, num_nodes))
+
+fig = plt.figure()
+ax1 = fig.add_subplot(111)
+ax1.bar(num_pods1, sizes_raw_per, width=.5, color=color1, alpha=1, align='center') # use log=true
+ax1.bar(num_pods2, sizes_compressed_per, width=.5, color=color3, alpha=1, align='center')
+ax1.set_xlabel('Fattree pod size')
+ax1.set_ylabel('Config Size (lines of ABGP per router)')
+leg_boxes = [p1, p3]
+descrs = ["Raw Config", "Minimized Config"]
+ax1.legend(leg_boxes, descrs, loc=2)
+fig.savefig('config-compression-dc.png')
