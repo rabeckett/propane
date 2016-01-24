@@ -101,7 +101,7 @@ The high-level language presented in Section~\ref{sec:propane} is just a thin la
 
 The syntax for the RIR is shown in Figure~\ref{fig:rir-syntax}. A policy consists of one or more constraints, each of which consists of a test on the type of route, and a corresponding set of preferred regular paths. Regular paths are simply regular expressions where the base characters are AS numbers. Special \textit{in} and \textit{out} symbols are used to refer to any internal or external location respectively.
 For example, the constraint 
-$$prefix=74.125.28.0/24 \mapsto (200 \cdot in \cdot in^*) \gg (100 \cdot in \cdot in^*)$$
+$$prefix=74.125.28.0/24 \mapsto (AS200 \cdot in \cdot in^*) \gg (AS100 \cdot in \cdot in^*)$$
 describes a more-preferred set of paths for traffic announced by a prefixes no less specific than $74.125.28.0/24$, which starts at AS 200, before entering and staying inside the user's network to get to the destination, and a less-preferred set of paths that start at AS 100 and are otherwise the same. Tests over route types use standard boolean connectives, and can refer to both prefixes and route community values.
 
 \sysname also supports constraints purely on the control-plane behavior of the BGP routing protocol. Thing like prefix aggregation, which should not affect routing behavior, is an important optimization to reduce routing table size and churn. Aggregation, for example from internal locations and external locations, is specified using the same regular syntax as before: 
@@ -113,14 +113,14 @@ We list the route aggregation and community tagging constraints in Figure~\ref{f
 
 \para{Semantics}
 
-The semantics of RIR can be thought of in terms of ranked paths. Each preference-based regular path constraint (of the form $r_1 \gg \dots \gg r_j$) maps to a set of concrete paths in the network that match one of $r_i$. We denote a network path as a string of ASes of the form: $n_1 n_2 \dots n_k$, and we say regular expression $r$ matches path $p$, if $p \in \mathcal{L}(r)$ and $p$ is a topologically-valid path. We denote the length of a path $p$ as $\abs{p}$. A path $p$ will have a rank: 
+The semantics of RIR can be thought of in terms of ranked paths. Each preference-based regular path constraint (of the form $r_1 \gg \dots \gg r_j$) maps to a set of concrete paths in the network that match one of $r_i$. We denote a network path as a string of abstraction locations (routers or external ASes) of the form: $n_1 n_2 \dots n_k$, and we say regular expression $r$ matches path $p$, if $p \in \mathcal{L}(r)$ and $p$ is a topologically-valid path. We denote the length of a path $p$ as $\abs{p}$. A path $p$ will have a rank: 
 $$(\min_i \set{ p \in \mathcal{L}(r_i) }, \abs{p})$$
 where the rank is lexicographically ordered according to (1) the most preferred regular expression matched, and (2) as a tie breaker, the length of the path. A lower rank indicates a \emph{more} preferred path. The desired semantics is to allow traffic to be sent along any of the most preferred paths for each pair of starting and ending locations that appear in some valid specified path. 
 
 The set of ranked paths depends on which paths are valid given the topology, and thus when failures occur, so do the most preferred routes. It is the job of the \sysname compiler to ensure that generated configurations for a policy always achieve the most preferred path possible given the failures in the topology, using only distributed mechanisms.
 
 
-\para{Propane to RIR}
+\para{Propane front-end to RIR}
 
 The main differences between \sysname the regular language are: (1) \sysname allows the programmer to specify constraints separately, and combine them together modularly, (2) \sysname provides high-level names that abstract sets of routes, and (3) \sysname allows the preference operator to be used locally.
 
@@ -280,7 +280,7 @@ Repeated application of the above rules leads to removing the colored nodes and 
 
 \para{Failure Safety}
 
-To implement backups in routing, BGP uses local preferences on a per-device basis. However, the distributed nature of BGP makes setting preferences locally to achieve a network-route routing policy difficult, particularly in the presence of failures. For example, imagine an extremely simple policy for the topology in Figure~\ref{fig:example-compilation}, which says to prefer one route over another:
+To implement path preferences in routing, BGP uses local preferences on a per-device basis. However, the distributed nature of BGP makes setting preferences locally to achieve a network-route routing policy difficult, particularly in the presence of failures. For example, imagine an extremely simple policy for the topology in Figure~\ref{fig:example-compilation}, which says to prefer one route over another:
 %
 $$(W \cdot A \cdot C \cdot D) \gg (W \cdot B \cdot C \cdot E)$$
 %
