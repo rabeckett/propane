@@ -110,12 +110,24 @@ let getTransitions autos =
         ) Map.empty auto.trans
     Array.map aux autos
 
+let getGarbageStates (auto: Regex.Automaton) =     
+    let selfLoops = 
+        Map.fold (fun acc (x,_) y  ->
+            let existing = Common.Map.getOrDefault x Set.empty acc
+            Map.add x (Set.add y existing) acc) Map.empty auto.trans
+            |> Map.filter (fun x ys -> Set.count ys = 1 && Set.minElement ys = x)
+            |> Map.toList 
+            |> List.map fst 
+            |> Set.ofList
+    Set.difference selfLoops auto.F
+
 let buildFromAutomata (topo: Topology.T) (autos : Regex.Automaton array) : T =
     if not (Topology.isWellFormed topo) then
         raise Topology.InvalidTopologyException
     Array.iter (fun a -> logInfo2 (0,string a)) autos
     let unqTopo = Set.ofSeq topo.Vertices
     let transitions = getTransitions autos
+    let garbage = Array.map getGarbageStates autos
     let graph = BidirectionalGraph<CgStateTmp, TaggedEdge<CgStateTmp,unit>>()
     let starting = Array.map (fun (x: Regex.Automaton) -> x.q0) autos
     let newStart = {TStates = starting; TAccept = Set.empty; TNode = {Loc="start"; Typ = Topology.Start} }
@@ -125,19 +137,19 @@ let buildFromAutomata (topo: Topology.T) (autos : Regex.Automaton array) : T =
     todo.Enqueue newStart
     while todo.Count > 0 do
         let currState = todo.Dequeue()
-        //printfn "looking at (%s, %s)" (currState.TStates |> List.ofArray |> List.map string |> Common.List.joinBy ",") currState.TNode.Loc
         let {TStates=ss; TNode=t} = currState
         let adj = 
             if t.Typ = Topology.Start 
             then Seq.filter Topology.canOriginateTraffic unqTopo 
             else topo.OutEdges t |> Seq.map (fun e -> e.Target)
         let adj = if t.Typ = Topology.Unknown then Seq.append (Seq.singleton t) adj else adj
-        //printfn "  adjacent neighbors: %A" adj
         for c in adj do
-            //printfn "      looking at neighbors: %s" c.Loc
+            let dead = ref true
             let nextInfo = Array.init autos.Length (fun i ->
                 let g, v = autos.[i], ss.[i]
                 let newState = Map.find (v,c.Loc) transitions.[i]
+                if not (garbage.[i].Contains newState) then 
+                    dead := false
                 let accept =
                     if (Topology.canOriginateTraffic c) && (Set.contains newState g.F) 
                     then Set.singleton (i+1)
@@ -146,14 +158,13 @@ let buildFromAutomata (topo: Topology.T) (autos : Regex.Automaton array) : T =
             let nextStates, nextAccept = Array.unzip nextInfo
             let accept = Array.fold Set.union Set.empty nextAccept
             let state = {TStates=nextStates; TAccept=accept; TNode=c}
-            if not (marked.Contains state) then
-                //printfn "    adding state for %A, %s" nextStates c.Loc
-                ignore (marked.Add state)
-                ignore (graph.AddVertex state)
-                todo.Enqueue state 
-            //printfn "    adding edge: %A, %A" currState.TNode.Loc state.TNode.Loc
-            let edge = TaggedEdge(currState, state, ())
-            ignore (graph.AddEdge edge)
+            if not !dead then
+                if not (marked.Contains state) then
+                    ignore (marked.Add state)
+                    ignore (graph.AddVertex state)
+                    todo.Enqueue state 
+                let edge = TaggedEdge(currState, state, ())
+                ignore (graph.AddEdge edge)
     let newEnd = {TStates = [||]; TAccept = Set.empty; TNode = {Loc="end"; Typ = Topology.End}}
     graph.AddVertex newEnd |> ignore
     let accepting = Seq.filter (fun v -> not (Set.isEmpty v.TAccept)) graph.Vertices

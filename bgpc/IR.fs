@@ -318,6 +318,8 @@ let genConfig (cg: CGraph.T) (pred: Predicate.T) (ord: Consistency.Ordering) (in
         if ain.Contains loc then
             let mutable originates = false
             let mutable lp = 101
+            let mutable filters = []
+            let mutable originates = false
             for cgstate in prefs do
                 lp <- lp - 1
                 let allTopoPeers = 
@@ -329,14 +331,16 @@ let genConfig (cg: CGraph.T) (pred: Predicate.T) (ord: Consistency.Ordering) (in
                 let receiveFrom = Seq.filter CGraph.isRealNode nsIn
                 let sendTo = Seq.filter CGraph.isRealNode nsOut
                 let peerTypes = Seq.map (getOutPeerType cg) receiveFrom
-                let originates = Seq.exists ((=) cg.Start) nsIn
-                let matches =  if originates then [Match.NoMatch] else getMatches allTopoPeers peerTypes
+                let origin = Seq.exists ((=) cg.Start) nsIn
+                let matches =  if origin then [Match.NoMatch] else getMatches allTopoPeers peerTypes
                 let exports = getExports allTopoPeers cgstate inExports sendTo
-                let filters = List.map (fun m -> (m,lp), exports ) matches
-                let deviceConf = {Originates=originates; Filters=filters}
+                for m in matches do 
+                    filters <- ((m,lp), exports) :: filters
+                originates <- origin || originates
                 szRaw := !szRaw + (Seq.length nsIn) * (Seq.length nsOut)
                 szSmart := !szSmart + (List.length filters) * (List.length exports)
-                config <- Map.add loc deviceConf config
+            let deviceConf = {Originates=originates; Filters=filters}
+            config <- Map.add loc deviceConf config
     (pred, config), !szRaw, !szSmart
 
  
@@ -373,7 +377,7 @@ let genConfig (cg: CGraph.T) (pred: Predicate.T) (ord: Consistency.Ordering) (in
                     if Topology.isTopoNode v.Node then
                         if not (ain.Contains v.Node.Loc) then
                             let re = CGraph.ToRegex.constructRegex (CGraph.copyReverseGraph cg) v
-                            match Regex.isLoc re with
+                            match Regex.isLNooc re with
                             | Some x -> Match.Peer x 
                             | _ -> Match.PathRE re
                         else Match.State(string v.State, v.Node.Loc)
@@ -730,6 +734,7 @@ let compileToIR fullName idx pred (aggInfo: Map<string,DeviceAggregates>) (reb: 
                          CompressSizeInit=szRaw;
                          CompressSizeFinal=szSmart;
                          Config=config}
+                debug1 (fun () -> System.IO.File.WriteAllText (sprintf "%s.ir" fullName, formatPrefix result) )
                 Ok (result)
             | Err((x,y)) -> Err(InconsistentPrefs(x,y))
         with 
