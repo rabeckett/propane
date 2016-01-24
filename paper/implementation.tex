@@ -10,23 +10,12 @@ Rather than construct the product graph in full, our implementation prevents exp
 
 \para{PG Minimization}
 
-Our compiler uses a fast algorithm for computing graph dominators by storing sets of dominators in a compact representation known as a dominator tree~\ref{bib:todo}. 
+Our compiler uses a fast algorithm for computing graph dominators by storing sets of dominators in a compact representation known as a dominator tree~\ref{bib:todo}. More complex algorithms with better theoretical complexity exist~\ref{bib:todo} and may be better for large enough examples. However, we have not found minimization to be a bottleneck in our implementation. Minimization steps are ordered from cheapest to most expensive. All minimization steps are repeated until no more progress can be made.
 
+\para{Failure Safety}
 
-When computing local preferences and failure safety, as described in Section~\ref{sec:compilation}, the compiler performs memoization of the ``can prefer'' relation. \todo{this needs work}
+When computing local preferences and failure safety, as described in Section~\ref{sec:compilation}, the compiler performs memoization of the ``can prefer'' relation. That is, whenever for two states $n_1$ and $n_2$ we compute $protect(G_j, n_1, G_i, n_2)$, if the function evaluates to $true$, then each of the intermediate related states $x$ and $y$ must also satisfy $protect(G_j, x, G_i, y)$. Memoizing these states significantly cuts down the amount of work that needs to be in the common case.
 
-We have evaluated our compiler by translating and compiling real-world network configurations for data centers and a core backbone network into \sysname. We evaluate our compiler by measuring compilation times for these policies across topologies of different sizes.
+\para{Configuration generation}
 
-\begin{figure}[t!]
-\centering
-\includegraphics[width=\columnwidth]{figures/compilation-times-dc.png}
-\label{fig:compilation-times-dc}
-\caption{Data center compilation times.}
-\end{figure}
-
-\begin{figure}[t!]
-\centering
-\includegraphics[width=\columnwidth]{figures/config-compression-dc.png}
-\label{fig:compilation-compression-dc}
-\caption{Data center config minimization.}
-\end{figure}
+The naive code generation algorithm described in Section~\ref{sec:compilation} is extremely memory inefficient since it generates a separate match-export pair for every unique in edge/out edge pair in the product graph before minimization. Our implementation performs partial minimization during generation by recognizing cases where there is no restriction on exporting or importing from neighbors to avoid enumerating such cases.
