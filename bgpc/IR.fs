@@ -30,14 +30,12 @@ type Match =
         | NoMatch -> "--"
 
 type Action = 
-    | NoAction
     | SetComm of string
     | SetMed of int
     | PrependPath of int
 
     override this.ToString() = 
         match this with 
-        | NoAction -> ""
         | SetComm(is) -> "Community<-" + is
         | SetMed i -> "MED<-" + string i
         | PrependPath i -> "Prepend " + string i
@@ -241,11 +239,107 @@ let inline comparePrefThenLoc (x,i1) (y,i2) =
         compare x.Node.Loc y.Node.Loc
     else cmp
 
+
+
+type OutPeerMatch = 
+    | PeerMatch of CgState
+    | RegexMatch of Regex.T
+
+let inline isPeerMatch x = 
+    match x with 
+    | PeerMatch _ -> true
+    | RegexMatch _ -> false
+
+let inline getPeerMatch x = 
+    match x with 
+    | PeerMatch y -> y
+    | RegexMatch _ -> failwith "unreachable"
+
+let inline getRegexMatch x = 
+    match x with 
+    | PeerMatch _ -> failwith "unreachable"
+    | RegexMatch y -> y
+
+let getOutPeerType cg (x:CgState) = 
+    if Topology.isOutside x.Node then
+        let nin = neighborsIn cg x
+        if Seq.length nin = 1 && Seq.head nin = cg.Start then PeerMatch x
+        else RegexMatch (CGraph.ToRegex.constructRegex (CGraph.copyReverseGraph cg) x)
+    else PeerMatch x
+
+let getMatches allTopoPeers incomingMatches =
+    let peers, regexes = 
+        List.ofSeq incomingMatches 
+        |> List.partition isPeerMatch
+    let peers = List.map getPeerMatch peers |> Set.ofList
+    let peerLocs = Set.map (fun v -> v.Node.Loc) peers
+    let mutable matches = 
+        List.map (fun r -> Match.PathRE (getRegexMatch r)) regexes
+    let states = Set.map (fun v -> v.State) peers
+    let eqStates = Set.count states = 1
+    if peerLocs = allTopoPeers && eqStates then 
+        matches <- Match.State(string (Set.minElement states),"*") :: matches
+    else
+        for v in peers do 
+            let m = Match.State(string v.State, v.Node.Loc)
+            matches <- m :: matches
+    matches
+
+let inline getExport specialCase inExports x v = 
+    if Topology.isOutside v.Node 
+    then 
+        let ret = Map.find v inExports
+        if ret <> [] then 
+            specialCase := true
+        ret
+    else [SetComm(string x.State)]
+
+let getExports allTopoPeers x inExports (outgoing: seq<CgState>) = 
+    let specialCase = ref false
+    let exports = List.ofSeq outgoing |> List.map (fun v -> (v.Node.Loc, getExport specialCase inExports x v)) 
+    if not !specialCase then
+        let sendToLocs = Seq.map (fun v -> v.Node.Loc) outgoing |> Set.ofSeq
+        if allTopoPeers = sendToLocs then 
+            [("*", [SetComm(string x.State)])]
+        else exports
+    else exports
+
+let genConfig (cg: CGraph.T) (pred: Predicate.T) (ord: Consistency.Ordering) (inExports: IncomingExportMap) : PredConfig =
+    let settings = Args.getSettings ()
+    let ain = Topology.alphabet cg.Topo |> fst |> Set.map (fun v -> v.Loc)
+    let mutable config = Map.empty
+    for entry in ord do 
+        let mutable rules = []
+        let loc = entry.Key
+        let prefs = entry.Value 
+        (* Only generate config for internal locations *)
+        if ain.Contains loc then
+            let mutable originates = false
+            let mutable lp = 101
+            for cgstate in prefs do
+                lp <- lp - 1
+                let allTopoPeers = 
+                    cg.Topo.OutEdges cgstate.Node
+                    |> Seq.map (fun e -> e.Target.Loc)
+                    |> Set.ofSeq
+                let receiveFrom = neighborsIn cg cgstate |> Seq.filter CGraph.isRealNode
+                let sendTo = neighbors cg cgstate |> Seq.filter CGraph.isRealNode
+                let peerTypes = Seq.map (getOutPeerType cg) receiveFrom
+                let matches = getMatches allTopoPeers peerTypes
+                let exports = getExports allTopoPeers cgstate inExports sendTo
+                let filters = List.map (fun m -> (m,lp), exports ) matches
+                let originates = Seq.exists ((=) cg.Start) receiveFrom
+                let deviceConf = {Originates=originates; Filters=filters}
+                config <- Map.add loc deviceConf config
+    (pred, config)
+
+ 
+(*
 (* Generate the configuration given preference-based ordering 
    that satisfies our completeness/fail resistance properties *)
 let genConfig (cg: CGraph.T) (pred: Predicate.T) (ord: Consistency.Ordering) (inExports: IncomingExportMap) : PredConfig =
     let settings = Args.getSettings ()
-    let (ain, _) = Topology.alphabet cg.Topo
+    let (ain, _) = Topology.alphabet cg.Topo 
     let ain = Set.map (fun (v: Topology.State) -> v.Loc) ain
     let mutable config = Map.empty
     for entry in ord do 
@@ -268,9 +362,7 @@ let genConfig (cg: CGraph.T) (pred: Predicate.T) (ord: Consistency.Ordering) (in
             for v, pref in prefNeighborsIn do 
                 match lastPref with 
                 | Some p when pref = p -> () 
-                | _ ->
-                    lastPref <- Some pref 
-                    lp <- lp - 1
+                | _ -> lastPref <- Some pref; lp <- lp - 1
                 let m =
                     if Topology.isTopoNode v.Node then
                         if not (ain.Contains v.Node.Loc) then
@@ -302,7 +394,7 @@ let genConfig (cg: CGraph.T) (pred: Predicate.T) (ord: Consistency.Ordering) (in
             let deviceConf = {Originates=originates; Filters=filters}
             config <- Map.add loc deviceConf config
     (pred, config)
-
+    *)
 
 module Compress =
 
@@ -345,7 +437,8 @@ module Compress =
         let pCount = Dictionary()
         for e, count in pairCount do
             pCount.[e] <- count
-        let inline unqPair e = pCount.[e] = 1 
+        let inline unqPair e = 
+            fst e <> "*" && snd e <> "*" && pCount.[e] = 1 
         updateDC config (fun loc v ->
             let ((m,lp),es) = v 
             let m' = 

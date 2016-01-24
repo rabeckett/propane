@@ -17,7 +17,6 @@ type Match =
     | NoMatch
 
 type Action = 
-    | NoAction
     | SetComm of string
     | SetMed of int
     | PrependPath of int
