@@ -3,7 +3,16 @@
 
 \sysname simplifies network configuration by automatically generating low-level BGP configurations from a high-level specification of routing policy.
 %
+\ratul{Does this capture the differences correctly?}
+Policies for (distributed) control planes differ from data plane policies~\cite{x,y,z} in two ways. First, they must account for all failures at specification time; there is no controller at runtime, the routers must handle failures by themselves in a compliant manner.
 %
+In \sysname, we enable such specifications through path preferences, with the semantics that a less-preferred path is taken only when a higher-preference path is unavailable.
+%
+Second, paths may be under-specified (e.g., "prefer customer" does not indicate a concrete path). The \sysname compiler treats such under-specifications as constraints on the set of paths and automatically compute valid sets based on topology.
+
+
+
+
 We introduce \sysname by expressing the policies for the two examples above.
 %
 The next section describes how we compile such policies to BGP.
