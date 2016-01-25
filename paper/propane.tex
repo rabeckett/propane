@@ -1,57 +1,108 @@
-\section{Propane}
+\section{Propane overview}
 \label{sec:propane}
 
-\sysname simplifies network configuration by automatically generating low-level BGP configurations from a high-level specification of the network's routing policy. 
+\sysname simplifies network configuration by automatically generating low-level BGP configurations from a high-level specification of routing policy.
 %
-The operator configures the network with the abstraction that he or she has centralized control over routing and uses a set of high-level constraints to describe the different routes traffic may (or may not) take and their relative preferences. 
 %
-The \sysname compiler generates BGP configurations for each device in the network that operate in a completely distributed fashion and are correct by construction -- automatically synthesizing import/export filters, local preference and MED attributes, and community tags to ensure policy compliance under all possible failure scenarios.
+We introduce \sysname by expressing the policies for the two examples above.
 %
-We now demonstrate \sysname by showing how to configure the networks from the previous examples.
+The next section describes how we compile such policies to BGP.
 
-\para{Example 1}
+\subsection{Example 1: The Backbone}
 
-We now show how to write the routing policy for the backbone network in Section~\ref{sec:motivation}. \sysname allows to address each of the requirements in turn. First we address requirements (P1), (P3), and (P4) that customers are preferred over peers over providers, and that a customer appear on the path for its prefix. The following \sysname code accomplishes these two objectives:
+%\sysname simplifies network configuration by allowing users to
+%specify end-to-end forwarding paths and associating them with
+%appropriate prefixes.  The \sysname compiler handles the task of
+%generating low-level BGP configurations consistent with the user's
+%specifications.  It automatically synthesizes
+%import-export filters, local preferences, MED attributes, and community tags
+%to ensure policy compliance under all possible failure scenarios.
 
+The operator configures the network with the abstraction that he or she has centralized control over routing and uses a set of high-level constraints to describe the different routes traffic may (or may not) take and their relative preferences.
+In general, \sysname specifications are written modularly via a series
+of user declarations.
+%These definitions allow users to express the three
+%major elements of any \sysname specification:  \emph{prefixes},
+%\emph{paths} and \emph{policies}.
+For example, to begin specification of the backbone
+network, we first express the idea that for routes leading to our customer,
+we prefer using $R_1$ over $R_2$ (Policy P3 from Figure~\ref{fig:example1}):
 \begin{lstlisting}[mathescape=true]
 define ExitCust = $exit(R_1 \gg R_2)$
+\end{lstlisting}
+The  statement above defines a set of \emph{ranked paths}, which includes
+all paths (and only those paths) that \cd{exit}
+our network
+through either router $R_1$ or $R_2$.  The paths that exit through $R_1$
+are preferred ($\gg$) to the paths that exit through $R_2$.
 
+To associate ranked paths with
+one or more prefixes, we must define a \sysname \emph{policy}.
+Within a policy, statements with the form $\path{x}{p}$
+associate the prefixes defined by the predicate $x$ with the set of
+ranked paths defined by the path expression $p$.
+For instance, in the following code, ranked paths are associated with
+the customer prefixes ($C_{pfx}$), the internal prefixes ($I_{pfx}$),
+and all other prefixes (\cd{true}).\footnote{Policy statements are processed in
+order with earlier policy statements taking precedence over later
+policy statements.  Hence, when the prefix predicate \cd{true} follows
+statements involving $C_{pfx}$ and $I_{pfx}$, it is interpreted as
+$\cd{true} \AND \NOT C_{pfx} \AND \NOT I_{pfx}$.}
+
+\begin{lstlisting}[mathescape=true]
 define Routing = {
-    $\path{C_{pfx}}{ExitCust \gg end(Cust) }$
+    $\path{C_{pfx}}{ExitCust \gg end(Cust)}$
     $\path{I_{pfx}}{end(in)}$
     $\path{true}{ExitCust \gg exit(Peer) \gg exit(Prov)}$
 }
 \end{lstlisting}
 
-The first definition defines paths that exit our network to the customer. The statement $exit(R_1 \gg R_2)$ restricts us to paths that leave our network through either router $R_1$ or $R_2$, with a preference for $R_1$. 
-The first line of the \textsf{Routing} policy ensures that traffic destined for customer prefixes ($C_{pfx}$) either leaves the network directly to the customer (with a preference for leaving through $R_1$), or simply ends at the customer. Not leaving directly to the customer by going through \textit{Peer} or \textit{Prov} is less preferred than leaving directly, and thus serves as a backup route in a direct route is not available.
+Line 2 of the policy above
+defines the paths that exit our network to customer prefixes ---
+\cd{ExitCust} defines paths through $R_1$ and $R_2$ and in the event
+that connections to the customer through both of those routers fail,
+a backup route ($end(Cust)$) is defined that admits traffic to go through
+any path that ends at the customer.
+Line 3 states that traffic for internal prefixes must end in our network, and is otherwise unconstrained.  The special keyword \cd{in} represents any location
+inside the user's network whereas the keyword \cd{out} represents any location
+outside the user's network.
+Line 4 applies to any other traffic, and allows for any routes that leave through a peer with a preference for customers over peers over providers. To summarize our progress so far, the \cd{Routing} policy
+implements (P1), (P3) and (P4) from Figure~\ref{fig:example1}
 
-The second line state that traffic for internal prefixes $I_{pfx}$ must end in our network, and is otherwise unconstrained. The last line applies to any other traffic, and allows for any routes that leave through a peer with a preference for customers over peers over providers. While this still allows transit traffic (e.g., traffic can enter from \textit{Peer} and leave through \textit{Prov}), we can restrict this behavior separately as follows:
+Since, routing still allows transit traffic (e.g., traffic can enter from \textit{Peer} and leave through \textit{Prov}), we can define a new policy that
+implements this restriction separately.
 
 \begin{lstlisting}[mathescape=true]
 define PP = Peer or Prov
-define PPTransit = $enter(PP) \wedge exit(PP)$
-define CustTransit = $later(Cust) \wedge later(Prov)$
+define PPTransit = $enter(PP) \AND exit(PP)$
+define CustTransit = $later(Cust) \AND later(Prov)$
 
 define NoTransit = {
-    $\path{true}{\neg PPTransit \wedge \neg CustTransit}$
+    $\path{true}{\neg PPTransit \AND \NOT CustTransit}$
 }
 \end{lstlisting}
 
-The \textsf{NoTransit} constraint above ensures that requirements (P2) and (P5) are satisfied. In particular, it says that, for any prefix, traffice should never both enter and exit the network from \textit{Peer} or \textit{Prov}. Similarly it prevents traffic from ever following paths that leave our network and later go through both \textit{Prov} and \textit{Cust}.
+The \textsf{NoTransit} constraint above ensures that requirements (P2) and (P5) are satisfied. In particular, it says that for any prefix, traffic should never both enter and exit the network from \textit{Peer} or \textit{Prov}. Similarly it prevents traffic from ever following paths that leave our network and later passing through both \textit{Prov} and \textit{Cust}.  To implement both \cd{Routing}
+and \cd{NoTransit} simultaneously, we simply conjoin them:
 
 \begin{lstlisting}[mathescape=true]
-Routing $\wedge$  NoTransit
+Routing $\AND$  NoTransit
 \end{lstlisting}
 
-The final policy is simply the conjunction of the routing and no transit constraints. \sysname will generate per-device import and export filters, local preferences and MED attributes, and community tags to ensure that the policy is met under all failure scenarios.
+The lines above capture the entire policy. From it, \sysname will generate per-device import and export filters, local preferences,
+MED attributes, and community tags to ensure that the policy is
+implemented correctly under all failure cases.
 
+\subsection{Example 2: The Data Center}
 
-\para{Example 2}
+In our data center example,
+there are primarily three main concerns:
+(1) traffic for the prefix block allocated to each top-of-rack router must be able to reach that router,
+(2) local services must not leak outside the datacenter, and
+(3) aggregation must be performed on global prefixes to reduce churn
+in the network.
 
-Consider again the datacenter from Section~\ref{sec:motivation}. In this example, there are primarily three main concerns: (1) traffic for the prefix block allocated to each top-of-rack router can reach that router, (2) local services do not leak outside the datacenter, and (3) aggregation is performed on global prefixes to reduce churn in the network. 
-
-\sysname allows us to decompose and specify each of these constraints in a modular fashion. The first constraint is about prefix ownership -- namely, that we only want traffic for certain prefixes to end up at a particular locations. The following definition in propane captures this intent:
+\sysname allows us to decompose and specify each of these constraints in a modular fashion. The first constraint is about prefix ownership -- namely, that we only want traffic for certain prefixes to end up at a particular locations. The following definition captures this intent.
 
 \begin{lstlisting}[mathescape=true]
 define Ownership = {
@@ -62,31 +113,150 @@ define Ownership = {
 }
 \end{lstlisting}
 
-The constraints in the ownership task are read in a top-down fashion. Traffic for prefix $p_{g1}$ is only allowed to to follow paths that end at router A. Similarly, traffic not matching $p_{g1}$, but which matches $p_{g2}$ must end at router B and so on. 
-%
-To capture the second constraint, we can define another task for the core routing policy:
+In English: traffic for prefix $p_{g1}$ is only allowed to follow paths that
+end at router A; traffic not matching $p_{g1}$, but which matches $p_{g2}$ must
+end at router B; and so on.
+
+To capture the second constraint, we can define another task for the core
+routing policy:
 
 \begin{lstlisting}[mathescape=true]
 define Routing = {
     $\path{p_{g*}}{any}$
-    $\path{p_{l*}}{\neg enter(out)}$
+    $\path{p_{l*}}{\NOT enter(out)}$
     $\path{true}{exit(out)}$
 }
 \end{lstlisting}
 
-The first line states that there is no restriction on how traffic must traverse the network for global prefixes. This means traffic for $p_{g*}$ may be sent either from other routers in the datacenter, or from external ASes. The second line ensures that traffic for local prefixes never enters the network from an outside location. This  guarantees that the services remain reachable only to locations internal to the data center.
+The first line states that there is no restriction (\cd{any})
+on how traffic must
+traverse the network for global prefixes, aside from the default restriction
+that traffic must not pass through the user's network and then loop
+back on itself. This means traffic for
+$p_{g*}$ may be sent either from other routers in the datacenter, or
+from external ASes. The second line ensures that traffic for local
+prefixes never enters the network from an outside location. This constraint
+guarantees that the services remain reachable only to locations
+internal to the data center.
 
-Finally, we can combine these constraints logically to specify the network-wide policy:
+As in the backbone example, we can combine these constraints
+logically to specify the network-wide policy.
+However, in addition to constraints on the shape of paths,
+\sysname allows the operator to specify constraints on the BGP control plane.
+For instance, a constraint on aggregation is included to ensure that
+aggregation for $p_{agg}$ is performed from locations inside the network
+to locations outside the network. \todo{Say more about aggregation here.
+What prefixes are aggregated in to what blocks?  How is this defined?}
 
 \begin{lstlisting}[mathescape=true]
 Ownership $\wedge$ Routing $\wedge$ agg($p_{agg}$, $in \rightarrow out$)
 \end{lstlisting}
 
+As before, once \sysname compiles the policy, it is guaranteed to hold under
+all possible failure scenarios. In addition, the system can check for
+aggregate-induced black holes in the presence of up to $k$ failures.
+\todo{Note:  Another comment about failure checking for black holes, which may
+not be implemented yet.}
 
-In addition to constraints on the shape of paths, \sysname allows the operator to specify constraints on the BGP control plane. Above, a constraint on aggregation is included to ensure that an aggregation for $p_{agg}$ is performed from locations inside the network to locations outside the network.
-
-Once \sysname compiles the policy, it is guaranteed to hold under all possible failure scenarios. Similarly, it can check for aggregate-induced black holes up to $k$ failures. 
 
 
 
 
+
+
+
+
+%%%%OLD TEXT BELOW
+%
+%\section{Propane}
+%\label{sec:propane}
+%
+%\sysname simplifies network configuration by automatically generating low-level BGP configurations from a high-level specification of the network's routing policy.
+%%
+%The operator configures the network with the abstraction that he or she has centralized control over routing and uses a set of high-level constraints to describe the different routes traffic may (or may not) take and their relative preferences.
+%%
+%The \sysname compiler generates BGP configurations for each device in the network that operate in a completely distributed fashion and are correct by construction -- automatically synthesizing import/export filters, local preference and MED attributes, and community tags to ensure policy compliance under all possible failure scenarios.
+%%
+%We now demonstrate \sysname by showing how to configure the networks from the previous examples.
+%
+%\para{Example 1}
+%
+%We now show how to write the routing policy for the backbone network in Section~\ref{sec:motivation}. \sysname allows to address each of the requirements in turn. First we address requirements (P1), (P3), and (P4) that customers are preferred over peers over providers, and that a customer appear on the path for its prefix. The following \sysname code accomplishes these two objectives:
+%
+%\begin{lstlisting}[mathescape=true]
+%define ExitCust = $exit(R_1 \gg R_2)$
+%
+%define Routing = {
+%    $\path{C_{pfx}}{ExitCust \gg end(Cust) }$
+%    $\path{I_{pfx}}{end(in)}$
+%    $\path{true}{ExitCust \gg exit(Peer) \gg exit(Prov)}$
+%}
+%\end{lstlisting}
+%
+%The first definition defines paths that exit our network to the customer. The statement $exit(R_1 \gg R_2)$ restricts us to paths that leave our network through either router $R_1$ or $R_2$, with a preference for $R_1$.
+%The first line of the \textsf{Routing} policy ensures that traffic destined for customer prefixes ($C_{pfx}$) either leaves the network directly to the customer (with a preference for leaving through $R_1$), or simply ends at the customer. Not leaving directly to the customer by going through \textit{Peer} or \textit{Prov} is less preferred than leaving directly, and thus serves as a backup route in a direct route is not available.
+%
+%The second line state that traffic for internal prefixes $I_{pfx}$ must end in our network, and is otherwise unconstrained. The last line applies to any other traffic, and allows for any routes that leave through a peer with a preference for customers over peers over providers. While this still allows transit traffic (e.g., traffic can enter from \textit{Peer} and leave through \textit{Prov}), we can restrict this behavior separately as follows:
+%
+%\begin{lstlisting}[mathescape=true]
+%define PP = Peer or Prov
+%define PPTransit = $enter(PP) \wedge exit(PP)$
+%define CustTransit = $later(Cust) \wedge later(Prov)$
+%
+%define NoTransit = {
+%    $\path{true}{\neg PPTransit \wedge \neg CustTransit}$
+%}
+%\end{lstlisting}
+%
+%The \textsf{NoTransit} constraint above ensures that requirements (P2) and (P5) are satisfied. In particular, it says that, for any prefix, traffice should never both enter and exit the network from \textit{Peer} or \textit{Prov}. Similarly it prevents traffic from ever following paths that leave our network and later go through both \textit{Prov} and \textit{Cust}.
+%
+%\begin{lstlisting}[mathescape=true]
+%Routing $\wedge$  NoTransit
+%\end{lstlisting}
+%
+%The final policy is simply the conjunction of the routing and no transit constraints. \sysname will generate per-device import and export filters, local preferences and MED attributes, and community tags to ensure that the policy is met under all failure scenarios.
+%
+%
+%\para{Example 2}
+%
+%Consider again the datacenter from Section~\ref{sec:motivation}. In this example, there are primarily three main concerns: (1) traffic for the prefix block allocated to each top-of-rack router can reach that router, (2) local services do not leak outside the datacenter, and (3) aggregation is performed on global prefixes to reduce churn in the network.
+%
+%\sysname allows us to decompose and specify each of these constraints in a modular fashion. The first constraint is about prefix ownership -- namely, that we only want traffic for certain prefixes to end up at a particular locations. The following definition in propane captures this intent:
+%
+%\begin{lstlisting}[mathescape=true]
+%define Ownership = {
+%    $\path{p_{g1}}{end(A)}$
+%    $\path{p_{g2}}{end(B)}$
+%    $\path{p_{l1}}{end(E)}$
+%    $\path{p_{l2}}{end(F)}$
+%}
+%\end{lstlisting}
+%
+%The constraints in the ownership task are read in a top-down fashion. Traffic for prefix $p_{g1}$ is only allowed to to follow paths that end at router A. Similarly, traffic not matching $p_{g1}$, but which matches $p_{g2}$ must end at router B and so on.
+%%
+%To capture the second constraint, we can define another task for the core routing policy:
+%
+%\begin{lstlisting}[mathescape=true]
+%define Routing = {
+%    $\path{p_{g*}}{any}$
+%    $\path{p_{l*}}{\neg enter(out)}$
+%    $\path{true}{exit(out)}$
+%}
+%\end{lstlisting}
+%
+%The first line states that there is no restriction on how traffic must traverse the network for global prefixes. This means traffic for $p_{g*}$ may be sent either from other routers in the datacenter, or from external ASes. The second line ensures that traffic for local prefixes never enters the network from an outside location. This  guarantees that the services remain reachable only to locations internal to the data center.
+%
+%Finally, we can combine these constraints logically to specify the network-wide policy:
+%
+%\begin{lstlisting}[mathescape=true]
+%Ownership $\wedge$ Routing $\wedge$ agg($p_{agg}$, $in \rightarrow out$)
+%\end{lstlisting}
+%
+%
+%In addition to constraints on the shape of paths, \sysname allows the operator to specify constraints on the BGP control plane. Above, a constraint on aggregation is included to ensure that an aggregation for $p_{agg}$ is performed from locations inside the network to locations outside the network.
+%
+%Once \sysname compiles the policy, it is guaranteed to hold under all possible failure scenarios. Similarly, it can check for aggregate-induced black holes up to $k$ failures.
+%
+%
+%
+%
