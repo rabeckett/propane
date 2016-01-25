@@ -1,12 +1,34 @@
 \section{Evaluation}
 
-We have evaluated our compiler by translating and compiling real-world network configurations for data centers and a core backbone network into \sysname. We evaluate our compiler by measuring compilation times for these policies across topologies of different sizes.
+We apply \sysname on real policies for backbone and data center networks. Our goal is to evaluate if its front-end is expressive enough for real-world policies and the time the compiler takes to generate router configurations. 
+
+\subsection{Networks studied}
+
+We obtain routing policy for the backbone network and for the data centers of a large cloud provider. Multiple data centers share this policy. The backbone network connects to the data centers and also has many external BGP neighbors. The policies are written in English and serve as a guide for operators when generating configuration templates for the data center routers or actual configurations for the backbone network (where templates are not used because of less regular structure).
+
+The networks have the type of policies that we outline earlier (\S\ref{sec:motivation}). The backbone network classifies external neighbors into several different categories and prefers paths through them in order. It does not want to provide transit among certain types of neighbors. For some neighbors, it prefers some links over the others. It supports communities based on which it will not announce certain routes externally or announce them only within a geographic region (e.g., West Coast of the USA). Finally, it has filters to prevent bogons (private address space) from external neighbors, accept customer prefixes only from customers, and prevent customers from providing transit to other large networks.
+
+All routers in the datacenter network run BGP using a private AS number and peer with each other and with the backbone network over eBGP. The routers aggregate prefixes when announcing them to the backbone network, they keep some prefixes internal, and attach communities for some other prefixes that should not traverse beyond the geographic region. They also have policies by which some prefixes should not be announced beyond a certain level in the data center hierarchy.
+
+\subsection{Expressiveness}
+
+We found that we could translate all network policies to \sysname. We verified with the operators that our translation preserved intended semantics.\footnote{Not intended as a scientific test, but we also asked the two operators if they would find it easy to express their policies in \sysname. The data center operator said that he found the language intuitive. The backbone operator said that formalizing the policy in \sysname seemed equally easy or difficult as formalizing in RPSL~\cite{x}, but he appreciated that he would have to do it only once for the whole network (not per-router) and did not have to compute the various local preferences, import-export filters, and MEDs.} We found that the data center policies were correctly translated. For the backbone network, the operator mentioned an additional policy that was not present in the English document, which we added later.
+
+Not counting the lines for various definitions like prefix and customer groups, which we cannot reveal because of confidentiality concerns, the \sysname policies were \todo{x} lines for the backbone network and \todo{y} lines for the data center networks.
+
+\subsection{Compilation time}
+
+We now study the compilation of time for both policies as a function of network size. Even though the networks we study have a fixed topology and size, we can explore the impact of size because our converted policies are network-wide and the compiler takes topology itself as an input. For the data center network, we build and provide as input fat tree topologies of different sizes, assign a /24 prefix to each ToR switch, and randomly map prefixes to each type of prefix group with a distinct routing policy. We take this approach to smoothly explore different sizes; there is a parameterized way to build fat trees~\cite{fattree}, which does not exist for our concrete data center topologies. For a given size, our reported results match those for the concrete topologies.
+
+For the backbone network, the internal topology does not matter since all routers connect in a full iBGP mesh. We explore different mesh sizes and randomly map neighboring networks to routers.
+
+\todo{Talk about results now}
 
 \begin{figure}[t!]
 \centering
 \includegraphics[width=\columnwidth]{figures/compilation-times-dc.png}
 \label{fig:compilation-times-dc}
-\caption{Data center compilation times.}
+\caption{Data center compilation times. \todo{change pod size to number of routers}}
 \end{figure}
 
 \begin{figure}[t!]
@@ -14,4 +36,4 @@ We have evaluated our compiler by translating and compiling real-world network c
 \includegraphics[width=\columnwidth]{figures/config-compression-dc.png}
 \label{fig:compilation-compression-dc}
 \caption{Data center config minimization.}
-\end{figure}
+\end{figure} 
