@@ -130,6 +130,12 @@ module Examples =
     type Tiers = Dictionary<State,int>
     type Prefixes = Dictionary<State,Prefix.T>
 
+    let getPrefix i = 
+        let a = uint32 (i / (256 * 256))
+        let b = uint32 (i / 256)
+        let c = uint32 (i % 256)
+        Prefix.prefix (a, b, c, 0u) 24u
+
     let megaDC (tiers: (int*int) list) top =
         let loc t i = 
             "T" + string t + "_" + string i 
@@ -152,11 +158,7 @@ module Examples =
                         g.AddVertex v |> ignore
                         tierMap.[v] <- currTier
                         if currTier = 0 then 
-                            let a = uint32 (!currPrefix / 256 * 256)
-                            let b = uint32 (!currPrefix / 256)
-                            let c = uint32 (!currPrefix % 256)
-                            let p = Prefix.prefix (a, b, c, 0u) 24u
-                            prefixMap.[v] <- p
+                            prefixMap.[v] <- getPrefix !currPrefix
                             currPrefix := !currPrefix + 1
                         for u in parents do
                             printfn "Adding edge: %s to %s" v.Loc u.Loc
@@ -183,11 +185,7 @@ module Examples =
             let name = "T0_" + string i
             let v = {Loc=name; Typ=InsideOriginates}
             ignore (g.AddVertex v)
-            let a = uint32 (i / (256 * 256))
-            let b = uint32 (i / 256)
-            let c = uint32 (i % 256)
-            let p = Prefix.prefix (a, b, c, 0u) 24u
-            prefixes.[v] <- p
+            prefixes.[v] <- getPrefix i
             tiers.[v] <- 0
             v)
         let routersT1 = Array.init iT1 (fun i -> 
@@ -221,15 +219,40 @@ module Examples =
             addEdgesUndirected g [(idfx, x)]
         (g, prefixes, tiers)
 
-    let complete n = 
+    let complete n  = 
         let g = BidirectionalGraph<State, TaggedEdge<State,unit>>()
+        let numPeers = max 3 (n / 2)
+        let getPeer i = 
+            let typ = 
+                match i % 3 with
+                | 0 -> "Cust"
+                | 1 -> "Peer"
+                | 2 -> "Paid"
+                | _ -> failwith "unreachable"
+            let which = string (i / 3)
+            typ + which
+         // setup external peers
+        let externalPeers = Dictionary()
+        for i = 0 to numPeers-1 do 
+            let name = getPeer i
+            let v = {Loc=name; Typ=Outside}
+            ignore (g.AddVertex v)
+            externalPeers.[name] <- v
+        // setup internal full mesh
         for i = 0 to n-1 do
             let name = "R" + string i
-            let v = {Loc=name; Typ=InsideOriginates}
+            let v = {Loc=name; Typ=Inside}
             ignore (g.AddVertex v)
         for v1 in g.Vertices do 
             for v2 in g.Vertices do 
-                if v1 <> v2 then 
+                if isInside v1 && isInside v2 && v1 <> v2 then
                     g.AddEdge (TaggedEdge(v1,v2,())) |> ignore
-                    g.AddEdge (TaggedEdge(v2,v1,())) |> ignore
+        // add connections to external peers
+        let mutable i = 0 
+        for v in g.Vertices do 
+            if isInside v then
+                let outside = externalPeers.[getPeer i]
+                g.AddEdge (TaggedEdge (v, outside, ()) ) |> ignore
+                g.AddEdge (TaggedEdge (outside, v, ()) ) |> ignore
+                i <- i + 1
         g

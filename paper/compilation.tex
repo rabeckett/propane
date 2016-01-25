@@ -341,11 +341,14 @@ The checks for failure safety described previously overlook one critical point: 
 %\label{fig:abgp-config}
 %\end{figure}
 
+\newcommand{\highlight}[1]{%
+  \colorbox{red!50}{$\displaystyle#1$}}
 \newcommand{\Router}[1]{ \textbf{Router #1:} }
 \newcommand{\REGEX}[1]{ \text{regex}(#1) }
 \newcommand{\PEER}{ \text{peer} }
 \newcommand{\COMM} {\text{comm}}
 \newcommand{\MED} {\text{MED}}
+
 
 \begin{figure}[t!]
 \begin{lstlisting}[frame=single, mathescape=true] 
@@ -359,7 +362,7 @@ $\Router{B}$
   Match $\PEER = C, \COMM = (3,2)$
     Export $\COMM \leftarrow (-,3), \COMM \leftarrow \text{noexport},$ 
            $\MED \leftarrow 81, \PEER \leftarrow W$
-$\Router{C}$
+$\Router{C}$-
   Match$[LP=99]$ $\PEER = E, \COMM = (-,2) $
     Export $\COMM \leftarrow (-,2), \PEER \leftarrow B$
   Match $\PEER = D, \COMM = (2,2)$

@@ -106,15 +106,15 @@ fig.savefig('compilation-time.png')
 #
 #====================================================
 
-num_nodes1 = num_pods 
-num_nodes2 = map(lambda x: x, num_nodes)
+num_nodes1 = num_nodes 
+num_nodes2 = map(lambda x: x-20, num_nodes)
 sizes_raw_per = map(lambda (size,n): size/n, zip(sizes_raw, num_nodes))
 sizes_compressed_per = map(lambda (size,n): size/n, zip(sizes_compressed, num_nodes))
 
 fig = plt.figure()
 ax1 = fig.add_subplot(111)
-ax1.bar(num_nodes1, sizes_raw_per, width=.5, color=color1, alpha=1, align='center') # use log=true
-ax1.bar(num_nodes2, sizes_compressed_per, width=.5, color=color3, alpha=1, align='center')
+ax1.bar(num_nodes1, sizes_raw_per, width=20, color=color1, alpha=1, align='center') # use log=true
+ax1.bar(num_nodes2, sizes_compressed_per, width=20, color=color3, alpha=1, align='center')
 ax1.set_xlabel('Data center size (routers)')
 ax1.set_ylabel('Config Size (lines of ABGP per router)')
 leg_boxes = [p1, p3]

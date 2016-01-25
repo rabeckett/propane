@@ -130,3 +130,37 @@ let datacenter () =
         System.GC.Collect ()
         singleDatacenter k
 
+
+let singleCore n = 
+    let settings = Args.getSettings () 
+    let topo = Topology.Examples.complete n
+    let nNodes = n 
+    let nEdges = n * (n-1) / 2
+    // get all cust,peer,paid
+    let custs = topo.Vertices |> Seq.filter (fun v -> v.Loc.[0] = 'C') |> Seq.map (fun v -> v.Loc)
+    let peers = topo.Vertices |> Seq.filter (fun v -> v.Loc.[1] = 'e') |> Seq.map (fun v -> v.Loc)
+    let paids = topo.Vertices |> Seq.filter (fun v -> v.Loc.[1] = 'a') |> Seq.map (fun v -> v.Loc)
+    // build as regex
+    let anyCust (reb: Regex.REBuilder) = List.ofSeq custs
+    let anyPeer (reb: Regex.REBuilder) = List.ofSeq peers
+    let anyPaid (reb: Regex.REBuilder) = List.ofSeq paids
+    // entering preferences
+    let reb, incoming =
+        let reb = Regex.REBuilder(topo)
+        let pref1 = reb.Exit (anyCust reb)
+        let pref2 = reb.Exit (anyPeer reb)
+        let pref3 = reb.Exit (anyPaid reb) 
+        reb, [reb.Build pref1; reb.Build pref2; reb.Build pref3]
+
+    let mutable pairs = [(Predicate.top, reb, incoming)]
+    let (ir, _, stats) = IR.compileAllPrefixes "output" topo (List.rev pairs) []
+    displayStats 0 nNodes nEdges stats
+    match settings.OutFile with 
+    | None -> ()
+    | Some out -> System.IO.File.WriteAllText(out + ".ir", IR.format ir)
+
+let core () =
+    displayHeader () 
+    System.GC.Collect ()
+    for n in 3..3..3 do
+        singleCore n

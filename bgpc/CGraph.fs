@@ -371,8 +371,8 @@ module Minimize =
         let domRev = dominators cg cg.End Up
         // Remove nodes dominated by a similar location
         cg.Graph.RemoveVertexIf (fun v ->
-            Set.union dom.[v] domRev.[v]
-            |> Set.exists (shadows v) ) |> ignore
+            Topology.isInside v.Node && 
+            Set.union dom.[v] domRev.[v] |> Set.exists (shadows v)) |> ignore
         // Remove dominated edges
         cg.Graph.RemoveEdgeIf (fun (e: TaggedEdge<CgState,unit>) -> 
             let ies = cg.Graph.OutEdges e.Target
@@ -381,14 +381,16 @@ module Minimize =
             | Some ie ->
                 assert (ie.Source = e.Target)
                 assert (ie.Target = e.Source)
+                (Topology.isInside e.Source.Node && Topology.isInside e.Target.Node) &&
                 (Set.contains e.Target (dom.[e.Source]) || Set.contains e.Source (domRev.[e.Target])) &&
                 (e.Target <> e.Source) ) |> ignore
         // Remove edges where the outgoing is dominated by a similar location
         cg.Graph.RemoveEdgeIf (fun e ->
             let x = e.Source
             let y = e.Target
-            Set.exists (shadows x) domRev.[y] || 
-            Set.exists (shadows y) dom.[x]) |> ignore
+            (Topology.isInside x.Node && Topology.isInside y.Node) &&
+            (Set.exists (shadows x) domRev.[y] || 
+             Set.exists (shadows y) dom.[x])) |> ignore
         cg
 
     let removeNodesThatCantReachEnd (cg: T) = 
@@ -490,7 +492,7 @@ module Minimize =
             logInfo1(idx, sprintf "Node count (remove dominated): %d" (!cg).Graph.VertexCount)
             cg := removeNodesThatStartCantReach !cg
             logInfo1(idx, sprintf "Node count (start cant reach): %d" (!cg).Graph.VertexCount)
-            cg := removeRedundantExternalNodes !cg
+            // cg := removeRedundantExternalNodes !cg
             logInfo1(idx, sprintf "Node count (redundant external nodes): %d" (!cg).Graph.VertexCount)
             cg := compressRepeatedUnknowns !cg
             logInfo1(idx, sprintf "Node count (compress out*): %d" (!cg).Graph.VertexCount)
