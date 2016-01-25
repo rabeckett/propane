@@ -1,9 +1,9 @@
 \section{Background on BGP}
 \label{sec:background}
 
-Our work focuses on BGP as it is the most common and flexible way to implement distributed control planes today. In this section, we provide relevant background on BGP.
+%Our work focuses on BGP as it is the most common and flexible way to implement distributed control planes today. In this section, we provide relevant background on BGP.
 
-BGP is a path-vector routing protocol that connects autonomous systems (ASes). An AS has one or more routers managed by the same administrative entity. ASes exchange routing announcements with their neighboring ASes. Each announcement has a destination IP prefix and some attributes (see below), and it indicates that the sending AS is willing to carry traffic to that prefix from the receiving AS. Traffic flows in the opposite direction, from announcement receivers to senders.
+BGP is a path-vector routing protocol that connects autonomous systems (ASes). An AS has one or more routers managed by the same administrative entity. ASes exchange routing announcements with their neighbors. Each announcement has a destination IP prefix and some attributes (see below), and it indicates that the sending AS is willing to carry traffic destined to that prefix from the receiving AS. Traffic flows in the opposite direction, from announcement receivers to senders.
 
 When a route announcement is received by an AS, it is processed by custom import filters that may drop the announcement or modify some attributes. If multiple announcements for the same prefix survive import filters, the router selects the best one based on local policy (see below). This route is then used to send traffic to the destination. It is also advertised to the neighbors, after processing through neighbor-specific export filters that may stop the announcement or modify some attributes.
 
@@ -12,5 +12,5 @@ All routing announcements are accompanied by an AS-path attribute that reflects 
 The route selection process assigns a {\em local preference} to each route that survives the import filters. Routes with higher local preference are preferred. Among routes with the same local preference, other factors such as AS path length, MEDs, internal routing cost, are considered in order. Because it is considered first during route selection, local preference is highly influential, and ASes may assign this preference based on any aspect of the route. A common practice is to assign it based on the commercial relationship with the neighbor. For instance, an AS may prefer in order customer ASes (which pay money), peer ASes (with free exchange of traffic), and provider ASes (which charge money for traffic).
 
 In implementing their policy, each network assumes that neighboring ASes correctly implement BGP and honor contracts related to MEDs and communities. While deriving configurations, \sysname makes a similar assumption.
- 
+
 The combination of arbitrary import and export filters and route selection policies at individual routers make BGP a highly flexible routing protocol. That flexibility, however, comes at the cost of it being difficult to configure correctly, as we explain next.
