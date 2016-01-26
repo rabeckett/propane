@@ -248,7 +248,7 @@ module Examples =
         let mutable i = 0 
         for v in g.Vertices do 
             if isInside v then
-                let outside = externalPeers.[getPeer i]
+                let outside = externalPeers.[getPeer (i % numPeers)]
                 g.AddEdge (TaggedEdge (v, outside, ()) ) |> ignore
                 g.AddEdge (TaggedEdge (outside, v, ()) ) |> ignore
                 i <- i + 1

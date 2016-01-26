@@ -132,23 +132,25 @@ let datacenter () =
 let singleCore n = 
     let settings = Args.getSettings () 
     let topo = Topology.Examples.complete n
-    let nNodes = n 
-    let nEdges = n * (n-1) / 2
+    let nNodes = topo.VertexCount
+    let nEdges = topo.EdgeCount
     // get all cust,peer,paid
     let custs = topo.Vertices |> Seq.filter (fun v -> v.Loc.[0] = 'C') |> Seq.map (fun v -> v.Loc)
     let peers = topo.Vertices |> Seq.filter (fun v -> v.Loc.[1] = 'e') |> Seq.map (fun v -> v.Loc)
     let paids = topo.Vertices |> Seq.filter (fun v -> v.Loc.[1] = 'a') |> Seq.map (fun v -> v.Loc)
     // build as regex
-    let anyCust (reb: Regex.REBuilder) = List.ofSeq custs
-    let anyPeer (reb: Regex.REBuilder) = List.ofSeq peers
-    let anyPaid (reb: Regex.REBuilder) = List.ofSeq paids
+    let anyCust = List.ofSeq custs
+    let anyPeer = List.ofSeq peers
+    let anyPaid = List.ofSeq paids
     // entering preferences
     let reb, incoming =
         let reb = Regex.REBuilder(topo)
+        let pp = anyPeer @ anyPaid
+        let noTransit = reb.Inter [reb.Any(); reb.Negate (reb.Inter [reb.Enter pp; reb.Exit pp])]
         //let twoHop = reb.Concat [reb.Star reb.Outside; reb.Inside; reb.Inside; reb.Star reb.Outside]
-        let pref1 = reb.Inter [reb.Exit (anyCust reb)]
-        let pref2 = reb.Inter [reb.Exit (anyPeer reb)]
-        let pref3 = reb.Inter [reb.Exit (anyPaid reb)]
+        let pref1 = reb.Inter [reb.Exit (anyCust); noTransit]
+        let pref2 = reb.Inter [reb.Exit (anyPeer); noTransit]
+        let pref3 = reb.Inter [reb.Exit (anyPaid); noTransit]
         reb, [reb.Build pref1; reb.Build pref2; reb.Build pref3]
 
     let mutable pairs = [(Predicate.top, reb, incoming)]
@@ -161,5 +163,5 @@ let singleCore n =
 let core () =
     displayHeader () 
     System.GC.Collect ()
-    for n in 3..3..3 do
+    for n in 3..3..30 do
         singleCore n
