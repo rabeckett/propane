@@ -18,17 +18,11 @@ Not counting the lines for various definitions like prefix and customer groups, 
 
 \subsection{Compilation time}
 
-We now study the compilation of time for both policies as a function of network size. Even though the networks we study have a fixed topology and size, we can explore the impact of size because our converted policies are network-wide and the compiler takes topology itself as an input. For the data center network, we build and provide as input fat tree topologies of different sizes, assign a /24 prefix to each ToR switch, and randomly map prefixes to each type of prefix group with a distinct routing policy. We take this approach to smoothly explore different sizes; there is a parameterized way to build fat trees~\cite{fattree}, which does not exist for our concrete data center topologies. For a given size, our reported results match those for the concrete topologies.
-
-For the backbone network, the internal topology does not matter since all routers connect in a full iBGP mesh. We explore different mesh sizes and randomly map neighboring networks to routers.
-
-\todo{Talk about results now}
-
 \begin{figure}[t!]
 \centering
 \includegraphics[width=\columnwidth]{figures/compilation-times-dc.png}
 \label{fig:compilation-times-dc}
-\caption{Data center compilation times. \todo{change pod size to number of routers}}
+\caption{Data center compilation times.}
 \end{figure}
 
 \begin{figure}[t!]
@@ -37,6 +31,19 @@ For the backbone network, the internal topology does not matter since all router
 \label{fig:compilation-compression-dc}
 \caption{Data center config minimization.}
 \end{figure} 
+
+We now study the compilation of time for both policies as a function of network size. Even though the networks we study have a fixed topology and size, we can explore the impact of size because our converted policies are network-wide and the compiler takes topology itself as an input. For the data center network, we build and provide as input fat tree topologies of different sizes, assign a /24 prefix to each ToR switch, and randomly map prefixes to each type of prefix group with a distinct routing policy. We take this approach to smoothly explore different sizes; there is a parameterized way to build fat trees~\cite{fattree}, which does not exist for our concrete data center topologies. For a given size, our reported results match those for the concrete topologies.
+
+For the backbone network, the internal topology does not matter since all routers connect in a full iBGP mesh. We explore different mesh sizes and randomly map neighboring networks to routers.
+
+All experiments are run on an 8 core, 3.6 GHz Intel Xeon processor running Windows 7. 
+%
+For the data center policy, we measure the mean compilation time per-prefix since the \sysname compiler can compile for each prefix independently, and in parallel. Figure~\ref{fig:compilation-times-dc} shows the compilation times for data centers of different sizes, broken down by compilation phase. No individual compilation phase dominates the running time of the compiler, with construction and minimization of the product graph taking the most time. \sysname compiles each data center in under 15 seconds per-prefix on average. Total compilation time for the largest data center with (>1600) routers takes less than 9 minutes total.
+\todo{Core compilation times here}
+
+\ryan{Do we want to include this?}
+The naive compilation algorithm from \S\ref{sec:compilation} generates extremely large ABGP policies. To offset this, the compiler performs configuration minimization both during and after configuration generation. Such minimization is useful for limiting the computational expense of matching routes on BGP routers, reducing the number of forwarding entries in routers in certain cases, and making configurations more readable for humans. Figure~\ref{fig:compilation-compress-dc} shows the effect of minimization for the data center policy. Minimization significantly reduces the size of the naive configurations.
+
 
 \subsection{Propane-generated configurations}
 
