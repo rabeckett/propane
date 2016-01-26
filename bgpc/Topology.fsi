@@ -53,6 +53,9 @@ val addEdgesDirected: T -> (State*State) list -> unit
 /// Helper function for building topology
 val addEdgesUndirected: T -> (State*State) list -> unit
 
+/// Get topology state by location
+val getStateByLoc: T -> string -> State
+
 /// Find all the valid topology links corresponding to pairs of locations
 val findLinks: T -> Set<string> * Set<string> -> (State * State) list
 

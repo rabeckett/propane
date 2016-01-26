@@ -126,10 +126,9 @@ let singleDatacenter k =
 
 let datacenter () = 
     displayHeader ()
-    for k in 4..2..40 do
+    for k in 6..2..40 do
         System.GC.Collect ()
         singleDatacenter k
-
 
 let singleCore n = 
     let settings = Args.getSettings () 
@@ -147,9 +146,10 @@ let singleCore n =
     // entering preferences
     let reb, incoming =
         let reb = Regex.REBuilder(topo)
-        let pref1 = reb.Exit (anyCust reb)
-        let pref2 = reb.Exit (anyPeer reb)
-        let pref3 = reb.Exit (anyPaid reb) 
+        //let twoHop = reb.Concat [reb.Star reb.Outside; reb.Inside; reb.Inside; reb.Star reb.Outside]
+        let pref1 = reb.Inter [reb.Exit (anyCust reb)]
+        let pref2 = reb.Inter [reb.Exit (anyPeer reb)]
+        let pref3 = reb.Inter [reb.Exit (anyPaid reb)]
         reb, [reb.Build pref1; reb.Build pref2; reb.Build pref3]
 
     let mutable pairs = [(Predicate.top, reb, incoming)]

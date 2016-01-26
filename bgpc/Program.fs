@@ -8,7 +8,7 @@ let main argv =
     ignore (Args.parse argv)
     let settings = Args.getSettings ()
     if settings.Experiment then
-        Experiment.core ()
+        Experiment.datacenter ()
         exit 0
     if settings.Test then
         Test.run ()
