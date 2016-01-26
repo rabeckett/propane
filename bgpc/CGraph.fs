@@ -211,6 +211,9 @@ let inline isInside x =
 let inline isOutside x = 
     Topology.isOutside x.Node
 
+let inline isEmpty (cg: T) = 
+    cg.Graph.VertexCount = 2
+
 let restrict (cg: T) (i: int) = 
     if Set.contains i (preferences cg) then 
         let copy = copyGraph cg

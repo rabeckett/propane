@@ -47,9 +47,13 @@ type Export = Peer * Action list
 
 /// Result from compiling a single prefix
 
+type Filter = 
+    | Deny
+    | Allow of Import * (Export list)
+
 type DeviceConfig =
     {Originates: bool;
-     Filters: (Import * Export list) list}
+     Filters: Filter list}
 
 type PredConfig = Predicate.T * Map<string, DeviceConfig>
 
@@ -122,18 +126,22 @@ let format (config: T) =
                 sb.Append (sprintf "\n  MaxRoutes(%d)" i) |> ignore
         for (pred, deviceConf) in routerConfig.Actions do
             let predStr = string pred
-            for ((m, lp), es) in deviceConf.Filters do
-                sb.Append("\n  Match: ") |> ignore
-                sb.Append("[Prefix=" + predStr + ", ") |> ignore
-                sb.Append(m.ToString() + "]") |> ignore
-                if (not deviceConf.Originates) && lp <> 100 then
-                    sb.Append(" (LP=" + lp.ToString() + ")") |> ignore
-                for (peer, acts) in es do
-                    sb.Append("\n    Export: [Peer<-" + peer) |> ignore
-                    if acts <> [] then
-                        let str = Common.List.joinBy "," (List.map string acts)
-                        sb.Append(", " + str) |> ignore
-                    sb.Append("]") |> ignore
+            for f in deviceConf.Filters do
+                match f with 
+                | Deny ->
+                    sb.Append("\n  Deny: ") |> ignore
+                    sb.Append("[Pred=" + predStr + "]") |> ignore
+                | Allow ((m, lp), es) ->
+                    sb.Append("\n  Allow: ") |> ignore
+                    sb.Append("[Pred=" + predStr + ", " + string m + "]") |> ignore
+                    if (not deviceConf.Originates) && lp <> 100 then
+                        sb.Append(" (LP=" + lp.ToString() + ")") |> ignore
+                    for (peer, acts) in es do
+                        sb.Append("\n    Export: [Peer<-" + peer) |> ignore
+                        if acts <> [] then
+                            let str = Common.List.joinBy "," (List.map string acts)
+                            sb.Append(", " + str) |> ignore
+                        sb.Append("]") |> ignore
         sb.Append("\n") |> ignore
     sb.ToString()
 
@@ -271,7 +279,14 @@ let inline getRegexMatch x =
 let getOutPeerType cg (x:CgState) = 
     if Topology.isOutside x.Node then
         let nin = neighborsIn cg x
-        if Seq.length nin = 1 && Seq.head nin = cg.Start then PeerMatch x
+        if Seq.length nin = 2 &&
+           Seq.exists ((=) cg.Start) nin && 
+           Seq.exists (fun v -> 
+                isRepeatedOut cg v && 
+                let nin = neighborsIn cg v 
+                Seq.length nin = 2 && 
+                Seq.exists ((=) cg.Start) nin) nin then
+            PeerMatch x
         else RegexMatch (CGraph.ToRegex.constructRegex (CGraph.copyReverseGraph cg) x)
     else PeerMatch x
 
@@ -302,11 +317,15 @@ let inline getExport specialCase inExports x v =
         ret
     else [SetComm(string x.State)]
 
-let getExports allTopoPeers x inExports (outgoing: seq<CgState>) = 
+let getExports allTopoPeers x inExports (outgoing: seq<CgState>) unqMatchPeer = 
     let specialCase = ref false
     let exports = List.ofSeq outgoing |> List.map (fun v -> (v.Node.Loc, getExport specialCase inExports x v)) 
     if not !specialCase then
         let sendToLocs = Seq.map (fun v -> v.Node.Loc) outgoing |> Set.ofSeq
+        let sendToLocs = 
+            match unqMatchPeer with
+            | Some x -> Set.add x sendToLocs
+            | None -> sendToLocs
         if allTopoPeers = sendToLocs then 
             [("*", [SetComm(string x.State)])]
         else exports
@@ -318,15 +337,14 @@ let genConfig (cg: CGraph.T) (pred: Predicate.T) (ord: Consistency.Ordering) (in
     let szRaw = ref 0 
     let szSmart = ref 0
     let mutable config = Map.empty
-    for entry in ord do 
-        let mutable rules = []
-        let loc = entry.Key
-        let prefs = entry.Value 
-        if ain.Contains loc then
-            let mutable originates = false
+    for loc in ain do
+        let mutable filters = []
+        let mutable originates = false
+        match Map.tryFind loc ord with 
+        | None -> ()
+        | Some prefs ->
+            let mutable rules = []
             let mutable lp = 101
-            let mutable filters = []
-            let mutable originates = false
             for cgstate in prefs do
                 lp <- lp - 1
                 let allTopoPeers = 
@@ -340,14 +358,20 @@ let genConfig (cg: CGraph.T) (pred: Predicate.T) (ord: Consistency.Ordering) (in
                 let peerTypes = Seq.map (getOutPeerType cg) receiveFrom
                 let origin = Seq.exists ((=) cg.Start) nsIn
                 let matches =  if origin then [Match.NoMatch] else getMatches allTopoPeers peerTypes
-                let exports = getExports allTopoPeers cgstate inExports sendTo
+                let unqMatchPeer = 
+                    match matches with 
+                    | [Match.Peer x] -> Some x
+                    | [Match.State(_,x)] -> Some x 
+                    | _ -> None
+                let exports = getExports allTopoPeers cgstate inExports sendTo unqMatchPeer
                 for m in matches do 
-                    filters <- ((m,lp), exports) :: filters
+                    filters <- Allow ((m,lp), exports) :: filters
                 originates <- origin || originates
                 szRaw := !szRaw + (Seq.length nsIn) * (Seq.length nsOut)
                 szSmart := !szSmart + (List.length filters) * (List.length exports)
-            let deviceConf = {Originates=originates; Filters=filters}
-            config <- Map.add loc deviceConf config
+        filters <- List.rev (Deny :: filters)
+        let deviceConf = {Originates=originates; Filters=filters}
+        config <- Map.add loc deviceConf config
     (pred, config), !szRaw, !szSmart
 
  
@@ -458,32 +482,36 @@ module Compress =
             pCount.[e] <- count
         let inline unqPair e = 
             fst e <> "*" && snd e <> "*" && pCount.[e] = 1 
-        updateDC config (fun loc v ->
-            let ((m,lp),es) = v 
-            let m' = 
-                match m with
-                | Match.State(is,x) -> if unqPair (x,loc) then Match.Peer(x) else m
-                | _ -> m
-            let es' = updateExports es (fun (peer, acts) -> 
-                let acts' =
-                    match getTag acts with
-                    | None -> acts
-                    | Some is -> if unqPair (loc,peer) then List.filter (isCommunityTag >> not) acts else acts
-                Some (peer, acts'))
-            Some ((m', lp), es'))
+        updateDC config (fun loc f ->
+            match f with 
+            | Deny -> Some Deny
+            | Allow ((m,lp),es) -> 
+                let m' = 
+                    match m with
+                    | Match.State(is,x) -> if unqPair (x,loc) then Match.Peer(x) else m
+                    | _ -> m
+                let es' = updateExports es (fun (peer, acts) -> 
+                    let acts' =
+                        match getTag acts with
+                        | None -> acts
+                        | Some is -> if unqPair (loc,peer) then List.filter (isCommunityTag >> not) acts else acts
+                    Some (peer, acts'))
+                Some (Allow ((m', lp), es')))
 
     (* Remove tags for the same state as is being matched on. E.g., 
         community=4; community <- 4 *)
 
     let compressRedundantTagging (cg: CGraph.T) (config: PredConfig) : PredConfig = 
         updateDC config (fun router filter -> 
-            let ((m,lp),es) = filter
-            match m with
-            | Match.State(is,p) -> 
-                let es' = updateExports es (fun (peer, acts) -> 
-                    Some (peer, List.filter (isCommunity is >> not) acts))
-                Some ((m,lp), es')
-            | _ -> Some filter)
+            match filter with 
+            | Deny -> Some Deny 
+            | Allow ((m,lp),es) ->
+                match m with
+                | Match.State(is,p) -> 
+                    let es' = updateExports es (fun (peer, acts) -> 
+                        Some (peer, List.filter (isCommunity is >> not) acts))
+                    Some (Allow ((m,lp), es'))
+                | _ -> Some filter)
 
 
     (* Removes less preferred, but otherwise identical imports.
@@ -515,20 +543,25 @@ module Compress =
         for kv in config do 
             let loc = kv.Key 
             let deviceConf = kv.Value 
-            for v in deviceConf.Filters do
-                let ((m,_), _) = v
-                match m with 
-                | Match.State(is,x) ->
-                    let edge = (loc,x)
-                    if importCommNeeded.ContainsKey edge then
-                        let iss = importCommNeeded.[edge]
-                        importCommNeeded.[edge] <- Set.add is iss
-                    else importCommNeeded.[edge] <- (Set.singleton is)
-                | _ -> ()
+            for f in deviceConf.Filters do
+                match f with 
+                | Deny -> () 
+                | Allow ((m,_), _) ->
+                    match m with 
+                    | Match.State(is,x) ->
+                        let edge = (loc,x)
+                        if importCommNeeded.ContainsKey edge then
+                            let iss = importCommNeeded.[edge]
+                            importCommNeeded.[edge] <- Set.add is iss
+                        else importCommNeeded.[edge] <- (Set.singleton is)
+                    | _ -> ()
         let newConfig = 
             Map.map (fun loc dc ->
                 let filters' = 
-                    List.map (fun ((m,lp), es) ->
+                    List.map (fun f ->
+                        match f with 
+                        | Deny -> f
+                        | Allow ((m,lp), es) ->
                         let es' = 
                             List.map (fun (peer,acts) ->
                                 let acts' = 
@@ -542,7 +575,7 @@ module Compress =
                                     ) acts
                                 (peer,acts')
                             ) es
-                        (m,lp), es'
+                        Allow ((m,lp), es')
                     ) dc.Filters
                 {Originates=dc.Originates; Filters=filters'}
             ) config
@@ -550,6 +583,7 @@ module Compress =
 
     (* Whenever we export identical routes to all peers, we can replace
        this with a simpler route export of the form: (Export: * ) for readability *)
+
 
     let compressAllExports (cg: CGraph.T) ((pred, config): PredConfig) : PredConfig =
         let mutable newConfig = Map.empty
@@ -565,31 +599,36 @@ module Compress =
                 cg.Topo.OutEdges topoNode
                 |> Seq.map (fun e -> e.Target.Loc)
                 |> Set.ofSeq
-            for f in filters do 
-                let ((m,lp), es) = f 
-                let eqActions =
-                    es
-                    |> List.map snd 
-                    |> Set.ofList
-                    |> Set.count
-                    |> ((=) 1)
-                let exports = Set.ofList (List.map fst es)
-                let exports = 
-                    match m with 
-                    | Match.Peer(x) -> Set.add x exports
-                    | Match.State(_,x) -> Set.add x exports
-                    | _ -> exports
-                let allPeers = (Set.isEmpty (Set.difference topoPeers exports))
-                if eqActions && allPeers && List.length es <= Seq.length topoPeers then 
-                    newFilters <- ((m,lp), [("*", snd es.Head)]) :: newFilters
-                else newFilters <- f :: newFilters
+            for f in filters do
+                match f with 
+                | Deny -> newFilters <- f :: newFilters
+                | Allow ((m,lp), es) -> 
+                    let eqActions =
+                        es
+                        |> List.map snd 
+                        |> Set.ofList
+                        |> Set.count
+                        |> ((=) 1)
+                    let exports = Set.ofList (List.map fst es)
+                    let exports = 
+                        match m with 
+                        | Match.Peer(x) -> Set.add x exports
+                        | Match.State(_,x) -> Set.add x exports
+                        | Match.PathRE re ->
+                            
+                            exports
+                        | _ -> exports
+                    let allPeers = (Set.isEmpty (Set.difference topoPeers exports))
+                    if eqActions && allPeers && List.length es <= Seq.length topoPeers then 
+                        newFilters <- Allow ((m,lp), [("*", snd es.Head)]) :: newFilters
+                    else newFilters <- f :: newFilters
             let newDC = {Originates=deviceConf.Originates; Filters=List.rev newFilters}
             newConfig <- Map.add loc newDC newConfig
         (pred, newConfig)
 
     (* Whenever import identical routes from all peers, we can replace
        this with a simpler route import of the form: (Import: * ) for readability *)
-
+(*
     let compressAllImports (cg: CGraph.T) ((pred, config): PredConfig) : PredConfig =
         let byLoc = 
             cg.Topo.Vertices 
@@ -639,7 +678,7 @@ module Compress =
                 else filters
             let newDC = {Originates=deviceConf.Originates; Filters=newFilters}
             newConfig <- Map.add loc newDC newConfig
-        (pred, newConfig)
+        (pred, newConfig) *)
 
     let compress (cg: CGraph.T) (config: PredConfig) (outName: string) : PredConfig =
         // let config = compressUniquePairs cg config
@@ -703,12 +742,14 @@ let compileToIR fullName idx pred (aggInfo: Map<string,DeviceAggregates>) (reb: 
     // check there is a route for each location specified
     let lost = getLocsThatCantGetPath idx cg reb dfas
     if not (Set.isEmpty lost) then Err(NoPathForRouters(lost)) else
-    let unusedPrefs = getUnusedPrefs cg res
-    if not (Set.isEmpty unusedPrefs) then
-        let cexamples = Set.fold (fun acc p -> 
-            Map.add p (List.item (p-1) res) acc) Map.empty unusedPrefs
-        Err(UnusedPreferences(cexamples))
-    else
+    
+    // TODO: handle this better
+    // let unusedPrefs = getUnusedPrefs cg res
+    // if not (Set.isEmpty unusedPrefs)  then
+    //    let cexamples = Set.fold (fun acc p -> 
+    //        Map.add p (List.item (p-1) res) acc) Map.empty unusedPrefs
+    //    Err(UnusedPreferences(cexamples))
+    //else
         try
             // check that BGP can ensure incoming traffic compliance
             let inExports = configureIncomingTraffic cg

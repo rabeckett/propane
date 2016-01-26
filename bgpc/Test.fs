@@ -13,10 +13,13 @@ let isPeer x m =
     | _ -> false
 
 let getPref (x:string) (dc: IR.DeviceConfig) = 
-    let lp = List.tryFind (fun ((m,_),_) -> isPeer x m) dc.Filters
+    let lp = List.tryFind (fun f -> 
+        match f with 
+        | Deny -> false 
+        | Allow ((m,_),_) -> isPeer x m) dc.Filters
     match lp with
-    | None -> 100 
-    | Some ((_,lp), _) -> lp
+    | Some (Allow ((_,lp), _)) -> lp
+    | _ -> 100
 
 let prefersPeer (_,config) x (a,b) =
     try 
@@ -28,7 +31,10 @@ let prefersPeer (_,config) x (a,b) =
 
 let receiveFrom (_,config) x y = 
     let deviceConf = Map.find x config 
-    List.exists (fun ((m,_), _) -> isPeer y m) deviceConf.Filters
+    List.exists (fun f -> 
+        match f with 
+        | Deny -> false 
+        | Allow ((m,_), _) -> isPeer y m) deviceConf.Filters
 
 let originates ((_, config): IR.PredConfig) x =
     let deviceConfig = Map.find x config

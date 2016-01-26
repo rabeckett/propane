@@ -49,7 +49,11 @@ val inline neighborsIn: T -> CgState -> seq<CgState>
 /// Return true when a node represents a repeated external location
 val inline isRepeatedOut: T -> CgState -> bool
 
+/// Returns true if a node is not the special start or end node
 val inline isRealNode: CgState -> bool
+
+/// Returns true if the graph contains only the start and end nodes
+val inline isEmpty: T -> bool 
 
 /// Returns a copy of the graph, restricted to nodes for a given preference
 val restrict: T -> int -> T

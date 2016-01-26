@@ -28,9 +28,13 @@ type Export = Peer * Action list
 
 /// Result from compiling a single prefix
 
+type Filter = 
+    | Deny
+    | Allow of Import * (Export list)
+
 type DeviceConfig =
     {Originates: bool;
-     Filters: (Import * Export list) list}
+     Filters: Filter list}
 
 type PredConfig = Predicate.T * Map<string, DeviceConfig>
 
