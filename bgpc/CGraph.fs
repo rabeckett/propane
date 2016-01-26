@@ -551,6 +551,7 @@ module Consistency =
         | No
 
     let protect (idx: int) (doms: Minimize.DominationSet) (cg1,n1) (cg2,n2) : ProtectResult = 
+        //printfn "CALLING PROTECT\n==========================="
         if loc n1 <> loc n2 then No else
         let q = Queue()
         let seen = HashSet()
@@ -567,6 +568,7 @@ module Consistency =
             let n = q.Dequeue()
             let x = n.More 
             let y = n.Less 
+            //printfn "PROTECT: %s -- %s" (string x) (string y)
             let nsx = 
                 neighbors cg1 x 
                 |> Seq.fold (fun acc x -> Map.add (loc x) x acc) Map.empty
@@ -574,10 +576,17 @@ module Consistency =
             for y' in nsy do 
                 match Map.tryFind (loc y') nsx with
                 | None ->
+                    //printfn "  MUST CHECK FOR DOMINATOR"
                     match Seq.tryFind (fun x' -> loc x' = loc y' && cg1.Graph.ContainsVertex x') doms.[x] with
-                    | None -> counterEx <- Some (x,y)
-                    | Some x' -> add x' y'
-                | Some x' -> add x' y'
+                    | None -> 
+                        //printfn "    NOT FOUND"
+                        counterEx <- Some (x,y)
+                    | Some x' ->
+                        //printfn "    FOUND: %s -- %s" (string x') (string y')
+                        add x' y'
+                | Some x' -> 
+                    //printfn "  ADDING: %s -- %s" (string x') (string y')
+                    add x' y'
         match counterEx with 
         | None -> Yes seen
         | Some cex -> No
@@ -709,6 +718,7 @@ module Consistency =
             let r = Minimize.removeNodesThatCantReachEnd r
             (* don't consider external ASes. Note: don't remove nodes after this *)
             r.Graph.RemoveEdgeIf (fun e -> isOutside e.Source && isOutside e.Target) |> ignore
+            r.Graph.RemoveEdgeIf (fun e -> not (isRealNode e.Source) || not (isRealNode e.Target) ) |> ignore
             Map.add i r acc
         Set.fold aux Map.empty prefs
 

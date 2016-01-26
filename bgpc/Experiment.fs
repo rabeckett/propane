@@ -66,7 +66,6 @@ let displayStats k v e (stats: IR.Stats) =
         avgGen medGen maxGen
         avgComp medComp maxComp
 
-
 let singleDatacenter k =
     let settings = Args.getSettings () 
     let (topo, pfxMap, tierMap) = Topology.Examples.fatTree k

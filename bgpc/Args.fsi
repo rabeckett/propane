@@ -8,6 +8,10 @@ type Failures =
     | Any
     | Concrete of int
 
+type Experiment = 
+    | DataCenter
+    | Backbone
+
 type T = 
     {PolFile: string option;
      OutFile: string option;
@@ -16,7 +20,8 @@ type T =
      UsePrepending: bool;
      UseNoExport: bool;
      Test: bool;
-     Experiment: bool;
+     Experiment: Experiment option;
+     CheckEnter: bool;
      Debug: int; 
      DebugDir: string;
      Compression: bool;

@@ -197,6 +197,13 @@ let addExports (settings: Args.T) info peers actions exportMap =
 let configureIncomingTraffic cg : IncomingExportMap =
     let settings = Args.getSettings()
     let info = collectIncomingInfo cg
+    // Temporary 
+    if not settings.CheckEnter then 
+        let mutable exportMap = Map.empty 
+        for p in info.Peers do 
+            exportMap <- Map.add p [] exportMap
+        exportMap
+    else
     let byPreference =
         info.Peers 
         |> Seq.map (fun p -> (Set.minElement (Reachable.srcAccepting cg p Down), p))
