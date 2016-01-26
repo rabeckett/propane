@@ -98,7 +98,7 @@ let rec addEdgesDirected (topo: T) (es: (State * State) list) =
         addEdgesDirected topo es
 
 let getStateByLoc (topo: T) loc = 
-    Seq.tryFind (fun v -> v.Loc = loc) topo.Vertices
+    Seq.find (fun v -> v.Loc = loc) topo.Vertices
     
 let findLinks (topo: T) (froms, tos) =
     let mutable pairs = []
@@ -106,15 +106,12 @@ let findLinks (topo: T) (froms, tos) =
         for y in Set.toSeq tos do 
             let a = getStateByLoc topo x 
             let b = getStateByLoc topo y
-            match a, b with
-            | Some s, Some d ->
-                let ns = 
-                    topo.OutEdges s
-                    |> Seq.map (fun (e: TaggedEdge<State,unit>) -> e.Target)
-                    |> Set.ofSeq
-                if Set.contains d ns then 
-                    pairs <- (s, d) :: pairs
-            | _, _ -> ()
+            let ns = 
+                topo.OutEdges a
+                |> Seq.map (fun (e: TaggedEdge<State,unit>) -> e.Target)
+                |> Set.ofSeq
+            if Set.contains b ns then 
+                pairs <- (a, b) :: pairs
     pairs
 
 let peers (topo:T) = 

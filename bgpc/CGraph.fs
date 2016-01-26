@@ -171,6 +171,11 @@ let buildFromAutomata (topo: Topology.T) (autos : Regex.Automaton array) : T =
     Seq.iter (fun v -> graph.AddEdge(TaggedEdge(v, newEnd, ())) |> ignore) accepting
     index (graph, topo, newStart, newEnd)
 
+let inline loc x = x.Node.Loc
+
+let inline shadows x y = 
+    (x <> y) && (loc x = loc y)
+
 let inline preferences (cg: T) : Set<int> = 
     let mutable all = Set.empty
     for v in cg.Graph.Vertices do 
@@ -184,7 +189,7 @@ let inline acceptingStates (cg: T) : Set<CgState> =
 
 let inline acceptingLocations (cg: T) : Set<string> = 
     acceptingStates cg
-    |> Set.map (fun v -> v.Node.Loc)
+    |> Set.map loc
 
 let inline isRealNode (state: CgState) : bool =
     Topology.isTopoNode state.Node
@@ -198,10 +203,13 @@ let inline neighborsIn (cg: T) (state: CgState) =
 let inline isRepeatedOut (cg: T) (state: CgState) =
     let ns = neighbors cg state
     (state.Node.Typ = Topology.Unknown) &&
-    (Seq.exists (fun n -> n = state) ns)
+    (Seq.exists ((=) state) ns)
 
-let inline shadows x y = 
-    (x <> y) && (x.Node.Loc = y.Node.Loc)
+let inline isInside x = 
+    Topology.isInside x.Node
+
+let inline isOutside x = 
+    Topology.isOutside x.Node
 
 let restrict (cg: T) (i: int) = 
     if Set.contains i (preferences cg) then 
@@ -216,7 +224,7 @@ let toDot (cg: T) : string =
     let onFormatEdge(e: Graphviz.FormatEdgeEventArgs<CgState, TaggedEdge<CgState,unit>>) = ()
     let onFormatVertex(v: Graphviz.FormatVertexEventArgs<CgState>) = 
         let states = string v.Vertex.State
-        let location = v.Vertex.Node.Loc.ToString()
+        let location = loc v.Vertex
         match v.Vertex.Node.Typ with 
         | Topology.Start -> v.VertexFormatter.Label <- "Start"
         | Topology.End -> v.VertexFormatter.Label <- "End"
@@ -347,31 +355,11 @@ module Minimize =
             res.[v] <- dominatorSet dom v
         res
 
-    (* let dominators (cg: T) root direction : DominationSet =
-        let f = if direction = Up then neighbors else neighborsIn
-        let dom = Dictionary()
-        let nodes = Reachable.dfs cg root direction
-        let allNodes = cg.Graph.Vertices |> Set.ofSeq
-        for n in allNodes do 
-            dom.[n] <- allNodes
-        let mutable changed = true 
-        while changed do 
-            changed <- false 
-            for n in nodes do
-                let preds = seq {for p in (f cg n) do yield dom.[p]}
-                let interAll = if Seq.isEmpty preds then Set.empty else Set.intersectMany preds
-                let newSet = Set.union (Set.singleton n) interAll
-                if (newSet <> dom.[n]) then 
-                    dom.[n] <- newSet
-                    changed <- true
-        dom *)
-
     let removeDominated (cg: T) = 
         let dom = dominators cg cg.Start Down
         let domRev = dominators cg cg.End Up
         // Remove nodes dominated by a similar location
         cg.Graph.RemoveVertexIf (fun v ->
-            Topology.isInside v.Node && 
             Set.union dom.[v] domRev.[v] |> Set.exists (shadows v)) |> ignore
         // Remove dominated edges
         cg.Graph.RemoveEdgeIf (fun (e: TaggedEdge<CgState,unit>) -> 
@@ -381,14 +369,12 @@ module Minimize =
             | Some ie ->
                 assert (ie.Source = e.Target)
                 assert (ie.Target = e.Source)
-                (Topology.isInside e.Source.Node && Topology.isInside e.Target.Node) &&
                 (Set.contains e.Target (dom.[e.Source]) || Set.contains e.Source (domRev.[e.Target])) &&
                 (e.Target <> e.Source) ) |> ignore
         // Remove edges where the outgoing is dominated by a similar location
         cg.Graph.RemoveEdgeIf (fun e ->
             let x = e.Source
             let y = e.Target
-            (Topology.isInside x.Node && Topology.isInside y.Node) &&
             (Set.exists (shadows x) domRev.[y] || 
              Set.exists (shadows y) dom.[x])) |> ignore
         cg
@@ -399,7 +385,6 @@ module Minimize =
             Topology.isTopoNode v.Node && not (Set.contains v canReach)) |> ignore
         cg
         
-
     let removeNodesThatStartCantReach (cg: T) = 
         let canReach = Reachable.src cg cg.Start Down
         cg.Graph.RemoveVertexIf(fun v -> 
@@ -421,6 +406,17 @@ module Minimize =
             x = outStar || 
             (nOut.Contains outStar && nIn.Contains outStar) ) scc
 
+    let removeConnectionsToOutStar (cg: T) = 
+        cg.Graph.RemoveEdgeIf (fun e -> 
+            let x = e.Source 
+            let y = e.Target 
+            let realNodes = isRealNode x && isRealNode y
+            if realNodes then 
+                ( (isRepeatedOut cg x) && (Seq.exists isInside (neighborsIn cg y)) )  || 
+                ( (isRepeatedOut cg y) && (Seq.exists isInside (neighbors cg x)) ) 
+            else false) |> ignore
+        cg
+(*
     let compressRepeatedUnknowns (cg: T) = 
         let components = ref (Dictionary() :> IDictionary<CgState,int>)
         ignore (cg.Graph.StronglyConnectedComponents(components))
@@ -428,7 +424,7 @@ module Minimize =
         for kv in !components do
             let state = kv.Key
             let comp = kv.Value
-            if Topology.isOutside state.Node then 
+            if isOutside state then 
                 let existing = Common.Map.getOrDefault comp Set.empty sccs
                 sccs <- Map.add comp (Set.add state existing) sccs
         let allOutTopo = 
@@ -440,23 +436,51 @@ module Minimize =
         for scc in sccs do 
             let locs = Set.map (fun v -> v.Node.Loc) scc
             let topoPeers = Topology.peers cg.Topo
-            if (allOutTopo.Count = scc.Count) && 
-               (locs = allOutTopoLocs) && 
-               (Set.exists (isRepeatedOut cg) scc) then
+            if (Set.exists (isRepeatedOut cg) scc) then
                 let outStar = Set.filter (isRepeatedOut cg) scc |> Set.minElement
                 if allConnected cg outStar scc then
-                    let exportPeers = Set.filter (fun v -> Seq.exists (fun u -> Topology.isInside u.Node) (neighborsIn cg v)) scc
+                    let exportPeers = Set.filter (fun v -> Seq.exists isInside (neighborsIn cg v)) scc
                     // check we are on the right side of the graph
                     if exportPeers.Count > 0 then
                         cg.Graph.RemoveVertexIf (fun v -> v <> outStar && scc.Contains v && not (exportPeers.Contains v)) |> ignore
                         cg.Graph.RemoveEdgeIf (fun e -> e.Source = outStar && isRealNode e.Target && e.Target <> e.Source) |> ignore
+        cg *)
+
+    let removeExplicitNeighbors (cg: T) = 
+        let toRemove = HashSet()
+        let toAdd = HashSet()
+        for e in cg.Graph.Edges do 
+            let x = e.Source 
+            let y = e.Target 
+            if isInside x && isOutside y && not (isRepeatedOut cg y) then 
+                match neighbors cg y |> Seq.tryFind (isRepeatedOut cg) with 
+                | None -> () 
+                | Some os ->
+                    let allExports = 
+                        neighbors cg x 
+                        |> Seq.filter isOutside 
+                        |> Seq.map loc
+                        |> Set.ofSeq
+                    let allTopoNeighbors = 
+                        Topology.getStateByLoc cg.Topo (loc x) 
+                        |> cg.Topo.OutEdges 
+                        |> Seq.map (fun e -> e.Target) 
+                        |> Seq.filter Topology.isOutside
+                        |> Seq.map (fun v -> v.Loc) 
+                        |> Set.ofSeq
+                    if allExports = allTopoNeighbors then 
+                        toRemove.Add (x,y) |> ignore
+                        toAdd.Add (x,os) |> ignore
+        cg.Graph.RemoveEdgeIf (fun e -> toRemove.Contains (e.Source, e.Target)) |> ignore
+        for x,y in toAdd do 
+            cg.Graph.AddEdge (TaggedEdge(x,y,())) |> ignore
         cg
 
     let removeRedundantExternalNodes (cg: T) =
         let toDelNodes = HashSet(HashIdentity.Structural)
         let outside = 
             cg.Graph.Vertices 
-            |> Seq.filter (fun v -> Topology.isOutside v.Node)
+            |> Seq.filter isOutside
             |> Set.ofSeq
         for a in outside do 
             let ans = neighbors cg a |> Set.ofSeq
@@ -479,7 +503,7 @@ module Minimize =
                                 ignore (toDelNodes.Add a)
         cg.Graph.RemoveVertexIf (fun v -> toDelNodes.Contains v) |> ignore
         cg
-           
+          
     let minimize (idx: int) (cg: T) =
         logInfo1(idx, sprintf "Node count: %d" cg.Graph.VertexCount)
         let inline count cg = 
@@ -490,12 +514,13 @@ module Minimize =
             logInfo1(idx, sprintf "Node count (cant reach end): %d" (!cg).Graph.VertexCount)
             cg := removeDominated !cg
             logInfo1(idx, sprintf "Node count (remove dominated): %d" (!cg).Graph.VertexCount)
+            cg := removeRedundantExternalNodes !cg
+            cg := removeConnectionsToOutStar !cg
+            // cg := removeExplicitNeighbors !cg
+            logInfo1(idx, sprintf "Node count (redundant external nodes): %d" (!cg).Graph.VertexCount)
             cg := removeNodesThatStartCantReach !cg
             logInfo1(idx, sprintf "Node count (start cant reach): %d" (!cg).Graph.VertexCount)
-            // cg := removeRedundantExternalNodes !cg
-            logInfo1(idx, sprintf "Node count (redundant external nodes): %d" (!cg).Graph.VertexCount)
-            cg := compressRepeatedUnknowns !cg
-            logInfo1(idx, sprintf "Node count (compress out*): %d" (!cg).Graph.VertexCount)
+            logInfo1(idx, sprintf "Node count (simplify exports): %d" (!cg).Graph.VertexCount)
         let mutable sum = count !cg
         prune() 
         while count !cg <> sum do
@@ -507,6 +532,7 @@ module Minimize =
 
 module Consistency = 
 
+    exception SimplePathException of CgState * CgState
     exception ConsistencyException of CgState * CgState
 
     type CounterExample =  CgState * CgState
@@ -520,92 +546,100 @@ module Consistency =
         new(m, l) = {More=m; Less=l}
     end
 
-    type SupersetPathsResult =
+    type ProtectResult =
         | Yes of HashSet<Node>
         | No
 
-    let supersetPaths (idx: int) (cg1,n1) (cg2,n2) : SupersetPathsResult = 
-        if n1.Node.Loc <> n2.Node.Loc then No else
+    let protect (idx: int) (doms: Minimize.DominationSet) (cg1,n1) (cg2,n2) : ProtectResult = 
+        if loc n1 <> loc n2 then No else
         let q = Queue()
         let seen = HashSet()
         let init = Node(n1,n2)
         q.Enqueue init
         ignore(seen.Add init)
+        let inline add x' y' = 
+            let n' = Node(x',y')
+            if not (seen.Contains n') then 
+                ignore (seen.Add n')
+                q.Enqueue n'
         let mutable counterEx = None
         while q.Count > 0 && Option.isNone counterEx do
             let n = q.Dequeue()
             let x = n.More 
             let y = n.Less 
-            let nsx = neighbors cg1 x
+            let nsx = 
+                neighbors cg1 x 
+                |> Seq.fold (fun acc x -> Map.add (loc x) x acc) Map.empty
             let nsy = neighbors cg2 y
             for y' in nsy do 
-                match Seq.tryFind (fun x' -> x'.Node.Loc = y'.Node.Loc) nsx with
-                | None -> counterEx <- Some (x,y)
-                | Some x' -> 
-                    let n' = Node(x', y')
-                    if not (seen.Contains n') then
-                        ignore (seen.Add n')
-                        q.Enqueue n'
+                match Map.tryFind (loc y') nsx with
+                | None ->
+                    match Seq.tryFind (fun x' -> loc x' = loc y' && cg1.Graph.ContainsVertex x') doms.[x] with
+                    | None -> counterEx <- Some (x,y)
+                    | Some x' -> add x' y'
+                | Some x' -> add x' y'
         match counterEx with 
         | None -> Yes seen
         | Some cex -> No
-
-
+(*
     let inline isNoGood (above: Map<string, seq<CgState>>) curr = 
-        match Map.tryFind curr.Node.Loc above with 
+        match Map.tryFind (loc curr) above with 
         | None -> false
         | Some xs -> Seq.exists (shadows curr) xs
-
-    // TODO: separate exception that is more understandable
-    let checkNoSimpleProblemFor (cg:T) (x:CgState) = 
-        let reachUp = Reachable.srcWithout cg x (shadows x) Up |> Seq.filter (fun v -> Topology.isInside v.Node)
-        let reachDown = Reachable.srcWithout cg x (shadows x) Down |> Seq.filter (fun v -> Topology.isInside v.Node)
-        let byLoc = Seq.groupBy (fun v -> v.Node.Loc) reachUp |> Map.ofSeq
-        match Seq.tryFind (isNoGood byLoc) reachDown with 
-        | None -> ()
-        | Some cex -> 
-            // printfn "x: %s" (string x)
-            // printfn "counter example: %s" (string cex)
-            raise (ConsistencyException (x,x))
-
-   (*  let getDuplicateInternalNodes (cg: T) = 
+*)
+    let getDuplicateNodes (cg: T) = 
         cg.Graph.Vertices
-        |> Seq.filter (fun v -> Topology.isInside v.Node)
         |> Seq.fold (fun acc v ->
-                let loc = v.Node.Loc
-                let existing = Common.Map.getOrDefault loc Set.empty acc
-                Map.add loc (Set.add v existing) acc) Map.empty
+                let existing = Common.Map.getOrDefault (loc v) Set.empty acc
+                Map.add (loc v) (Set.add v existing) acc) Map.empty
         |> Map.filter (fun k v -> Set.count v > 1)
-        |> Map.fold (fun acc _ vs -> Set.union acc vs) Set.empty
 
     let checkAllSafeFromSimple (cg: T) = 
-        if Set.count (getDuplicateInternalNodes cg) > 0 then
-            for v in cg.Graph.Vertices do 
-                if isRealNode v && Topology.isInside v.Node then
-                    checkNoSimpleProblemFor cg v *)
+        let cg = copyGraph cg
+        cg.Graph.RemoveVertexIf (fun v -> isOutside v || not (isRealNode v)) |> ignore
+        let dups = getDuplicateNodes cg
+        let size = Map.fold (fun acc _ _ -> acc + 1) 0 dups
+        if size > 0 then
+            // check if in separate components first
+            let components = Dictionary() :> IDictionary<CgState,int>
+            cg.Graph.WeaklyConnectedComponents(components) |> ignore
+            let isOk = 
+                Map.forall (fun k v -> 
+                    let szInit = Set.count v
+                    let szFinal = Set.map (fun x -> components.[x]) v |> Set.count
+                    szInit = szFinal) dups
+            if not isOk then
+                let dups = Map.fold (fun acc _ v -> Set.union acc v) Set.empty dups
+                for d in dups do 
+                    let reach = Reachable.src cg d Down
+                    match Seq.tryFind (shadows d) reach with
+                    | None -> ()
+                    | Some d' -> 
+                        // TODO: raise better error
+                        raise (SimplePathException (d,d'))
 
-    let simulate idx cg cache restrict (x,y) (i,j) =
+    let simulate idx cg cache (doms: Minimize.DominationSet) restrict (x,y) (i,j) =
         if Set.contains (x,y,i,j) !cache then true else
-        let restrict_i = copyGraph (Map.find i restrict)
-        let restrict_j = copyGraph (Map.find j restrict)
-        restrict_i.Graph.RemoveVertexIf (fun v -> shadows x v) |> ignore
-        restrict_j.Graph.RemoveVertexIf (fun v -> shadows y v) |> ignore
+        let restrict_i = Map.find i restrict
+        let restrict_j = Map.find j restrict
+        (* restrict_i.Graph.RemoveVertexIf (fun v -> shadows x v) |> ignore
+        restrict_j.Graph.RemoveVertexIf (fun v -> shadows y v) |> ignore *)
         if not (restrict_i.Graph.ContainsVertex x) then false
         else if not (restrict_j.Graph.ContainsVertex y) then true
         else
-            let reach = Reachable.srcWithout restrict_i x (shadows x) Up
+            (* let reach = Reachable.srcWithout restrict_i x (shadows x) Up
             let byLoc = Seq.groupBy (fun x -> x.Node.Loc) reach |> Map.ofSeq
-            restrict_i.Graph.RemoveVertexIf (fun v -> isNoGood byLoc v) |> ignore
-            match supersetPaths idx (restrict_i, x) (restrict_j, y) with 
+            restrict_i.Graph.RemoveVertexIf (fun v -> isNoGood byLoc v) |> ignore *)
+            match protect idx doms (restrict_i, x) (restrict_j, y) with 
             | No -> false
             | Yes related -> 
                 for n in related do 
                     cache := Set.add (n.More, n.Less, i, j) !cache
                 true
 
-    let isPreferred idx cg cache restrict (x,y) (reachX, reachY) =
+    let isPreferred idx cg cache doms restrict (x,y) (reachX, reachY) =
         let subsumes i j =
-            simulate idx cg cache restrict (x,y) (i,j)
+            simulate idx cg cache doms restrict (x,y) (i,j)
         Set.forall (fun j -> 
             (Set.exists (fun i' -> i' <= j && subsumes i' j) reachX) ) reachY
 
@@ -625,10 +659,7 @@ module Consistency =
         g.TopologicalSort ()
     
     let getReachabilityMap (cg:T) =
-        let prefs = 
-            cg.Graph.Vertices 
-            |> Seq.map (fun v -> v.Accept)
-            |> Seq.fold Set.union Set.empty
+        let prefs = preferences cg
         let getNodesWithPref acc i = 
             let copy = copyGraph cg
             copy.Graph.RemoveEdgeIf (fun e ->
@@ -640,13 +671,13 @@ module Consistency =
                 updated) acc reach
         Set.fold getNodesWithPref Map.empty prefs    
 
-    let addPrefConstraints idx cg cache (g: Constraints) r nodes reachMap =
+    let addPrefConstraints idx cg cache doms (g: Constraints) r nodes reachMap =
         let mutable edges = Set.empty
         for x in nodes do
             for y in nodes do
                 let reachX = Map.find x reachMap
                 let reachY = Map.find y reachMap
-                if x <> y && (isPreferred idx cg cache r (x,y) (reachX,reachY)) then
+                if x <> y && (isPreferred idx cg cache doms r (x,y) (reachX,reachY)) then
                     logInfo1 (idx, sprintf "%s is preferred to %s" (string x) (string y))
                     edges <- Set.add (x,y) edges
                     g.AddEdge (TaggedEdge(x, y, ())) |> ignore
@@ -654,21 +685,21 @@ module Consistency =
                     logInfo1 (idx, sprintf "%s is NOT preferred to %s" (string x) (string y))
         g, edges
 
-    let encodeConstraints idx cache (cg, reachMap) r nodes =
+    let encodeConstraints idx cache doms (cg, reachMap) r nodes =
         let g = BidirectionalGraph<CgState ,TaggedEdge<CgState,unit>>()
         for n in nodes do 
             g.AddVertex n |> ignore
-        addPrefConstraints idx cg cache g r nodes reachMap
+        addPrefConstraints idx cg cache doms g r nodes reachMap
 
-    let findPrefAssignment idx cache r (cg, reachMap) nodes = 
-        let g, edges = encodeConstraints idx cache (cg, reachMap) r nodes
+    let findPrefAssignment idx cache doms r (cg, reachMap) nodes = 
+        let g, edges = encodeConstraints idx cache doms (cg, reachMap) r nodes
         getOrdering g edges
         
-    let addForLabel idx cache ain r (cg, reachMap) map l =
+    let addForLabel idx cache doms ain r (cg, reachMap) map l =
         if Set.contains l ain then
             if not (Map.containsKey l map) then 
-                let nodes = Seq.filter (fun v -> v.Node.Loc = l) cg.Graph.Vertices
-                Map.add l (findPrefAssignment idx cache r (cg, reachMap) nodes) map
+                let nodes = Seq.filter (fun v -> loc v = l) cg.Graph.Vertices
+                Map.add l (findPrefAssignment idx cache doms r (cg, reachMap) nodes) map
             else map
         else Map.add l Seq.empty map
 
@@ -677,27 +708,29 @@ module Consistency =
             let r = restrict cg i 
             let r = Minimize.removeNodesThatCantReachEnd r
             (* don't consider external ASes. Note: don't remove nodes after this *)
-            r.Graph.RemoveEdgeIf (fun e -> Topology.isOutside e.Source.Node) |> ignore
+            r.Graph.RemoveEdgeIf (fun e -> isOutside e.Source && isOutside e.Target) |> ignore
             Map.add i r acc
         Set.fold aux Map.empty prefs
 
     let findOrdering idx cg outName : Result<Ordering, CounterExample> =
-        // checkAllSafeFromSimple cg
-        let prefs = preferences cg 
-        let rs = restrictedGraphs cg prefs
-        let reachMap = getReachabilityMap cg
-        let (ain, _) = Topology.alphabet cg.Topo
-        let ain = Set.map (fun (v: Topology.State) -> v.Loc) ain
-        let cache = ref Set.empty  // cache pairs of related states TODO: set size limit
-        debug2 (fun () -> Map.iter (fun i g -> generatePNG g (outName + "-min-restricted" + string i)) rs)
-        let labels = 
-            cg.Graph.Vertices
-            |> Seq.filter (fun v -> Topology.isTopoNode v.Node)
-            |> Seq.map (fun v -> v.Node.Loc)
-            |> Set.ofSeq
-        try Ok(Set.fold (addForLabel idx cache ain rs (cg, reachMap)) Map.empty labels)
-        with ConsistencyException(x,y) ->
-            Err((x,y) )
+        try 
+            checkAllSafeFromSimple cg
+            let prefs = preferences cg 
+            let rs = restrictedGraphs cg prefs
+            let reachMap = getReachabilityMap cg
+            let (ain, _) = Topology.alphabet cg.Topo
+            let ain = Set.map (fun (v: Topology.State) -> v.Loc) ain
+            let doms = Minimize.dominators cg cg.Start Down
+            let cache = ref Set.empty  // cache pairs of related states TODO: set size limit
+            debug2 (fun () -> Map.iter (fun i g -> generatePNG g (outName + "-min-restricted" + string i)) rs)
+            let labels =
+                cg.Graph.Vertices
+                |> Seq.filter (fun v -> Topology.isTopoNode v.Node)
+                |> Seq.map loc
+                |> Set.ofSeq
+            try Ok(Set.fold (addForLabel idx cache doms ain rs (cg, reachMap)) Map.empty labels)
+            with ConsistencyException(x,y) -> Err((x,y) )
+        with SimplePathException(x,y) -> Err(x,y)
 
     let findOrderingConservative (idx: int) = findOrdering idx
 
@@ -717,7 +750,7 @@ module ToRegex =
         add (cg.End, state) Regex.epsilon
         for e in cg.Graph.Edges do
             if e.Source <> cg.End then
-                add (e.Source, e.Target) (Regex.loc e.Source.Node.Loc)
+                add (e.Source, e.Target) (Regex.loc (loc e.Source))
         (* we will remove all none start/end nodes one by one *)
         let queue = Queue()
         for v in cg.Graph.Vertices do
@@ -774,7 +807,7 @@ module Failure =
         failed.Graph.RemoveVertexIf (fun v -> 
             List.exists ((=) v.Node.Loc) failedNodes) |> ignore
         failed.Graph.RemoveEdgeIf (fun e -> 
-            List.exists ((=) (e.Source.Node.Loc, e.Target.Node.Loc)) failedEdges) |> ignore
+            List.exists ((=) (loc e.Source, loc e.Target)) failedEdges) |> ignore
         failed
 
     let disconnect (cg: T) src dst : int =
@@ -808,5 +841,5 @@ module Failure =
         smallest
 
     let disconnectLocs (cg: T) srcs dstLoc =
-        let dsts = Seq.filter (fun v -> v.Node.Loc = dstLoc) cg.Graph.Vertices 
+        let dsts = Seq.filter (fun v -> loc v = dstLoc) cg.Graph.Vertices 
         disconnectAll cg srcs dsts
