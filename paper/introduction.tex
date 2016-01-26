@@ -19,20 +19,31 @@ As a result, many configuration errors manifest only during failures~\cite{batfi
 To reduce configuration errors, the practitioner community is adopting a template-based approach~\cite{x,y}, in which common configuration constructs are captured as parameterized templates.
  While templates help with the low-level nature of configuration languages, they do not bridge the semantic divide between network policies and device-level configuration (\S\ref{sec:motivation}).
 
-Software-defined networking (SDN) was, in part, the research community's response to the difficulty of maintaining policy compliance through distributed interaction of individual devices~\cite{xx}. It eliminates distributed control planes altogether. Instead of devices computing  forwarding tables through mutual interactions, they are told by a centralized controller exactly how to forward packets. The controller is responsible for ensuring policy compliance at all times. To program centralized control planes, researchers have developed increasingly sophisticated languages that let operators directly express network policies~\cite{x,y,z} that are then translated to forwarding tables at runtime.
+Software-defined networking (SDN) was, in part, the research community's response to the difficulty of maintaining policy compliance through distributed interaction of individual devices~\cite{xx}. It eliminates distributed control planes altogether. Instead of devices computing  forwarding tables through mutual interactions, they are told by a centralized controller how to forward packets. The controller is responsible for ensuring that the paths taken are compliant with operator specifications. Researchers have developed increasingly sophisticated languages that let operators specify desirable network paths~\cite{x,y,z} which are then translated to forwarding tables at runtime.
 
-Centralized control planes, however, are not a panacea. 
-%They face significant challenges related to scaling and failure robustness. 
+Centralized control planes of SDN, however, are not a panacea.
+%
 They require careful design and engineering to be robust to failures at scale---one must ensure that all devices can communicate with the controller at all times, even under arbitrary combinations of failure~\cite{x,y,z}. For this challenge, researchers are exploring multi-controller networks, with interacting controllers, thus bringing back distributed control planes~\cite{x,y,z} and their current programming difficulties.
 
-In this paper, we ask if it is possible to centrally program distributed control planes.
+In this paper, we ask if it is possible to program distributed control planes using network-wide policies.
 Operators should be able to directly express network-wide policies, which are automatically decomposed into individual device configurations. The resulting forwarding behavior, which emerges through device interactions, must be policy-compliant under all possible failures.
-If successful, this approach would combine easy programmability of centralized control planes and failure robustness of distributed control planes. 
+If successful, this approach would combine easy programmability of centralized control planes and failure robustness of distributed control planes.
 %
 More pragmatically, it would help many networks that, for the foreseeable future, will continue to use a distributed control plane, due to the difficulty of migrating to SDN or the inherent scalability and failure-robustness of distributed control.
 
+Through \sysname, our system that includes a language and a compiler, we demonstrate the feasibility of programming distributed control planes. We focus on BGP, a common and highly flexible way to implement distributed control planes, and show how to automatically generate router BGP configurations from network-wide policies.
 
-Through our system, called \sysname, we demonstrate the feasibility of centrally programming distributed control planes. We focus on BGP, a common and highly flexible way to implement distributed control planes, and show how to automatically generate router BGP configurations from a program that directly expresses network policies.
+We face two challenges in designing \sysname that differ from designing a system for programming data planes~\cite{x,y,z}. The first is policy specification itself---specifying network {\em policies} is different from specifying network {\em paths}.
+%
+The specification must compactly capture behavior under all possible failures. Since there is no controller at runtime, the routers must be programmed ahead of time, based on the specification, to handle failures.
+%
+Further, many policies naturally under-specify paths (e.g., "prefer paying neighbors" is not a concrete path). 
+%
+\sysname addresses this specification challenge by allowing operators to express {\em path preferences}, where preference describes a set of valid paths and less-preferred options are taken only when a higher-preference options are unavailable.
+
+The direct nature of \sysname specifications brings up the second challenge, of compiling them to router configurations.  We must compute the sets of paths represented by the intersection of multiple preferences and topology, compute which ones can be honored under a given failure scenario, and ensure policy compliance under all possible failure cases. We handle this challenge by compactly capturing policy and topology in a {\em product graph} and developing efficient algorithms that operate on this graph. 
+
+We evaluate \sysname by using it to encode policies of real backbone and data center networks. 
 
 \todo{new intro is not complete}
 
