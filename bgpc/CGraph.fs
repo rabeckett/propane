@@ -124,7 +124,6 @@ let getGarbageStates (auto: Regex.Automaton) =
 let buildFromAutomata (topo: Topology.T) (autos : Regex.Automaton array) : T =
     if not (Topology.isWellFormed topo) then
         raise Topology.InvalidTopologyException
-    Array.iter (fun a -> logInfo2 (0,string a)) autos
     let unqTopo = Set.ofSeq topo.Vertices
     let transitions = getTransitions autos
     let garbage = Array.map getGarbageStates autos
