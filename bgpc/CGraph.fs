@@ -362,6 +362,7 @@ module Minimize =
         let domRev = dominators cg cg.End Up
         // Remove nodes dominated by a similar location
         cg.Graph.RemoveVertexIf (fun v ->
+            (not (isRepeatedOut cg v)) &&
             Set.union dom.[v] domRev.[v] |> Set.exists (shadows v)) |> ignore
         // Remove dominated edges
         cg.Graph.RemoveEdgeIf (fun (e: TaggedEdge<CgState,unit>) -> 
@@ -371,12 +372,14 @@ module Minimize =
             | Some ie ->
                 assert (ie.Source = e.Target)
                 assert (ie.Target = e.Source)
+                (not (isRepeatedOut cg e.Source || isRepeatedOut cg e.Target)) &&
                 (Set.contains e.Target (dom.[e.Source]) || Set.contains e.Source (domRev.[e.Target])) &&
                 (e.Target <> e.Source) ) |> ignore
         // Remove edges where the outgoing is dominated by a similar location
         cg.Graph.RemoveEdgeIf (fun e ->
             let x = e.Source
             let y = e.Target
+            (not (isRepeatedOut cg e.Source || isRepeatedOut cg e.Target)) &&
             (Set.exists (shadows x) domRev.[y] || 
              Set.exists (shadows y) dom.[x])) |> ignore
         cg
@@ -415,7 +418,7 @@ module Minimize =
             let realNodes = isRealNode x && isRealNode y
             if realNodes then 
                 ( (isRepeatedOut cg x) && (Seq.exists isInside (neighborsIn cg y)) )  || 
-                ( (isRepeatedOut cg y) && (Seq.exists isInside (neighbors cg x)) ) 
+                ( (isRepeatedOut cg y) && (Seq.exists isInside (neighbors cg x)) && Seq.exists ((=) cg.Start) (neighborsIn cg y) ) 
             else false) |> ignore
         cg
 (*
