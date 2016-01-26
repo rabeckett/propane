@@ -50,7 +50,7 @@ tpp_compress_mean = map(float, tpp_compress_mean[2:])
 #====================================================
 
 # stack data lowest -> highest (build, minimize, order, gen, compress)
-data = (tpp_build_mean, tpp_minimize_mean, tpp_order_mean, tpp_gen_mean, tpp_compress_mean)
+data = (tpp_build_mean, tpp_minimize_mean, tpp_order_mean, tpp_gen_mean)
 foo = np.row_stack( data )
 y_stack = np.cumsum(foo, axis=0)
 
@@ -66,7 +66,7 @@ color1 = "#828A95"
 color2 = "#CEEAF7"
 color3 = "#CCD7E4"
 color4 = "#D5C9DF"
-color5 = "#DCB8CB"
+# color5 = "#DCB8CB"
 
 
 # stacked plot showing different running times
@@ -77,32 +77,34 @@ ax1.fill_between(num_nodes, 0, y_stack[0,:], facecolor=color1, alpha=.7)
 ax1.fill_between(num_nodes, y_stack[0,:], y_stack[1,:], facecolor=color2, alpha=.7)
 ax1.fill_between(num_nodes, y_stack[1,:], y_stack[2,:], facecolor=color3)
 ax1.fill_between(num_nodes, y_stack[2,:], y_stack[3,:], facecolor=color4)
-ax1.fill_between(num_nodes, y_stack[3,:], y_stack[4,:], facecolor=color5)
+#ax1.fill_between(num_nodes, y_stack[3,:], y_stack[4,:], facecolor=color5)
 ax1.set_xlabel('Data center size (routers)')
-ax1.set_ylabel('Time (sec)')
+ax1.set_ylabel('Mean time per prefix (sec)')
+ax1.set_xlim([0,1600])
+ax1.set_ylim([0,20])
 # custom legend for stack color
 p1 = plt.Rectangle((0, 0), 1, 1, fc=color1, alpha=.7)
 p2 = plt.Rectangle((0, 0), 1, 1, fc=color2, alpha=.7)
 p3 = plt.Rectangle((0, 0), 1, 1, fc=color3, alpha=.7)
 p4 = plt.Rectangle((0, 0), 1, 1, fc=color4, alpha=.7)
-p5 = plt.Rectangle((0, 0), 1, 1, fc=color5, alpha=.7)
-leg_boxes = [p5, p4, p3, p2, p1]
-descrs = ["Minimize ABGP", "Generate ABGP", "Find Preferences", "Minimize PG", "Construct PG"]
+#p5 = plt.Rectangle((0, 0), 1, 1, fc=color5, alpha=.7)
+leg_boxes = [p4, p3, p2, p1]
+descrs = ["Generate/Minimize ABGP", "Find Preferences", "Minimize PG", "Construct PG"]
 ax1.legend(leg_boxes, descrs, loc=2)
 fig.savefig('compilation-time-stacked.png')
 
 # plot figures 
 fig = plt.figure()
 plt.grid()
-plt.plot(num_pods, tpp_total_mean, label='Total')
-plt.xlabel('Fattree pod size')
-plt.ylabel('Time (sec)')
+plt.plot(num_nodes, tpp_total_mean, label='Total')
+plt.xlabel('Data center size (routers)')
+plt.ylabel('Mean time per prefix (sec)')
 plt.legend(loc=2)
 fig.savefig('compilation-time.png')
 
 #====================================================
 # 
-# Size of generated vs compressed ABGP (lines)
+# Size of generated vs compressed ABGP (bar)
 #
 #====================================================
 
@@ -121,3 +123,18 @@ leg_boxes = [p1, p3]
 descrs = ["Raw Config", "Minimized Config"]
 ax1.legend(leg_boxes, descrs, loc=2)
 fig.savefig('config-compression-dc.png')
+
+#====================================================
+# 
+# Size of generated vs compressed ABGP (percent line)
+#
+#====================================================
+
+percent_reduction = map(lambda (x,y): float(x-y)/float(x), zip(sizes_raw, sizes_compressed))
+
+fig = plt.figure()
+plt.grid()
+plt.plot(num_nodes, percent_reduction)
+plt.xlabel('Data center size (routers)')
+plt.ylabel('Config size reduction (percent)')
+fig.savefig('config-compression-perc-dc.png')
