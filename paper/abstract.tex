@@ -1,27 +1,61 @@
-\textbf{Abstract---}
-Networks are notoriously difficult to configure correctly. 
-Operators typically rely on local configuration of individual devices running 
-distributed control plane protocols to achieve network-wide objectives. 
-Managing implicit dependencies between device configurations and properly accounting for failures makes 
-a network operator's work particularly difficult. 
+\begin{abstract}
+%\textbf{Abstract---}
+%% Networks are notoriously difficult to configure correctly. 
+%% Operators typically rely on local configuration of individual devices running 
+%% distributed control plane protocols to achieve network-wide objectives. 
+%% Managing implicit dependencies between device configurations and properly accounting for failures makes 
+%% a network operator's work particularly difficult. 
+%% %
+%% %The recent move towards software-defined networking has been motivated, in part, 
+%% %by the simplicity of the centralized model, where a controller directly manages 
+%% %individual devices rather than letting them manage themselves. However distributed 
+%% %protocols have many important advantages in scalability,
+%% %latency and fault tolerance over the completely centralized approach.
+%% %
+%% In this paper, we describe a new system -- \sysname, which allows an operator to specify a high-level, 
+%% centralized routing policy declaratively, but then to compile it to a purely distributed 
+%% implementation, which uses the BGP routing protocol to run on existing, commodity hardware. 
+%% %
+%% Propane allows operators to describe the types of paths traffic may (or may not) take 
+%% through the network, as well as relative preferences (or backups) between paths. 
+%% %
+%% Network policies compiled with \sysname are guaranteed to implement the correct routing policy regardless of the number of failures, if possible.  If this is not possible, the compiler notifies the user at compile time rather than as the network is in 
+%% operation.
+%% %
+%% %\sysname also takes the centralized model one step further by unifying inter and intra-domain routing. Operators can specify routing policy for an autonomous system by programming against the abstraction that they can control any route in the wider internet.
+%% %
+%% We have implemented a compiler for \sysname and evaluated it against several real-world configurations for data centers and core backbone networks. We demonstrate the \sysname compiler can scale to 
+%% topologies with thousands of routers.
 %
-%The recent move towards software-defined networking has been motivated, in part, 
-%by the simplicity of the centralized model, where a controller directly manages 
-%individual devices rather than letting them manage themselves. However distributed 
-%protocols have many important advantages in scalability,
-%latency and fault tolerance over the completely centralized approach.
+Traditional network operators have a difficult job: They are charged
+with achieving network-wide objectives, but they must do so by
+managing many individual, separate devices, each of which is running a
+complex distributed control plane protocol.  Bridging the gap between
+high-level objectives and low-level mechanisms manually is a challenging and
+error-prone task.
 %
-In this paper, we describe a new system -- \sysname, which allows an operator to specify a high-level, 
-centralized routing policy declaratively, but then to compile it to a purely distributed 
-implementation, which uses the BGP routing protocol to run on existing, commodity hardware. 
-%
-Propane allows operators to describe the types of paths traffic may (or may not) take 
-through the network, as well as relative preferences (or backups) between paths. 
-%
-Network policies compiled with \sysname are guaranteed to implement the correct routing policy regardless of the number of failures, if possible.  If this is not possible, the compiler notifies the user at compile time rather than as the network is in 
-operation.
-%
-%\sysname also takes the centralized model one step further by unifying inter and intra-domain routing. Operators can specify routing policy for an autonomous system by programming against the abstraction that they can control any route in the wider internet.
-%
-We have implemented a compiler for \sysname and evaluated it against several real-world configurations for data centers and core backbone networks. We demonstrate the \sysname compiler can scale to 
+In this paper, we describe our preliminary efforts to design and
+implement a new language called Propane, which simplifies the task of
+network management by allowing operators to specify their objectives
+using end-to-end forwarding paths rather than device-by-device
+configurations.  A compiler rather than a human bridges the gap
+between high-level goals and the low-level mechanisms.  More
+specifically, Propane allows operators to describe and rank the sets
+of paths that traffic may follow.  Such paths stretch from external
+ASes, through the user's network, and possibly onward again to other
+ASes.  The Propane compiler analyzes these user specifications and
+then compiles them to a collection of BGP configurations, so they may
+exploit existing distributed fault tolerance mechanisms and
+execute on existing commodity hardware.  During the compilation
+process, it automatically synthesizes per-device import and export
+filters, local preferences, MED attributes, and community tags.  An
+important feature of the language is that whenever possible, compiled
+configurations are guaranteed to implement the correct routing policy,
+regardless of the number of failures.  If correct compilation is
+impossible, the compiler notifies the user at compile time rather than
+waiting until the system is in operation and failures have occurred.
+To date, we have used the language and compiler to experiment with
+several real-world configurations for data centers and core backbone
+networks.  We demonstrate our prototype compiler can scale to
 topologies with thousands of routers.
+\end{abstract}
