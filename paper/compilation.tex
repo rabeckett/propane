@@ -461,30 +461,30 @@ For example, imagine we use the data center example from \S\ref{sec:motivation},
 
 %Here we investigate the correctness and expressiveness properties of \sysname. We are mainly concerned with answering the following questions: (1) does the distributed, compiled policy faithfully implement the user's policy regardless of failures? (2) Are the resulting BGP configurations stable?, and (3) what polcies are or are not expressible in \sysname?
 
-If \sysname compiles a user policy to a distributed implementation, then that distributed implementation faithfully meets the centralized policy's semantics under any failure scenario. We are primarily concerned with the steady state: that is, what happens after (if) the routing protocol converges.  We argue that \sysname is correct by breaking down the claim into two distinct parts:
+If \sysname compiles a user policy to a distributed implementation, then that distributed implementation faithfully meets the centralized policy's semantics under any failure scenario. We are primarily concerned with the steady state: that is, what happens after (if) the routing protocol converges.  We argue that \sysname is correct by breaking down the claim:
 
 \begin{prop}
-A distributed BGP configuration is \textit{Sound} with respect to a \sysname policy, if the any route traffic takes in the network, is a valid route specified in the policy.
+A distributed BGP configuration produced by \sysname is \textit{Sound} with respect to the policy: That is, any route traffic takes in the network, is a valid route specified by the policy.
 \end{prop}
-
-The Soundness claim follows directly from compilation of the product graph. Since every path through the product graph (from start to end) must match the user's policy, and since the compiled configurations use communities to ensure only valid routes through the product graph are used, the resulting BGP configurations are Sound. 
-
+%
+%The Soundness claim follows directly from compilation of the product graph. Since every path through the product graph (from start to end) must match the user's policy, and since the compiled configurations use communities to ensure only valid routes through the product graph are used, the resulting BGP configurations are Sound. 
+%
 \begin{prop}
-A distributed BGP configuration is \textit{Complete} with respect to a \sysname policy, if the distributed implementation always obtains a most preferred route between two nodes when the corresponding path exists in the network.
+A distributed BGP configuration produced by \sysname is \textit{Complete}: That is, the distributed implementation always obtains a most preferred route between two nodes when the corresponding path exists in the network.
 \end{prop}
-
+%
 %The argument for completeness is as follows: Assume the most preferred path that exists in the network is between two nodes $X$ and $Y$.  This means there is a valid path in the product graph corresponding to this path, and which is available in the network. 
 %Assume we are unable to achieve this route in the network. To not achieve this path means that some router along the advertisement route from $Y$ to $X$ preferred to accept an advertisement from another peer instead. This implies that router that makes the ``wrong'' choice appears as a separate node in the product graph. However, from our failure safety check, we know that the other, more-preferred node must have a superset of the paths to accepting states as the less preferred node (from which it stole the route) for at least as good of a final preference. The argument then proceeds by induction on the path length - there are only a finite number of such stealings that can occur, each of which will ultimately still result in a route advertisement reaching $X$ along a most preferred path.
-
-Any \sysname-compiled policy will be \textit{Complete} as a result of the failure safety check.
 %
-The combination of Soundness and Completeness ensures that the distributed implementation will always achieve the best routes possible, yet will never also use any unwanted routes. 
-
+%Any \sysname-compiled policy will be \textit{Complete} as a result of the failure safety check.
+%
+The combination of Soundness and Completeness ensures that the distributed implementation will always send traffic along the best paths possible, yet will also never also use any undesired paths. These properties rely on the fact that \sysname produces stable BGP configurations:
+%
 \begin{prop}
 The internal routers in a distributed BGP configuration produced by \sysname will be stable. 
 \end{prop}
 
-The reduction is via the well-known No-Dispute-Wheel condition~\ref{bib:todo} for stable BGP. In particular, any policy with a dispute wheel will not pass the stronger failure safety check by \sysname.
+%The reduction is via the well-known No-Dispute-Wheel condition~\ref{bib:todo} for stable BGP. In particular, any policy with a dispute wheel will not pass the stronger failure safety check by \sysname.
 
 %\begin{figure}[t!]
 %\includegraphics[width=\columnwidth]{figures/dispute-wheel}
