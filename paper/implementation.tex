@@ -6,17 +6,17 @@ We have written a prototype compiler for \sysname that is implemented in roughly
 \para{PG construction}
 
 Constructing automata for extended regular expressions (regular expressions including negation and intersection) are known to have high complexity~\ref{bib:todo}. The \sysname compiler uses regular expressions derivatives~\ref{bib:todo} with character classes to construct deterministic automata for extended regular expressions over large alphabets efficiently. Since regular expressions are defined over a finite alphabet, and since much of the AS topology is unknown, we set the alphabet to include all uniquely referenced external ASes in the policy. Similarly, to model the unknown external AS topology beyond immediate peers, we include a special topology node to represent any unknown location.
-
+%
 Rather than construct the product graph in full, our implementation prevents exploring parts of the graph when no accepting state is reachable in any of the corresponding regular automata during construction.
 
 \para{PG Minimization}
 
-The \sysname compiler uses a fast algorithm for computing graph dominators by storing sets of dominators in a compact representation known as a dominator tree~\ref{bib:todo}. More complex algorithms with better theoretical complexity exist~\ref{bib:todo} and may be better suited for large enough topologies. However, we have not found minimization to be a bottleneck in our implementation. Minimization steps are ordered from cheapest to most expensive. All minimization steps are repeated until no more progress can be made.
+The \sysname compiler uses a fast algorithm for computing graph dominators by storing sets of dominators in a compact representation known as a dominator tree~\ref{bib:todo}. More complex algorithms with better theoretical complexity exist~\ref{bib:todo} and may be better suited for large enough topologies. All minimization steps are repeated until no more progress can be made.
 
 \para{Failure Safety}
 
-When computing local preferences and failure safety, as described in Section~\ref{sec:compilation}, the compiler performs memoization of the ``can prefer'' relation. That is, whenever for two states $n_1$ and $n_2$ we compute $protect(G_j, n_1, G_i, n_2)$, if the function evaluates to $true$, then each of the intermediate related states $x$ and $y$ must also satisfy $protect(G_j, x, G_i, y)$. Memoizing these states significantly cuts down the amount of work that needs to be in the common case.
+When computing local preferences and failure safety, as described in Section~\ref{sec:compilation}, the compiler performs memoization of the \textit{protect} function. That is, whenever for two states $n_1$ and $n_2$ we compute $protect(G_j, n_1, G_i, n_2)$, if the function evaluates to $true$, then each of the intermediate related states $x$ and $y$ must also satisfy $protect(G_j, x, G_i, y)$. Memoizing these states significantly cuts down the amount of work that needs to be in the common case.
 
 \para{Configuration generation}
 
-The naive code generation algorithm described in Section~\ref{sec:compilation} is extremely memory inefficient since it generates a separate match-export pair for every unique in edge/out edge pair for every node in the product graph before minimization. Our implementation performs partial minimization during generation by recognizing common cases where there is no restriction on exporting or importing from neighbors.
+The naive code generation algorithm described in Section~\ref{sec:compilation} is extremely memory inefficient since it generates a separate match-export pair for every unique in edge/out edge pair for every node in the product graph before minimization. Our implementation performs partial minimization during generation by recognizing common cases where there is no restriction on exporting to or importing from neighbors.
