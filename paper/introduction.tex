@@ -140,18 +140,19 @@ task).
 
 To evaluate the \sysname{} language and system, we have experimented with specifying policy
 for several realistic data center and backbone networks and compared these specifications
-with existing operating specifications. We have also
+with existing configurations. We have also
 measured the performance of our compiler, demonstrating that our compilation
 algorithms scale to topologies with several thousand routers.
 
-In the remainder of the paper, we review BGP~\ref{sec:background} (readers
+\dpw{The following could be cut for space.}
+In the remainder of the paper, we review BGP (Section~\ref{sec:background}---readers
 familiar with BGP may skip this section),
 further motivate the need for new languages 
 for programming distributed control planes (Section \ref{sec:motivation}),
 introduce \sysname{} by example (Section \ref{sec:propane}), 
 explain our compiler algorithms (Section \ref{sec:compilation}),
-present several lemmas justifying the correctness of our techniques (Section \ref{sec:theory}), describe our implementation (Section \ref{sec:implementation}
-and discuss related work (Section \ref{sec:related}).
+present several lemmas justifying the correctness of our techniques (Section \ref{sec:theory}), describe our implementation (Section \ref{sec:implementation})
+evaluate our work  (Section \ref{sec:evaluation}) and discuss related work (Section \ref{sec:related}).
 
 %% In this paper, we ask if it is possible to program 
 %% fully distributed control planes using 
