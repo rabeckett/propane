@@ -146,7 +146,7 @@ let rec union r1 r2 =
     if r1 = r2 then r1 else
     match r1, r2 with
     (* rewrite x;y + x;z = x;(y+z) *)
-    | x, Concat (hd::tl) when x = hd -> concat hd (union epsilon (concatAll tl))
+    (* | x, Concat (hd::tl) when x = hd -> concat hd (union epsilon (concatAll tl))
     | Concat (hd::tl), x when x = hd -> concat hd (union epsilon (concatAll tl))
     | Concat (hd1::tl1), Concat (hd2::tl2) when hd1 = hd2 -> concat hd1 (union (concatAll tl1) (concatAll tl2))
     | x, Concat ys when (List.rev ys).Head = x -> concat (union epsilon (concatAll (List.rev (List.tail (List.rev ys))))) x
@@ -160,7 +160,7 @@ let rec union r1 r2 =
     | Epsilon, Concat [y1; Star y2] when y1 = y2 -> star y2
     | Epsilon, Concat [Star y1; y2] when y1 = y2 -> star y2
     | Concat [y1; Star y2], Epsilon when y1 = y2 -> star y2
-    | Concat [y1; Star y2], Epsilon when y1 = y2 -> star y2
+    | Concat [y1; Star y2], Epsilon when y1 = y2 -> star y2 *)
     (* main identities *)
     | _, Empty -> r1
     | Empty, _ -> r2

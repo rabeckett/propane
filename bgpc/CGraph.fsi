@@ -105,9 +105,19 @@ module Consistency =
 
 
 module ToRegex = 
+
+    type TempHackRegex = 
+        | THEmpty
+        | THEpsilon
+        | THLoc of string
+        | THUnion of TempHackRegex  * TempHackRegex
+        | THConcat of TempHackRegex * TempHackRegex
+        | THStar of TempHackRegex
+        | THNeg of TempHackRegex
+
     /// Construct a compact regular expression describing the paths
     /// from a given node in the graph
-    val constructRegex: T -> CgState -> Regex.T
+    val constructRegex: T -> CgState -> TempHackRegex
 
 
 module Failure =

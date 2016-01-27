@@ -13,7 +13,7 @@ type CounterExample =
 type Match = 
     | Peer of string 
     | State of string * string
-    | PathRE of Regex.T
+    | PathRE of CGraph.ToRegex.TempHackRegex
     | NoMatch
 
 type Action = 

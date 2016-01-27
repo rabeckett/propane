@@ -752,20 +752,40 @@ module Consistency =
 
 module ToRegex =
 
-    let constructRegex (cg: T) (state: CgState) : Regex.T =
+    type TempHackRegex = 
+        | THEmpty
+        | THEpsilon
+        | THLoc of string
+        | THUnion of TempHackRegex  * TempHackRegex
+        | THConcat of TempHackRegex * TempHackRegex
+        | THStar of TempHackRegex
+        | THNeg of TempHackRegex
+
+        override this.ToString () = 
+            match this with 
+            | THEmpty -> "{}"
+            | THEpsilon -> "\"\""
+            | THLoc s -> s 
+            | THUnion(x,y) -> "(" + string x + " or " + string y + ")"
+            | THConcat(x,y) -> "(" + string x + ";" + string y + ")"
+            | THStar x -> "(" + string x + ")*"
+            | THNeg x -> "!(" + string x + ")"
+    
+
+    let constructRegex (cg: T) (state: CgState) : TempHackRegex =
         (* Store regex transitions in a separate map *)
         let reMap = ref Map.empty
-        let get v = Common.Map.getOrDefault v Regex.empty !reMap
+        let get v = Common.Map.getOrDefault v THEmpty !reMap
         let add k v = reMap := Map.add k v !reMap
         (* Simplify graph to only contain relevant nodes *)
         let reachable = Reachable.src cg state Down
         cg.Graph.RemoveVertexIf (fun v -> not (reachable.Contains v) && Topology.isTopoNode v.Node) |> ignore
         cg.Graph.AddEdge (TaggedEdge(cg.End, state, ())) |> ignore
         (* Populate the regex transition map *)
-        add (cg.End, state) Regex.epsilon
+        add (cg.End, state) THEpsilon
         for e in cg.Graph.Edges do
             if e.Source <> cg.End then
-                add (e.Source, e.Target) (Regex.loc (loc e.Source))
+                add (e.Source, e.Target) (THLoc (loc e.Source))
         (* we will remove all none start/end nodes one by one *)
         let queue = Queue()
         for v in cg.Graph.Vertices do
@@ -781,7 +801,7 @@ module ToRegex =
                         let y1 = get (q1,q)
                         let y2 = get (q,q)
                         let y3 = get (q,q2)
-                        let re = Regex.union x (Regex.concatAll [y1; Regex.star y2; y3])
+                        let re = THUnion (x, (THConcat (y1, THConcat (THStar y2, y3))) )
                         reMap := Map.add (q1,q2) re !reMap
             cg.Graph.RemoveVertex q |> ignore
         Map.find (cg.End, cg.Start) !reMap
