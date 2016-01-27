@@ -7,7 +7,7 @@ The front-end language of \sysname is designed to simplify operators' task of de
 
 \begin{figure}[t!]
 \centering
-\includegraphics[width=\columnwidth]{figures/pipeline}
+\includegraphics[width=.9\columnwidth]{figures/pipeline}
 \caption{Compilation pipeline stages for Propane.}
 \label{fig:pipeline}
 \end{figure}
@@ -20,7 +20,7 @@ Figure~\ref{fig:pipeline} shows the 5 stage compilation pipeline to translate us
 \subsection{Regular IR (RIR)}
 \label{sec:rir}
 
-The high-level language of \S\ref{sec:propane} is just a thin layer on top of a core, regular-expression-based language for describing preference-based path constraints. Regular expressions are an expressive formalism that have been studied extensively for their utility in describing paths through graphs~\cite{bib:todo}, with applications to networks~\cite{bib:todo}. Our regular expression language differs from others by allowing operators to describe preferences between paths.
+The high-level language of \S\ref{sec:propane} is just a thin layer on top of a core, regular-expression language for describing preference-based path constraints. Regular expressions are an expressive formalism that have been studied extensively for their utility in describing paths through graphs~\cite{bib:todo}, with applications to networks~\cite{bib:todo}. Our regular expression language differs from others by allowing operators to describe preferences between paths.
 
 % grammar
 \newcommand{\BNFALT}{\;\;|\;\;}
@@ -72,7 +72,7 @@ The high-level language of \S\ref{sec:propane} is just a thin layer on top of a 
     only(X)       & = & any \cap X^* \\
     never(X)      & = & any \cap (!X)^* \\
     through(X)    & = & out^* \cdot in^* \cdot X \cdot in^* \cdot out^* \\
-    after(X)      & = & out^* \cdot (X \cap out) \cdot out^* \cdot in^+ \cdot out^* \\
+    later(X)      & = & out^* \cdot (X \cap out) \cdot out^* \cdot in^+ \cdot out^* \\
     before(X)     & = & out^* \cdot in^+ \cdot out^* \cdot (X \cap out) \cdot out^* \\
     end(X)        & = & any \cap (\Sigma^* \cdot X) \\
     start(X)      & = & any \cap (X \cdot \Sigma^*) \\
@@ -101,10 +101,10 @@ The high-level language of \S\ref{sec:propane} is just a thin layer on top of a 
 
 The syntax for the RIR is shown in Figure~\ref{fig:rir-syntax}. A policy consists of one or more constraints, each of which consists of a test on the type of route, and a corresponding set of preferred regular paths. Regular paths are simply regular expressions where the base characters are abstract locations - either a router or an Autonomous System (AS) number. Special \textit{in} and \textit{out} symbols are used to refer to any internal or external location respectively.
 For example, the constraint
-$$prefix=74.125.28.0/24 \mapsto (AS200 \cdot in^+) \gg (AS100 \cdot in^+)$$
-describes a more-preferred set of paths for traffic announced by a prefixes no less specific than $74.125.28.0/24$, which starts at AS 200, before entering and staying inside the user's network to get to the destination, and a less-preferred set of paths that start at AS 100 and are otherwise the same. The plus operator $in^+$ stands for $in \cdot in^*$ in the usual way. Tests over route types use standard boolean connectives, and can refer to both prefixes and route community values.
+$$prefix=74.3.28.0/24 \mapsto (as200 \cdot in^+) \gg (as100 \cdot in^+)$$
+describes a more-preferred set of paths for traffic announced by a prefix no less specific than $74.125.28.0/24$, which starts at AS 200, before entering and staying inside the user's network to get to the destination, and a less-preferred set of paths that start at AS 100 and are otherwise the same. The plus operator $in^+$ stands for $in \cdot in^*$, at least one internal hop. Tests over route types use standard boolean connectives, and can refer to both prefixes and route community values.
 
-\sysname also supports constraints purely on the control-plane behavior of the BGP routing protocol. Thing like prefix aggregation, which should not affect routing behavior, is an important optimization to reduce routing table size and churn in practice. Aggregation, for example from internal locations and external locations, is specified using the same regular syntax as before:
+\sysname also supports constraints purely on the control-plane behavior of the BGP routing protocol. For example, prefix aggregation, which should not affect routing behavior, is an important optimization to reduce routing table size and churn in practice. Aggregation, for example from internal locations and external locations, is specified using the same regular syntax as before:
 $$agg(128.17.0.0/16, in \rightarrow out)$$
 where the expression $in \rightarrow out$ refers to control messages flowing from any internal location to any external location.
 
@@ -113,7 +113,7 @@ We list the route aggregation and community tagging constraints in Figure~\ref{f
 
 \para{Semantics}
 
-The semantics of RIR can be thought of in terms of ranked paths. Each preference-based regular path constraint (of the form $r_1 \gg \dots \gg r_j$) maps to a set of concrete paths in the network that match one of $r_i$. We denote a network path as a string of abstraction locations (routers or external ASes) of the form: $n_1 n_2 \dots n_k$, and we say regular expression $r$ matches path $p$, if $p \in \mathcal{L}(r)$ and $p$ is a topologically-valid path. We denote the length of a path $p$ as $\abs{p}$. A path $p$ will have a rank:
+The semantics of RIR can be thought of in terms of ranked paths. Each preference-based regular path constraint (of the form $r_1 \gg \dots \gg r_j$) maps to a set of concrete paths in the network that match one of $r_i$. We denote a network path as a string of abstract locations (routers or external ASes) of the form: $n_1 n_2 \dots n_k$. A regular expression $r$ matches path $p$, if $p \in \mathcal{L}(r)$ and $p$ is a topologically-valid path. We denote the length of a path $p$ as $\abs{p}$. A path $p$ will have a rank:
 $$(\min_i \set{ p \in \mathcal{L}(r_i) }, \abs{p})$$
 where the rank is lexicographically ordered according to (1) the most preferred regular expression matched, and (2) as a tie breaker, the length of the path. A lower rank indicates a \emph{more} preferred path. The desired semantics is to allow traffic to be sent along any of the most preferred paths for each pair of starting and ending locations that appear in some valid specified path.
 
@@ -139,7 +139,7 @@ $\path{p_{l2}}{\neg enter(out) \cap end(F)}$
 $\path{true}{exit(out)}$
 \end{lstlisting}
 
-The next step is to rewrite the high-level constraints such as \textit{enter} and \textit{exit} according to the equivalences listed in Figure~\ref{fig:rir-syntax}. Since preferences can only occur at the outermost level for an RIR expression, the final step is to lift occurences of the preference operator that occur in the regular expression. For example, the regular expression $a \cdot (b \gg c) \cdot d$ is lifted to $(a \cdot b \cdot d) \gg (a \cdot c \cdot d)$ by distributing the preference over the sequence operator. In general, we employ the follwing equivalence:
+The next step is to rewrite the high-level constraints such as \textit{enter} and \textit{exit} according to the equivalences listed in Figure~\ref{fig:rir-syntax}. Since preferences can only occur at the outermost level for an RIR expression, the final step is to lift occurences of the preference operator in each regular expression. For example, the regular expression $a \cdot (b \gg c) \cdot d$ is lifted to $(a \cdot b \cdot d) \gg (a \cdot c \cdot d)$ by distributing the preference over the sequence operator. In general, we employ the follwing equivalence:
 %
 $$x \odot (y_1 \gg \dots \gg y_n) = x \odot y_1 \gg \dots \gg x \odot y_n$$
 %

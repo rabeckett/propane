@@ -1,14 +1,11 @@
 \section{Propane overview}
 \label{sec:propane}
 
-\sysname simplifies network configuration by automatically generating low-level BGP configurations from a high-level specification of routing policy.
-%
-\ratul{Does this capture the differences correctly?}
 Policies for (distributed) control planes differ from data plane policies~\cite{x,y,z} in two ways. First, they must account for all failures at specification time; there is no controller at runtime, the routers must handle failures by themselves in a compliant manner.
 %
-In \sysname, we enable such specifications through path preferences, with the semantics that a less-preferred path is taken only when a higher-preference path is unavailable.
+In \sysname, we enable such specifications through path preferences, with the semantics that a less-preferred path is taken only when a higher-preference path is unavailable in the network.
 %
-Second, paths may be under-specified (e.g., "prefer customer" does not indicate a concrete path). The \sysname compiler treats such under-specifications as constraints on the set of paths and automatically compute valid sets based on topology.
+Second, paths may be under-specified (e.g., "prefer customer" does not indicate a concrete path). The \sysname compiler treats such under-specifications as constraints on the set of paths and automatically computes valid sets based on topology.
 
 
 
@@ -27,7 +24,7 @@ The next section describes how we compile such policies to BGP.
 %import-export filters, local preferences, MED attributes, and community tags
 %to ensure policy compliance under all possible failure scenarios.
 
-The operator configures the network with the abstraction that he or she has centralized control over routing and uses a set of high-level constraints to describe the different routes traffic may (or may not) take and their relative preferences.
+\sysname allows the operator to configure the network with the abstraction that he or she has centralized control over routing and uses a set of high-level constraints to describe the different routes traffic may (or may not) take and their relative preferences.
 In general, \sysname specifications are written modularly via a series
 of user declarations.
 %These definitions allow users to express the three
@@ -43,8 +40,7 @@ we prefer using $R_1$ over $R_2$ (Policy P3 from Figure~\ref{fig:example1}):
 \Define ExitCust = \Exit(R1 \Prefer R2)
 \end{code}
 The  statement above defines a set of \emph{ranked paths}, which includes
-all paths (and only those paths) that exit
-our network
+all paths (and only those paths) for which traffic exits our network
 through either router \CD{R1} or \CD{R2}.  The paths that exit through \CD{R1}
 are preferred (\Prefer) to the paths that exit through $R_2$.
 
@@ -183,7 +179,6 @@ routing policy:
 \}
 \end{code}
 
-\dpw{Note that I did not use an asterix above but used disjunction.}
 The first line states that there is no restriction (\Any)
 on how traffic must
 traverse the network for global prefixes, aside from the default restriction
@@ -200,20 +195,17 @@ logically to specify the network-wide policy.
 However, in addition to constraints on the shape of paths,
 \sysname allows the operator to specify constraints on the BGP control plane.
 For instance, a constraint on aggregation is included to ensure that
-aggregation for the prefixes in the set \CD{AGG} is performed from 
-locations inside the network
-to locations outside the network. \todo{Say more about aggregation here.
+aggregation for global prefixes (with aggregate \CD{PG}) is performed from 
+locations inside the network to locations outside the network. In this case, both \CD{PG1} and \CD{PG2} will use the aggregate \CD{PG} when advertised outside the datacenter.
+\todo{Say more about aggregation here.
 What prefixes are aggregated in to what blocks?  How is this defined?}
 
 \begin{code}
-Ownership \AND{} Routing \AND{} \Agg(AGG, \In \Link \Out)
+Ownership \AND{} Routing \AND{} \Agg(P_G, \In \Link \Out)
 \end{code}
 
 As before, once \sysname compiles the policy, it is guaranteed to hold under
-all possible failure scenarios. In addition, the system can check for
-aggregate-induced black holes in the presence of up to $k$ failures.
-\todo{Note:  Another comment about failure checking for black holes, which may
-not be implemented yet.}
+all possible failure scenarios. \sysname also checks for failure safety against aggregation-induced black holes due to the presence of aggregation constraints. It can efficiently determine a lower bound on the number of failures necessary to black hole traffic given the user's policy, topology, and placement of specific aggregates.
 
 
 
