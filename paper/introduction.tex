@@ -1,29 +1,69 @@
 \section{Introduction}
 \label{sec:introduction}
 
-It is well-known that network configuration is hard and error prone~\cite{x,y,z}; many studies of network incidents point to configuration errors as the leading cause.
-%
+It is well-known that network configuration is highly error 
+prone and that such errors can lead to costly network 
+downtime~\cite{mahajan+:bgp-misconfiguration,feamster+:rcc,batfish}.  
+For instance, in the context of BGP, Mahajan~~\cite{mahajan+:bgp-misconfiguration} 
+estimated that 200-1200 prefixes suffered from
+misconfiguration each day and that close to 3 in 4 of all
+new prefix advertisements were the result of misconfiguration.
+Moreover, these misconfigurations sometimes cause significant network downtime for
+individual networks~\cite{time-warner} or even broader internet connectivity problems~\cite{routing-instability,mahajan+:bgp-misconfiguration}.
+\dpw{Note that \cite{time-warner} and I am not sure about the specifics of the problem there
+or what exactly was misconfigured.  It is also unclear if our language really helps with the
+``broader internet connectivity problems'' however, I thought that adding some specific examples
+would help make the intro more compelling.  Feel free to rewrite.}
+
 One reason is that device configuration languages are low-level and several configuration elements must be kept consistent (e.g., interface addresses) for the device to behave as intended.
+Another, more fundamental reason is the semantic mismatch between the intended high-level
+policies and the low-level device-by-device configurations.  In particular,
+many policies involve network-wide properties---prefer a certain neighbor,
+never announce a particular destination externally, 
+use a particular path only if another fails---but configurations describe the behavior of 
+individual devices.
 %
+Operators must manually decompose network-wide policy into device-level behaviors, such that their interactions satisfy the given high-level objectives.
+%
+Ensuring policy-compliance through this manual decomposition is challenging under normal
+circumstances and even more so in the face of failures. Some decompositions that work correctly 
+in failure-free environments, violate key constraints when failures occur.
+%
+As a result, many network configuration problems are only revealed after failures~\cite{batfish},
+sometimes making a bad situation worse.
 
-Another, more fundamental reason is the semantic mismatch between intended policies and configuring individual devices.
-%
-Many policies are network-wide (e.g., such as prefer certain external neighbors over others, never announce certain destination prefixes externally, use a certain path only if another fails), but configurations describe the behavior of individual devices.
-%
-Operators must manually decompose network-wide policy into device-level behaviors, such that their interactions produce the desired policy.
-%
-Ensuring policy-compliance through this manual decomposition is hard and error-prone, especially in the face of failures. Certain decompositions that work correctly otherwise, violate policies when failures occur.
-%
-As a result, many configuration errors manifest only during failures~\cite{batfish}.
+To reduce configuration errors, many practitioners have a adopted a template-based 
+approach~\cite{x,y}, in which common configuration patterns are captured as parameterized templates.
+ While templates help ensure certain kinds of consistency across several devices, they do not 
+bridge the 
+semantic divide between network policies and device-level configuration (\S\ref{sec:motivation}):
+These templates do not provide new reasoning principles or fundamentally different abstractions 
+from existing configuration languages.
 
-To reduce configuration errors, the practitioner community is adopting a template-based approach~\cite{x,y}, in which common configuration constructs are captured as parameterized templates.
- While templates help with the low-level nature of configuration languages, they do not bridge the semantic divide between network policies and device-level configuration (\S\ref{sec:motivation}).
+Software-defined networking (SDN) and the abstractions
+that support it are, in part, the research
+community's response to the difficulty of maintaining policy
+compliance through distributed interaction of individual
+devices~\cite{sdn-languages}. Indeed, instead of organizing networks
+around a distributed collection of devices that compute forwarding tables through
+mutual interactions, the devices are told how to
+forward packets by a centralized controller. The controller is responsible for ensuring that the
+paths taken are compliant with operator specifications. 
+%Researchers
+%have developed increasingly sophisticated languages that let operators
+%specify desirable network paths~\cite{x,y,z} which are then translated
+%to forwarding tables at runtime.
 
-Software-defined networking (SDN) was, in part, the research community's response to the difficulty of maintaining policy compliance through distributed interaction of individual devices~\cite{xx}. It eliminates distributed control planes altogether. Instead of devices computing  forwarding tables through mutual interactions, they are told by a centralized controller how to forward packets. The controller is responsible for ensuring that the paths taken are compliant with operator specifications. Researchers have developed increasingly sophisticated languages that let operators specify desirable network paths~\cite{x,y,z} which are then translated to forwarding tables at runtime.
-
-Centralized control planes of SDN, however, are not a panacea.
+The centralized control planes of SDN, however, are not a panacea.
 %
-They require careful design and engineering to be robust to failures at scale---one must ensure that all devices can communicate with the controller at all times, even under arbitrary combinations of failure~\cite{x,y,z}. For this challenge, researchers are exploring multi-controller networks, with interacting controllers, thus bringing back distributed control planes~\cite{x,y,z} and their current programming difficulties.
+They require careful design and engineering to be robust to failures at scale---one must ensure that all devices can communicate with the controller at all times, even under arbitrary combinations of failure~\cite{x,y,z}. To address this challenge, many researchers are beginning to explore 
+multi-controller networks, with interacting controllers, thus bringing back distributed 
+control planes~\cite{x,y,z} and their current programming difficulties.  However, academic
+language design and implementation efforts have not kept pace.  For instance, work on
+experimental SDN languages
+such as Frenetic~\cite{frenetic}, Flowlog~\cite{flowlog}, Vericon~\cite{vericon}, Merlin~\cite{merlin}, NetKAT~\cite{netkat}, and Kinetic~\cite{kinetic}, to 
+name a few, has not yet shown how to implement fault tolerant 
+multi-controller systems that support their abstractions efficiently.
 
 In this paper, we ask if it is possible to program distributed control planes using network-wide policies.
 Operators should be able to directly express network-wide policies, which are automatically decomposed into individual device configurations. The resulting forwarding behavior, which emerges through device interactions, must be policy-compliant under all possible failures.
