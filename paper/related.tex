@@ -1,12 +1,5 @@
 \section{Related Work}
 
-%\begin{itemize}
-%	\item Regular path queries
-%	\item Lots of background on BGP
-%	\item Feamster rcc stuff
-%	\item Logic programming BGP configs
-%\end{itemize}
-
 \dpw{We could also consider citing Boon's stuff on declarative routing.}
 
 Our work builds on three themes of prior work.
@@ -28,7 +21,7 @@ any number of faults.  Because FatTire generates data plane rules up front,
 before faults occur, specifying higher levels of fault tolerance comes
 at the cost of generating additional rules that tax switch
 memory.  In contrast, \sysname uses traditional distributed
-control plane mechanisms to react to faults, which do not impose 
+control plane mechanisms to react to faults, which do not impose
 additional memory cost.
 Because of the differences in the underlying technology, the analyses
 and compilation algorithms used in \sysname are quite different from
@@ -75,7 +68,7 @@ efforts.  We hope to eliminate bugs by using higher-level
 languages and a ``correct-by-construction''
 methodology.  By proposing network administrators write configurations
 at a high-level of abstraction, a whole host of low-level errors can be
-avoided.  
+avoided.
 
 %We also believe the high-level, centralized nature of \sysname policies
 %has the benefit of making configurations
