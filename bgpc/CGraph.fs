@@ -417,8 +417,13 @@ module Minimize =
             let y = e.Target 
             let realNodes = isRealNode x && isRealNode y
             if realNodes then 
-                ( (isRepeatedOut cg x) && (Seq.exists isInside (neighborsIn cg y)) )  || 
-                ( (isRepeatedOut cg y) && (Seq.exists isInside (neighbors cg x)) && Seq.exists ((=) cg.Start) (neighborsIn cg y) ) 
+                if isRepeatedOut cg x then Seq.exists isInside (neighborsIn cg y)
+                else if isRepeatedOut cg y then
+                    
+                    Seq.exists isInside (neighbors cg x) && 
+                    (Seq.exists ((=) cg.Start) (neighborsIn cg y) || 
+                    Seq.forall ((<>) cg.Start) (neighborsIn cg x))
+                else false
             else false) |> ignore
         cg
 (*
@@ -775,8 +780,8 @@ module ToRegex =
     let constructRegex (cg: T) (state: CgState) : TempHackRegex =
         (* Store regex transitions in a separate map *)
         let reMap = ref Map.empty
-        let get v = Common.Map.getOrDefault v THEmpty !reMap
-        let add k v = reMap := Map.add k v !reMap
+        let inline get v = Common.Map.getOrDefault v THEmpty !reMap
+        let inline add k v = reMap := Map.add k v !reMap
         (* Simplify graph to only contain relevant nodes *)
         let reachable = Reachable.src cg state Down
         cg.Graph.RemoveVertexIf (fun v -> not (reachable.Contains v) && Topology.isTopoNode v.Node) |> ignore
