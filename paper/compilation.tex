@@ -37,15 +37,13 @@ The high-level language of \S\ref{sec:propane} is just a thin layer on top of a 
 
      pol     &::=& p_1, \dots, p_n & \textit{constraints} \\
      p       &::=& t \mapsto r_1 \gg \dots \gg r_m & \textit{preferences} \\
-     t       &::=& & \textit{test} \\
-         &\BNFALT& true & \textit{true} \\
+     t       &::=& true & \textit{true} \\
          &\BNFALT& \neg t & \textit{negation} \\
          &\BNFALT& t_1 \vee t_2 & \textit{disjunction} \\
          &\BNFALT& t_1 \wedge t_2 & \textit{conjunction} \\
          &\BNFALT& prefix = x & \textit{prefix test} \\
          &\BNFALT& comm = c & \textit{community test} \\
-     r       &::=& & \textit{regular paths} \\
-         &\BNFALT& n & \textit{AS number} \\
+     r       &::=& n & \textit{AS number} \\
          &\BNFALT& in & \textit{internal loc} \\
          &\BNFALT& out & \textit{external loc} \\
          &\BNFALT& r_1 \cup r_2 & \textit{union} \\
@@ -71,7 +69,6 @@ The high-level language of \S\ref{sec:propane} is just a thin layer on top of a 
     \hline
     any           & = & out^* \cdot in^+ \cdot out^* \\
     internal      & = & in^+ \\
-    external      & = & out^+ \\
     only(X)       & = & any \cap X^* \\
     never(X)      & = & any \cap (!X)^* \\
     through(X)    & = & out^* \cdot in^* \cdot X \cdot in^* \cdot out^* \\
