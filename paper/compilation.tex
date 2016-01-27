@@ -214,19 +214,20 @@ where $\odot$ stands for an arbitrary regular binary operator. Preferences neste
   \label{fig:example-compilation}
 \end{figure*}
 
+Now that the user policy exists in a simplified form, we must consider topology. In particular, we want a compact representation that describes all the possible ways BGP route announcements can flow through the network subject to the policy and topology constraints. Our PGIR captures these dependencies by ``intersecting" each of the regular automata corresponding to the RIR path preferences, and the topology. Paths through the PGIR correspond to real paths through the topology that satisfy the user constraints. 
 
-Now that the user policy exists in a simplified form, we must take the topology into consideration. In particular, we are interested in a compact representation that describes all the possible ways BGP route advertisements can flow through the network subject to the policy and topology constraints. To this end, we use a Product Graph Intermediate Representation (PGIR) to capture these dependencies. The Product graph can be thought of as the intersection of each of the regular automata corresponding to the RIR path preferences, and the topology. Paths through the product graph will correspond to real paths through the topology that satisfy the user constraints. Finding paths through a graph subject to regular constraints has been studied extensively in the database literature~\ref{bib:todo}, and has been applied to networks in the past~\ref{bib:todo}.
+%Finding paths through a graph subject to regular constraints has been studied extensively in the database literature~\ref{bib:todo}, and has been applied to networks in the past~\ref{bib:todo}.
 
 \para{Formal definition}
 
 % Formally define automata
-The translated user policy into RIR is of the form $r_1 \gg \dots \gg r_j$. While paths talk about the direction traffic flows through the network, to implement the policy with BGP we are concerned about the way control-plane information is disseminated (i.e., router advertisements flowing in the opposite direction). To capture this idea, for each regular expression $r_i$, we construct a deterministic finite state machine on the reversed regular expression. Each automaton is a tuple: ($\Sigma, Q_i, F_i, q_{0_i}, \sigma_i$). The alphabet $\Sigma$ consists of all internal and external ASes, $Q_i$ is the set of states for automaton i, $F_i$ is the set of final states, $q_{0_i}$ is the initial state, and $\sigma_i \colon Q_i \times \Sigma \rightarrow Q_i$ is the state transition function.
+The RIR policy is of the form $r_1 \gg \dots \gg r_j$. While paths talk about the direction traffic flows through the network, to implement the policy with BGP we are concerned about the way control-plane information is disseminated (i.e., route announcements flowing in the opposite direction). To capture this idea, for each regular expression $r_i$, we construct a deterministic finite state machine on the reversed regular expression. Each automaton is a tuple: ($\Sigma, Q_i, F_i, q_{0_i}, \sigma_i$). The alphabet $\Sigma$ consists of all internal and external ASes, \ratul{ASes or locations?} $Q_i$ is the set of states for automaton i, $F_i$ is the set of final states, $q_{0_i}$ is the initial state, and $\sigma_i \colon Q_i \times \Sigma \rightarrow Q_i$ is the state transition function.
 %
 % Formally define topology
 The topology is represented as a graph ($V, E$), which consists of a set of vertices $V$, and a set of directed edges $E \colon 2^{V \times V}$.
 %
 % Formally define product graph
-The combined product graph is a tuple: ($V'$, $E'$, $s$, $e$, $P$) with
+The combined PGIR is a tuple: ($V'$, $E'$, $s$, $e$, $P$) with
 vertices $V' \colon V \times Q_1 \times \dots \times Q_j$,
 edges $E' \colon 2^{V' \times V'}$,
 a unique starting vertex $s$,
@@ -237,42 +238,44 @@ For a vertex $v' = (v, \dots) \in V'$, we say $loc(v') = v$. We say a node $x$ s
 \para{From RIR To PGIR}
 
 % Formal product construction
-Let $a_i$ and $b_i$ stand for states in the regular policy automata.
-The product graph is constructed by adding an edge from $v_1 = (x, a_1, \dots, a_m)$ to $v_2 = (y, b_1, \dots, b_m)$ whenever $\sigma_i(a_i, y) = b_i$ for each $i$ and $(x,y) \in E$ is a valid topology link.
+Let $a_i$ and $b_i$ denote states in the regular policy automata.
+The PGIR is constructed by adding an edge from $v_1 = (x, a_1, \dots, a_m)$ to $v_2 = (y, b_1, \dots, b_m)$ whenever $\sigma_i(a_i, y) = b_i$ for each $i$ and $(x,y) \in E$ is a valid topology link.
 %
 Additionally, we add edges from the start node $s$ to any $v = (x, a_1, \dots, a_m)$ when $\sigma_i(q_{0_i}, x) = a_i$ for each $i$.
 %
 The preference function $P$ for node $v = (x, a_1, \dots, a_m)$ is defined as $P(v) = \set{i~\vert~a_i \in F_i} $. That is, it records which preferences are achieved for the policy automata for each node in the product construction.
 %
-Finally, there is an edge from each node in the product graph such that $P(v) \neq \emptyset$ to the special end node $e$.
+Finally, there is an edge from each node in the PGIR such that $P(v) \neq \emptyset$ to the special end node $e$.
 
 
-Intuitively the product graph tracks which states of each automaton the policy is in as route advertisements move between routers in the topology.
+Intuitively, PGIR tracks which states of each automaton the policy is in as route announcements move between routers.
 %
-Consider the topology shown in Figure~\ref{fig:example-compilation}. Suppose we want to set up a primary route from W that enters the network from $A$, and utilizes the A -- C and C -- D links. We also would like a backup route that enters from node $B$, and utilizes the B -- C link, but is otherwise unconstrained. For the sake of simplicity, we will assume that the route can end in either $X$, $Y$, or $Z$. The RIR for the policy is:
+Consider the topology in Figure~\ref{fig:example-compilation}. Suppose we want a primary route from W that enters the network from $A$, and utilizes the A--C and C--D links. We also want a backup route that enters from $B$, and utilizes the B--C link, but is otherwise unconstrained. For simplicity, we assume that the route can end in either $X$, $Y$, or $Z$. The RIR for the policy is:
 %
 $$(W \cdot A \cdot C \cdot D \cdot out) \gg (W \cdot B \cdot in^* \cdot out)$$
 %
 Figure~\ref{fig:example-compilation} shows the policy automata for each regular expression preference. Since we are interested in the flow of control messages, the automata match backwards.
 %
-Figure~\ref{fig:example-compilation} shows the product graph obtained from intersecting the topology and policy automata. Every path in the product graph corresponds to a concrete path in the topology. In particular, every path through the product graph that ends at a node $v$ such that the preference function $P(v) = \set{i_1, \dots, i_m}$ is non-empty, is a valid topological path that satisfies the policy constraints and results in a particular path with preferences $i_1$ through $i_m$.
+The figure also shows the PGIR after intersecting the topology and policy automata. Every path in it corresponds to a concrete path in the topology. In particular, every path through the PGIR that ends at a node $v$ such that the preference function $P(v) = \set{i_1, \dots, i_m}$ is non-empty, is a valid topological path that satisfies the policy constraints and results in a particular path with preferences $i_1$ through $i_m$.
 %
-For example, the path $X \cdot D \cdot C \cdot A \cdot W$ is a valid path in the topology that BGP route advertisements might take, which would lead to obtaining the most prefered preference $1$.
-BGP control messages can start from peer X, which would match the $out$ transition from both automata, leading to state $1$ in the first automaton, and state $1$ in the second automaton. This is reflected in the product graph by the node with state $(1,1) X$. From here, if X were to advertise this route to D, it would result in the path $D X$, which would lead to state $2$ in the first automaton, and state $2$ in the second automaton, and so on. The $-$ state indicates it is dropped from the corresponding automaton. Since node $(5,-) W$ is in an accepting state for the first automata, it indicates this path has preference 1.
+For example, the path $X \cdot D \cdot C \cdot A \cdot W$ is a valid path in the topology that BGP route announcements might take, which would lead to obtaining the most prefered preference $1$.
+BGP control messages can start from peer X, which would match the $out$ transition from both automata, leading to state $1$ in the first automaton, and state $1$ in the second automaton. This is reflected in the product graph by the node with state $(1,1) X$. From here, if X were to advertise this route to D, it would result in the path $D X$, which would lead to state $2$ in the first automaton, and state $2$ in the second automaton, and so on. 
+%
+The ``--" state indicates it is dropped from the corresponding automaton. Since node $(5,-) W$ is in an accepting state for the first automata, it indicates this path has preference 1.
 
 \para{Minimization}
-
-Although every path through the product graph is a valid path in the topology, we do not want to consider loops when configuring the network. In particular, BGP's loop prevention mechanism (where an AS rejects any route for which it is already in the AS path), means that loops should never occur.\footnote{Note: misconfigured aggregation can still lead to loops in BGP}
+\ratul{This minimization section can probably go entirely, shrunken, or moved to the implementation}
+Before checking if policies captured by the PGIR are safe, we minimize the PGIR to better scale our failure safety checks. The minimization is based on the observation that although every path in the PGIR is a valid path in the topology, we do not want to consider loops when configuring the network. In particular, BGP's loop prevention mechanism, by which an AS rejects any route for which it is already in the AS path, means that loops should never occur.\footnote{ Misconfigured aggregation can still lead to loops in BGP.}
 %
-However, the product graph may contain many paths that form loops in the topology. For example, in Figure~\ref{fig:example-compilation}, the path $W \cdot A \cdot C \cdot B \cdot W$ is a valid path that BGP route advertisements might take through the topology, leading to a path that satisfies the preference 1 policy, but which contains a loop.
+However, the PGIR may contain many paths that form loops in the topology. For example, in Figure~\ref{fig:example-compilation}, the path $W \cdot A \cdot C \cdot B \cdot W$ is a valid topological path that BGP announcements might take, leading to a path that satisfies the preference 1 policy, but which contains a loop.
 %
-Since we are primarily concerned with guaranteeing user policy correctness and safety with respect to network failures, it is useful to avoid considering cases that are not possible due to loops. For example, if we can safely remove an edge from the product graph, then we don't have to consider what happens when the edge has failed.
+Since we are primarily concerned with guaranteeing user policy correctness and safety with respect to network failures, it is useful to eliminate cases that are not possible due to loops. For example, if we can safely remove a PGIR edge, then we do not have to consider what happens when the edge has failed.
 
-We can safely remove any node or edge from the product graph so long as it never appears on any \emph{simple} path from the \textit{start} node to the \emph{end} node. For example, node $(1,1) W$ in Figure~\ref{fig:example-compilation} is never on a simple path to the end node since it most go through another $W$ in either case.
+We can safely remove any PGIR node or edge as long as it never appears on any \emph{simple} path from the \textit{start} node to the \emph{end} node. For example, node $(1,1) W$ in Figure~\ref{fig:example-compilation} is never on a simple path to the end node since it most go through another $W$ in either case.
 %
-Although fully minimizing the product graph is an NP-complete problem, we find that a simple and efficient algorithm based on graph dominators achieves largely the same effect, greatly simplifying the failure safety analysis.
+Although fully minimizing this graph is an NP-complete problem,  a simple and efficient algorithm based on graph dominators achieves largely the same effect, greatly simplifying the failure safety analysis.
 
-A node $x$ dominates node $y$ if $x$ appears on every path leading to $y$ from a source node. Many algorithms for finding graph dominators efficiently exist~\ref{bib:todo}. For minimization, we compute the dominator set for each node in both the product graph $G$ with respect to the start node, and in the reversed product graph $G^R$ with respect to the end node. The following rules enable efficient minimization of the product graph.
+A node $x$ dominates $y$ if $x$ appears on every path leading to $y$ from a source node. Many efficient algorithms exist for finding graph dominators~\ref{bib:todo}. For minimization, we compute the dominator set for each node in both the product graph $G$ with respect to the start node, and in the reversed product graph $G^R$ with respect to the end node. The following rules enable efficient minimization of the product graph.
 %
 \begin{itemize}
   \item Remove nodes that never reach the end node
@@ -291,16 +294,16 @@ $$(W \cdot A \cdot C \cdot D) \gg (W \cdot B \cdot C \cdot E)$$
 %
 How could such a policy be implemented in BGP? Suppose we simply set the local preference at router $C$ to prefer $D$ over $E$. However, now if the A -- C link fails, then suddenly $C$ has made the wrong decision and can not get either the primary or backup route specified, despite the fact that the $W \cdot B \cdot C \cdot E$ path is available.
 
-At a first cut, any time a router must make a decision locally between several route options, there is the possibility that it might choose incorrectly. The product graph representation captures this notion of choice precisely. For example, router $D$ in Figure~\ref{fig:example-compilation} appears only once in the product graph, possibly receiving route advertisements from $X$ or $Y$. However, regardless of whether $D$ chooses a route from $X$ or $Y$, the set of paths allowed by the policy after going through $D$ will be the same in either case. This remains true despite any failures that might have occurred in the network. Thus $D$ can safely prefer $X$ and $Y$ equally.
+At a first cut, any time a router must make a decision locally between several route options, there is the possibility that it might choose incorrectly. PGIR captures this notion of choice precisely. For example, router $D$ in Figure~\ref{fig:example-compilation} appears only once in the PGIR, possibly receiving announcements from $X$ or $Y$. However, regardless of whether $D$ chooses a route from $X$ or $Y$, the set of paths allowed by the policy after going through $D$ will be the same in either case. This remains true despite any failures that might have occurred in the network. Thus $D$ can safely prefer $X$ and $Y$ equally.
 
-The more challenging case is when a topology location occurs in mutliple contexts in the product graph. For example, in the compilation example from Figure~\ref{fig:example-compilation}, the topology node $C$ can receive an advertisement from $E$ and later achieve the backup path, or it can receive an advertisement from its neighbor $D$ and later achieve either the primary or backup path. Is it safe for $C$ to prefer its neighbor $D$ over its other neighbor $E$? The important observation is that, if $C$ prefers $D$, then it is never worse off -- it will always achieve at least as good a path as if it had choosen $E$.
+The more challenging case is when a topology location occurs in mutliple contexts in the PGIR. For example, in the compilation example from Figure~\ref{fig:example-compilation}, the topology node $C$ can receive an announcement from $E$ and later achieve the backup path, or it can receive an announcement from its neighbor $D$ and later achieve either the primary or backup path. Is it safe for $C$ to prefer its neighbor $D$ over its other neighbor $E$? The important observation is that, if $C$ prefers $D$, then it is never worse off---it will always achieve at least as good a path as if it had choosen $E$.
 For example, suppose $C$ chooses a route from $D$, but cannot achieve its primary path because the $A$ -- $W$ link has failed. In this case, the advertisement from $C$ will still be sent along towards the ultimate backup location $W$. Since the $(3,2) C$ node has the same one-step and two-step next hops as node $(-,2) C$ in the product graph, no possible failure will prevent a route advertisment from reaching $(-,4) W$ that wouldn't have otherwise prevented it if $C$ had choosen $E$.
 
-In general, ensuring that an individual router's preferences respect the policy under all possible failures is hard, and a simple enumeration of failures is intractable. Instead, we adopt a conservative analysis based on the product graph representation and the previous observations. The high-level idea is to order each node in the product graph according to a \textit{can prefer} relation. For example, node $(3,2) C$ can be preferred to node $(-,2) C$, but not the other way around. Intuitively, a node $N_1$ can be preferred to another node $N_2$ when, for each preference $N_2$ might achieve, there is a better preference that $N_1$ will achieve regardless of failures. Formally this means that $N_1$ can be preferred to $N_2$ when:
+In general, ensuring that an individual router's preferences respect the policy under all possible failures is hard, and enumerating all failures is intractable. We thus adopt a conservative analysis based on the observations above. The high-level idea is to order each PGIR node according to a \textit{can prefer} relation. For example, node $(3,2) C$ can be preferred to node $(-,2) C$, but not the other way around. Intuitively, a node $N_1$ can be preferred to another node $N_2$ when, for each preference $N_2$ might achieve, there is a better preference that $N_1$ will achieve regardless of failures. Formally this means that $N_1$ can be preferred to $N_2$ when:
 %
 $$\forall i, \exists j, j \leq i \wedge protect(G_j, N_1, G_i, N_2)$$
 %
-where the \textit{protect} predicate means that, from $N_1$ on the product graph restricted nodes that can potentially achieve preference $j$ or better, there are at least as many paths as from $N_2$ restricted to $G_i$
+where \textit{protect} means that, from $N_1$ on the PGIR restricted nodes that can potentially achieve preference $j$ or better, there are at least as many paths as from $N_2$ restricted to $G_i$
 
 \begin{algorithm}[t!]
 \caption{Failure Protection}
@@ -328,15 +331,15 @@ where the \textit{protect} predicate means that, from $N_1$ on the product graph
 \end{algorithmic}
 \end{algorithm}
 
-The algorithm listed in Algorithm~\ref{alg:failures} defines what it means for one node to \textit{protect} against the failures of another. The algorithm walks from nodes $N_1$ and $N_2$ in $G_j$ and $G_i$ respectively, and ensures that for every \textit{step} $N_2$ can take to some new topology location, $N_1$ can, at the very least, take an equivalent step. Thus any paths leading from $N_2$ will have an equivalent path over the same topology locations from $N_1$. Algorithm~\ref{alg:failures} works because each node in the product graph can have at most one outgoing neighbor with the same topological location, so the next hop neighbors can be checked without backtracking. The algorithm terminates since the number of related states $(x,y)$ that can be expolored is finite.
+Algorithm~\ref{alg:failures} defines what it means for one node to \textit{protect} against the failures of another. It walks from nodes $N_1$ and $N_2$ in $G_j$ and $G_i$ respectively, and ensures that for every \textit{step} $N_2$ can take to some new topology location, $N_1$ can, at the very least, take an equivalent step. Thus any paths leading from $N_2$ will have an equivalent path over the same topology locations from $N_1$. Algorithm~\ref{alg:failures} works because each PGIR node can have at most one outgoing neighbor with the same topological location, so the next hop neighbors can be checked without backtracking. The algorithm terminates since the number of related states $(x,y)$ that can be expolored is finite.
 \ryan{Add the new part that goes up to a dominating predecessor when no other option}
 
-Local preferences are now obtained by, for each router in the topology, sorting the corresponding nodes in the product graph according to \textit{can prefer} relation. If two nodes are incomparable, then the compiler rejects the policy as unimplementable.
+Local preferences are now obtained by, for each router in the topology, sorting the corresponding PGIR nodes according to \textit{can prefer} relation. If two nodes are incomparable, then the compiler rejects the policy as unimplementable.
 \ryan{We are checking if the preorder forms a partial order by satisfying asymmetry}
 
 \para{Avoiding Simple Paths}
 
-The checks for failure safety described previously overlook one critical point: even if the analysis determines that a node $x$ protects against failures of another node $y$, it may be tricked into thinking $x$ has a particular path that will actually be discarded by BGP's loop prevention mechanism due to locations previously traversed before arriving at $x$. To avoid this situation, the compiler conservatively checks that $x$ protects against $y$ without using any nodes that shadow another node that appears above $x$ in the product graph (i.e., nodes reachable from $x$ in $G_j^R$). It is fine however, to reuse the same nodes that appear above $x$, since any path that went through another node $z$ to get to $x$, but then looped through $z$ again, would be obtainable from $z$ itself.
+The checks for failure safety described above overlook a critical point: even if the analysis determines that a node $x$ protects against failures of another node $y$, it may be tricked into thinking $x$ has a particular path that will actually be discarded by BGP's loop prevention mechanism due to locations previously traversed before arriving at $x$. To avoid this situation, the compiler conservatively checks that $x$ protects against $y$ without using any nodes that shadow another node that appears above $x$ in the PGIR (i.e., nodes reachable from $x$ in $G_j^R$). It is fine however, to reuse the same nodes that appear above $x$, since any path that went through another node $z$ to get to $x$, but then looped through $z$ again, would be obtainable from $z$ itself.
 \ryan{rework this}
 
 
