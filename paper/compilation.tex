@@ -1,26 +1,28 @@
 \section{Compilation}
 \label{sec:compilation}
 
-The front-end language of \sysname is designed to simplify operators' task of describing preferred paths. That simplicity, however, comes at the cost of compilation complexity. The compiler must efficiently compute the sets of paths represented by the intersection of preferences and topology, compute which ones can be honored under a given failure scenario, and ensure policy compliance under all possible failure cases. We handle this challenge by breaking down the compilation task into multiple stages and developing efficient algorithms for each.
+The front-end (FE) of \sysname simplifies operators' task of describing preferred paths. That simplicity, however, comes at the cost of compilation complexity. The compiler must efficiently compute the sets of paths represented by the intersection of preferences and topology, compute which ones can be honored under failures, and ensure policy compliance under all possible failure cases.
 
-\subsection{Overview}
+
+%\subsection{Overview}
 
 \begin{figure}[t!]
 \centering
-\includegraphics[width=.9\columnwidth]{figures/pipeline}
+\includegraphics[width=.75\columnwidth]{figures/pipeline}
 \caption{Compilation pipeline stages for Propane.}
 \label{fig:pipeline}
 \end{figure}
 
-%In this section we briefly describe our compilation strategy for \sysname. 
+%In this section we briefly describe our compilation strategy for \sysname.
 
-Figure~\ref{fig:pipeline} shows the 5 stage compilation pipeline to translate user-level \sysname policies into device-local BGP policies. The first stage of the pipeline involves simple rewriting rules and substitutions from the user-level language into the core Regular Intermediate Representation (RIR). Policies in RIR are checked for well-formedness (e.g., never constraining traffic that does not enter the network), before being combined with topological information to obtain the Product Graph Intermediate Representation (PGIR). The PGIR is a data representation that compactly captures the control flow of all BGP advertisements subject to the policy and topology restrictions. We develop efficient algorithms that operate over the PGIR to ensure policy compliance under failures, avoid BGP instability, and prevent aggregation-induced black holes. Once the compiler determines the PGIR for the policy is safe, it uses a simple translation to an abstract BGP (ABGP) representation. To make configurations more readable for human operators, and to reduce the size of the resulting configurations, the \sysname compiler makes several passes over the ABGP form. Finally, vendor-specific adaptors can be added to \sysname to translate from ABGP to actual concrete configurations that go on the network devices.
+We handle this challenge by breaking compilation into multiple stages and developing efficient algorithms for each.
+Figure~\ref{fig:pipeline} shows the 5 stage compilation pipeline to translate \sysname FE policies to device-local BGP policies. The first stage of the pipeline involves simple rewriting rules and substitutions from the FE to the core Regular Intermediate Representation (RIR). Policies in RIR are checked for well-formedness (e.g., never constraining traffic that does not enter the network), before being combined with topology to obtain the Product Graph Intermediate Representation (PGIR). The PGIR is a data representation that compactly captures the flow of BGP announcements subject to the policy and topology restrictions. We develop efficient algorithms that operate over the PGIR to ensure policy compliance under failures, avoid BGP instability, and prevent aggregation-induced black holes. Once the compiler determines that the PGIR is safe, it translates it to an abstract BGP (ABGP) representation. To make configurations more readable for human operators, and to reduce the size of the resulting configurations, the \sysname compiler makes several passes over the ABGP form. Finally, vendor-specific adaptors can translate from ABGP to concrete device configurations.
 
 
 \subsection{Regular IR (RIR)}
 \label{sec:rir}
 
-The high-level language of \S\ref{sec:propane} is just a thin layer on top of a core, regular-expression language for describing preference-based path constraints. Regular expressions are an expressive formalism that have been studied extensively for their utility in describing paths through graphs~\cite{bib:todo}, with applications to networks~\cite{bib:todo}. Our regular expression language differs from others by allowing operators to describe preferences between paths.
+The \sysname FE is just a thin layer atop a core, regular-expression language for describing preference-based path constraints. Regular expressions are an expressive formalism that have been used extensively for describing paths through graphs~\cite{bib:todo}, with applications to networks~\cite{bib:todo}. Our regular expression language differs from others by allowing operators to describe preferences between paths.
 
 % grammar
 \newcommand{\BNFALT}{\;\;|\;\;}
@@ -99,37 +101,37 @@ The high-level language of \S\ref{sec:propane} is just a thin layer on top of a 
 
 \para{Syntax}
 
-The syntax for the RIR is shown in Figure~\ref{fig:rir-syntax}. A policy consists of one or more constraints, each of which consists of a test on the type of route, and a corresponding set of preferred regular paths. Regular paths are simply regular expressions where the base characters are abstract locations - either a router or an Autonomous System (AS) number. Special \textit{in} and \textit{out} symbols are used to refer to any internal or external location respectively.
+Figure~\ref{fig:rir-syntax} shows the RIR syntax. A policy consists of one or more constraints, each of which consists of a test on the type of route, and a corresponding set of preferred regular paths. Regular paths are regular expressions where the base characters are abstract locations---either a router or an AS. Special \textit{in} and \textit{out} symbols refer to any internal or external location respectively.
 For example, the constraint
 $$prefix=74.3.28.0/24 \mapsto (as200 \cdot in^+) \gg (as100 \cdot in^+)$$
 describes a more-preferred set of paths for traffic announced by a prefix no less specific than $74.125.28.0/24$, which starts at AS 200, before entering and staying inside the user's network to get to the destination, and a less-preferred set of paths that start at AS 100 and are otherwise the same. The plus operator $in^+$ stands for $in \cdot in^*$, at least one internal hop. Tests over route types use standard boolean connectives, and can refer to both prefixes and route community values.
 
-\sysname also supports constraints purely on the control-plane behavior of the BGP routing protocol. For example, prefix aggregation, which should not affect routing behavior, is an important optimization to reduce routing table size and churn in practice. Aggregation, for example from internal locations and external locations, is specified using the same regular syntax as before:
+\sysname also supports constraints purely on the control-plane behavior of BGP. For example, prefix aggregation, which should not affect routing behavior, is an important optimization to reduce routing table size and churn in practice. Aggregation, for example, from internal to external locations, is specified using the same regular syntax as before:
 $$agg(128.17.0.0/16, in \rightarrow out)$$
-where the expression $in \rightarrow out$ refers to control messages flowing from any internal location to any external location.
+where the expression $in \rightarrow out$ refers to control messages flowing from any internal to any external location.
 
-We list the route aggregation and community tagging constraints in Figure~\ref{fig:rir-syntax}, however our implementation also supports other constraints such as limiting the maximum number of routes allowed between ASes, or enabling BGP multipath.
+We list only the route aggregation and community tagging constraints in Figure~\ref{fig:rir-syntax}, but we also support other constraints such as limiting the maximum number of routes allowed between ASes, or enabling BGP multipath.
 
 
 \para{Semantics}
 
-The semantics of RIR can be thought of in terms of ranked paths. Each preference-based regular path constraint (of the form $r_1 \gg \dots \gg r_j$) maps to a set of concrete paths in the network that match one of $r_i$. We denote a network path as a string of abstract locations (routers or external ASes) of the form: $n_1 n_2 \dots n_k$. A regular expression $r$ matches path $p$, if $p \in \mathcal{L}(r)$ and $p$ is a topologically-valid path. We denote the length of a path $p$ as $\abs{p}$. A path $p$ will have a rank:
+The semantics of RIR is in terms of ranked paths. Each preference-based regular path constraint (of the form $r_1 \gg \dots \gg r_j$) maps to a set of concrete paths in the network that match one of $r_i$. We denote a network path as a string of abstract locations (routers or external ASes) of the form: $n_1 n_2 \dots n_k$. A regular expression $r$ matches path $p$, if $p \in \mathcal{L}(r)$ and $p$ is a topologically-valid path. We denote the length of a path $p$ as $\abs{p}$. A path $p$ will have a rank:
 $$(\min_i \set{ p \in \mathcal{L}(r_i) }, \abs{p})$$
-where the rank is lexicographically ordered according to (1) the most preferred regular expression matched, and (2) as a tie breaker, the length of the path. A lower rank indicates a \emph{more} preferred path. The desired semantics is to allow traffic to be sent along any of the most preferred paths for each pair of starting and ending locations that appear in some valid specified path.
+where the rank is lexicographically ordered according to (1) the most preferred regular expression matched, and (2) as a tie breaker, the length of the path. Lower ranks indicate \emph{more} preferred paths. The semantics is to allow traffic to be sent along any of the most preferred paths for each pair of starting and ending locations that appear in some valid specified path.
 
-The set of ranked paths depends on which paths are valid given the topology, and thus when failures occur, so do the most preferred routes. It is the job of the \sysname compiler to ensure that generated configurations for a policy always achieve the most preferred path possible given the failures in the topology, using only distributed mechanisms.
+The set of ranked paths depends on which paths are valid in the topology, and thus when failures occur, the most preferred routes change. The \sysname compiler ensures that generated configurations for a policy always achieve the most preferred path possible given the failures in the topology, using only distributed mechanisms.
 
 
-\para{Propane front-end to RIR}
+\para{Propane FE to RIR}
 
-The main differences between the \sysname front-end language and the RIR are: (1) \sysname allows the programmer to specify constraints separately, and combine them together modularly, (2) \sysname provides high-level names that abstract sets of routes, and (3) \sysname allows the preference operator to be used locally.
+The main differences between the \sysname FE and the RIR are: (1) FE allows the programmer to specify constraints separately, and combine them  modularly, (2) FE provides high-level names that abstract sets of routes, and (3) FE allows the preference operator to be used locally.
 
-One of the main constraints when translating to RIR is to ensure that all specified routes are well-formed. In particular, each regular path constraint $r$ must satisfy $r \subseteq out^* \cdot in^+ \cdot out^*$. This ensures that one can only ever talk about controlling traffic that goes through the user's network at some point.
+A key constraint when translating FE to RIR is to ensure that all specified routes are well-formed. In particular, each regular path constraint $r$ must satisfy $r \subseteq out^* \cdot in^+ \cdot out^*$. This ensures that one can only talk about controlling traffic that goes through the user's network at some point.
 
-The translation from \sysname to RIR is based on a set of simple rewriting rules.
-The first step is to merge separate constraints. This is accomplished by simply taking the cross product of per-prefix constraints, where logical conjunction ($a \wedge b$) is replaced by intersection on regular constraints ($a \cap b$), logical disjunction is replaced by union, and logical negation ($\neg a$) is replaced by ($any \cap !(a)$), where $any$ ensures the routes are well-formed.
+The translation from \sysname to RIR is based on a set of rewriting rules.
+The first step merges separate constraints. It takes the cross product of per-prefix constraints, where logical conjunction ($a \wedge b$) is replaced by intersection on regular constraints ($a \cap b$), logical disjunction is replaced by union, and logical negation ($\neg a$) is replaced by ($any \cap !(a)$), where $any$ ensures the routes are well-formed.
 %
-For example, in the data center configuration from Section~\ref{sec:propane}, combining the \textit{Routing} and \textit{Ownership} constraints would result in the following RIR configuration:
+For example, in the data center configuration from \S\ref{sec:propane}, combining the \textit{Routing} and \textit{Ownership} policies results in the following RIR:
 
 \begin{lstlisting}[mathescape=true]
 $\path{p_{g1}}{any \cap end(A)}$
@@ -139,7 +141,7 @@ $\path{p_{l2}}{\neg enter(out) \cap end(F)}$
 $\path{true}{exit(out)}$
 \end{lstlisting}
 
-The next step is to rewrite the high-level constraints such as \textit{enter} and \textit{exit} according to the equivalences listed in Figure~\ref{fig:rir-syntax}. Since preferences can only occur at the outermost level for an RIR expression, the final step is to lift occurences of the preference operator in each regular expression. For example, the regular expression $a \cdot (b \gg c) \cdot d$ is lifted to $(a \cdot b \cdot d) \gg (a \cdot c \cdot d)$ by distributing the preference over the sequence operator. In general, we employ the follwing equivalence:
+The next step rewrites the high-level constraints such as \textit{enter} according to the equivalences in Figure~\ref{fig:rir-syntax}. Since preferences can only occur at the outermost level for an RIR expression, the final step is to ``lift" occurrences of the preference operator in each regular expression. For example, the regular expression $a \cdot (b \gg c) \cdot d$ is lifted to $(a \cdot b \cdot d) \gg (a \cdot c \cdot d)$ by distributing the preference over the sequence operator. In general, we employ the follwing equivalence:
 %
 $$x \odot (y_1 \gg \dots \gg y_n) = x \odot y_1 \gg \dots \gg x \odot y_n$$
 %
