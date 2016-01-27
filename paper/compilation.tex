@@ -388,29 +388,29 @@ $\Router{E}$
 \end{figure}
 
 
-\begin{figure}[t!]
-\begin{lstlisting}[frame=single, mathescape=true]
-$\Router{A}$
-  Match $\PEER=C$
-    Export $\MED \leftarrow 80, \PEER \leftarrow W$
-$\Router{B}$
-  Match $\PEER = C$
-    Export $\COMM \leftarrow \text{noexport}, \MED \leftarrow 81, \PEER \leftarrow W$
-$\Router{C}$
-  Match$[LP=99]$ $\PEER = E $
-    Export $\PEER \leftarrow B$
-  Match $\PEER = D$
-    Export $\PEER \leftarrow A,B$
-$\Router{D}$
-  Match $\REGEX{X + Y}$
-    Export $\PEER \leftarrow C$
-$\Router{E}$
-  Match $\REGEX{Z}$
-    Export $\PEER \leftarrow C$
-\end{lstlisting}
-\label{fig:config-min}
-\caption{Abstract BGP minimized configurations}
-\end{figure}
+%\begin{figure}[t!]
+%\begin{lstlisting}[frame=single, mathescape=true]
+%$\Router{A}$
+%  Match $\PEER=C$
+%    Export $\MED \leftarrow 80, \PEER \leftarrow W$
+%$\Router{B}$
+%  Match $\PEER = C$
+%    Export $\COMM \leftarrow \text{noexport}, \MED \leftarrow 81, \PEER \leftarrow W$
+%$\Router{C}$
+%  Match$[LP=99]$ $\PEER = E $
+%    Export $\PEER \leftarrow B$
+%  Match $\PEER = D$
+%    Export $\PEER \leftarrow A,B$
+%$\Router{D}$
+%  Match $\REGEX{X + Y}$
+%    Export $\PEER \leftarrow C$
+%$\Router{E}$
+%  Match $\REGEX{Z}$
+%    Export $\PEER \leftarrow C$
+%\end{lstlisting}
+%\label{fig:config-min}
+%\caption{Abstract BGP minimized configurations}
+%\end{figure}
 
 The final stages of compilation consist in translating policies from PGIR to a simple, vendor-neutral abstraction of BGP (ABGP), and then translating from ABGP to actual device configurations.
 
