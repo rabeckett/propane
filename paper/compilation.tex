@@ -161,12 +161,12 @@ where $\odot$ stands for an arbitrary regular binary operator. Preferences neste
   \hdr{\large Topology}{}
   \vspace*{-1\baselineskip}
 
-  \includegraphics[width=.8\columnwidth]{figures/topology}
+  \includegraphics[width=.6\columnwidth]{figures/topology}
 
   \hdr{\large Policy Automata}{}
   \vspace*{1\baselineskip}
 
-  \begin{tikzpicture}[>=stealth',shorten >=1pt,auto,node distance=1.6cm]
+  \begin{tikzpicture}[>=stealth',shorten >=1pt,auto,node distance=1.4cm,minimum size=1cm]
     \state{0}{$0$}{              }{}
     \state{1}{$1$}{right of=0}{}
     \state{2}{$2$}{right of=1}{}
@@ -202,19 +202,19 @@ where $\odot$ stands for an arbitrary regular binary operator. Preferences neste
   ~~
   %
   \begin{minipage}[t]{.5\linewidth}
-  \hdr{\large Product Graph}{}
+  \hdr{\large Product Graph IR}{}
   \vspace*{-1\baselineskip}
   %
-  \includegraphics[width=.8\columnwidth]{figures/productgraph}
+  \includegraphics[width=.65\columnwidth]{figures/productgraph}
   \end{minipage}
 
   \hrulefill
 
-  \caption{Example Product graph construction.}
+  \caption{Example Product Graph IR construction.}
   \label{fig:example-compilation}
 \end{figure*}
 
-Now that the user policy exists in a simplified form, we must consider topology. In particular, we want a compact representation that describes all the possible ways BGP route announcements can flow through the network subject to the policy and topology constraints. Our PGIR captures these dependencies by ``intersecting" each of the regular automata corresponding to the RIR path preferences, and the topology. Paths through the PGIR correspond to real paths through the topology that satisfy the user constraints. 
+Now that the user policy exists in a simplified form, we must consider topology. In particular, we want a compact representation that describes all the possible ways BGP route announcements can flow through the network subject to the policy and topology constraints. Our PGIR captures these dependencies by ``intersecting" each of the regular automata corresponding to the RIR path preferences, and the topology. Paths through the PGIR correspond to real paths through the topology that satisfy the user constraints.
 
 %Finding paths through a graph subject to regular constraints has been studied extensively in the database literature~\ref{bib:todo}, and has been applied to networks in the past~\ref{bib:todo}.
 
@@ -259,7 +259,7 @@ Figure~\ref{fig:example-compilation} shows the policy automata for each regular 
 The figure also shows the PGIR after intersecting the topology and policy automata. Every path in it corresponds to a concrete path in the topology. In particular, every path through the PGIR that ends at a node $v$ such that the preference function $P(v) = \set{i_1, \dots, i_m}$ is non-empty, is a valid topological path that satisfies the policy constraints and results in a particular path with preferences $i_1$ through $i_m$.
 %
 For example, the path $X \cdot D \cdot C \cdot A \cdot W$ is a valid path in the topology that BGP route announcements might take, which would lead to obtaining the most prefered preference $1$.
-BGP control messages can start from peer X, which would match the $out$ transition from both automata, leading to state $1$ in the first automaton, and state $1$ in the second automaton. This is reflected in the product graph by the node with state $(1,1) X$. From here, if X were to advertise this route to D, it would result in the path $D X$, which would lead to state $2$ in the first automaton, and state $2$ in the second automaton, and so on. 
+BGP control messages can start from peer X, which would match the $out$ transition from both automata, leading to state $1$ in the first automaton, and state $1$ in the second automaton. This is reflected in the product graph by the node with state $(1,1) X$. From here, if X were to advertise this route to D, it would result in the path $D X$, which would lead to state $2$ in the first automaton, and state $2$ in the second automaton, and so on.
 %
 The ``--" state indicates it is dropped from the corresponding automaton. Since node $(5,-) W$ is in an accepting state for the first automata, it indicates this path has preference 1.
 
