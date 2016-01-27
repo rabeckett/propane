@@ -59,18 +59,25 @@ paths taken are compliant with operator specifications.
 
 The centralized control planes of SDN, however, are not a panacea.
 %
-They require careful design and engineering to be robust to failures at scale---one must ensure that all devices can communicate with the controller at all times, even under arbitrary combinations of failure~\cite{x,y,z}. To address this challenge, many researchers are beginning to explore
+They require careful design and engineering to be robust to failures at scale---one must ensure that all devices can communicate with the controller at all times, even under arbitrary combinations of failure. Even ignoring failures, it is necessary for controller systems to
+scale to meet the demands of larger networks and to react sufficiently quickly
+to a changing environment. To address this challenge, some researchers are beginning to 
+explore
 multi-controller networks, with interacting controllers, thus bringing back distributed
-control planes~\cite{x,y,z} and their current programming difficulties.  However, academic
+control planes~\cite{mccauley2013extending,onos} and their current programming difficulties.  However, academic
 language design and implementation efforts have not kept pace.  For instance, work on
 experimental SDN languages
 such as Frenetic~\cite{frenetic}, Flowlog~\cite{flowlog}, Vericon~\cite{vericon}, Merlin~\cite{merlin}, NetKAT~\cite{netkat}, and Kinetic~\cite{kinetic}, to
 name a few, has not yet shown how to implement fault tolerant
-multi-controller systems that support their abstractions efficiently.
+multi-controller systems that support their high-level abstractions efficiently.
 
-In this paper, we ask if it is possible to program distributed control planes using network-wide policies.
-Operators should be able to directly express network-wide policies, which are automatically decomposed into individual device configurations. The resulting forwarding behavior, which emerges through device interactions, must be policy-compliant under all possible failures.
-If successful, this approach would combine easy programmability of centralized control planes and failure robustness of distributed control planes.
+In this paper, we ask if it is possible to program 
+distributed control planes using network-wide policies.  In particular,
+operators should be able to directly express \emph{end-to-end}, 
+\emph{network-wide} policies directly; it is the job of a compiler
+to decompose such policies into individual device configurations. 
+In addition, the resulting forwarding behavior, which emerges through device interactions, must be policy-compliant under all possible failures.
+If successful, this approach would combine easy programmability of centralized control planes with the failure robustness and scalability of distributed control planes.
 %
 More pragmatically, it would help many networks that, for the foreseeable future, will continue to use a distributed control plane, due to the difficulty of migrating to SDN or the inherent scalability and failure-robustness of distributed control.
 
