@@ -1,54 +1,57 @@
 \section{Introduction}
 \label{sec:introduction}
 
-It is well-known that network configuration is highly error 
-prone and that such errors can lead to costly network 
-downtime~\cite{mahajan+:bgp-misconfiguration,feamster+:rcc,batfish}.  
-For instance, in the context of BGP, Mahajan~~\cite{mahajan+:bgp-misconfiguration} 
-estimated that 200-1200 prefixes suffered from
-misconfiguration each day and that close to 3 in 4 of all
-new prefix advertisements were the result of misconfiguration.
-Moreover, these misconfigurations sometimes cause significant network downtime for
-individual networks~\cite{time-warner} or even broader internet connectivity problems~\cite{routing-instability,mahajan+:bgp-misconfiguration}.
-\dpw{Note that \cite{time-warner} and I am not sure about the specifics of the problem there
-or what exactly was misconfigured.  It is also unclear if our language really helps with the
-``broader internet connectivity problems'' however, I thought that adding some specific examples
-would help make the intro more compelling.  Feel free to rewrite.}
+It is well-known that network configuration is highly error
+prone and that such errors can lead to costly network
+downtime~\cite{mahajan+:bgp-misconfiguration,feamster+:rcc,batfish}.
+For instance, a recent misconfiguration led to an hour-long, nation-wide outage for Time Warner's backbone network~\cite{time-warner}; and a major BGP-related incident makes international news every few months~\cite{bgpmon}.
 
-One reason is that device configuration languages are low-level and several configuration elements must be kept consistent (e.g., interface addresses) for the device to behave as intended.
+%For instance, in the context of BGP, Mahajan~~\cite{mahajan+:bgp-misconfiguration}
+%estimated that 200-1200 prefixes suffered from
+%misconfiguration each day and that close to 3 in 4 of all
+%new prefix advertisements were the result of misconfiguration.
+%Moreover, these misconfigurations sometimes cause significant network downtime for
+%individual networks~\cite{time-warner} or even broader internet connectivity problems~\cite{routing-instability,mahajan+:bgp-misconfiguration}.
+%\dpw{Note that \cite{time-warner} and I am not sure about the specifics of the problem there
+%or what exactly was misconfigured.  It is also unclear if our language really helps with the
+%``broader internet connectivity problems'' however, I thought that adding some specific examples
+%would help make the intro more compelling.  Feel free to rewrite.}
+
+One reason for network configuration being onerous is that device configuration languages are low-level and several configuration elements must be kept consistent (e.g., interface addresses) for the device to behave as intended.
+
 Another, more fundamental reason is the semantic mismatch between the intended high-level
 policies and the low-level device-by-device configurations.  In particular,
 many policies involve network-wide properties---prefer a certain neighbor,
-never announce a particular destination externally, 
-use a particular path only if another fails---but configurations describe the behavior of 
+never announce a particular destination externally,
+use a particular path only if another fails---but configurations describe the behavior of
 individual devices.
 %
-Operators must manually decompose network-wide policy into device-level behaviors, such that their interactions satisfy the given high-level objectives.
+Operators must manually decompose network-wide policy into device-level behaviors, such that their interactions satisfy the high-level objectives.
 %
 Ensuring policy-compliance through this manual decomposition is challenging under normal
-circumstances and even more so in the face of failures. Some decompositions that work correctly 
+circumstances and even more so in the face of failures. Some decompositions that work correctly
 in failure-free environments, violate key constraints when failures occur.
 %
 As a result, many network configuration problems are only revealed after failures~\cite{batfish},
 sometimes making a bad situation worse.
 
-To reduce configuration errors, many practitioners have a adopted a template-based 
-approach~\cite{x,y}, in which common configuration patterns are captured as parameterized templates.
- While templates help ensure certain kinds of consistency across several devices, they do not 
-bridge the 
-semantic divide between network policies and device-level configuration (\S\ref{sec:motivation}):
-These templates do not provide new reasoning principles or fundamentally different abstractions 
+To reduce configuration errors, many practitioners have a adopted a template-based
+approach~\cite{hatch,thwack}, in which common configuration patterns are captured as parameterized templates.
+ While templates help ensure certain kinds of consistency across devices, they do not
+bridge the
+semantic divide between network policies and device-level configuration.
+They do not provide fundamentally different abstractions
 from existing configuration languages.
 
-Software-defined networking (SDN) and the abstractions
-that support it are, in part, the research
+Software-defined networking (SDN) and its abstractions 
+are, in part, the research
 community's response to the difficulty of maintaining policy
 compliance through distributed interaction of individual
 devices~\cite{sdn-languages}. Indeed, instead of organizing networks
 around a distributed collection of devices that compute forwarding tables through
 mutual interactions, the devices are told how to
 forward packets by a centralized controller. The controller is responsible for ensuring that the
-paths taken are compliant with operator specifications. 
+paths taken are compliant with operator specifications.
 %Researchers
 %have developed increasingly sophisticated languages that let operators
 %specify desirable network paths~\cite{x,y,z} which are then translated
@@ -56,13 +59,13 @@ paths taken are compliant with operator specifications.
 
 The centralized control planes of SDN, however, are not a panacea.
 %
-They require careful design and engineering to be robust to failures at scale---one must ensure that all devices can communicate with the controller at all times, even under arbitrary combinations of failure~\cite{x,y,z}. To address this challenge, many researchers are beginning to explore 
-multi-controller networks, with interacting controllers, thus bringing back distributed 
+They require careful design and engineering to be robust to failures at scale---one must ensure that all devices can communicate with the controller at all times, even under arbitrary combinations of failure~\cite{x,y,z}. To address this challenge, many researchers are beginning to explore
+multi-controller networks, with interacting controllers, thus bringing back distributed
 control planes~\cite{x,y,z} and their current programming difficulties.  However, academic
 language design and implementation efforts have not kept pace.  For instance, work on
 experimental SDN languages
-such as Frenetic~\cite{frenetic}, Flowlog~\cite{flowlog}, Vericon~\cite{vericon}, Merlin~\cite{merlin}, NetKAT~\cite{netkat}, and Kinetic~\cite{kinetic}, to 
-name a few, has not yet shown how to implement fault tolerant 
+such as Frenetic~\cite{frenetic}, Flowlog~\cite{flowlog}, Vericon~\cite{vericon}, Merlin~\cite{merlin}, NetKAT~\cite{netkat}, and Kinetic~\cite{kinetic}, to
+name a few, has not yet shown how to implement fault tolerant
 multi-controller systems that support their abstractions efficiently.
 
 In this paper, we ask if it is possible to program distributed control planes using network-wide policies.
@@ -77,13 +80,13 @@ We face two challenges in designing \sysname that differ from designing a system
 %
 The specification must compactly capture behavior under all possible failures. Since there is no controller at runtime, the routers must be programmed ahead of time, based on the specification, to handle failures.
 %
-Further, many policies naturally under-specify paths (e.g., "prefer paying neighbors" is not a concrete path). 
+Further, many policies naturally under-specify paths (e.g., "prefer paying neighbors" is not a concrete path).
 %
 \sysname addresses this specification challenge by allowing operators to express {\em path preferences}, where preference describes a set of valid paths and less-preferred options are taken only when a higher-preference options are unavailable.
 
-The direct nature of \sysname specifications brings up the second challenge, of compiling them to router configurations.  We must compute the sets of paths represented by the intersection of multiple preferences and topology, compute which ones can be honored under a given failure scenario, and ensure policy compliance under all possible failure cases. We handle this challenge by compactly capturing policy and topology in a {\em product graph} and developing efficient algorithms that operate on this graph. 
+The direct nature of \sysname specifications brings up the second challenge, of compiling them to router configurations.  We must compute the sets of paths represented by the intersection of multiple preferences and topology, compute which ones can be honored under a given failure scenario, and ensure policy compliance under all possible failure cases. We handle this challenge by compactly capturing policy and topology in a {\em product graph} and developing efficient algorithms that operate on this graph.
 
-We evaluate \sysname by using it to encode policies of real backbone and data center networks. 
+We evaluate \sysname by using it to encode policies of real backbone and data center networks.
 
 \todo{new intro is not complete}
 
