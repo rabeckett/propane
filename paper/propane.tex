@@ -32,7 +32,7 @@ of declarations.
 %\emph{paths} and \emph{policies}.
 For example, to begin specification of the backbone
 network, we first express the idea that for routes leading to our customer,
-we prefer using $R_1$ over $R_2$ (Policy P3 from Figure~\ref{fig:example1}):
+we prefer using \CD{R1} over \CD{R2} (Policy P3 from Figure~\ref{fig:example1}):
 %\begin{lstlisting}[mathescape=true]
 %define ExitCust = $exit(R_1 \gg R_2)$
 %\end{lstlisting}
@@ -42,7 +42,7 @@ we prefer using $R_1$ over $R_2$ (Policy P3 from Figure~\ref{fig:example1}):
 This  statement defines a set of \emph{ranked paths}, which includes
 all paths (and only those paths) for which traffic exits our network
 through either router \CD{R1} or \CD{R2}.  The paths that exit through \CD{R1}
-are preferred (\Prefer) to those that exit through $R_2$.
+are preferred (\Prefer) to those that exit through \CD{R2}.
 
 % DAVE CONVERSIONS
 % C_{pfx} ===> PCust
@@ -155,9 +155,9 @@ in the network.
 \}
 \end{code}
 \noindent
-In English: traffic for prefix \CD{Pg1} is only allowed to follow paths that
-end at router \CD{A}; traffic matching \CD{Pg2},
-but not \CD{Pg1}, must
+In English: traffic for prefix \CD{PG1} is only allowed to follow paths that
+end at router \CD{A}; traffic matching \CD{PG2},
+but not \CD{PG1}, must
 end at router \CD{B}; and so on.
 
 For the second constraint, we can define another policy:
@@ -182,7 +182,7 @@ on how traffic must
 traverse the network for global prefixes, aside from the default restriction
 that traffic must not pass through the user's network and then loop
 back on itself. This means traffic for
-\CD{Pg*} may be sent either from other routers in the datacenter, or
+\CD{PG*} may be sent either from other routers in the datacenter, or
 from external ASes. The second line ensures that traffic for local
 prefixes never enters the network from an outside location. This constraint
 guarantees that the services remain reachable only to locations
@@ -194,7 +194,7 @@ However, in addition to constraints on the shape of paths,
 \sysname allows the operator to specify constraints on the BGP control plane.
 For instance, a constraint on aggregation is included to ensure that
 aggregation for global prefixes (with aggregate \CD{PG}) is performed from
-locations inside the network to locations outside. In this case, \CD{Pg1} and \CD{Pg2} will use the aggregate \CD{PG} when advertised outside the datacenter.
+locations inside the network to locations outside. In this case, \CD{PG1} and \CD{PG2} will use the aggregate \CD{PG} when advertised outside the datacenter.
 
 \begin{code}
 Ownership \AND{} Routing \AND{} \Agg(PG, \In \Link \Out)
