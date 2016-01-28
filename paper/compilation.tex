@@ -314,7 +314,7 @@ $$(W \cdot A \cdot C \cdot D) \Prefer (W \cdot B \cdot C \cdot E)$$
 %
 How could such a policy be implemented in BGP? Suppose we simply set the local preference at router $C$ to prefer $D$ over $E$. However, now if the A -- C link fails, then suddenly $C$ has made the wrong decision and can not get either the primary or backup route specified, despite the fact that the $W \cdot B \cdot C \cdot E$ path is available in the network.
 
-At a first cut, any time a router must make a decision locally between several route options, there is the possibility that it might choose incorrectly. The PGIR captures this notion of choice precisely. For example, router $D$ in Figure~\ref{fig:example-compilation} appears only once in the PGIR, possibly receiving announcements from $X$ or $Y$. However, regardless of whether $D$ chooses a route from $X$ or $Y$, the set of paths allowed by the policy after going through $D$ will be the same in either case. This remains true despite any failures that might have occurred in the network. Thus $D$ can safely prefer $X$ and $Y$ equally.
+At a first cut, any time a router must make a decision locally between several route options, there is the possibility it might choose incorrectly. The PGIR captures this notion of choice precisely. For example, router $D$ in Figure~\ref{fig:example-compilation} appears only once in the PGIR, possibly receiving announcements from $X$ or $Y$. However, regardless of whether $D$ chooses a route from $X$ or $Y$, the set of paths allowed by the policy after going through $D$ will be the same in either case. This remains true despite any failures that might have occurred in the network. Thus $D$ can safely prefer $X$ and $Y$ equally.
 
 The more challenging case is when a topology location occurs in mutliple contexts in the PGIR. For example, in the compilation example from Figure~\ref{fig:example-compilation}, the topology node $C$ can receive an announcement from $E$ and later achieve the backup path, or it can receive an announcement from its neighbor $D$ and later achieve either the primary or backup path. Is it safe for $C$ to prefer its neighbor $D$ over its other neighbor $E$? The important observation is that, if $C$ prefers $D$, then it is never worse off---it will always achieve at least as good a path as if it had choosen $E$.
 For example, suppose $C$ chooses a route from $D$, but cannot achieve its primary path because the $A$ -- $W$ link has failed. In this case, the advertisement from $C$ will still be sent along towards the ultimate backup location $W$. Since the $(3,2) C$ node has the same one-step and two-step next hops as node $(-,2) C$ in the product graph, no possible failure will prevent a route advertisment from reaching $(-,4) W$ that wouldn't have otherwise prevented it if $C$ had choosen $E$.
@@ -429,8 +429,8 @@ The checks for failure safety described above overlook one critical point: Paths
 \Router{E}
   Match \REGEX{Z}
     Export \COMM \Arrow (-,2), \PEER \Arrow C
-\end{code}\vspace{-1cm}
-\label{fig:config}
+\end{code}\vspace{-.5cm}
+\label{fig:abgp-config}
 \caption{Abstract BGP router configurations.}
 \end{figure}
 
@@ -467,15 +467,15 @@ Once we have the ordering on node preferences in the PGIR from the failure safet
 
 To ensure preferred paths are always obtained, for each router $r$ in the topology, the compiler sets a higher local preference for neighbors of a more-preferred node for $r$ in the PGIR. For example, $C$ will prefer an advertisement from $D$ in state $(2,2)$ over an advertisement from $E$ in state $(-,2)$.
 
-Since the compiler is only able to control community tagging only for routers under the control of the AS being programmed, it cannot match on communities for external ASes. Instead, it translates matches from external ASes into a BGP regular expression filter. For example, node $D$ in Figure~\ref{fig:example-compilation} would match the single hop external paths $X$ or $Y$. In general, if routes are allowed from beyond $X$ or $Y$, these will also be captured in the BGP regular expression filters. Any unknown AS topology is modelled as a special node in the product graph that generates a filter to match any sequence of ASes.
+Since the compiler is only able to control community tagging only for routers under the control of the AS being programmed, it cannot match on communities for external ASes. Instead, it translates matches from external ASes into a BGP regular expression filter. For example, node $D$ in Figure~\ref{fig:example-compilation} would match the single hop external paths $X$ or $Y$. In general, if routes are allowed from beyond $X$ or $Y$, these will also be captured in the BGP regular expression filters. The unknown AS topology is modelled as a special node in the PGIR that generates a filter to match any sequence of ASes.
 
 Finally, in our example, the external AS $W$ should prefer our internal router $A$ over $B$. In general, it is not possible to reliably control traffic entering the network beyond certain special cases. In this example, however, assuming our network and $W$ have an agreement to honor MEDs, the BGP MED attribute can influence $W$ to prefer $A$ over $B$. Additionally, the compiler can use the BGP no-export community to ensure that no other AS beyond $W$ can send us traffic. The compiler can perform a simple analysis to determine when it can utilize various BGP special attributes to ensure traffic enters the network in a particular way by looking at links in the product graph that cross from the internal topology to the external topology. 
 %Aggregation is another tool commonly used to influence how traffic can enter the network, by relying on BGP's longest prefix matching default. Since aggregates are provided as additional user constraints, the compiler can also make use of this information to check that incoming preferences can be met given the aggregates specified (e.g., to ensure that all external ASes prefer to enter from one location over another).
-Figure~\ref{fig:config} shows the full configuration from the compilation example. 
+Figure~\ref{fig:abgp-config} shows the full configuration from the compilation example. 
 
 To make configurations more compact and readable, the \sysname compiler makes several passes over the ABGP policy, removing community tagging and matching when possible, combining filters, removing dead filters, and so on. In the compilation example, all community tags can be removed since there is never any ambiguity based on the router importing the route, and the neigbor the route is being imported from. Similarly, after removing the communities, the two rules at router $B$ are merged into a single rule.
 
-
+ 
 
 \subsection{Aggregation-Induced Black Holes}
 
@@ -500,16 +500,16 @@ For example, imagine we use the data center example from \S\ref{sec:motivation},
 
 %Here we investigate the correctness and expressiveness properties of \sysname. We are mainly concerned with answering the following questions: (1) does the distributed, compiled policy faithfully implement the user's policy regardless of failures? (2) Are the resulting BGP configurations stable?, and (3) what polcies are or are not expressible in \sysname?
 
-If \sysname compiles a user policy to a distributed implementation, then that distributed implementation faithfully meets the centralized policy's semantics under any failure scenario. We are primarily concerned with the steady state: that is, what happens after (if) the routing protocol converges.  We argue that \sysname is correct by breaking down the claim:
+If \sysname compiles a user policy to a distributed implementation, then that distributed implementation faithfully meets the centralized policy's semantics under any failure scenario. We are primarily concerned with the steady state: that is, what happens after (if) the routing protocol converges. We argue that \sysname is correct by breaking down the claim:
 
 \begin{prop}
-A distributed BGP configuration produced by \sysname is \textit{Sound} with respect to the policy: That is, any route traffic takes in the network, is a valid route specified by the policy.
+BGP configurations produced by \sysname are \textit{Sound} with respect to the policy: That is, any route traffic takes in the network, is a valid route specified by the policy.
 \end{prop}
 %
 %The Soundness claim follows directly from compilation of the product graph. Since every path through the product graph (from start to end) must match the user's policy, and since the compiled configurations use communities to ensure only valid routes through the product graph are used, the resulting BGP configurations are Sound. 
 %
 \begin{prop}
-A distributed BGP configuration produced by \sysname is \textit{Complete}: That is, the distributed implementation always obtains a most preferred route between two nodes when the corresponding path exists in the network.
+BGP configurations produced by \sysname are \textit{Complete}: That is, the distributed implementation always obtains a most preferred route between two nodes when the corresponding path exists in the network.
 \end{prop}
 %
 %The argument for completeness is as follows: Assume the most preferred path that exists in the network is between two nodes $X$ and $Y$.  This means there is a valid path in the product graph corresponding to this path, and which is available in the network. 
@@ -518,7 +518,7 @@ A distributed BGP configuration produced by \sysname is \textit{Complete}: That 
 %Any \sysname-compiled policy will be \textit{Complete} as a result of the failure safety check.
 %
 \begin{prop}
-The internal routers in a distributed BGP configuration produced by \sysname will be stable. 
+BGP configurations for internal routers produced by \sysname will be stable. 
 \end{prop}
 %
 The combination of Soundness and Completeness ensures that the distributed implementation will always send traffic along the best paths possible, yet will also never also use any undesired paths. These properties rely on the fact that \sysname produces stable BGP configurations:

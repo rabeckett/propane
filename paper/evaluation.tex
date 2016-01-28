@@ -58,7 +58,7 @@ Not counting the lines for various definitions like prefix and customer groups o
 We now study the compilation of time for both policies as a function of network size. Even though the networks we study have a fixed topology and size, we can explore the impact of size because our converted policies are network-wide and the compiler takes topology itself as an input. For the data center network, we build and provide as input fat tree topologies of different sizes, assign a /24 prefix to each ToR switch, and randomly map prefixes to each type of prefix group with a distinct routing policy. We take this approach to smoothly explore different sizes. 
 %there is a parameterized way to build fat trees~\cite{fattree}, which does not exist for our concrete data center topologies. For a given size, our reported results match those for the concrete topologies.
 
-For the backbone network, the internal topology does not matter since all routers connect in a full iBGP mesh. We explore different mesh sizes and randomly map neighboring networks to routers. Even though each border router connects to many external peers, we count only the internal topology size.
+For the backbone network, the internal topology does not matter since all routers connect in a full iBGP mesh. We explore different mesh sizes and randomly map neighboring networks to routers. Even though each border router connects to many external peers, we count only the mesh size.
 
 All experiments are run on an 8 core, 3.6 GHz Intel Xeon processor running Windows 7.
 %
