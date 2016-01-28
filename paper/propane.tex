@@ -6,13 +6,11 @@ Policies for (distributed) control planes differ from data plane policies~\cite{
 In \sysname, we enable such specifications through path preferences, with the semantics that a less-preferred path is taken only when a higher-preference path is unavailable in the network.
 %
 Second, paths may be under-specified (e.g., "prefer customer" does not indicate a concrete path). The \sysname compiler treats such under-specifications as constraints on the set of paths and automatically computes valid sets based on topology.
-
-
-
-
-We introduce \sysname by expressing the policies for the two examples above.
 %
-The next section describes how we compile such policies to BGP.
+To illustrate \sysname in action, we define policies for the two 
+examples described in the previous section.
+%
+The following section describes how we compile such policies to BGP.
 
 \subsection{Example 1: The Backbone}
 
@@ -50,14 +48,18 @@ are preferred (\Prefer) to those that exit through \CD{R2}.
 
 To associate ranked paths with
 one or more prefixes, we define a \sysname \emph{policy}.
-Within a policy, statements with the form $x$\Path$p$
-associate the prefixes defined by the predicate $x$ with the set of
-ranked paths defined by the path expression $p$.
-For instance, in the following code, ranked paths are associated with
-the customer prefixes (\CD{PCust}), the internal prefixes (\CD{PInt}),
+Within a policy, statements with the form $t$\Path$p$
+associate the prefixes defined by the predicate $t$ with the set of
+ranked paths defined by the path expression $p$.  In general,
+prefix predicates can be defined by arbitrary boolean combinations
+(and, or, not) of concrete prefixes and community tags.  Here,
+we assume we have already defined predicates \CD{PCust} for the
+customer prefixes and \CD{PInt} for our internal prefixes.
+In the following code, ranked paths are associated with
+customer prefixes, internal prefixes,
 and all other prefixes (\CD{true}).\footnote{Policy statements are processed in
 order with earlier policy statements taking precedence over later
-policy statements.  Hence, when the prefix predicate \True follows
+policy statements.  Hence, when the prefix predicate \True{} follows
 statements involving \CD{PCust} and \CD{PInt}, it is interpreted as
 \CD{\True{} \AND{} \NOT{}PCust \AND{} \NOT{}PInt}.}
 
@@ -72,7 +74,7 @@ statements involving \CD{PCust} and \CD{PInt}, it is interpreted as
 \begin{code}
 \Define Routing = \{
      PCust \Path ExitCust \Prefer \End(Cust)
-     PInt  \Path \End(in)
+     PInt  \Path \End(\In)
      \True  \Path ExitCust \Prefer \Exit(Peer) \Prefer \Exit(Prov)
 \}
 \end{code}
@@ -80,18 +82,21 @@ statements involving \CD{PCust} and \CD{PInt}, it is interpreted as
 Line 2 of this policy 
 defines the paths that exit our network to customer prefixes---\CD{ExitCust} defines paths through \CD{R1} and \CD{R2} and in the event
 that connections to the customer through both of those routers fail,
-a backup route (\CD{\End(Cust)}) is defined that admits traffic to go through
-any path that ends at the customer.
+a backup route (\CD{\End(Cust)}) is defined that admits traffic along
+any path (including those through other networks) that ends at the customer.
 Line 3 states that traffic for internal prefixes must end in our network, and is otherwise unconstrained.  The special keyword \In{} represents any location
 inside the user's network whereas the keyword \Out{} represents any location
 outside the user's network.
 Line 4 applies to any other traffic, and allows any routes that leave through a peer with a preference for customers over peers over providers. To summarize our progress so far, the \CD{Routing} policy
 implements (P1), (P3) and (P4) from Figure~\ref{fig:example1}.
 
-Since routing allows transit traffic (\emph{i.e.}, traffic can enter from
+Since routing allows transit traffic (\IE, traffic can enter from
 \CD{Peer} and leave through \CD{Prov}), we should define a new policy that
-implements this restriction separately.
-
+implements this restriction separately.  We do so by using conjunction (\AND),
+disjunction (\OR) and negation (\NOT) of constraints. 
+%union (\Union), intersection (\Intersect), and negation (\NOT) to
+%specify the appropriate sets of paths.
+%
 %% \begin{lstlisting}[mathescape=true]
 %% define PP = Peer or Prov
 %% define PPTransit = $enter(PP) \AND exit(PP)$
@@ -103,26 +108,19 @@ implements this restriction separately.
 %% \end{lstlisting}
 \begin{code}
 \Define PP = Peer \OR Prov
-\Define PPTransit   = \Enter(PP) \AND \Exit(PP)
-\Define CustTransit = \Later(Cust) \AND \Later(Prov)
-\Define NoTransit   = \{
-    \True \Path \NOT{}PPTransit \AND \NOT{}CustTransit
-\}
+\Define PPTrans   = \Enter(PP) \OR \Exit(PP)
+\Define CustTrans = \Later(Cust) \AND \Later(Prov)
+\Define NoTrans   = \True \Path \NOT{}PPTrans \AND \NOT{}CustTrans
 \end{code}
 \noindent
-The \CD{NoTransit} constraint above ensures that requirements (P2) and (P5) are satisfied. It says that for any prefix, traffic should never both enter and exit the network from \CD{Peer} or \CD{Prov}. Similarly it prevents traffic from ever following paths that leave our network and later passing through both \CD{Prov} and \CD{Cust}.  To implement both \CD{Routing}
-and \CD{NoTransit} simultaneously, we simply conjoin them:
-
+The \CD{NoTrans} constraint above ensures that requirements (P2) and (P5) are satisfied. It says that for any prefix, traffic should never both enter and exit the network from \CD{Peer} or \CD{Prov}. Similarly it prevents traffic from ever following paths that leave our network and later passing through both \CD{Prov} and \CD{Cust}.  To implement both \CD{Routing}
+and \CD{NoTrans} simultaneously, we simply conjoin them: \CD{Routing \AND{} NoTrans}.
+%
 %% \begin{lstlisting}[mathescape=true]
 %% Routing $\AND$  NoTransit
 %% \end{lstlisting}
-
-\begin{code}
-Routing \AND{} NoTransit
-\end{code}
-
-\noindent
-The lines above capture the entire policy. From it, \sysname will generate per-device import and export filters, local preferences,
+%
+These constraints capture the entire policy. From them, \sysname will generate per-device import and export filters, local preferences,
 MED attributes, and community tags to ensure that the policy is
 implemented correctly under all failure cases.
 
@@ -135,7 +133,7 @@ there are three main concerns:
 (3) aggregation must be performed on global prefixes to reduce churn
 in the network.
 
-\sysname allows us to specify each of these constraints modularly. The first constraint is about prefix ownership---namely, we only want traffic for certain prefixes to end up at a particular locations. The following definition captures this intent.
+\sysname allows us to specify each of these constraints modularly. The first constraint is about prefix ownership---namely, we only want traffic for certain prefixes to end up at a particular location. The following definition captures this intent.
 
 %% \begin{lstlisting}[mathescape=true]
 %% define Ownership = {
@@ -148,10 +146,10 @@ in the network.
 
 \begin{code}
 \Define Ownership = \{
-    Pg1 \Path \End(A)
-    Pg2 \Path \End(B)
-    Pl1 \Path \End(E)
-    Pl2 \Path \End(F)
+    PG1 \Path \End(A)
+    PG2 \Path \End(B)
+    PL1 \Path \End(E)
+    PL2 \Path \End(F)
 \}
 \end{code}
 \noindent
@@ -159,7 +157,6 @@ In English: traffic for prefix \CD{PG1} is only allowed to follow paths that
 end at router \CD{A}; traffic matching \CD{PG2},
 but not \CD{PG1}, must
 end at router \CD{B}; and so on.
-
 For the second constraint, we can define another policy:
 
 %% \begin{lstlisting}[mathescape=true]
@@ -193,8 +190,12 @@ logically to specify the network-wide policy.
 However, in addition to constraints on the shape of paths,
 \sysname allows the operator to specify constraints on the BGP control plane.
 For instance, a constraint on aggregation is included to ensure that
-aggregation for global prefixes (with aggregate \CD{PG}) is performed from
-locations inside the network to locations outside. In this case, \CD{PG1} and \CD{PG2} will use the aggregate \CD{PG} when advertised outside the datacenter.
+aggregation for global prefixes is performed from
+locations inside (\In) the network to locations outside (\Out). 
+In this case, \CD{PG1} and \CD{PG2} will use the aggregate \CD{PG} 
+(which we assume is defined earlier using an appropriate prefix such 
+as \CD{74.3.28.0/24})
+when advertised outside the datacenter.
 
 \begin{code}
 Ownership \AND{} Routing \AND{} \Agg(PG, \In \Link \Out)

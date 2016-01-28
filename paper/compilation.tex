@@ -15,21 +15,20 @@ The front-end (FE) of \sysname simplifies operators' task of describing preferre
 
 %In this section we briefly describe our compilation strategy for \sysname.
 
-We handle this challenge by breaking compilation into multiple stages and developing efficient algorithms for each.
-Figure~\ref{fig:pipeline} shows the 5 stage compilation pipeline to translate \sysname FE policies to device-local BGP policies. The first stage of the pipeline involves simple rewriting rules and substitutions from the FE to the core Regular Intermediate Representation (RIR). Policies in RIR are checked for well-formedness (e.g., never constraining traffic that does not enter the network), before being combined with topology to obtain the Product Graph Intermediate Representation (PGIR). The PGIR is a data representation that compactly captures the flow of BGP announcements subject to the policy and topology restrictions. We develop efficient algorithms that operate over the PGIR to ensure policy compliance under failures, avoid BGP instability, and prevent aggregation-induced black holes. Once the compiler determines that the PGIR is safe, it translates it to an abstract BGP (ABGP) representation. To make configurations more readable for human operators, and to reduce the size of the resulting configurations, the \sysname compiler makes several passes over the ABGP form. Finally, vendor-specific adaptors can translate from ABGP to concrete device configurations.
+We handle these challenges by breaking compilation into multiple stages and developing efficient algorithms for each (See Figure~\ref{fig:pipeline}). The first stage of the pipeline involves simple rewriting rules and substitutions from the FE to the core Regular Intermediate Representation (RIR). Policies in RIR are checked for well-formedness (\EG, never constraining traffic that does not enter the network), before being combined with the network topology to obtain the Product Graph Intermediate Representation (PGIR). The PGIR is a data representation that compactly captures the flow of BGP announcements subject to the policy and topology restrictions. We develop efficient algorithms that operate over the PGIR to ensure policy compliance under failures, avoid BGP instability, and prevent aggregation-induced black holes. Once the compiler determines that the PGIR is safe, it translates it to an abstract BGP (ABGP) representation. To make configurations more readable for human operators, and to reduce the size of the resulting configurations, the \sysname compiler makes several passes over the ABGP form. Finally, vendor-specific adaptors can translate from ABGP to concrete device configurations.
 
 
 \subsection{Regular IR (RIR)}
 \label{sec:rir}
 
-The \sysname FE is just a thin layer atop a core, regular-expression language for describing preference-based path constraints. Regular expressions are an expressive formalism that have been used extensively for describing paths through graphs~\cite{bib:todo}, with applications to networks~\cite{bib:todo}. Our regular expression language differs from others by allowing operators to describe preferences between paths.
+%Regular expressions are an expressive formalism that have been used extensively for describing paths through graphs~\cite{bib:todo}, with applications to networks~\cite{bib:todo}. Our regular expression language differs from others by allowing operators to describe preferences between paths.
 
 % grammar
 \newcommand{\BNFALT}{\;\;|\;\;}
-\newcommand{\hdr}[2]{\flushleft \chdr{#1}{#2}}
+\newcommand{\hdr}[2]{\flushleft \chdr{\hspace{5mm}#1}{#2}}
 \newcommand{\chdr}[2]{\textbf{#1} {#2} \\ \centering}
 
-\begin{figure*}
+\begin{figure*}\small
   \begin{minipage}[t]{.45\linewidth}
   \hdr{\large Syntax}{}
   \vspace*{-1\baselineskip}
@@ -38,20 +37,22 @@ The \sysname FE is just a thin layer atop a core, regular-expression language fo
     \hline
 
      pol     &::=& p_1, \dots, p_n & \textit{constraints} \\
-     p       &::=& t \mapsto r_1 \gg \dots \gg r_m & \textit{preferences} \\
-     t       &::=& true & \textit{true} \\
-         &\BNFALT& \neg t & \textit{negation} \\
-         &\BNFALT& t_1 \vee t_2 & \textit{disjunction} \\
-         &\BNFALT& t_1 \wedge t_2 & \textit{conjunction} \\
-         &\BNFALT& prefix = x & \textit{prefix test} \\
-         &\BNFALT& comm = c & \textit{community test} \\
+     p       &::=& t \mapsto r_1 \Prefer \dots \Prefer r_m & \textit{preferences} \\
+     x       &::=& a.b.c.d/n & \textit{prefix} \\
+     c       &::=& \cdots & \textit{community value} \\
+     t       &::=& \True & \textit{true} \\
+         &\BNFALT& \NOT t & \textit{negation} \\
+         &\BNFALT& t_1 \OR{} t_2 & \textit{disjunction} \\
+         &\BNFALT& t_1 \AND{} t_2 & \textit{conjunction} \\
+         &\BNFALT& \textit{prefix} = x & \textit{prefix test} \\
+         &\BNFALT& \textit{comm} = c & \textit{community test} \\
      r       &::=& n & \textit{AS number} \\
-         &\BNFALT& in & \textit{internal loc} \\
-         &\BNFALT& out & \textit{external loc} \\
+         &\BNFALT& \In & \textit{internal loc} \\
+         &\BNFALT& \Out & \textit{external loc} \\
          &\BNFALT& r_1 \cup r_2 & \textit{union} \\
          &\BNFALT& r_1 \cap r_2 & \textit{intersection} \\
          &\BNFALT& r_1 \cdot r_2 & \textit{concatenation} \\
-         &\BNFALT& !(r) & \textit{path negation} \\
+         &\BNFALT& \NOT(r) & \textit{path negation} \\
          &\BNFALT& r^* & \textit{repetition} \\
      l       &::=& r_1 \rightarrow r_2 & \textit{link pairs} \\
      cc     &::=& agg(x, l) \BNFALT tag(c, t, l) & \textit{control constraints} \\
@@ -63,30 +64,30 @@ The \sysname FE is just a thin layer atop a core, regular-expression language fo
   \vrule
   ~~
   %
-  \begin{minipage}[t]{.5\linewidth}
+  \begin{minipage}[t]{.5\linewidth}\small
   \hdr{\large Propane Expansions}{}
   \vspace*{-1\baselineskip}
   %
-  \[ \begin{array}{rcl}
+  \[\begin{array}{rcl}
     \hline
-    any           & = & out^* \cdot in^+ \cdot out^* \\
-    internal      & = & in^+ \\
-    only(X)       & = & any \cap X^* \\
-    never(X)      & = & any \cap (!X)^* \\
-    through(X)    & = & out^* \cdot in^* \cdot X \cdot in^* \cdot out^* \\
-    later(X)      & = & out^* \cdot (X \cap out) \cdot out^* \cdot in^+ \cdot out^* \\
-    before(X)     & = & out^* \cdot in^+ \cdot out^* \cdot (X \cap out) \cdot out^* \\
-    end(X)        & = & any \cap (\Sigma^* \cdot X) \\
-    start(X)      & = & any \cap (X \cdot \Sigma^*) \\
-    exit(X)       & = & (out^* \cdot in^* \cdot (X \cap in) \cdot out \cdot out^*) \cup \\
-                  &        & (out^* \cdot in^+ \cdot (X \cap out) \cdot out^*) \\
-    enter(X)      & = & (out^* \cdot out \cdot (X \cap in) \cdot in^* \cdot out^*) \cup \\
-                  &        & (out^* \cdot (X \cap out) \cdot in^+ \cdot out^*) \\
-    link(X,Y)     & = & any \cap (\Sigma^* \cdot X \cdot Y \cdot \Sigma^*) \\
-    path(\vec{X}) & = & any \cap (\Sigma^* \cdot X_1 \dots X_n \cdot \Sigma^*) \\
-    novalley(\vec{X}) & = & any ~ \cap \\
-                  &   & !path(X_2,X_1,X_2) ~ \cap \dots \cap \\
-                  &   & !path(X_n,X_{n-1},X_n) \\
+    \Any           & = & \Out^* \cdot \In^+ \cdot \Out^* \\
+    \Internal      & = & \In^+ \\
+    \Only(X)       & = & \Any \cap X^* \\
+    \Never(X)      & = & \Any \cap (!X)^* \\
+    \Through(X)    & = & \Out^* \cdot \In^* \cdot X \cdot \In^* \cdot \Out^* \\
+    \Later(X)      & = & \Out^* \cdot (X \cap \Out) \cdot \Out^* \cdot \In^+ \cdot \Out^* \\
+    \Before(X)     & = & \Out^* \cdot \In^+ \cdot \Out^* \cdot (X \cap \Out) \cdot \Out^* \\
+    \End(X)        & = & \Any \cap (\Sigma^* \cdot X) \\
+    \Start(X)      & = & \Any \cap (X \cdot \Sigma^*) \\
+    \Exit(X)       & = & (\Out^* \cdot \In^* \cdot (X \cap \In) \cdot \Out \cdot \Out^*) \cup \\
+                  &        & (\Out^* \cdot \In^+ \cdot (X \cap \Out) \cdot \Out^*) \\
+    \Enter(X)      & = & (\Out^* \cdot \Out \cdot (X \cap \In) \cdot \In^* \cdot \Out^*) \cup \\
+                  &        & (\Out^* \cdot (X \cap \Out) \cdot \In^+ \cdot \Out^*) \\
+    \LinkKW(X,Y)     & = & \Any \cap (\Sigma^* \cdot X \cdot Y \cdot \Sigma^*) \\
+    \PathKW(\vec{X}) & = & \Any \cap (\Sigma^* \cdot X_1 \dots X_n \cdot \Sigma^*) \\
+    \Novalley(\vec{X}) & = & \Any ~ \cap \\
+                  &   & \NOT\PathKW(X_2,X_1,X_2) ~ \cap \dots \cap \\
+                  &   & \NOT\PathKW(X_n,X_{n-1},X_n) \\
   \end{array} \]
 
   \end{minipage}
@@ -100,50 +101,64 @@ The \sysname FE is just a thin layer atop a core, regular-expression language fo
 
 
 \para{Syntax}
+The \sysname FE is just a thin layer atop a core, regular-expression language for describing preference-based path constraints. 
+Figure~\ref{fig:rir-syntax} shows the RIR syntax. A policy consists of one or more constraints, each of which consists of a test on the type of route, and a corresponding set of preferred regular paths. Regular paths are regular expressions where the base characters are abstract locations---either a router or an AS. Special \In{} and \Out{} symbols refer to any internal or external location respectively.  In addition, $\Sigma$ refers to any symbol, and hence $\Sigma^*$ is
+any sequence of symbols.  We also use other standard abbreviations
+for regular expressions such as $r^+$, a sequence of one or more occurrences
+of $r$, when appropriate.
+%% For example, the constraint
+%% \[(\textit{prefix}=74.3.28.0/24) \Link \\
+%% (as200 \cdot \In^+) \Prefer (as100 \cdot \In^+)
+%% \]
+%% describes a more-preferred set of paths for traffic announced by a prefix no less specific than \CD{74.125.28.0/24}, which starts at AS 200, before entering and staying inside the user's network to get to the destination, and a less-preferred set of paths that start at AS 100 and are otherwise the same. The plus operator $\In^+$ stands for $\In \cdot \In^*$, at least one internal hop. Tests over route types use standard boolean connectives, and can refer to both prefixes and route community values.
 
-Figure~\ref{fig:rir-syntax} shows the RIR syntax. A policy consists of one or more constraints, each of which consists of a test on the type of route, and a corresponding set of preferred regular paths. Regular paths are regular expressions where the base characters are abstract locations---either a router or an AS. Special \textit{in} and \textit{out} symbols refer to any internal or external location respectively.
-For example, the constraint
-$$prefix=74.3.28.0/24 \mapsto (as200 \cdot in^+) \gg (as100 \cdot in^+)$$
-describes a more-preferred set of paths for traffic announced by a prefix no less specific than $74.125.28.0/24$, which starts at AS 200, before entering and staying inside the user's network to get to the destination, and a less-preferred set of paths that start at AS 100 and are otherwise the same. The plus operator $in^+$ stands for $in \cdot in^*$, at least one internal hop. Tests over route types use standard boolean connectives, and can refer to both prefixes and route community values.
-
-\sysname also supports constraints purely on the control-plane behavior of BGP. For example, prefix aggregation, which should not affect routing behavior, is an important optimization to reduce routing table size and churn in practice. Aggregation, for example, from internal to external locations, is specified using the same regular syntax as before:
-$$agg(128.17.0.0/16, in \rightarrow out)$$
-where the expression $in \rightarrow out$ refers to control messages flowing from any internal to any external location.
-
+\sysname also supports constraints purely on the control-plane behavior of BGP. For example, prefix aggregation, which should not affect routing behavior, is an important optimization to reduce routing table size and churn in practice. 
+%% Aggregation, for example, from internal to external locations, is specified using the same regular syntax as before:
+%% $$\Agg(128.17.0.0/16, \In \Link \Out)$$
+%% where the expression $\In \Link Out$ refers to control messages flowing from any internal to any external location.
 We list only the route aggregation and community tagging constraints in Figure~\ref{fig:rir-syntax}, but we also support other constraints such as limiting the maximum number of routes allowed between ASes, or enabling BGP multipath.
 
 
 \para{Semantics}
 
-The semantics of RIR is in terms of ranked paths. Each preference-based regular path constraint (of the form $r_1 \gg \dots \gg r_j$) maps to a set of concrete paths in the network that match one of $r_i$. We denote a network path as a string of abstract locations (routers or external ASes) of the form: $n_1 n_2 \dots n_k$. A regular expression $r$ matches path $p$, if $p \in \mathcal{L}(r)$ and $p$ is a topologically-valid path. We denote the length of a path $p$ as $\abs{p}$. A path $p$ will have a rank:
+The semantics of RIR is in terms of ranked paths. Each preference-based regular path constraint (of the form $r_1 \Prefer \dots \Prefer r_j$) maps to a set of concrete paths in the network that match one of $r_i$. We denote a network path as a string of abstract locations (routers or external ASes) of the form: $n_1 n_2 \dots n_k$. A regular expression $r$ matches path $p$, if $p \in \mathcal{L}(r)$ and $p$ is a topologically-valid path. We denote the length of a path $p$ as $\abs{p}$. A path $p$ will have a rank:
 $$(\min_i \set{ p \in \mathcal{L}(r_i) }, \abs{p})$$
-where the rank is lexicographically ordered according to (1) the most preferred regular expression matched, and (2) as a tie breaker, the length of the path. Lower ranks indicate \emph{more} preferred paths. The semantics is to allow traffic to be sent along any of the most preferred paths for each pair of starting and ending locations that appear in some valid specified path.
+where the rank is lexicographically ordered according to (1) the most preferred regular expression matched, and (2) as a tie breaker, the length of the path. Lower ranks indicate \emph{more} preferred paths. Traffic may be sent along any of the most preferred paths for each pair of starting and ending locations that appear in some valid specified path.
 
 The set of ranked paths depends on which paths are valid in the topology, and thus when failures occur, the most preferred routes change. The \sysname compiler ensures that generated configurations for a policy always achieve the most preferred path possible given the failures in the topology, using only distributed mechanisms.
 
 
 \para{Propane FE to RIR}
 
-The main differences between the \sysname FE and the RIR are: (1) FE allows the programmer to specify constraints separately, and combine them  modularly, (2) FE provides high-level names that abstract sets of routes, and (3) FE allows the preference operator to be used locally.
+The main differences between the FE and RIR are: (1) FE allows the programmer to specify constraints using a series of (modular) definitions, and combine them later, (2) FE provides high-level names that abstract sets of routes, and (3) FE allows the preference operator to be used locally.
 
-A key constraint when translating FE to RIR is to ensure that all specified routes are well-formed. In particular, each regular path constraint $r$ must satisfy $r \subseteq out^* \cdot in^+ \cdot out^*$. This ensures that one can only talk about controlling traffic that goes through the user's network at some point.
+A key constraint when translating FE to RIR is to ensure that all specified routes are well-formed. In particular, each regular path constraint $r$ must satisfy $r \subseteq \Out^* \cdot \In^+ \cdot \Out^*$. This ensures that one can only talk about controlling traffic that goes through the user's network at some point,
+and that such traffic does not loop back multiple times to the user network.
 
 The translation from \sysname to RIR is based on a set of rewriting rules.
-The first step merges separate constraints. It takes the cross product of per-prefix constraints, where logical conjunction ($a \wedge b$) is replaced by intersection on regular constraints ($a \cap b$), logical disjunction is replaced by union, and logical negation ($\neg a$) is replaced by ($any \cap !(a)$), where $any$ ensures the routes are well-formed.
+The first step merges separate constraints. It takes the cross product of per-prefix constraints, where logical conjunction ($a \AND b$) is replaced by intersection on regular constraints ($a \Intersect b$), logical disjunction is replaced by union, and logical negation ($\NOT a$) is replaced by ($\Any \cap \NOT(a)$), where $\Any$ ensures the routes are well-formed.
 %
-For example, in the data center configuration from \S\ref{sec:propane}, combining the \textit{Routing} and \textit{Ownership} policies results in the following RIR:
+For example, in the data center configuration from \S\ref{sec:propane}, combining the \CD{Routing} and \CD{Ownership} policies results in the following RIR:
 
-\begin{lstlisting}[mathescape=true]
-$\path{p_{g1}}{any \cap end(A)}$
-$\path{p_{g2}}{any \cap end(B)}$
-$\path{p_{l1}}{\neg enter(out) \cap end(E)}$
-$\path{p_{l2}}{\neg enter(out) \cap end(F)}$
-$\path{true}{exit(out)}$
-\end{lstlisting}
+%% \begin{lstlisting}[mathescape=true]
+%% $\path{p_{g1}}{any \cap end(A)}$
+%% $\path{p_{g2}}{any \cap end(B)}$
+%% $\path{p_{l1}}{\neg enter(out) \cap end(E)}$
+%% $\path{p_{l2}}{\neg enter(out) \cap end(F)}$
+%% $\path{true}{exit(out)}$
+%% \end{lstlisting}
 
-The next step rewrites the high-level constraints such as \textit{enter} according to the equivalences in Figure~\ref{fig:rir-syntax}. Since preferences can only occur at the outermost level for an RIR expression, the final step is to ``lift" occurrences of the preference operator in each regular expression. For example, the regular expression $a \cdot (b \gg c) \cdot d$ is lifted to $(a \cdot b \cdot d) \gg (a \cdot c \cdot d)$ by distributing the preference over the sequence operator. In general, we employ the follwing equivalence:
+\begin{code}
+PG1 \Path \Any \Intersect \End(A)
+PG2 \Path \Any \Intersect \End(B)
+PL1 \Path \NOT\Enter(\Out) \Intersect \End(E)
+PL2 \Path \NOT\Enter(\Out) \Intersect \End(F)
+\True \Path \Exit(\Out)
+\end{code}
+
+The next step rewrites the high-level constraints such as \textit{enter} according to the equivalences in Figure~\ref{fig:rir-syntax}. Since preferences can only occur at the outermost level for an RIR expression, the final step is to ``lift" occurrences of the preference operator in each regular expression. For example, the regular expression $a \cdot (b \Prefer c) \cdot d$ is lifted to $(a \cdot b \cdot d) \Prefer (a \cdot c \cdot d)$ by distributing the preference over the sequence operator. In general, we employ the follwing equivalence:
 %
-$$x \odot (y_1 \gg \dots \gg y_n) = x \odot y_1 \gg \dots \gg x \odot y_n$$
+$$x \odot (y_1 \Prefer \dots \Prefer y_n) = (x \odot y_1) \Prefer \dots \Prefer (x \odot y_n)$$
 %
 where $\odot$ stands for an arbitrary regular binary operator. Preferences nested under a unary operator, \textit{star} or \textit{negation}, are flagged by the compiler as invalid policies.
 
@@ -209,7 +224,7 @@ where $\odot$ stands for an arbitrary regular binary operator. Preferences neste
 
   \hrulefill
 
-  \caption{Example Product Graph IR construction for policy: $(W \cdot A \cdot C \cdot D \cdot out) \gg (W \cdot B \cdot in^* \cdot out)$.}
+  \caption{Example Product Graph IR construction for policy: $(W \cdot A \cdot C \cdot D \cdot out) \Prefer (W \cdot B \cdot in^* \cdot out)$.}
   \label{fig:example-compilation}
 \end{figure*}
 
@@ -220,7 +235,7 @@ Now that the user policy exists in a simplified form, we must consider topology.
 \para{Formal definition}
 
 % Formally define automata
-The RIR policy is an ordered sequence of regular expressions $r_1 \gg \dots \gg r_j$. While paths talk about the direction traffic flows through the network, to implement the policy with BGP we are concerned about the way control-plane information is disseminated (i.e., route announcements flowing in the opposite direction). To capture this idea, for each regular expression $r_i$, we construct a deterministic finite state machine on the reversed regular expression. Each automaton is a tuple: ($\Sigma, Q_i, F_i, q_{0_i}, \sigma_i$). The alphabet $\Sigma$ consists of all all abstraction locations (routers or ASes), $Q_i$ is the set of states for automaton i, $F_i$ is the set of final states, $q_{0_i}$ is the initial state, and $\sigma_i \colon Q_i \times \Sigma \rightarrow Q_i$ is the state transition function.
+The RIR policy is an ordered sequence of regular expressions $r_1 \Prefer \dots \Prefer r_j$. While paths talk about the direction traffic flows through the network, to implement the policy with BGP we are concerned about the way control-plane information is disseminated (i.e., route announcements flowing in the opposite direction). To capture this idea, for each regular expression $r_i$, we construct a deterministic finite state machine on the reversed regular expression. Each automaton is a tuple: ($\Sigma, Q_i, F_i, q_{0_i}, \sigma_i$). The alphabet $\Sigma$ consists of all all abstraction locations (routers or ASes), $Q_i$ is the set of states for automaton i, $F_i$ is the set of final states, $q_{0_i}$ is the initial state, and $\sigma_i \colon Q_i \times \Sigma \rightarrow Q_i$ is the state transition function.
 %
 % Formally define topology
 The topology is represented as a graph ($V, E$), which consists of a set of vertices $V$, and a set of directed edges $E \colon 2^{V \times V}$.
@@ -252,14 +267,14 @@ Intuitively, PGIR tracks which states of each automaton the policy is in as rout
 %
 Consider the topology in Figure~\ref{fig:example-compilation}. Suppose we want a primary route from W that enters the network from $A$, and utilizes the A--C and C--D links. We also want a backup route that enters from $B$, and utilizes the B--C link, but is otherwise unconstrained. For simplicity, we assume that the route can end in either $X$, $Y$, or $Z$. The RIR for the policy is:
 %
-$$(W \cdot A \cdot C \cdot D \cdot out) \gg (W \cdot B \cdot in^* \cdot out)$$
+$$(W \cdot A \cdot C \cdot D \cdot \Out) \Prefer (W \cdot B \cdot in^* \cdot \Out)$$
 %
 Figure~\ref{fig:example-compilation} shows the policy automata for each regular expression preference. Since we are interested in the flow of control messages, the automata match backwards.
 %
 The figure also shows the PGIR after intersecting the topology and policy automata. Every path in it corresponds to a concrete path in the topology. In particular, every path through the PGIR that ends at a node $v$ such that the preference function $P(v) = \set{i_1, \dots, i_m}$ is non-empty, is a valid topological path that satisfies the policy constraints and results in a particular path with preferences $i_1$ through $i_m$.
 %
 For example, the path $X \cdot D \cdot C \cdot A \cdot W$ is a valid path in the topology that BGP route announcements might take, which would lead to obtaining the most prefered preference $1$.
-BGP control messages can start from peer X, which would match the $out$ transition from both automata, leading to state $1$ in the first automaton, and state $1$ in the second automaton. This is reflected in the product graph by the node with state $(1,1) X$. From here, if X were to advertise this route to D, it would result in the path $D X$, which would lead to state $2$ in the first automaton, and state $2$ in the second automaton, and so on.
+BGP control messages can start from peer X, which would match the $\Out$ transition from both automata, leading to state $1$ in the first automaton, and state $1$ in the second automaton. This is reflected in the product graph by the node with state $(1,1) X$. From here, if X were to advertise this route to D, it would result in the path $D X$, which would lead to state $2$ in the first automaton, and state $2$ in the second automaton, and so on.
 %
 The ``--" state indicates it is dropped from the corresponding automaton. Since node $(5,-) W$ is in an accepting state for the first automata, it indicates this path has preference 1.
 
@@ -295,7 +310,7 @@ Colored nodes and dashed edges are removed after minimization since they are irr
 
 To implement path preferences in routing, BGP uses local preferences on a per-device basis. However, the distributed nature of BGP makes setting preferences locally to achieve a network-route routing policy difficult, particularly in the presence of failures. For example, imagine an extremely simple policy for the topology in Figure~\ref{fig:example-compilation}, which says to prefer one route over another:
 %
-$$(W \cdot A \cdot C \cdot D) \gg (W \cdot B \cdot C \cdot E)$$
+$$(W \cdot A \cdot C \cdot D) \Prefer (W \cdot B \cdot C \cdot E)$$
 %
 How could such a policy be implemented in BGP? Suppose we simply set the local preference at router $C$ to prefer $D$ over $E$. However, now if the A -- C link fails, then suddenly $C$ has made the wrong decision and can not get either the primary or backup route specified, despite the fact that the $W \cdot B \cdot C \cdot E$ path is available in the network.
 
@@ -361,36 +376,60 @@ The checks for failure safety described above overlook one critical point: Paths
 
 \newcommand{\highlight}[1]{%
   \colorbox{red!50}{$\displaystyle#1$}}
-\newcommand{\Router}[1]{ \textbf{Router #1:} }
-\newcommand{\REGEX}[1]{ \text{regex}(#1) }
-\newcommand{\PEER}{ \text{peer} }
-\newcommand{\COMM} {\text{comm}}
-\newcommand{\MED} {\text{MED}}
+\newcommand{\Router}[1]{\KW{Router} #1:}
+\newcommand{\REGEX}[1]{\texttt{regex}(#1)}
+\newcommand{\PEER}{\texttt{peer}}
+\newcommand{\COMM}{\texttt{comm}}
+\newcommand{\MED}{\texttt{MED}}
+\newcommand{\Arrow}{\ensuremath{\leftarrow}}
 
 \begin{figure}[t!]
-\begin{lstlisting}[frame=single, mathescape=true]
-$\Router{A}$
-  Match $\PEER=C, \COMM=(3,2)$
-    Export $\COMM \leftarrow (4,2), \MED \leftarrow 80, \PEER \leftarrow W$
-$\Router{B}$
-  Match $\PEER = C, \COMM = (-,2)$
-    Export $\COMM \leftarrow (-,3), \COMM \leftarrow \text{noexport},$
-           $\MED \leftarrow 81, \PEER \leftarrow W$
-  Match $\PEER = C, \COMM = (3,2)$
-    Export $\COMM \leftarrow (-,3), \COMM \leftarrow \text{noexport},$
-           $\MED \leftarrow 81, \PEER \leftarrow W$
-$\Router{C}$
-  Match$[LP=99]$ $\PEER = E, \COMM = (-,2) $
-    Export $\COMM \leftarrow (-,2), \PEER \leftarrow B$
-  Match $\PEER = D, \COMM = (2,2)$
-    Export $\COMM \leftarrow (3,2), \PEER \leftarrow A,B$
-$\Router{D}$
-  Match $\REGEX{X + Y}$
-    Export $\COMM \leftarrow (2,2), \PEER \leftarrow C$
-$\Router{E}$
-  Match $\REGEX{Z}$
-    Export $\COMM \leftarrow (-,2), \PEER \leftarrow C$
-\end{lstlisting}
+%% \begin{lstlisting}[frame=single, mathescape=true]
+%% $\Router{A}$
+%%   Match $\PEER=C, \COMM=(3,2)$
+%%     Export $\COMM \leftarrow (4,2), \MED \leftarrow 80, \PEER \leftarrow W$
+%% $\Router{B}$
+%%   Match $\PEER = C, \COMM = (-,2)$
+%%     Export $\COMM \leftarrow (-,3), \COMM \leftarrow \text{noexport},$
+%%            $\MED \leftarrow 81, \PEER \leftarrow W$
+%%   Match $\PEER = C, \COMM = (3,2)$
+%%     Export $\COMM \leftarrow (-,3), \COMM \leftarrow \text{noexport},$
+%%            $\MED \leftarrow 81, \PEER \leftarrow W$
+%% $\Router{C}$
+%%   Match$[LP=99]$ $\PEER = E, \COMM = (-,2) $
+%%     Export $\COMM \leftarrow (-,2), \PEER \leftarrow B$
+%%   Match $\PEER = D, \COMM = (2,2)$
+%%     Export $\COMM \leftarrow (3,2), \PEER \leftarrow A,B$
+%% $\Router{D}$
+%%   Match $\REGEX{X + Y}$
+%%     Export $\COMM \leftarrow (2,2), \PEER \leftarrow C$
+%% $\Router{E}$
+%%   Match $\REGEX{Z}$
+%%     Export $\COMM \leftarrow (-,2), \PEER \leftarrow C$
+%% \end{lstlisting}
+\begin{code}
+\Router{A}
+  Match \PEER=C, \COMM=(3,2)
+    Export \COMM \Arrow (4,2), \MED \Arrow 80, \PEER \Arrow W
+\Router{B}
+  Match \PEER = C, \COMM = (-,2)
+    Export \COMM \Arrow (-,3), \COMM \Arrow \text{noexport},
+           \MED \Arrow 81, \PEER \Arrow W
+  Match \PEER = C, \COMM = (3,2)
+    Export \COMM \Arrow (-,3), \COMM \Arrow \text{noexport},
+           \MED \Arrow 81, \PEER \Arrow W
+\Router{C}
+  Match[LP=99] \PEER = E, \COMM = (-,2) 
+    Export \COMM \Arrow (-,2), \PEER \Arrow B
+  Match \PEER = D, \COMM = (2,2)
+    Export \COMM \Arrow (3,2), \PEER \Arrow A,B
+\Router{D}
+  Match \REGEX{X + Y}
+    Export \COMM \Arrow (2,2), \PEER \Arrow C
+\Router{E}
+  Match \REGEX{Z}
+    Export \COMM \Arrow (-,2), \PEER \Arrow C
+\end{code}\vspace{-1cm}
 \label{fig:config}
 \caption{Abstract BGP router configurations.}
 \end{figure}
