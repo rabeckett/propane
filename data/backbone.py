@@ -107,10 +107,10 @@ num_nodes2 = map(lambda x: x, num_nodes)
 sizes_raw_per = map(lambda (size,n): size/n, zip(sizes_raw, num_nodes))
 sizes_compressed_per = map(lambda (size,n): size/n, zip(sizes_compressed, num_nodes))
 
-num_nodes1 = num_nodes1[2::3]
-num_nodes2 = num_nodes2[2::3]
-sizes_raw_per = sizes_raw_per[2::3]
-sizes_compressed_per = sizes_compressed_per[2::3]
+num_nodes1 = num_nodes1[2::5]
+num_nodes2 = num_nodes2[2::5]
+sizes_raw_per = sizes_raw_per[2::5]
+sizes_compressed_per = sizes_compressed_per[2::5]
 
 fig = plt.figure()
 ax1 = fig.add_subplot(111)
