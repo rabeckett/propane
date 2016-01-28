@@ -81,7 +81,7 @@ ax1.set_xlabel('Routers', fontsize=35)
 ax1.set_ylabel('Avg. Time / Prefix (s)', fontsize=35)
 ax1.tick_params(axis='both', which='major', labelsize=35)
 ax1.tick_params(axis='both', which='minor', labelsize=35)
-ax1.xaxis.set_ticks([40,80,120,160,200])
+ax1.xaxis.set_ticks([0,40,80,120,160,200])
 ax1.yaxis.set_ticks([5,15,25,35,45])
 #ax1.set_xlim([0,1400])
 #ax1.set_ylim([0,20])
@@ -92,8 +92,8 @@ p3 = plt.Rectangle((0, 0), 1, 1, fc=color3, alpha=.7)
 p4 = plt.Rectangle((0, 0), 1, 1, fc=color4, alpha=.7)
 leg_boxes = [p4, p3, p2, p1]
 descrs = ["Gen/Min ABGP", "Find Preferences", "Minimize PG", "Construct PG"]
-ax1.legend(leg_boxes, descrs, loc=2, fontsize=20)
-fig.savefig('compilation-time-backbone.png', bbox_inches='tight')
+ax1.legend(leg_boxes, descrs, loc=2, fontsize=24)
+fig.savefig('compilation-times-backbone.png', bbox_inches='tight')
 
 
 #====================================================
@@ -109,14 +109,15 @@ sizes_compressed_per = map(lambda (size,n): size/n, zip(sizes_compressed, num_no
 
 fig = plt.figure()
 ax1 = fig.add_subplot(111)
-ax1.bar(num_nodes1, sizes_raw_per, width=4, color=color1, alpha=1, align='center', log=True)
-ax1.bar(num_nodes2, sizes_compressed_per, width=4, color=color3, alpha=1, align='center',log=True)
+ax1.bar(num_nodes1, sizes_raw_per, width=3.2, color=color1, alpha=1, align='center', log=True)
+ax1.bar(num_nodes2, sizes_compressed_per, width=3.2, color=color3, alpha=1, align='center',log=True)
 ax1.set_xlabel('Routers', fontsize=35)
 ax1.set_ylabel('ABGP Lines/Router', fontsize=35)
 ax1.tick_params(axis='both', which='major', labelsize=35)
 ax1.tick_params(axis='both', which='minor', labelsize=35)
 ax1.set_xlim([0,220])
+ax1.set_ylim([0,10*10*10*10*10*10*10])
 leg_boxes = [p1, p3]
 descrs = ["Raw Config", "Minimized Config"]
-ax1.legend(leg_boxes, descrs, loc=2)
+ax1.legend(leg_boxes, descrs, loc=2, fontsize=24)
 fig.savefig('config-compression-backbone.png', bbox_inches='tight')

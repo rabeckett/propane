@@ -93,8 +93,8 @@ p3 = plt.Rectangle((0, 0), 1, 1, fc=color3, alpha=.7)
 p4 = plt.Rectangle((0, 0), 1, 1, fc=color4, alpha=.7)
 leg_boxes = [p4, p3, p2, p1]
 descrs = ["Gen/Min ABGP", "Find Preferences", "Minimize PG", "Construct PG"]
-ax1.legend(leg_boxes, descrs, loc=2, fontsize=20)
-fig.savefig('compilation-time-dc.png', bbox_inches='tight')
+ax1.legend(leg_boxes, descrs, loc=2, fontsize=24)
+fig.savefig('compilation-times-dc.png', bbox_inches='tight')
 
 #====================================================
 # 
@@ -118,8 +118,9 @@ ax1.tick_params(axis='both', which='minor', labelsize=35)
 
 ax1.xaxis.set_ticks([200,600,1000,1400])
 #ax1.set_xlim([0,1400])
-#ax1.set_ylim([0,20])
+ax1.set_ylim([0,10*10*10*10*10*10*10])
+
 leg_boxes = [p1, p3]
 descrs = ["Raw Config", "Minimized Config"]
-ax1.legend(leg_boxes, descrs, loc=2)
+ax1.legend(leg_boxes, descrs, loc=2, fontsize=24)
 fig.savefig('config-compression-dc.png', bbox_inches='tight')

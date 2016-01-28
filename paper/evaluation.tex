@@ -19,25 +19,31 @@ Not counting the lines for various definitions like prefix and customer groups o
 
 \subsection{Compilation time}
 
+
 \begin{figure}[t!]
-\centering
-\includegraphics[width=\columnwidth]{figures/compilation-times-dc.png}
-\label{fig:compilation-times-dc}
-\caption{Data center compilation times.}
+  \centering
+  \begin{minipage}[b]{0.45\linewidth}
+    \includegraphics[width=1.1\columnwidth]{figures/compilation-times-dc.png}
+  \end{minipage}
+  \quad
+  \begin{minipage}[b]{0.45\linewidth}
+    \includegraphics[width=1.1\columnwidth]{figures/compilation-times-backbone.png}
+  \end{minipage}
+  \caption{Compilation times.}
+  \label{fig:compilation-times}
 \end{figure}
 
 \begin{figure}[t!]
-\centering
-\includegraphics[width=\columnwidth]{figures/compilation-times-backbone.png}
-\label{fig:compilation-times-dc}
-\caption{Data center compilation times.}
-\end{figure}
-
-\begin{figure}[t!]
-\centering
-\includegraphics[width=\columnwidth]{figures/config-compression-dc.png}
-\label{fig:compilation-compression-dc}
-\caption{Data center config minimization.}
+  \centering
+  \begin{minipage}[b]{0.45\linewidth}
+    \includegraphics[width=1.1\columnwidth]{figures/config-compression-dc.png}
+  \end{minipage}
+  \quad
+  \begin{minipage}[b]{0.45\linewidth}
+    \includegraphics[width=1.1\columnwidth]{figures/config-compression-backbone.png}
+  \end{minipage}
+  \caption{Configuration minimization.}
+  \label{fig:minipage2}
 \end{figure}
 
 We now study the compilation of time for both policies as a function of network size. Even though the networks we study have a fixed topology and size, we can explore the impact of size because our converted policies are network-wide and the compiler takes topology itself as an input. For the data center network, we build and provide as input fat tree topologies of different sizes, assign a /24 prefix to each ToR switch, and randomly map prefixes to each type of prefix group with a distinct routing policy. We take this approach to smoothly explore different sizes; there is a parameterized way to build fat trees~\cite{fattree}, which does not exist for our concrete data center topologies. For a given size, our reported results match those for the concrete topologies.
@@ -65,16 +71,3 @@ $i)$ operators used the no-export community to prevent routes from leaking beyon
 $ii)$ operators prevented unneeded propagation of more-specific route advertisements from a neighboring AS based on their out-of-band knowledge about topology, whereas \sysname propagated these advertisements; and
 %
 $iii)$ operators used a layer of indirection using community groups and re-writing to implement certain policies in a more maintainable way, where \sysname uses flat communities. We are currently investigating if such differences matter to operators (e.g., if they want to read \sysname configurations) and, if necessary, how to reduce them.
-
-\begin{figure}[ht]
-\centering
-\begin{minipage}[b]{0.45\linewidth}
-\includegraphics[width=1.2\columnwidth]{figures/compilation-times-dc.png}
-\end{minipage}
-\quad
-\begin{minipage}[b]{0.45\linewidth}
-\includegraphics[width=1.2\columnwidth]{figures/compilation-times-backbone.png}
-\end{minipage}
-\caption{Sad Smiley}
-\label{fig:minipage2}
-\end{figure}
