@@ -32,16 +32,16 @@ with open(direct + os.path.sep + 'stats-backbone.csv') as f:
     tpp_compress_mean.append(row[25])
 
 # remove header info, and convert type
-num_pods = map(int, num_pods[2:])
-num_nodes = map(int, num_nodes[2:])
-sizes_raw = map(int, sizes_raw[2:])
-sizes_compressed = map(int, sizes_compressed[2:])
-tpp_total_mean = map(float, tpp_total_mean[2:])
-tpp_build_mean = map(float, tpp_build_mean[2:])
-tpp_minimize_mean = map(float, tpp_minimize_mean[2:])
-tpp_order_mean = map(float, tpp_order_mean[2:])
-tpp_gen_mean = map(float, tpp_gen_mean[2:])
-tpp_compress_mean = map(float, tpp_compress_mean[2:])
+num_pods = map(int, num_pods[1:])
+num_nodes = map(int, num_nodes[1:])
+sizes_raw = map(int, sizes_raw[1:])
+sizes_compressed = map(int, sizes_compressed[1:])
+tpp_total_mean = map(float, tpp_total_mean[1:])
+tpp_build_mean = map(float, tpp_build_mean[1:])
+tpp_minimize_mean = map(float, tpp_minimize_mean[1:])
+tpp_order_mean = map(float, tpp_order_mean[1:])
+tpp_gen_mean = map(float, tpp_gen_mean[1:])
+tpp_compress_mean = map(float, tpp_compress_mean[1:])
 
 #====================================================
 # 
@@ -77,11 +77,12 @@ ax1.fill_between(num_nodes, 0, y_stack[0,:], facecolor=color1, alpha=.7)
 ax1.fill_between(num_nodes, y_stack[0,:], y_stack[1,:], facecolor=color2, alpha=.7)
 ax1.fill_between(num_nodes, y_stack[1,:], y_stack[2,:], facecolor=color3)
 ax1.fill_between(num_nodes, y_stack[2,:], y_stack[3,:], facecolor=color4)
-#ax1.fill_between(num_nodes, y_stack[3,:], y_stack[4,:], facecolor=color5)
-ax1.set_xlabel('Backbone size (routers)', fontsize=20)
-ax1.set_ylabel('Mean time per prefix (sec)', fontsize=20)
-ax1.tick_params(axis='both', which='major', labelsize=18)
-ax1.tick_params(axis='both', which='minor', labelsize=18)
+ax1.set_xlabel('Routers', fontsize=35)
+ax1.set_ylabel('Avg. Time / Prefix (s)', fontsize=35)
+ax1.tick_params(axis='both', which='major', labelsize=35)
+ax1.tick_params(axis='both', which='minor', labelsize=35)
+ax1.xaxis.set_ticks([40,80,120,160,200])
+ax1.yaxis.set_ticks([5,15,25,35,45])
 #ax1.set_xlim([0,1400])
 #ax1.set_ylim([0,20])
 # custom legend for stack color
@@ -89,20 +90,11 @@ p1 = plt.Rectangle((0, 0), 1, 1, fc=color1, alpha=.7)
 p2 = plt.Rectangle((0, 0), 1, 1, fc=color2, alpha=.7)
 p3 = plt.Rectangle((0, 0), 1, 1, fc=color3, alpha=.7)
 p4 = plt.Rectangle((0, 0), 1, 1, fc=color4, alpha=.7)
-#p5 = plt.Rectangle((0, 0), 1, 1, fc=color5, alpha=.7)
 leg_boxes = [p4, p3, p2, p1]
-descrs = ["Generate/Minimize ABGP", "Find Preferences", "Minimize PG", "Construct PG"]
-ax1.legend(leg_boxes, descrs, loc=2)
-fig.savefig('compilation-time-stacked.png')
+descrs = ["Gen/Min ABGP", "Find Preferences", "Minimize PG", "Construct PG"]
+ax1.legend(leg_boxes, descrs, loc=2, fontsize=20)
+fig.savefig('compilation-time-backbone.png', bbox_inches='tight')
 
-# plot figures 
-fig = plt.figure()
-plt.grid()
-plt.plot(num_nodes, tpp_total_mean, label='Total')
-plt.xlabel('Data center size (routers)')
-plt.ylabel('Mean time per prefix (sec)')
-plt.legend(loc=2)
-fig.savefig('compilation-time.png')
 
 #====================================================
 # 
@@ -117,30 +109,14 @@ sizes_compressed_per = map(lambda (size,n): size/n, zip(sizes_compressed, num_no
 
 fig = plt.figure()
 ax1 = fig.add_subplot(111)
-ax1.bar(num_nodes1, sizes_raw_per, width=25, color=color1, alpha=1, align='center', log=True) # use log=true
-ax1.bar(num_nodes2, sizes_compressed_per, width=20, color=color3, alpha=1, align='center',log=True)
-ax1.set_xlabel('Backbone size (routers)', fontsize=20)
-ax1.set_ylabel('Config Size (lines of ABGP per router)', fontsize=20)
-ax1.tick_params(axis='both', which='major', labelsize=18)
-ax1.tick_params(axis='both', which='minor', labelsize=18)
-#ax1.set_xlim([0,1400])
-#ax1.set_ylim([0,20])
+ax1.bar(num_nodes1, sizes_raw_per, width=4, color=color1, alpha=1, align='center', log=True)
+ax1.bar(num_nodes2, sizes_compressed_per, width=4, color=color3, alpha=1, align='center',log=True)
+ax1.set_xlabel('Routers', fontsize=35)
+ax1.set_ylabel('ABGP Lines/Router', fontsize=35)
+ax1.tick_params(axis='both', which='major', labelsize=35)
+ax1.tick_params(axis='both', which='minor', labelsize=35)
+ax1.set_xlim([0,220])
 leg_boxes = [p1, p3]
 descrs = ["Raw Config", "Minimized Config"]
 ax1.legend(leg_boxes, descrs, loc=2)
-fig.savefig('config-compression-backbone.png')
-
-#====================================================
-# 
-# Size of generated vs compressed ABGP (percent line)
-#
-#====================================================
-
-#percent_reduction = map(lambda (x,y): float(x-y)/float(x), zip(sizes_raw, sizes_compressed))
-
-#fig = plt.figure()
-#plt.grid()
-#plt.plot(num_nodes, percent_reduction)
-#plt.xlabel('Data center size (routers)')
-#plt.ylabel('Config size reduction (percent)')
-#fig.savefig('config-compression-perc-dc.png')
+fig.savefig('config-compression-backbone.png', bbox_inches='tight')

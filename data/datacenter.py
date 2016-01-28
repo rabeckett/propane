@@ -78,31 +78,23 @@ ax1.fill_between(num_nodes, y_stack[0,:], y_stack[1,:], facecolor=color2, alpha=
 ax1.fill_between(num_nodes, y_stack[1,:], y_stack[2,:], facecolor=color3)
 ax1.fill_between(num_nodes, y_stack[2,:], y_stack[3,:], facecolor=color4)
 #ax1.fill_between(num_nodes, y_stack[3,:], y_stack[4,:], facecolor=color5)
-ax1.set_xlabel('Data center size (routers)', fontsize=20)
-ax1.set_ylabel('Mean time per prefix (sec)', fontsize=20)
-ax1.tick_params(axis='both', which='major', labelsize=18)
-ax1.tick_params(axis='both', which='minor', labelsize=18)
+ax1.set_xlabel('Routers', fontsize=35)
+ax1.set_ylabel('Avg. Time / Prefix (s)', fontsize=35)
+ax1.tick_params(axis='both', which='major', labelsize=35)
+ax1.tick_params(axis='both', which='minor', labelsize=35)
 ax1.set_xlim([0,1400])
-ax1.set_ylim([0,20])
+ax1.set_ylim([0,15])
+ax1.xaxis.set_ticks([200,600,1000,1400])
+ax1.yaxis.set_ticks([0,5,10,15])
 # custom legend for stack color
 p1 = plt.Rectangle((0, 0), 1, 1, fc=color1, alpha=.7)
 p2 = plt.Rectangle((0, 0), 1, 1, fc=color2, alpha=.7)
 p3 = plt.Rectangle((0, 0), 1, 1, fc=color3, alpha=.7)
 p4 = plt.Rectangle((0, 0), 1, 1, fc=color4, alpha=.7)
-#p5 = plt.Rectangle((0, 0), 1, 1, fc=color5, alpha=.7)
 leg_boxes = [p4, p3, p2, p1]
-descrs = ["Generate/Minimize ABGP", "Find Preferences", "Minimize PG", "Construct PG"]
-ax1.legend(leg_boxes, descrs, loc=2)
-fig.savefig('compilation-time-stacked.png')
-
-# plot figures 
-fig = plt.figure()
-plt.grid()
-plt.plot(num_nodes, tpp_total_mean, label='Total')
-plt.xlabel('Data center size (routers)')
-plt.ylabel('Mean time per prefix (sec)')
-plt.legend(loc=2)
-fig.savefig('compilation-time.png')
+descrs = ["Gen/Min ABGP", "Find Preferences", "Minimize PG", "Construct PG"]
+ax1.legend(leg_boxes, descrs, loc=2, fontsize=20)
+fig.savefig('compilation-time-dc.png', bbox_inches='tight')
 
 #====================================================
 # 
@@ -118,29 +110,16 @@ sizes_compressed_per = map(lambda (size,n): size/n, zip(sizes_compressed, num_no
 fig = plt.figure()
 ax1 = fig.add_subplot(111)
 ax1.bar(num_nodes1, sizes_raw_per, width=25, color=color1, alpha=1, align='center', log=True) # use log=true
-ax1.bar(num_nodes2, sizes_compressed_per, width=20, color=color3, alpha=1, align='center',log=True)
-ax1.set_xlabel('Data center size (routers)', fontsize=20)
-ax1.set_ylabel('Config Size (lines of ABGP per router)', fontsize=20)
-ax1.tick_params(axis='both', which='major', labelsize=18)
-ax1.tick_params(axis='both', which='minor', labelsize=18)
+ax1.bar(num_nodes2, sizes_compressed_per, width=25, color=color3, alpha=1, align='center',log=True)
+ax1.set_xlabel('Routers', fontsize=35)
+ax1.set_ylabel('ABGP Lines/Router', fontsize=35)
+ax1.tick_params(axis='both', which='major', labelsize=35)
+ax1.tick_params(axis='both', which='minor', labelsize=35)
+
+ax1.xaxis.set_ticks([200,600,1000,1400])
 #ax1.set_xlim([0,1400])
 #ax1.set_ylim([0,20])
 leg_boxes = [p1, p3]
 descrs = ["Raw Config", "Minimized Config"]
 ax1.legend(leg_boxes, descrs, loc=2)
-fig.savefig('config-compression-dc.png')
-
-#====================================================
-# 
-# Size of generated vs compressed ABGP (percent line)
-#
-#====================================================
-
-#percent_reduction = map(lambda (x,y): float(x-y)/float(x), zip(sizes_raw, sizes_compressed))
-
-#fig = plt.figure()
-#plt.grid()
-#plt.plot(num_nodes, percent_reduction)
-#plt.xlabel('Data center size (routers)')
-#plt.ylabel('Config size reduction (percent)')
-#fig.savefig('config-compression-perc-dc.png')
+fig.savefig('config-compression-dc.png', bbox_inches='tight')
