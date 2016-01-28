@@ -284,8 +284,8 @@ For example, in Figure~\ref{fig:example-compilation}, the path $W \cdot A \cdot 
 %
 It often simplifies the failure-safety analysis to eliminate cases that are not possible due to loops. 
 %For example, if we can safely remove a PGIR edge, then we do not have to consider what happens when the edge has failed.
-We use graph dominators~\ref{bib:todo} as a cheap approximation for removing many nodes and edges in the PGIR that are never on any \emph{simple} (loop free) path between the start and end nodes.
-In the PGIR, a node $x$ dominates a node $y$ if $x$ appears on every path leading to $y$ from the start node. Many efficient algorithms exist for finding graph dominators in practice~\ref{bib:todo}.
+We use graph dominators~\cite{tarjan-dominance} as a cheap approximation for removing many nodes and edges in the PGIR that are never on any \emph{simple} (loop free) path between the start and end nodes.
+In the PGIR, a node $x$ dominates a node $y$ if $x$ appears on every path leading to $y$ from the start node. Many efficient algorithms exist for finding graph dominators in practice~\cite{linear-dominance, fast-dominance, tarjan-dominance}.
 %We can safely remove any PGIR node or edge as long as it never appears on any \emph{simple} path from the \textit{start} node to the \emph{end} node. 
 For example, node $(W,1,1)$ in Figure~\ref{fig:example-compilation} is never on a simple path to the end node since it must go through another $W$ in either case.
 Colored nodes and dashed edges are removed after minimization since they are irrelvant to the BGP decision process.
