@@ -1,10 +1,7 @@
 \section{Compilation}
 \label{sec:compilation}
 
-The front-end (FE) of \sysname simplifies operators' task of describing preferred paths. That simplicity, however, comes at the cost of compilation complexity. The compiler must efficiently compute the sets of paths represented by the intersection of preferences and topology, compute which ones can be honored under failures, and ensure policy compliance under all possible failure cases.
-
-
-%\subsection{Overview}
+The front-end (FE) of \sysname simplifies operators' task of describing preferred paths. That simplicity, however, comes at the cost of compilation complexity. The compiler must efficiently compute the sets of paths represented by the intersection of preferences and topology, determine which ones can be honored under failures, and ensure policy compliance under all possible failure cases.
 
 \begin{figure}[t!]
 \centering
@@ -13,10 +10,7 @@ The front-end (FE) of \sysname simplifies operators' task of describing preferre
 \label{fig:pipeline}
 \end{figure}
 
-%In this section we briefly describe our compilation strategy for \sysname.
-
 We handle these challenges by breaking compilation into multiple stages and developing efficient algorithms for each (See Figure~\ref{fig:pipeline}). The first stage of the pipeline involves simple rewriting rules and substitutions from the FE to the core Regular Intermediate Representation (RIR). Policies in RIR are checked for well-formedness (\EG, never constraining traffic that does not enter the network), before being combined with the network topology to obtain the Product Graph Intermediate Representation (PGIR). The PGIR is a data representation that compactly captures the flow of BGP announcements subject to the policy and topology restrictions. We develop efficient algorithms that operate over the PGIR to ensure policy compliance under failures, avoid BGP instability, and prevent aggregation-induced black holes. Once the compiler determines that the PGIR is safe, it translates it to an abstract BGP (ABGP) representation. To make configurations more readable for human operators, and to reduce the size of the resulting configurations, the \sysname compiler makes several passes over the ABGP form. Finally, vendor-specific adaptors can translate from ABGP to concrete device configurations.
-
 
 \subsection{Regular IR (RIR)}
 \label{sec:rir}
@@ -101,7 +95,7 @@ We handle these challenges by breaking compilation into multiple stages and deve
 
 
 \para{Syntax}
-The \sysname FE is just a thin layer atop a core, regular-expression language for describing preference-based path constraints. 
+The \sysname FE is just a thin layer atop a core, regular-expression language (RIR) for describing preference-based path constraints. 
 Figure~\ref{fig:rir-syntax} shows the RIR syntax. A policy consists of one or more constraints, each of which consists of a test on the type of route, and a corresponding set of preferred regular paths. Regular paths are regular expressions where the base characters are abstract locations---either a router or an AS. Special \In{} and \Out{} symbols refer to any internal or external location respectively.  In addition, $\Sigma$ refers to any symbol, and hence $\Sigma^*$ is
 any sequence of symbols.  We also use other standard abbreviations
 for regular expressions such as $r^+$, a sequence of one or more occurrences

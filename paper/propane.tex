@@ -80,19 +80,18 @@ statements involving \CD{PCust} and \CD{PInt}, it is interpreted as
 \end{code}
 \noindent
 Line 2 of this policy 
-defines the paths that exit our network to customer prefixes---\CD{ExitCust} defines paths through \CD{R1} and \CD{R2} and in the event
-that connections to the customer through both of those routers fail,
+defines the paths that exit our network to customer prefixes---\CD{ExitCust} defines paths through \CD{R1} and \CD{R2}, and in the event
+that connections to the customer through both routers fail,
 a backup route (\CD{\End(Cust)}) is defined that admits traffic along
 any path (including those through other networks) that ends at the customer.
 Line 3 states that traffic for internal prefixes must end in our network, and is otherwise unconstrained.  The special keyword \In{} represents any location
-inside the user's network whereas the keyword \Out{} represents any location
+inside the user's network and the keyword \Out{} represents any location
 outside the user's network.
-Line 4 applies to any other traffic, and allows any routes that leave through a peer with a preference for customers over peers over providers. To summarize our progress so far, the \CD{Routing} policy
+Line 4 applies to any other traffic, and allows any routes that leave through a peer with a preference for customers over peers over providers. To summarize our progress, the \CD{Routing} policy
 implements (P1), (P3) and (P4) from Figure~\ref{fig:example1}.
 
-Since routing allows transit traffic (\IE, traffic can enter from
-\CD{Peer} and leave through \CD{Prov}), we should define a new policy that
-implements this restriction separately.  We do so by using conjunction (\AND),
+Since routing allows transit traffic (\EG, traffic entering from
+\CD{Peer} and leaving through \CD{Prov}), we define a new policy to implement this restriction separately, using conjunction (\AND),
 disjunction (\OR) and negation (\NOT) of constraints. 
 %union (\Union), intersection (\Intersect), and negation (\NOT) to
 %specify the appropriate sets of paths.
@@ -108,9 +107,9 @@ disjunction (\OR) and negation (\NOT) of constraints.
 %% \end{lstlisting}
 \begin{code}
 \Define PP = Peer \OR Prov
-\Define PPTrans   = \Enter(PP) \OR \Exit(PP)
+\Define PPTrans   = \Enter(PP) \AND \Exit(PP)
 \Define CustTrans = \Later(Cust) \AND \Later(Prov)
-\Define NoTrans   = \True \Path \NOT{}PPTrans \AND \NOT{}CustTrans
+\Define NoTrans   = \{\True \Path \NOT{}PPTrans \AND \NOT{}CustTrans\}
 \end{code}
 \noindent
 The \CD{NoTrans} constraint above ensures that requirements (P2) and (P5) are satisfied. It says that for any prefix, traffic should never both enter and exit the network from \CD{Peer} or \CD{Prov}. Similarly it prevents traffic from ever following paths that leave our network and later passing through both \CD{Prov} and \CD{Cust}.  To implement both \CD{Routing}
