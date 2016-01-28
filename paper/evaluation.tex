@@ -25,6 +25,14 @@ We found that we could translate all network policies to \sysname. We verified w
 
 Not counting the lines for various definitions like prefix and customer groups or for prefix ownership constraints, which we cannot reveal because of confidentiality concerns, the \sysname policies were 43 lines for the backbone network and 31 lines for the data center networks.
 
+\begin{figure}
+  \subcaptionbox{Data center}
+    {\includegraphics[width=.49\columnwidth]{figures/config-compression-dc.png}}
+  \subcaptionbox{Backbone network}
+    {\includegraphics[width=.49\columnwidth]{figures/config-compression-backbone.png}} \\
+  \caption{Configuration minimization. \label{fig:config-min}}
+\end{figure}
+
 \subsection{Compilation time}
 
 
@@ -62,14 +70,6 @@ For the backbone network, the internal topology does not matter since all router
 All experiments are run on an 8 core, 3.6 GHz Intel Xeon processor running Windows 7.
 %
 For both policies, we measure the mean compilation time per prefix since the \sysname compiler can compile for each prefix independently, and in parallel. Figure~\ref{fig:compilation-times} shows the compilation times for data centers (a), and backbone networks (b) of different sizes, broken down by compilation phase. No single compilation phase dominates the running time of the compiler, however construction and minimization of the product graph take the most time. Total compilation for the largest data center takes less than 9 minutes total. Unlike the data center policy, the number of prefixes for the backbone policy remains relatively fixed as the topology size increases. Compilation for the largest backbone network, takes less than 3 minutes total. The inclusion of more preferences in the backbone policy increases the size of the PGIR, which leads to PGIR construction and minimization taking proportionally more time.
-
-\begin{figure}
-  \subcaptionbox{Data center}
-    {\includegraphics[width=.49\columnwidth]{figures/config-compression-dc.png}}
-  \subcaptionbox{Backbone network}
-    {\includegraphics[width=.49\columnwidth]{figures/config-compression-backbone.png}} \\
-  \caption{Configuration minimization. \label{fig:config-min}}
-\end{figure}
 
 \subsection{Configuration size}
 

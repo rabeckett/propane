@@ -112,7 +112,7 @@ of $r$, when appropriate.
 %% \]
 %% describes a more-preferred set of paths for traffic announced by a prefix no less specific than \CD{74.125.28.0/24}, which starts at AS 200, before entering and staying inside the user's network to get to the destination, and a less-preferred set of paths that start at AS 100 and are otherwise the same. The plus operator $\In^+$ stands for $\In \cdot \In^*$, at least one internal hop. Tests over route types use standard boolean connectives, and can refer to both prefixes and route community values.
 
-\sysname also supports constraints purely on the control-plane behavior of BGP. For example, prefix aggregation, which should not affect routing behavior, is an important optimization to reduce routing table size and churn in practice. 
+\sysname also supports constraints purely on the control-plane behavior of BGP. For example, prefix aggregation is an important optimization to reduce routing table size and churn in practice. 
 %% Aggregation, for example, from internal to external locations, is specified using the same regular syntax as before:
 %% $$\Agg(128.17.0.0/16, \In \Link \Out)$$
 %% where the expression $\In \Link Out$ refers to control messages flowing from any internal to any external location.
@@ -121,7 +121,7 @@ We list only the route aggregation and community tagging constraints in Figure~\
 
 \para{Semantics}
 
-The semantics of RIR is in terms of ranked paths. Each preference-based regular path constraint (of the form $r_1 \Prefer \dots \Prefer r_j$) maps to a set of concrete paths in the network that match one of $r_i$. We denote a network path as a string of abstract locations (routers or external ASes) of the form: $n_1 n_2 \dots n_k$. A regular expression $r$ matches path $p$, if $p \in \mathcal{L}(r)$ and $p$ is a topologically-valid path. We denote the length of a path $p$ as $\abs{p}$. A path $p$ will have a rank:
+The semantics of RIR is in terms of ranked paths. Each preference-based regular path constraint (of the form $r_1 \Prefer \dots \Prefer r_j$) maps to a set of concrete paths in the network that match one of $r_i$. We denote a network path as a string of abstract locations (routers or external ASes) of the form: $n_1 n_2 \dots n_k$. A regular expression $r$ matches path $p$, if $p \in \mathcal{L}(r)$, that is the path is in the language of the regular expression, and $p$ is a topologically-valid path. We denote the length of a path $p$ as $\abs{p}$. A path $p$ will have a rank:
 $$(\min_i \set{ p \in \mathcal{L}(r_i) }, \abs{p})$$
 where the rank is lexicographically ordered according to (1) the most preferred regular expression matched, and (2) as a tie breaker, the length of the path. Lower ranks indicate \emph{more} preferred paths. Traffic may be sent along any of the most preferred paths for each pair of starting and ending locations that appear in some valid specified path.
 
@@ -130,10 +130,9 @@ The set of ranked paths depends on which paths are valid in the topology, and th
 
 \para{Propane FE to RIR}
 
-The main differences between the FE and RIR are: (1) FE allows the programmer to specify constraints using a series of (modular) definitions, and combine them later, (2) FE provides high-level names that abstract sets of routes, and (3) FE allows the preference operator to be used locally.
+The main differences between the FE and RIR are: $i)$ FE allows the programmer to specify constraints using a series of (modular) definitions, and combine them later, $ii)$ FE provides high-level names that abstract sets of routes and groups of prefixes/neighbors, and $iii)$ FE allows the preference operator to be used more flexibly.
 
-A key constraint when translating FE to RIR is to ensure that all specified routes are well-formed. In particular, each regular path constraint $r$ must satisfy $r \subseteq \Out^* \cdot \In^+ \cdot \Out^*$. This ensures that one can only talk about controlling traffic that goes through the user's network at some point,
-and that such traffic does not loop back multiple times to the user network.
+A key constraint when translating FE to RIR is to ensure that all specified routes are well-formed. In particular, each regular path constraint $r$ must satisfy $r \subseteq \Out^* \cdot \In^+ \cdot \Out^*$. This ensures that the user only control traffic that goes through the user's network at some point, and that such traffic does not loop back multiple times to the user network.
 
 The translation from \sysname to RIR is based on a set of rewriting rules.
 The first step merges separate constraints. It takes the cross product of per-prefix constraints, where logical conjunction ($a \AND b$) is replaced by intersection on regular constraints ($a \Intersect b$), logical disjunction is replaced by union, and logical negation ($\NOT a$) is replaced by ($\Any \cap \NOT(a)$), where $\Any$ ensures the routes are well-formed.
@@ -156,9 +155,14 @@ PL2 \Path \NOT\Enter(\Out) \Intersect \End(F)
 \True \Path \Exit(\Out)
 \end{code}
 
-The next step rewrites the high-level constraints such as \textit{enter} according to the equivalences in Figure~\ref{fig:rir-syntax}. Since preferences can only occur at the outermost level for an RIR expression, the final step is to ``lift" occurrences of the preference operator in each regular expression. For example, the regular expression $a \cdot (b \Prefer c) \cdot d$ is lifted to $(a \cdot b \cdot d) \Prefer (a \cdot c \cdot d)$ by distributing the preference over the sequence operator. In general, we employ the follwing equivalence:
+The next step rewrites the high-level constraints such as \textit{enter} according to the equivalences in Figure~\ref{fig:rir-syntax}. Since preferences can only occur at the outermost level for an RIR expression, the final step is to ``lift" occurrences of the preference operator in each regular expression. For example, the regular expression $a \cdot (b \Prefer c) \cdot d$ is lifted to $(a \cdot b \cdot d) \Prefer (a \cdot c \cdot d)$ by distributing the preference over the sequence operator. In general, we employ the follwing distributivity equivalences:
 %
-$$x \odot (y_1 \Prefer \dots \Prefer y_n) = (x \odot y_1) \Prefer \dots \Prefer (x \odot y_n)$$
+\[ 
+\begin{array}{c}
+  x \odot (y_1 \Prefer \dots \Prefer y_n) = (x \odot y_1) \Prefer \dots \Prefer (x \odot y_n) \\
+  (y_1 \Prefer \dots \Prefer y_n) \odot x = (y_1 \odot x) \Prefer \dots \Prefer (y_n \odot x)
+\end{array}
+\]
 %
 where $\odot$ stands for an arbitrary regular binary operator. Preferences nested under a unary operator, \textit{star} or \textit{negation}, are flagged by the compiler as invalid policies.
 
@@ -208,8 +212,6 @@ where $\odot$ stands for an arbitrary regular binary operator. Preferences neste
     \transition{3}{2}{A,C,D,E}{bend left}
     \transition{3}{4}{W}{}
   \end{tikzpicture}
-
-
   \end{minipage}
   %
   ~~
@@ -223,6 +225,7 @@ where $\odot$ stands for an arbitrary regular binary operator. Preferences neste
   \end{minipage}
 
   \hrulefill
+  \vspace*{.4em}
 
   \caption{Example Product Graph IR construction for policy: $(W \cdot A \cdot C \cdot D \cdot out) \Prefer (W \cdot B \cdot in^* \cdot out)$.}
   \label{fig:example-compilation}
@@ -290,7 +293,7 @@ It often simplifies the failure-safety analysis to eliminate cases that are not 
 We use graph dominators~\ref{bib:todo} as a cheap approximation for removing many nodes and edges in the PGIR that are never on any \emph{simple} (loop free) path between the start and end nodes.
 In the PGIR, a node $x$ dominates a node $y$ if $x$ appears on every path leading to $y$ from the start node. Many efficient algorithms exist for finding graph dominators in practice~\ref{bib:todo}.
 %We can safely remove any PGIR node or edge as long as it never appears on any \emph{simple} path from the \textit{start} node to the \emph{end} node. 
-For example, node $(1,1) W$ in Figure~\ref{fig:example-compilation} is never on a simple path to the end node since it most go through another $W$ in either case.
+For example, node $(1,1) W$ in Figure~\ref{fig:example-compilation} is never on a simple path to the end node since it must go through another $W$ in either case.
 Colored nodes and dashed edges are removed after minimization since they are irrelvant to the BGP decision process.
 %
 %Although fully minimizing this graph is an NP-complete problem,  a simple and efficient algorithm based on graph dominators achieves largely the same effect, greatly simplifying the failure safety analysis.
@@ -359,7 +362,7 @@ Thus any time $N_2$ can get to a final location for preference $i$, $N_1$ can ge
 
 Local preferences are now obtained by, for each router in the topology, sorting the corresponding PGIR nodes according to \textit{can prefer} relation. If two nodes are incomparable, then the compiler rejects the policy as unimplementable.
 
-\para{Avoiding Simple Paths}
+\para{Avoiding Loops}
 
 The checks for failure safety described above overlook one critical point: Paths for a higher preference might not actually exist due to loops. To avoid this situation, the compiler conservatively checks that, when node $x$ protects against failures for node $y$, its does so without using any nodes that shadow another node that appears ``above'' $x$ in the PGIR. 
 %It is fine however, to reuse the same nodes that appear above $x$, since any path that went through another node $z$ to get to $x$, but then looped through $z$ again, would be obtainable from $z$ itself.
