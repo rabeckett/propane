@@ -61,15 +61,13 @@
 %\end{abstract}
 
 \textbf{Abstract---}
-We develop a system called \sysname to help network operators with a challenging and error prone task: bridge the gap between network-wide routing objectives and low-level configurations of devices that run complex distributed protocols. 
+We develop a system called \sysname to help network operators with a challenging and error prone task: bridge the gap between network-wide routing objectives and low-level configurations of devices that run complex distributed protocols.
 %
 It allows them to specify their objectives naturally, using ranked sets of paths which may be partial or end-to-end and may also refer to other networks.
 %
-Our compiler analyzes these specifications and translates them to a collection of BGP configurations, so they may
-exploit existing distributed fault tolerance mechanisms and
-execute on existing commodity hardware.  
+Our compiler automatically translates these specifications to a collection of BGP router configurations that can execute on existing commodity hardware.
 %
-The compiled configurations are guaranteed to correctly implement the routing policy under all possible combinations of failures.
+We introduce new data structures and efficient algorithms that guarantee that the compiled configurations correctly implement the routing policy under all possible combinations of failures.
 %
-We use \sysname to specify and compile the configurations of real 
+We use \sysname to specify and compile the configurations of real
 data center and backbone networks.  We show that, despite its strong guarantees, it scales to topologies with hundreds of routers.
