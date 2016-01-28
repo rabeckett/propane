@@ -31,7 +31,7 @@ We handle these challenges by breaking compilation into multiple stages and deve
     \hline
 
      pol     &::=& p_1, \dots, p_n & \textit{constraints} \\
-     p       &::=& t \mapsto r_1 \Prefer \dots \Prefer r_m & \textit{preferences} \\
+     p       &::=& t \hspace{.3em} \Path \hspace{.3em} r_1 \Prefer \dots \Prefer r_m & \textit{preferences} \\
      x       &::=& a.b.c.d/n & \textit{prefix} \\
      c       &::=& \cdots & \textit{community value} \\
      t       &::=& \True & \textit{true} \\
@@ -221,7 +221,7 @@ where $\odot$ stands for an arbitrary regular binary operator. Preferences neste
   \hrulefill
   \vspace*{.4em}
 
-  \caption{Example Product Graph IR construction for policy: $(W \cdot A \cdot C \cdot D \cdot out) \Prefer (W \cdot B \cdot in^* \cdot out)$.}
+  \caption{Example Product Graph IR construction for policy: $(\CD{W} \cdot \CD{A} \cdot \CD{C} \cdot \CD{D} \cdot \Out) \Prefer (\CD{W} \cdot \CD{B} \cdot \In^* \cdot \Out)$.}
   \label{fig:example-compilation}
 \end{figure*}
 
@@ -264,7 +264,7 @@ Intuitively, PGIR tracks which states of each automaton the policy is in as rout
 %
 Consider the topology in Figure~\ref{fig:example-compilation}. Suppose we want a primary route from W that enters the network from $A$, and utilizes the A--C and C--D links. We also want a backup route that enters from $B$, and utilizes the B--C link, but is otherwise unconstrained. For simplicity, we assume that the route can end in either $X$, $Y$, or $Z$. The RIR for the policy is:
 %
-$$(W \cdot A \cdot C \cdot D \cdot \Out) \Prefer (W \cdot B \cdot in^* \cdot \Out)$$
+$$(\CD{W} \cdot \CD{A} \cdot \CD{C} \cdot \CD{D} \cdot \Out) \Prefer (\CD{W} \cdot \CD{B} \cdot \In^* \cdot \Out)$$
 %
 Figure~\ref{fig:example-compilation} shows the policy automata for each regular expression preference. Since we are interested in the flow of control messages, the automata match backwards.
 %
@@ -307,8 +307,9 @@ Colored nodes and dashed edges are removed after minimization since they are irr
 
 To implement path preferences in routing, BGP uses local preferences on a per-device basis. However, the distributed nature of BGP makes setting preferences locally to achieve a network-route routing policy difficult, particularly in the presence of failures. For example, imagine an extremely simple policy for the topology in Figure~\ref{fig:example-compilation}, which says to prefer one route over another:
 %
-$$(W \cdot A \cdot C \cdot D) \Prefer (W \cdot B \cdot C \cdot E)$$
+$(\CD{W} \cdot \CD{A} \cdot \CD{C} \cdot \CD{D}) \Prefer (\CD{W} \cdot \CD{B} \cdot \CD{C} \cdot \CD{E})$.
 %
+
 How could such a policy be implemented in BGP? Suppose we simply set the local preference at router $C$ to prefer $D$ over $E$. However, now if the A -- C link fails, then suddenly $C$ has made the wrong decision and can not get either the primary or backup route specified, despite the fact that the $W \cdot B \cdot C \cdot E$ path is available in the network.
 
 At a first cut, any time a router must make a decision locally between several route options, there is the possibility it might choose incorrectly. The PGIR captures this notion of choice precisely. For example, router $D$ in Figure~\ref{fig:example-compilation} appears only once in the PGIR, possibly receiving announcements from $X$ or $Y$. However, regardless of whether $D$ chooses a route from $X$ or $Y$, the set of paths allowed by the policy after going through $D$ will be the same in either case. This remains true despite any failures that might have occurred in the network. Thus $D$ can safely prefer $X$ and $Y$ equally.
@@ -489,7 +490,7 @@ We frame the aggregation problem as a problem of connectivity in the PGIR. Speci
 The number of PGIR paths that we are able to remove is a lower bound on the number of failures required to disconnect the prefix from its aggregate. 
 
 For example, imagine we use the data center example from \S\ref{sec:motivation}, with the policy: 
-$\CD{PG1} \mapsto \End(A)$, where \CD{PG1} falls under the \CD{PG} aggregate. Figure~\ref{fig:aggregation-safety} shows the network topology and a simplified PGIR. Since the compiler knows an aggregate will be placed at $X$, and it knows that, the route for \CD{PG1} will originate at $A$, we can compute the number of failures it would take to disconnect $A$ from $X$. We could remove the $A$--$D$--$X$ path first. We would then need to remove any other $A$--$D$ or $D$--$X$ links from the PGIR, though in this case there are none. Next, we could remove the links along the $A$--$C$--$X$ path, repeating the process. Because $A$ is then disconnected from $X$, the compiler knowns that 2 is a lower bound on the number of failures for aggregation safety for prefix \CD{PG1}. This process is repeated for other aggregation locations (e.g., $Y$).
+\CD{PG1} \Path \text{ }\End(\CD{A}), where \CD{PG1} falls under the \CD{PG} aggregate. Figure~\ref{fig:aggregation-safety} shows the network topology and a simplified PGIR. Since the compiler knows an aggregate will be placed at $X$, and it knows that, the route for \CD{PG1} will originate at $A$, we can compute the number of failures it would take to disconnect $A$ from $X$. We could remove the $A$--$D$--$X$ path first. We would then need to remove any other $A$--$D$ or $D$--$X$ links from the PGIR, though in this case there are none. Next, we could remove the links along the $A$--$C$--$X$ path, repeating the process. Because $A$ is then disconnected from $X$, the compiler knowns that 2 is a lower bound on the number of failures for aggregation safety for prefix \CD{PG1}. This process is repeated for other aggregation locations (e.g., $Y$).
 
 \subsection{Formal Properties}
 
