@@ -128,7 +128,7 @@ ax1.tick_params(axis='both', which='minor', labelsize=18)
 leg_boxes = [p1, p3]
 descrs = ["Raw Config", "Minimized Config"]
 ax1.legend(leg_boxes, descrs, loc=2)
-fig.savefig('config-compression-dc.png')
+fig.savefig('config-compression-backbone.png')
 
 #====================================================
 # 
