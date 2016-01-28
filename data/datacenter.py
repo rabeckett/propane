@@ -102,15 +102,20 @@ fig.savefig('compilation-times-dc.png', bbox_inches='tight')
 #
 #====================================================
 
-num_nodes1 = num_nodes 
+num_nodes1 = num_nodes
 num_nodes2 = map(lambda x: x, num_nodes)
 sizes_raw_per = map(lambda (size,n): size/n, zip(sizes_raw, num_nodes))
 sizes_compressed_per = map(lambda (size,n): size/n, zip(sizes_compressed, num_nodes))
 
+num_nodes1 = num_nodes1[1:]
+num_nodes2 = num_nodes2[1:]
+sizes_raw_per = sizes_raw_per[1:]
+sizes_compressed_per = sizes_compressed_per[1:]
+
 fig = plt.figure()
 ax1 = fig.add_subplot(111)
-ax1.bar(num_nodes1, sizes_raw_per, width=25, color=color1, alpha=1, align='center', log=True) # use log=true
-ax1.bar(num_nodes2, sizes_compressed_per, width=25, color=color3, alpha=1, align='center',log=True)
+ax1.bar(num_nodes1, sizes_raw_per, width=40, color=color1, alpha=1, align='center', log=True) # use log=true
+ax1.bar(num_nodes2, sizes_compressed_per, width=40, color=color3, alpha=1, align='center',log=True)
 ax1.set_xlabel('Routers', fontsize=35)
 ax1.set_ylabel('ABGP Lines/Router', fontsize=35)
 ax1.tick_params(axis='both', which='major', labelsize=35)
@@ -118,7 +123,7 @@ ax1.tick_params(axis='both', which='minor', labelsize=35)
 
 ax1.xaxis.set_ticks([200,600,1000,1400])
 #ax1.set_xlim([0,1400])
-ax1.set_ylim([0,10*10*10*10*10*10*10])
+ax1.set_ylim([-10, 10*10*10*10*10*10*10])
 
 leg_boxes = [p1, p3]
 descrs = ["Raw Config", "Minimized Config"]
