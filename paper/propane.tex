@@ -1,16 +1,24 @@
 \section{Propane overview}
 \label{sec:propane}
 
-Policies for (distributed) control planes differ from data plane policies~\cite{x,y,z}. First, they must account for all failures at specification time; there is no controller at runtime, the routers must be configured in advance to handle failures in a compliant manner.
+Policies for (distributed) control planes differ from data-plane
+policies~\cite{x,y,z} in a few important ways. First, control-plane
+policies must account for all failures at specification time; there is
+no controller at runtime, so the routers must be configured in advance to handle failures in a compliant manner.
 %
-In \sysname, we enable such specifications through path preferences, with the semantics that a less-preferred path is taken only when a higher-preference path is unavailable in the network.
+In \sysname, we enable such specifications through a notion of {\em path preferences}, with the semantics that a less-preferred path is taken only when a higher-preference path is unavailable in the network.
 %
-Second, paths may be under-specified (e.g., "prefer customer" does not indicate a concrete path). The \sysname compiler treats such under-specifications as constraints on the set of paths and automatically computes valid sets based on topology.
+Second, paths in a control-plane policy may be under-specified (e.g.,
+"prefer customer" does not indicate a concrete path). The \sysname
+compiler treats such under-specifications as constraints on the set of
+allowed paths and automatically computes valid sets based on topology.
 %
-To illustrate \sysname in action, we define policies for the two 
-examples described in the previous section.
-%
-The following section describes how we compile such policies to BGP.
+
+In the rest of this section, we define \sysname policies for the two 
+examples described in the previous section, introducing key aspects of
+the \sysname language along the way.  The complete syntax of the
+language as well as our strategy for compiling \sysname policies to
+BGP is defined in the next section.
 
 \subsection{Example 1: The Backbone}
 
@@ -22,14 +30,18 @@ The following section describes how we compile such policies to BGP.
 %import-export filters, local preferences, MED attributes, and community tags
 %to ensure policy compliance under all possible failure scenarios.
 
-\sysname allows the operator to configure the network with the abstraction that he or she has centralized control over routing and uses a set of high-level constraints to describe the different routes traffic may (or may not) take and their relative preferences.
+\sysname allows the operator to configure the network with the
+abstraction that he or she has centralized control over routing.
+Specifically, the operator simply provides a set of high-level constraints
+that describe the 
+different routes traffic may (or may not) take and their relative preferences.
 \sysname specifications are written modularly via a series
 of declarations.
 %These definitions allow users to express the three
 %major elements of any \sysname specification:  \emph{prefixes},
 %\emph{paths} and \emph{policies}.
 For example, to begin specification of the backbone
-network, we first express the idea that for routes leading to our customer,
+network from the previous section, we first express the idea that for routes leading to our customer,
 we prefer using \CD{R1} over \CD{R2} (Policy P3 from Figure~\ref{fig:example1}):
 %\begin{lstlisting}[mathescape=true]
 %define ExitCust = $exit(R_1 \gg R_2)$
@@ -88,7 +100,7 @@ Line 3 states that traffic for internal prefixes must end in our network, and is
 inside the user's network and the keyword \Out{} represents any location
 outside the user's network.
 Line 4 applies to any other traffic, and allows any routes that leave through a peer with a preference for customers over peers over providers. To summarize our progress, the \CD{Routing} policy
-implements (P1), (P3) and (P4) from Figure~\ref{fig:example1}.
+implements P1, P3, and P4 from Figure~\ref{fig:example1}.
 
 Since routing allows transit traffic (\EG, traffic entering from
 \CD{Peer} and leaving through \CD{Prov}), we define a new policy to implement this restriction separately, using conjunction (\AND),
@@ -112,7 +124,7 @@ disjunction (\OR) and negation (\NOT) of constraints.
 \Define NoTrans   = \{\True \Path \NOT{}PPTrans \AND \NOT{}CustTrans\}
 \end{code}
 \noindent
-The \CD{NoTrans} constraint above ensures that requirements (P2) and (P5) are satisfied. It says that for any prefix, traffic should never both enter and exit the network from \CD{Peer} or \CD{Prov}. Similarly it prevents traffic from ever following paths that leave our network and later passing through both \CD{Prov} and \CD{Cust}.  To implement both \CD{Routing}
+The \CD{NoTrans} constraint above ensures that requirements P2 and P5 are satisfied. It says that for any prefix, traffic should never both enter and exit the network from \CD{Peer} or \CD{Prov}. Similarly it prevents traffic from ever following paths that leave our network and later passing through both \CD{Prov} and \CD{Cust}.  To implement both \CD{Routing}
 and \CD{NoTrans} simultaneously, we simply conjoin them: \CD{Routing \AND{} NoTrans}.
 %
 %% \begin{lstlisting}[mathescape=true]
@@ -128,7 +140,7 @@ implemented correctly under all failure cases.
 In our data center,
 there are three main concerns:
 (1) traffic for the prefix block allocated to each top-of-rack router must be able to reach that router,
-(2) local services must not leak outside the datacenter, and
+(2) local services must not leak outside the data center, and
 (3) aggregation must be performed on global prefixes to reduce churn
 in the network.
 
@@ -178,7 +190,7 @@ on how traffic must
 traverse the network for global prefixes, aside from the default restriction
 that traffic must not pass through the user's network and then loop
 back on itself. This means traffic for
-\CD{PG*} may be sent either from other routers in the datacenter, or
+\CD{PG*} may be sent either from other routers in the data center, or
 from external ASes. The second line ensures that traffic for local
 prefixes never enters the network from an outside location. This constraint
 guarantees that the services remain reachable only to locations
