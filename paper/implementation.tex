@@ -9,9 +9,9 @@ Constructing automata for extended regular expressions (regular expressions incl
 %
 Rather than construct the product graph in full, our implementation prevents exploring parts of the graph when no accepting state is reachable in any of the corresponding regular automata during construction.
 
-\para{PG Minimization}
+%\para{PG Minimization}
 
-The \sysname compiler uses a fast algorithm for computing graph dominators by storing sets of dominators in a compact representation known as a dominator tree~\cite{fast-dominance}. More complex algorithms with better theoretical complexity exist~\cite{linear-dominance, tarjan-dominance} and may be better suited for large enough topologies. All minimization steps are repeated until no more progress can be made.
+%The \sysname compiler uses a fast algorithm for computing graph dominators by storing sets of dominators in a compact representation known as a dominator tree~\cite{fast-dominance}. More complex algorithms with better theoretical complexity exist~\cite{linear-dominance, tarjan-dominance} and may be better suited for large enough topologies. All minimization steps are repeated until no more progress can be made.
 
 \para{Failure Safety}
 
