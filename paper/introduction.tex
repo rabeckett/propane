@@ -38,7 +38,6 @@ for network operators.  As a result, configurations that work
 correctly in failure-free environments have nonetheless been found to violate key
 network-wide properties when failures occur~\cite{batfish}.
 
-
 To reduce configuration errors, many practitioners have a adopted a template-based
 approach~\cite{hatch,thwack}, in which common tasks are captured as parameterized templates.
 %
@@ -56,6 +55,8 @@ semantic divide between network-wide policies and device-level configuration.
 They do not provide fundamentally different abstractions
 from existing configuration languages and so still require operators to
 manually decompose policies into device-level behaviors.
+
+Verification tools for network configurations~\cite{batfish} have been developed as a complimentary approach for reducing misconfigurations by checking that the low-level configurations match high-level operator intent. However, existing verification tools have their drawbacks: like templates, they do not help operators come up with the configuration in the first place, and moreover, they can only check correctness under concrete environment and failure scenarios, rather than under all possible environments and failure scenarios.
 
 Software-defined networking (SDN) and its abstractions
 are, in part, the research
