@@ -102,7 +102,7 @@ In other cases, the \sysname configurations are different, relying on a differen
 $i)$ operators used the no-export community to prevent routes from leaking beyond a certain tier of the datacenter, while \sysname selectively imported the route only below the tier;
 %\sysname could use a similar implementation mechanism in the future as an optimization.
 
-$ii)$ operators prevented unneeded propagation of more-specific route announcements from a neighboring AS based on their out-of-band knowledge about topology, whereas \sysname propagated these advertisements; and
+$ii)$ operators prevented unneeded propagation of more-specific route announcements from a neighboring AS based on their out-of-band knowledge about the topology, whereas \sysname propagated these advertisements; and
 
 $iii)$ operators used a layer of indirection for community values, using community groups and re-writing values, to implement certain policies in a more maintainable manner, where \sysname uses flat communities.
 
