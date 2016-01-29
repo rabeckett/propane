@@ -1,0 +1,69 @@
+\section*{Appendix}
+\label{sec:appendix}
+
+\renewcommand\thesubsection{\Alph{subsection}}
+
+\subsection{Aggregation-Induced Black Holes}
+\label{sec:black-holes}
+
+As demonstrated with Example 2 in \S\ref{sec:motivation}, BGP aggregation can lead to subtle black-holing of traffic when failures occur. Deciding when this can happen requires knowledge of the routing policy and not just the topology. For instance, a policy might require all traffic for a particular prefix to go over a single link before being aggregated, even if there are several available in the toplogy. If that link fails, a black hole might be introduced. Fortunately, the PGIR captures the information about both the policy and topology precisely.
+%, describing the how information meeting the policy flows over the topology.
+
+We frame the aggregation problem as a problem of connectivity in the PGIR. Specifically, for each prefix that falls under an aggregate, we find a lower bound on the number of failures that would disconnect where the prefix originates from where its more specific aggregate is located. The difficulty is that the same links in the topology can appear in multiple places in the PGIR. We adopt the following simple strategy to lower bound the number of failures: $i)$ Pick a random start-to-end path in PGIR, $ii)$ remove all edges in the PGIR for the set of topological edges chosen, and $iii)$ repeat until no such path exists.
+The number of PGIR paths that we are able to remove is a lower bound on the number of failures required to disconnect the prefix from its aggregate. 
+
+For example, imagine we use the data center example from \S\ref{sec:motivation}, with the policy: 
+\CD{PG1} \Path \text{ }\End(\CD{A}), where \CD{PG1} falls under the \CD{PG} aggregate. Figure~\ref{fig:aggregation-safety} shows the network topology and a simplified PGIR. Since the compiler knows an aggregate will be placed at $X$, and it knows that, the route for \CD{PG1} will originate at $A$, we can compute the number of failures it would take to disconnect $A$ from $X$. We could remove the $A$--$D$--$X$ path first. We would then need to remove any other $A$--$D$ or $D$--$X$ links from the PGIR, though in this case there are none. Next, we could remove the links along the $A$--$C$--$X$ path, repeating the process. Because $A$ is then disconnected from $X$, the compiler knowns that 2 is a lower bound on the number of failures for aggregation safety for prefix \CD{PG1}. This process is repeated for other aggregation locations (e.g., $Y$).
+
+\begin{figure}[t!]
+\centering
+\includegraphics[width=\columnwidth]{figures/aggregation}
+\caption{Aggregation safety.}
+\label{fig:aggregation-safety}
+\end{figure}
+
+
+
+\subsection{Propane Properties}
+
+\newtheorem{prop}{Proposition}[section]
+
+%Here we investigate the correctness and expressiveness properties of \sysname. We are mainly concerned with answering the following questions: (1) does the distributed, compiled policy faithfully implement the user's policy regardless of failures? (2) Are the resulting BGP configurations stable?, and (3) what polcies are or are not expressible in \sysname?
+
+If \sysname compiles a user policy to a distributed implementation, then that distributed implementation faithfully meets the centralized policy's semantics under any failure scenario. We are primarily concerned with the steady state: that is, what happens after (if) the routing protocol converges. We argue that \sysname is correct by breaking down the claim:
+
+\begin{prop}
+BGP configurations produced by \sysname are \textit{Sound} with respect to the policy: That is, any route traffic takes in the network, is a valid route specified by the policy.
+\end{prop}
+%
+%The Soundness claim follows directly from compilation of the product graph. Since every path through the product graph (from start to end) must match the user's policy, and since the compiled configurations use communities to ensure only valid routes through the product graph are used, the resulting BGP configurations are Sound. 
+%
+\begin{prop}
+BGP configurations produced by \sysname are \textit{Complete}: That is, the distributed implementation always obtains a most preferred route between two nodes when the corresponding path exists in the network.
+\end{prop}
+%
+%The argument for completeness is as follows: Assume the most preferred path that exists in the network is between two nodes $X$ and $Y$.  This means there is a valid path in the product graph corresponding to this path, and which is available in the network. 
+%Assume we are unable to achieve this route in the network. To not achieve this path means that some router along the advertisement route from $Y$ to $X$ preferred to accept an advertisement from another peer instead. This implies that router that makes the ``wrong'' choice appears as a separate node in the product graph. However, from our failure safety check, we know that the other, more-preferred node must have a superset of the paths to accepting states as the less preferred node (from which it stole the route) for at least as good of a final preference. The argument then proceeds by induction on the path length - there are only a finite number of such stealings that can occur, each of which will ultimately still result in a route advertisement reaching $X$ along a most preferred path.
+%
+%Any \sysname-compiled policy will be \textit{Complete} as a result of the failure safety check.
+%
+\begin{prop}
+BGP configurations for internal routers produced by \sysname will be stable. 
+\end{prop}
+%
+The combination of Soundness and Completeness ensures that the distributed implementation will always send traffic along the best paths possible, yet will also never also use any undesired paths. These properties rely on the fact that \sysname produces stable BGP configurations:
+%
+%The reduction is via the well-known No-Dispute-Wheel condition~\ref{bib:todo} for stable BGP. In particular, any policy with a dispute wheel will not pass the stronger failure safety check by \sysname.
+%
+%\begin{figure}[t!]
+%\includegraphics[width=\columnwidth]{figures/dispute-wheel}
+%\label{fig:dispute-wheel}
+%\caption{Product graph for a dispute wheel.}
+%\end{figure}
+%
+%The reduction is via the well-known No-Dispute-Wheel condition~\ref{bib:todo}. If a set of BGP configurations do not have a dispute wheel, then they will converge to their best routes. Any BGP policy with a dispute wheel will not satisfy the failure safety condition in Section~\ref{sec:compilation}. Assume that the preferences in the policy describe a dispute wheel, and we will show that our failure check will reject the policy. Informally, a dispute wheel occurs when there are some number of nodes $u_1, \dots, u_n$ attempting to get a path to a destination node $d$. Each node $u_i$ prefers to go through its neighbor $u_{i+1}$ over route $R_i$ than directly to $d$ with route $Q_i$. Thus the nodes form a wheel of preferences. The product graph for a policy that contains a dispute wheel will look like Figure~\ref{fig:dispute-wheel}, which shows a dispute wheel of size 3. In order to pass the failure safety check for the compiler, the more-preferred node for $u_2$ will need to have a superset of the paths starting from the less-preferred node for $u_2$. In turn, this means that the maximum length path after visiting the more preferred $u_2$ will be $max(Z) = 1 + max(Y)$, similarly, if we look at $u_1$, we will determine that $max(Y) = 1 + max(X)$, and so on. The resulting equations define a system of unsatisfiable equations. Therefore, it is not possible for \sysname to compile a BGP policy that contains a dispute wheel. Since no-dispute-wheel is a sufficient condition for BGP stability, any compiled \sysname policy will be stable.
+%
+An important distinction is that BGP might still be instable with respect to other external ASes, since \sysname has no way of configuring their routing policy and can only rely on AS path filters to see what advertisements are observed.
+
+
+

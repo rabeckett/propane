@@ -3,14 +3,6 @@
 
 We apply \sysname on real policies for backbone and data center networks. Our mains goals are to evaluate if its front-end is expressive enough for real-world policies and the time the compiler takes to generate router configurations.
 
-\subsection{Networks studied}
-
-We obtain routing policy for the backbone network and for the data centers of a large cloud provider. Multiple data centers share this policy. The backbone network connects to the data centers and also has many external BGP neighbors. The high-level policies of these networks are captured in an English document which guides operators when writing configuration templates for data center routers or actual configurations for the backbone network (where templates are not used because the network has less regular structure).
-
-The networks have the type of policies that we outline earlier (\S\ref{sec:motivation}). The backbone network classifies external neighbors into several different categories and prefers paths through them in order. It does not want to provide transit among certain types of neighbors. For some neighbors, it prefers some links over the others. It supports communities based on which it will not announce certain routes externally or announce them only within a geographic region (e.g., West Coast of the USA). Finally, it has many filters, e.g., to prevent bogons (private address space) from external neighbors, prevent customers from providing transit to other large networks, prevent traversing providers through peers, etc.
-
-All routers in the datacenter network run BGP using a private AS number and peer with each other and with the backbone network over eBGP. The routers aggregate prefixes when announcing them to the backbone network, they keep some prefixes internal, and attach communities for some other prefixes that should not traverse beyond the geographic region. They also have policies by which some prefixes should not be announced beyond a certain tier in the datacenter hierarchy.
-
 \begin{figure}
   \subcaptionbox{Data center}
     {\includegraphics[width=.49\columnwidth]{figures/compilation-times-dc.png}}
@@ -18,6 +10,15 @@ All routers in the datacenter network run BGP using a private AS number and peer
     {\includegraphics[width=.49\columnwidth]{figures/compilation-times-backbone.png}} \\
   \caption{Compilation time. \label{fig:compilation-times}}
 \end{figure}
+
+
+\subsection{Networks studied}
+
+We obtain routing policy for the backbone network and for the data centers of a large cloud provider. Multiple data centers share this policy. The backbone network connects to the data centers and also has many external BGP neighbors. The high-level policies of these networks are captured in an English document which guides operators when writing configuration templates for data center routers or actual configurations for the backbone network (where templates are not used because the network has less regular structure).
+
+The networks have the type of policies that we outline earlier (\S\ref{sec:motivation}). The backbone network classifies external neighbors into several different categories and prefers paths through them in order. It does not want to provide transit among certain types of neighbors. For some neighbors, it prefers some links over the others. It supports communities based on which it will not announce certain routes externally or announce them only within a geographic region (e.g., West Coast of the USA). Finally, it has many filters, e.g., to prevent bogons (private address space) from external neighbors, prevent customers from providing transit to other large networks, prevent traversing providers through peers, etc.
+
+All routers in the datacenter network run BGP using a private AS number and peer with each other and with the backbone network over eBGP. The routers aggregate prefixes when announcing them to the backbone network, they keep some prefixes internal, and attach communities for some other prefixes that should not traverse beyond the geographic region. They also have policies by which some prefixes should not be announced beyond a certain tier in the datacenter hierarchy.
 
 \subsection{Expressiveness}
 
