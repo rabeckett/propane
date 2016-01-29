@@ -368,7 +368,8 @@ let genConfig (cg: CGraph.T) (pred: Predicate.T) (ord: Consistency.Ordering) (in
                     filters <- Allow ((m,lp), exports) :: filters
                 originates <- origin || originates
                 szRaw := !szRaw + (Seq.length nsIn) * (Seq.length nsOut)
-                szSmart := !szSmart + (List.length filters) * (List.length exports)
+                szSmart := !szSmart + (List.length exports)
+        szSmart := !szSmart + (List.length filters)
         filters <- List.rev (Deny :: filters)
         let deviceConf = {Originates=originates; Filters=filters}
         config <- Map.add loc deviceConf config

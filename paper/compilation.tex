@@ -222,7 +222,7 @@ where $\odot$ stands for an arbitrary regular binary operator. Preferences neste
   \hrulefill
   \vspace*{.4em}
 
-  \caption{Example Product Graph IR construction for policy: $(\CD{W} \cdot \CD{A} \cdot \CD{C} \cdot \CD{D} \cdot \Out) \Prefer (\CD{W} \cdot \CD{B} \cdot \In^* \cdot \Out)$.}
+  \caption{Example Product Graph IR construction for policy: $(\CD{W} \cdot \CD{A} \cdot \CD{C} \cdot \CD{D} \cdot \Out) \Prefer (\CD{W} \cdot \CD{B} \cdot \In^+ \cdot \Out)$.}
   \label{fig:example-compilation}
   \vspace{-1em}
 \end{figure*}
@@ -247,7 +247,7 @@ a unique starting vertex $s$,
 a unique ending vertex $e$,
 and a preference function $P \colon V \rightarrow 2^{\set{1, \dots, j}}$ , which maps nodes in the product graph to a set of preference ranks.
 For a vertex $v' = (v, \dots) \in V'$, we say $loc(v') = v$. 
-A node $x$ shadows node $y$ in the product graph when $x \in V'$ and $y \in V'$ and $loc(x) = loc(y)$ but $x \neq y$. That is, $x$ shadows $y$ when they are different nodes in the PGIR that represent the same topology location.
+Two nodes $x$ and $y$ \emph{shadow} each other in the product graph when $x \in V'$ and $y \in V'$ and $loc(x) = loc(y)$ but $x \neq y$. That is, $x$ and $y$ shadow each other when they are different nodes in the PGIR that represent the same topology location.
 
 \para{From RIR To PGIR}
 
@@ -266,7 +266,7 @@ Intuitively, PGIR tracks which states of each automaton the policy is in as rout
 %
 Consider the topology in Figure~\ref{fig:example-compilation}. Suppose we want a primary route from W that enters the network from $A$, and utilizes the A--C and C--D links. We also want a backup route that enters from $B$, and utilizes the B--C link, but is otherwise unconstrained. For simplicity, we assume that the route can end in either $X$, $Y$, or $Z$. The RIR for the policy is:
 %
-$$(\CD{W} \cdot \CD{A} \cdot \CD{C} \cdot \CD{D} \cdot \Out) \Prefer (\CD{W} \cdot \CD{B} \cdot \In^* \cdot \Out)$$
+$$(\CD{W} \cdot \CD{A} \cdot \CD{C} \cdot \CD{D} \cdot \Out) \Prefer (\CD{W} \cdot \CD{B} \cdot \In^+ \cdot \Out)$$
 %
 Figure~\ref{fig:example-compilation} shows the policy automata for each regular expression preference. Since we are interested in the flow of control messages, the automata match backwards.
 %
@@ -275,7 +275,7 @@ The figure also shows the PGIR after intersecting the topology and policy automa
 For example, the path $X \cdot D \cdot C \cdot A \cdot W$ is a valid path in the topology that BGP route announcements might take, which would lead to obtaining the most prefered preference $1$.
 BGP control messages can start from peer X, which would match the $\Out$ transition from both automata, leading to state $1$ in the first automaton, and state $1$ in the second automaton. This is reflected in the product graph by the node with state $(X,1,1)$. From here, if X were to advertise this route to D, it would result in the path $D X$, which would lead to state $2$ in the first automaton, and state $2$ in the second automaton, and so on.
 %
-The ``--" state indicates it is dropped from the corresponding automaton. Since node $(W,5,-)$ is in an accepting state for the first automata, it indicates this path has preference 1.
+The ``--" state indicates the corresponding automaton can not accept the current path or any extension of it. Since node $(W,5,-)$ is in an accepting state for the first automata, it indicates this path has preference 1.
 
 \para{Minimization}
 

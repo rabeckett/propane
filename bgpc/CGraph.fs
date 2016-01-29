@@ -490,27 +490,22 @@ module Minimize =
         let toDelNodes = HashSet(HashIdentity.Structural)
         let outside = 
             cg.Graph.Vertices 
-            |> Seq.filter isOutside
+            |> Seq.filter (isRepeatedOut cg)
             |> Set.ofSeq
-        for a in outside do 
-            let ans = neighbors cg a |> Set.ofSeq
-            if ans.Count = 1 then 
-                let b = ans.MinimumElement
-                if a <> b && isRepeatedOut cg b then 
-                    let ians = neighborsIn cg a |> Set.ofSeq 
-                    let ibns = neighborsIn cg b |> Set.ofSeq
-                    if Set.isSuperset ibns ians then
-                        ignore (toDelNodes.Add a)
-        for b in cg.Graph.Vertices do 
-            if isRepeatedOut cg b then
-                let bns = neighbors cg b |> Set.ofSeq
-                for a in bns do
-                    if a <> b && outside.Contains a then
-                        let count = neighborsIn cg a |> Seq.length
-                        if count = 1 then
-                            let ans = neighbors cg a |> Set.ofSeq
-                            if Set.isSuperset bns ans then 
-                                ignore (toDelNodes.Add a)
+        for os in outside do 
+            let nos = Set.ofSeq (neighborsIn cg os)
+            for n in Set.remove os nos do 
+                if cg.Graph.OutDegree n = 1 && isOutside n then 
+                    let nin = Set.ofSeq (neighborsIn cg n)
+                    if Set.isSuperset nos nin then 
+                        ignore (toDelNodes.Add n)
+        for os in outside do 
+            let nos = Set.ofSeq (neighbors cg os)
+            for n in Set.remove os nos do 
+                if cg.Graph.InDegree n = 1 && isOutside n then
+                    let nin = Set.ofSeq (neighbors cg n)
+                    if Set.isSuperset nos nin then 
+                        ignore (toDelNodes.Add n)
         cg.Graph.RemoveVertexIf (fun v -> toDelNodes.Contains v) |> ignore
         cg
           
@@ -526,7 +521,7 @@ module Minimize =
             logInfo1(idx, sprintf "Node count (remove dominated): %d" (!cg).Graph.VertexCount)
             cg := removeRedundantExternalNodes !cg
             cg := removeConnectionsToOutStar !cg
-            // cg := removeExplicitNeighbors !cg
+            // cg := removeExplicitNeighbors !cg            
             logInfo1(idx, sprintf "Node count (redundant external nodes): %d" (!cg).Graph.VertexCount)
             cg := removeNodesThatStartCantReach !cg
             logInfo1(idx, sprintf "Node count (start cant reach): %d" (!cg).Graph.VertexCount)
