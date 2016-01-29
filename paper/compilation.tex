@@ -313,8 +313,8 @@ $(\CD{W} \cdot \CD{A} \cdot \CD{C} \cdot \CD{D}) \Prefer (\CD{W} \cdot \CD{B} \c
 %
 
 How could such a policy be implemented in BGP? Suppose we set the local preference at router $C$ to prefer $D$ over $E$, and use the BGP MED attribute to influence $W$ to prefer $A$ over $B$. This might work as expected under normal conditions, however, if the A -- C link fails, then suddenly $C$ has made the wrong decision. Traffic will now follow the
-$W \cdot B \cdot C \cdot D$ path, even though this was path was not specified by the policy. This is a violation of \emph{Soundness}: The distributed implementation has used a route not specified by the policy. To make matters worse, the second preference $W \cdot B \cdot C \cdot E$ is available in the network but not being used. This is a violation of \emph{Completeness}: A path for the best possible route available exists in the network but is not being used by the distributed implementation.
-We could solve the first problem by placing a filter at router $B$ to prevent using a path that goes through $D$, but we can not help with the second problem: $C$ has made the wrong choice. 
+$W \cdot B \cdot C \cdot D$ path, even though this path was not specified by the policy. This is a violation of \emph{soundness}: The distributed implementation has used a route not specified by the policy. To make matters worse, the second preference $W \cdot B \cdot C \cdot E$ is available in the network but not being used. This is a violation of \emph{completeness}: A path for the best possible route available exists in the network but is not being used by the distributed implementation.
+We could solve the first problem by placing routes that go through $D$ at $B$, however, we can not fix the second problem---$C$ has made the wrong choice. In fact, this policy can not be implemented in BGP in a way that is policy compliant under all failures.
 
 %and can not get either the primary or backup route specified, despite the fact that the $W \cdot B \cdot C \cdot E$ path is available in the network.
 
