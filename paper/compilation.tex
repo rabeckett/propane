@@ -361,7 +361,7 @@ Algorithm~\ref{alg:failures} defines what it means for one node to \textit{prote
 When there is no equivalent step, the algorithm checks to see if there is an equivalent dominator (a topology location the advertisement must have passed through earlier) that can protect against failures instead.
 Thus any time $N_2$ can get to a final location for preference $i$, $N_1$ can get to at least the same final locations for a better preference $j$. The algorithm terminates since the number of related states $(x,y)$ that can be expolored is finite.
 
-Local preferences are now obtained by, for each router in the topology, sorting the corresponding PGIR nodes according to \textit{can prefer} relation. If two nodes are incomparable, then the compiler rejects the policy as unimplementable.
+For each router in the topology, local preferences are now obtained by  sorting the corresponding PGIR nodes according to the \textit{can prefer} relation. If two nodes are incomparable, the compiler rejects the policy as unimplementable.
 
 \para{Avoiding Loops}
 
