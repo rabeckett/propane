@@ -75,13 +75,7 @@ The centralized control planes of SDN, however, are not a panacea.
 First, while many SDN systems provide effective \emph{intra}-domain routing
 abstractions, letting users specify paths within their network,
 they fail to provide a coherent means to specify preferred
-\emph{inter}-domain routes. 
-This means that existing inter-domain routing protocols and their associated configuration difficulties will be around for the forseeable future.
-\ryan{I added this. Is it true? what about SDX?}
-\todd{What is the impact of these
-  languages not supporting inter-domain routing?  How are those
-  policies expressed instead in an SDN context?  A sentence on the
-  impact would help.}  
+\emph{inter}-domain routes.  
 Second, centralized control planes
 require careful design and engineering to be robust to failures---one must ensure that all devices can communicate with the controller at all times, even under arbitrary combinations of failure. Even ignoring failures, it is necessary for controller systems to
 scale to meet the demands of large, geographically distributed networks,
