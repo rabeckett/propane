@@ -74,7 +74,7 @@ All experiments are run on an 8 core, 3.6 GHz Intel Xeon processor running Windo
 %
 Figure~\ref{fig:compilation-times} shows the compilation times for data centers (a), and backbone networks (b) of different sizes. For both policies, we measure the mean compilation time per prefix since the compiler operates on each prefix in parallel. At their largest sizes, the per-prefix compilation time is roughly 10 seconds for the data center network and 45 seconds for the backbone network.
 
-From the break down of the time by compilation phase, we see that no single compilation phase dominates the running time of the compiler. However, construction and minimization of the product graph take the most time.
+%From the break down of the time by compilation phase, we see that no single compilation phase dominates the running time of the compiler. However, construction and minimization of the product graph take the most time.
 
 Total compilation for the largest data center is less than 9 minutes total. Unlike the data center policy, the number of prefixes for the backbone policy remains relatively fixed as the topology size increases. Compilation for the largest backbone network, takes less than 3 minutes total. The inclusion of more preferences in the backbone policy increases the size of the PGIR, which leads to PGIR construction and minimization taking proportionally more time.
 
