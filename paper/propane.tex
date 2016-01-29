@@ -30,8 +30,8 @@ BGP is defined in the next section.
 %import-export filters, local preferences, MED attributes, and community tags
 %to ensure policy compliance under all possible failure scenarios.
 
-\sysname allows the operator to configure the network with the
-abstraction that he or she has centralized control over routing.
+\sysname allows operators to configure the network with the
+abstraction that they have centralized control over routing.
 Specifically, the operator simply provides a set of high-level constraints
 that describe the 
 different routes traffic may (or may not) take and their relative preferences.
@@ -188,15 +188,16 @@ For the second constraint, we can define another policy:
 \end{code}
 \noindent
 The first line states that there is no restriction (\Any)
-on how traffic must
-traverse the network for global prefixes, aside from the default restriction
-that traffic must not pass through the user's network and then loop
-back on itself. This means traffic for
-\CD{PG*} may be sent either from other routers in the data center, or
+on how traffic must traverse the network for global prefixes.
+%aside from the default restriction
+%that traffic must not pass through the user's network and then loop
+%back on itself. 
+This means traffic for
+\CD{PG*} may be sent either from other data center routers or
 from external ASes. The second line ensures that traffic for local
 prefixes never enters the network from an outside location. This constraint
 guarantees that the services remain reachable only to locations
-internal to the data center.
+inside the data center.
 
 As in the backbone example, we can logically conjoin these constraints
 to specify the network-wide policy.
