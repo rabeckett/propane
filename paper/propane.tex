@@ -2,8 +2,8 @@
 \label{sec:propane}
 
 Policies for (distributed) control planes differ from data-plane
-policies~\cite{x,y,z} in a few important ways. First, control-plane
-policies must account for all failures at specification time; there is
+policies in a few important ways. First, control-plane
+policies must account for all failures at compile time; there is
 no controller at runtime, so the routers must be configured in advance to handle failures in a compliant manner.
 %
 In \sysname, we enable such specifications through a notion of {\em path preferences}, with the semantics that a less-preferred path is taken only when a higher-preference path is unavailable in the network.
@@ -15,8 +15,8 @@ allowed paths and automatically computes valid sets based on topology.
 %
 
 In the rest of this section, we define \sysname policies for the two 
-examples described in the previous section, introducing key aspects of
-the \sysname language along the way.  The complete syntax of the
+examples from the previous section, introducing key aspects of
+the \sysname language along the way. The complete syntax of the
 language as well as our strategy for compiling \sysname policies to
 BGP is defined in the next section.
 
