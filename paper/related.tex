@@ -23,7 +23,20 @@ previous work on SDN.  Finally, in addition to using path-based abstractions
 for intra-domain routing, \sysname uses them for inter-domain routing as
 well, unlike any existing SDN language.
 
-\paragraph{}
+\paragraph*{Configuration Automation}
+Many practitioners use configuration templates~\cite{hatch,thwack}, to ensure certain kinds of consistency across similar devices. In addition, configuration languages such as RPSL~\cite{RFC2622}, Yang~\cite{RFC6020}, and Netconf~\cite{RFC6241} allow operators to express routing policy in a vendor-neutral way. 
+However, all of these solutions remain low-level, for example, requiring operators to specify exact local preferences. Unlike \sysname, there is no guarantee that these low-level configurations satisfy the original, high-level intent.
+
+\paragraph*{Configuration Analysis}  
+The notion that configuring network devices is difficult and error-prone is not new.  
+Past researchers have tried to tackle this problem by analyzing existing
+firewall configurations~\cite{fang,lumeta,margrave} and
+BGP configurations~\cite{feamster+:rcc,feamster:thesis,ipassure,batfish,bagpipe} and reporting errors or inconsistencies when they are detected.
+Our research is complementary to these analysis
+efforts.  We hope to eliminate bugs by using higher-level
+languages and a ``correct-by-construction''
+methodology.  By proposing network administrators write configurations
+at a high-level of abstraction, a whole host of low-level errors can be avoided.
 
 \paragraph*{Configuration Synthesis}
 ConfigAssure~\cite{narain:lisa05,narain+:configassure}
@@ -52,19 +65,6 @@ as domain-specific analyses customized to those abstractions, such as
 our failure safety analysis.  The implementation technology is also
 entirely different, as we define algorithms over automata and graphs
 as opposed to using logic programming and SAT-based model-finding.
-
-\paragraph*{Configuration Analysis}  The notion that
-configuring network devices is difficult and error-prone is not new.  Past
-researchers have
-tried to tackle this problem by analyzing existing
-firewall configurations~\cite{fang,lumeta,margrave} and
-BGP configurations~\cite{feamster+:rcc,feamster:thesis,ipassure,batfish,bagpipe} and reporting errors or inconsistencies when they are detected.
-Our research is complementary to these analysis
-efforts.  We hope to eliminate bugs by using higher-level
-languages and a ``correct-by-construction''
-methodology.  By proposing network administrators write configurations
-at a high-level of abstraction, a whole host of low-level errors can be
-avoided.
 
 %We also believe the high-level, centralized nature of \sysname policies
 %has the benefit of making configurations
