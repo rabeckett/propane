@@ -83,7 +83,7 @@ Total compilation for the largest data center is less than 9 minutes total. Unli
 
 \subsection{Configuration size}
 
-Figure~\ref{fig:config-min} shows the size of the compiled ABGP policies as a function of network size. The naive translation of PGIR to ABGP generates large ABGP policies. To offset this, the compiler performs configuration minimization both both during and after the PGIR to ABGP translation.
+Figure~\ref{fig:config-min} shows the size of the compiled ABGP policies as a function of the topology size. The naive translation of PGIR to ABGP outlined in \S\ref{sec:compilation} generates extremely large ABGP policies by default. To offset this, the compiler performs ABGP configuration minimization both during and after the PGIR to ABGP translation phase.
 %Such minimization is useful for limiting the computational expense of matching routes on BGP routers, reducing the number of forwarding entries in routers in certain cases, and making configurations more readable for humans.
 Minimization is highly effective for both the data center and backbone policies. In all cases, minimized policies are a small fraction of the size of their non-minimized counterparts. 
 
