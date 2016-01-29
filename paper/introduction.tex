@@ -46,16 +46,16 @@ approach~\cite{hatch,thwack}, in which common tasks are captured as parameterize
 %ConfigAssure~\cite{narain:lisa05,narain+:configassure}, which use SAT solving
 %and model finding tools to fill in parameters in configurations while
 %ensuring key correctness constraints are satisfied.
-One step further, systems like
-ConfigAssure~\cite{narain:lisa05,narain+:configassure} use SAT solving
-and model finding tools to correctly and consistently fill in some parameters.
+%One step further, systems like
+%ConfigAssure~\cite{narain:lisa05,narain+:configassure} use SAT solving
+%and model finding tools to correctly and consistently fill in some parameters.
 %
 While templates help ensure certain kinds of consistency across devices,
 they do not bridge the
 semantic divide between network-wide policies and device-level configuration.
 They do not provide fundamentally different abstractions
 from existing configuration languages and so still require operators to
-manually decompose policies into per-device behaviors.
+manually decompose policies into device-level behaviors.
 
 Software-defined networking (SDN) and its abstractions
 are, in part, the research
@@ -75,10 +75,14 @@ The centralized control planes of SDN, however, are not a panacea.
 First, while many SDN systems provide effective \emph{intra}-domain routing
 abstractions, letting users specify paths within their network,
 they fail to provide a coherent means to specify preferred
-\emph{inter}-domain routes.  \todd{What is the impact of these
+\emph{inter}-domain routes. 
+This means that existing inter-domain routing protocols and their associated configuration difficulties will be around for the forseeable future.
+\ryan{I added this. Is it true? what about SDX?}
+\todd{What is the impact of these
   languages not supporting inter-domain routing?  How are those
   policies expressed instead in an SDN context?  A sentence on the
-  impact would help.}  Second, centralized control planes
+  impact would help.}  
+Second, centralized control planes
 require careful design and engineering to be robust to failures---one must ensure that all devices can communicate with the controller at all times, even under arbitrary combinations of failure. Even ignoring failures, it is necessary for controller systems to
 scale to meet the demands of large, geographically distributed networks,
 and to react quickly
@@ -113,8 +117,8 @@ choice allows users to specify preferences about both external and internal
 routes in the exact same way.
 %No SDN programming language provides similar facilities.  
 In addition, we augment the algebra
-of regular expressions to directly support a notion of {\em preferences} and provide a semantics in terms of sets of ranked paths.  The preferences indicate fail-over behaviors:  among all specified paths that are still available,
-the system guarantees that the highest-ranked one will be taken.  
+of regular expressions to directly support a notion of {\em preferences} and provide a semantics in terms of sets of ranked paths. The preferences indicate fail-over behaviors:  among all specified paths that are still available,
+the system guarantees that the distributed implementation will always use the highest-ranked ones.  
 %We also support network operators by defining a
 %set of common abbreviations for entering, leaving, and traversing
 %the user network and we provide abstractions for managing common features %of
@@ -127,14 +131,14 @@ To achieve the second goal, we develop program analysis and compilation
 algorithms that translate the regular policies to a graph-based
 intermediate language and from there to BGP configurations, including
 per-device import and export filters, local preferences, MED attributes, and community tags.
-We target BGP for pragmatic reasons:  it is an industry
-standard and many networks use it internally as well as externally. Despite the advent of SDN, many networks will continue to
+We target BGP for pragmatic reasons: it is an industry
+standard, and many networks use it internally as well as externally. Despite the advent of SDN, many networks will continue to
 use BGP for the foreseeable future due to existing infrastructure investments, the difficulty of transitioning to SDN,
 and the scalability and fault-tolerance advantages of a distributed
 control plane.  
 
 The BGP configurations produced by our compiler are
-guaranteed to satisfy the given policy specification in the face of
+guaranteed to be policy compliant in the face of
 {\em arbitrary} failures.  In this way, we provide network operators
 with a strong guarantee that is otherwise impossible to achieve
 today. 
