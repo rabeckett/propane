@@ -26,14 +26,6 @@ This decomposition is not always straightforward and ensuring policy-compliance 
 %policies can be specified using our new language \sysname.
 %The next section describes how to automatically compile this specification to device-level policies.
 
-\begin{figure}[t!]
-  \centering
-  \includegraphics[width=\columnwidth]{figures/example1}
-  \caption{Creating router-level policies is difficult.}
-  \label{fig:example1}
-  \vspace{-1em}
-\end{figure}
-
 \subsection{Example 1:  The Backbone}
 
 Consider the backbone network in Figure~\ref{fig:example1}. It has
@@ -59,17 +51,26 @@ Templates help to an extent by keeping preference and community values consisten
 
 \begin{figure}[t!]
   \centering
-  \includegraphics[width=\columnwidth]{figures/example2}
-  \caption{Policy-compliance under failures is difficult.}
-  \label{fig:example2}
+  \includegraphics[width=\columnwidth]{figures/example1}
+  \caption{Creating router-level policies is difficult.}
+  \label{fig:example1}
   \vspace{-1em}
 \end{figure}
+
 
 \subsection{Example 2:  The Data Center}
 
  While configuring policies for a fully functional network is difficult, ensuring policy compliance in the face of failures can be almost impossible. Consider the data center network in Figure~\ref{fig:example2} with routers organized as a fat tree and running BGP.\footnote{For scale and policy flexibility, data center networks increasingly use BGP internally, with a private AS number per router~\cite{bgp-in-dc}.} The network has two clusters, one with services that should be reachable globally and one with services that should be accessible only internally. This policy is enabled by using non-overlapping address space in the two clusters and ensuring that only the address space for the global services is announced externally. Further, to reduce the number of prefixes that are announced externally, the global space is aggregated into a less-specific prefix \CD{PG}. The semantics of aggregation is that the aggregate prefix is announced as long as the router has a path to at least one sub-prefix.
 
 The operator may decide that a simple way to implement the policy is to have X and Y: $i)$ not export externally what they hear from G and H, routers that belong to the local services cluster; and $ii)$ announce what they hear from routers C and D and aggregate to \CD{PG} if an announcement is subset of \CD{PG}. This implementation is appealing because X and Y do not need to be made aware of which prefixes are global versus local and IP address assignment can be done independently (e.g., new prefixes can be assigned to local services without updating router configurations).
+
+\begin{figure}[t!]
+  \centering
+  \includegraphics[width=\columnwidth]{figures/example2}
+  \caption{Policy-compliance under failures is difficult.}
+  \label{fig:example2}
+  \vspace{-1em}
+\end{figure}
 
 However, this implementation does not have the right behavior in the face of failures. Suppose links X--G and X--H fail. Then, X will hear announcements for \CD{PL*} from C and D, having traversed from G and H to Y to C and D. Per policy implementation, X will start "leaking" these prefixes externally. Depending on the rationale for local services, this leak could impact security (e.g., if the services are sensitive) or availability (e.g., if the \CD{PL*} prefixes are used for other services outside of the data center). This problem does not manifest without failures because then X has and prefers paths to \CD{PL*} through G and H since they are shorter. A similar problem will happen if links Y--G and Y--H fail.
 %\footnote{A different problem occurs when links X--C and X--D (or Y--C and Y--D) fail. X (Y) may stop announcing the global prefixes because they would be heard through G and H.}

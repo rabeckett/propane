@@ -1,7 +1,7 @@
 \section{Implementation}
 \label{sec:implementation}
 
-We have written a prototype compiler for \sysname that is implemented in roughly 5500 lines of F\# code. The compiler includes command-line flags for enabling or disabling the use of the BGP MED attribute, AS path prepending, the commonly used no-export community, as well as for ensuring at least k-failure safety for user-specified aggregates. Users only ever see the high-level constraint-based language presented in Section~\ref{sec:motivation}.
+We have written a prototype compiler for \sysname that is implemented in roughly 5500 lines of F\# code. Users of \sysname only ever see the high-level constraint-based language presented in Section~\ref{sec:motivation}. The compiler includes command-line flags for enabling or disabling the use of the BGP MED attribute, AS path prepending, the commonly used no-export community, as well as for ensuring at least k-failure safety for user-specified aggregates. Since each prefix is specified separately, the \sysname compiler is able to operate over each per-prefix routing policy in parallel. 
 
 \para{PG construction}
 
