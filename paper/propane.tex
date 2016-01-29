@@ -42,7 +42,7 @@ of declarations.
 %\emph{paths} and \emph{policies}.
 For example, to begin specification of the backbone
 network from the previous section, we first express the idea that for routes leading to our customer,
-we prefer using \CD{R1} over \CD{R2} (Policy P3 from Figure~\ref{fig:example1}):
+we prefer using \CD{R1} over \CD{R2} (policy P3 from Figure~\ref{fig:example1}):
 %\begin{lstlisting}[mathescape=true]
 %define ExitCust = $exit(R_1 \gg R_2)$
 %\end{lstlisting}
@@ -52,7 +52,11 @@ we prefer using \CD{R1} over \CD{R2} (Policy P3 from Figure~\ref{fig:example1}):
 This  statement defines a set of \emph{ranked paths}, which includes
 all paths (and only those paths) for which traffic exits our network
 through either router \CD{R1} or \CD{R2}.  The paths that exit through \CD{R1}
-are preferred (\Prefer) to those that exit through \CD{R2}.
+are preferred (\Prefer) to those that exit through \CD{R2}.  As we
+describe in the next section, the \Exit\ predicate, as well as other
+path predicates used later in this section, is simply a shorthand for 
+a particular regular expression over paths that is expressible in our policy
+language.
 
 % DAVE CONVERSIONS
 % C_{pfx} ===> PCust
@@ -101,8 +105,9 @@ outside the user's network.
 Line 4 applies to any other traffic, and allows any routes that leave through a peer with a preference for customers over peers over providers. To summarize our progress, the \CD{Routing} policy
 implements P1, P3, and P4 from Figure~\ref{fig:example1}.
 
-Since routing allows transit traffic (\EG, traffic entering from
-\CD{Peer} and leaving through \CD{Prov}), we define a new policy to implement this restriction separately, using conjunction (\AND),
+Since by default routing allows transit traffic (\EG, traffic entering from
+\CD{Peer} and leaving through \CD{Prov}), we separately define a
+policy to enforce P2 and P5 from Figure~\ref{fig:example1}, using conjunction (\AND),
 disjunction (\OR) and negation (\NOT) of constraints. 
 %union (\Union), intersection (\Intersect), and negation (\NOT) to
 %specify the appropriate sets of paths.
@@ -123,7 +128,7 @@ disjunction (\OR) and negation (\NOT) of constraints.
 \Define NoTrans   = \{\True \Path \NOT{}PPTrans \AND \NOT{}CustTrans\}
 \end{code}
 \noindent
-The \CD{NoTrans} constraint above ensures that requirements P2 and P5 are satisfied. It says that for any prefix, traffic should never both enter and exit the network from \CD{Peer} or \CD{Prov}. Similarly it prevents traffic from ever following paths that leave our network and later passing through both \CD{Prov} and \CD{Cust}.  To implement both \CD{Routing}
+The \CD{NoTrans} constraint above says that for any prefix, traffic should never both enter and exit the network from \CD{Peer} or \CD{Prov}. Similarly it prevents traffic from ever following paths that leave our network and later passing through both \CD{Prov} and \CD{Cust}.  To implement both \CD{Routing}
 and \CD{NoTrans} simultaneously, we simply conjoin them: \CD{Routing \AND{} NoTrans}.
 %
 %% \begin{lstlisting}[mathescape=true]
@@ -193,8 +198,8 @@ prefixes never enters the network from an outside location. This constraint
 guarantees that the services remain reachable only to locations
 internal to the data center.
 
-As in the backbone example, we can combine these constraints
-logically to specify the network-wide policy.
+As in the backbone example, we can logically conjoin these constraints
+to specify the network-wide policy.
 However, in addition to constraints on the shape of paths,
 \sysname allows the operator to specify constraints on the BGP control plane.
 For instance, a constraint on aggregation is included to ensure that
@@ -209,7 +214,7 @@ when advertised outside the datacenter.
 Ownership \AND{} Routing \AND{} \Agg(PG, \In \Link \Out)
 \end{code}
 
-As before, once \sysname compiles the policy, it is guaranteed to hold under all possible failure scenarios. \sysname also checks for safety against aggregation-induced black holes.
+As before, once \sysname compiles the policy, it is guaranteed to hold under all possible failure scenarios. \sysname also ensures safety against aggregation-induced black holes.
 %It can efficiently determine a lower bound on the number of failures necessary to black hole traffic given the user's policy, topology, and placement of specific aggregates.
 
 
