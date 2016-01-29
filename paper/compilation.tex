@@ -361,12 +361,12 @@ Local preferences are now obtained by, for each router in the topology, sorting 
 
 \para{Avoiding Loops}
 
-The checks for failure safety described above overlook one critical point: Paths for a higher preference might not actually exist due to loops. To avoid this situation, the compiler conservatively checks that, when node $x$ protects against failures for node $y$, its does so without using any nodes that shadow another node that appears ``above'' $x$ in the PGIR. 
+The checks for failure safety described above overlook one critical point: Paths for a higher preference might not exist due to loops. To avoid this situation, the compiler checks that, when node $x$ protects against failures for node $y$, its does so without using any nodes that shadow another node that appears ``above'' $x$ in the PGIR. 
 %It is fine however, to reuse the same nodes that appear above $x$, since any path that went through another node $z$ to get to $x$, but then looped through $z$ again, would be obtainable from $z$ itself.
 %even if the analysis determines that a node $x$ protects against failures of another node $y$, it may be tricked into thinking $x$ has a particular path that will actually be discarded by BGP's loop prevention mechanism due to locations previously traversed before arriving at $x$. To avoid this situation, the compiler conservatively checks that $x$ protects against $y$ without using any nodes that shadow another node that appears above $x$ in the PGIR (i.e., nodes reachable from $x$ in $G_j^R$). It is fine however, to reuse the same nodes that appear above $x$, since any path that went through another node $z$ to get to $x$, but then looped through $z$ again, would be obtainable from $z$ itself.
 
-\para{Aggregation Failures}
-Because the \sysname compiler has the complete user policy and topology, it is also able to efficiently ensure that user-specified aggregates do not black hole traffic for up to $k$ failures, where $k$ is specified by the user. The algorithm for aggregation failure safety is detailed in Section~\ref{sec:black-holes} of the appendix.
+\para{Aggregation-Induced Black Holes}
+Because the \sysname compiler has the complete user policy and topology, it is also able to efficiently check that user-specified aggregates do not black hole traffic for up to $k$ failures, where $k$ is specified by the user. The algorithm for aggregation failure safety is detailed in Section~\ref{sec:black-holes} of the appendix.
 \subsection{Abstract BGP}
 
 %\begin{figure}[t!]

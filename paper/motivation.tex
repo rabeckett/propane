@@ -44,11 +44,8 @@ local preferences such that preferences at \CD{Cust}-facing interfaces
 $>$ \CD{Peer}-facing interfaces $>$ \CD{Prov}-facing interfaces. At
 the same time, to satisfy P3 the preference at \CD{R2}'s
 \CD{Cust}-facing interface should be lower than that at
-\CD{R1}. % Implementing P2 properly will require MEDs to be
-% appropriately configured. 
-\todd{I commented out the sentence about MEDs for P2, because the next
-  two sentences seem to be about P2 instead of P3 and P4, which it
-  originally said.  Please check}  To implement P2, the operators can assign communities that
+\CD{R1}. Implementing P3 properly will require MEDs to be appropriately configured. 
+To implement P2, the operators can assign communities that
 indicate where a certain routing announcement entered the
 network. Then, \CD{R4} must be configured to not announce to
 $\CD{Peer}$ routes that have communities that correspond to the

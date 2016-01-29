@@ -72,7 +72,7 @@ For the backbone network, the internal topology does not matter since all router
 
 All experiments are run on an 8 core, 3.6 GHz Intel Xeon processor running Windows 7.
 %
-Figure~\ref{fig:compilation-times} shows the compilation times for data centers (a), and backbone networks (b) of different sizes. For both policies, we measure the mean compilation time per prefix since the \sysname compiler can compile for each prefix independently, and in parallel. At their largest sizes, the per-prefix compilation time is roughly 10 seconds for the data center network and 45 seconds for the backbone network.
+Figure~\ref{fig:compilation-times} shows the compilation times for data centers (a), and backbone networks (b) of different sizes. For both policies, we measure the mean compilation time per prefix since the compiler operates on each prefix in parallel. At their largest sizes, the per-prefix compilation time is roughly 10 seconds for the data center network and 45 seconds for the backbone network.
 
 From the break down of the time by compilation phase, we see that no single compilation phase dominates the running time of the compiler. However, construction and minimization of the product graph take the most time.
 
@@ -99,7 +99,7 @@ In some cases, \sysname configurations are similar. For example, preferences amo
 
 In other cases, the \sysname configurations are different, relying on a different BGP mechanism to achieve the same result. Some key differences that we observed were:
 
-$i)$ operators used the no-export community to prevent routes from leaking beyond a certain tier of the datacenter topology, whereas \sysname selectively imported the route only below a certain tier;
+$i)$ operators used the no-export community to prevent routes from leaking beyond a certain tier of the datacenter, while \sysname selectively imported the route only below the tier;
 %\sysname could use a similar implementation mechanism in the future as an optimization.
 
 $ii)$ operators prevented unneeded propagation of more-specific route announcements from a neighboring AS based on their out-of-band knowledge about topology, whereas \sysname propagated these advertisements; and

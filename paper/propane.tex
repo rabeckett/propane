@@ -84,11 +84,10 @@ statements involving \CD{PCust} and \CD{PInt}, it is interpreted as
 %% \end{lstlisting}
 
 \begin{code}
-\Define Routing = \{
-     PCust \Path ExitCust \Prefer \End(Cust)
+\Define Routing = 
+    \{PCust \Path ExitCust \Prefer \End(Cust)
      PInt  \Path \End(\In)
-     \True  \Path ExitCust \Prefer \Exit(Peer) \Prefer \Exit(Prov)
-\}
+     \True  \Path ExitCust \Prefer \Exit(Peer) \Prefer \Exit(Prov)\}
 \end{code}
 \noindent
 Line 2 of this policy 
@@ -156,12 +155,11 @@ in the network.
 %% \end{lstlisting}
 
 \begin{code}
-\Define Ownership = \{
-    PG1 \Path \End(A)
-    PG2 \Path \End(B)
-    PL1 \Path \End(E)
-    PL2 \Path \End(F)
-\}
+\Define Ownership = 
+    \{PG1 \Path \End(A)
+     PG2 \Path \End(B)
+     PL1 \Path \End(E)
+     PL2 \Path \End(F)\}
 \end{code}
 \noindent
 In English: traffic for prefix \CD{PG1} is only allowed to follow paths that
@@ -178,11 +176,10 @@ For the second constraint, we can define another policy:
 %% }
 %% \end{lstlisting}
 \begin{code}
-\Define Routing = \{
-    PG1 \OR PG2 \Path \Any
-    PL1 \OR PL2 \Path \NOT{}\Enter(\Out)
-    \True      \Path \Exit(\Out)
-\}
+\Define Routing = 
+    \{PG1 \OR PG2 \Path \Any
+     PL1 \OR PL2 \Path \NOT{}\Enter(\Out)
+     \True      \Path \Exit(\Out)\}
 \end{code}
 \noindent
 The first line states that there is no restriction (\Any)
