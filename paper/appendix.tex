@@ -16,10 +16,11 @@ For example, imagine we use the data center example from \S\ref{sec:motivation},
 \CD{PG1} \Path \text{ }\End(\CD{A}), where \CD{PG1} falls under the \CD{PG} aggregate. Figure~\ref{fig:aggregation-safety} shows the network topology and a simplified PGIR. Since the compiler knows an aggregate will be placed at $X$, and it knows that, the route for \CD{PG1} will originate at $A$, we can compute the number of failures it would take to disconnect $A$ from $X$. We could remove the $A$--$D$--$X$ path first. We would then need to remove any other $A$--$D$ or $D$--$X$ links from the PGIR, though in this case there are none. Next, we could remove the links along the $A$--$C$--$X$ path, repeating the process. Because $A$ is then disconnected from $X$, the compiler knowns that 2 is a lower bound on the number of failures for aggregation safety for prefix \CD{PG1}. This process is repeated for other aggregation locations (e.g., $Y$).
 
 \begin{figure}[t!]
-\centering
-\includegraphics[width=\columnwidth]{figures/aggregation}
-\caption{Aggregation safety.}
-\label{fig:aggregation-safety}
+  \centering
+  \includegraphics[width=\columnwidth]{figures/aggregation}
+  \caption{Aggregation safety.}
+  \label{fig:aggregation-safety}
+  \vspace{-1em}
 \end{figure}
 
 
