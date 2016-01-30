@@ -42,6 +42,7 @@ We handle these challenges by breaking compilation into multiple stages and deve
          &\BNFALT& \textit{prefix} = x & \textit{prefix test} \\
          &\BNFALT& \textit{comm} = c & \textit{community test} \\
      r       &::=& n & \textit{AS number} \\
+         &\BNFALT& \emptyset & \textit{empty set} \\
          &\BNFALT& \In & \textit{internal loc} \\
          &\BNFALT& \Out & \textit{external loc} \\
          &\BNFALT& r_1 \cup r_2 & \textit{union} \\
@@ -66,6 +67,7 @@ We handle these challenges by breaking compilation into multiple stages and deve
   \[\begin{array}{rcl}
     \hline
     \Any           & = & \Out^* \cdot \In^+ \cdot \Out^* \\
+    \None          & = & \emptyset \\
     \Internal      & = & \In^+ \\
     \Only(X)       & = & \Any \cap X^* \\
     \Never(X)      & = & \Any \cap (!X)^* \\
@@ -97,8 +99,7 @@ We handle these challenges by breaking compilation into multiple stages and deve
 
 \para{Syntax}
 The \sysname FE is just a thin layer atop a core, regular-expression language (RIR) for describing preference-based path constraints. 
-Figure~\ref{fig:rir-syntax} shows the RIR syntax. A policy consists of one or more constraints, each of which consists of a test on the type of route, and a corresponding set of preferred regular paths. Regular paths are regular expressions where the base characters are abstract locations---either a router or an AS. Special \In{} and \Out{} symbols refer to any internal or external location respectively.  In addition, $\Sigma$ refers to any symbol, and hence $\Sigma^*$ is
-any sequence of symbols.  We also use other standard abbreviations
+Figure~\ref{fig:rir-syntax} shows the RIR syntax. A policy consists of one or more constraints, each of which have a test on the type of route, and a corresponding set of preferred regular paths. Regular paths are regular expressions where the base characters are abstract locations---either a router or an AS. Special \In{} and \Out{} symbols refer to any internal or external location respectively. In addition, $\Sigma$ refers to any symbol. We also use other standard abbreviations
 for regular expressions such as $r^+$, a sequence of one or more occurrences
 of $r$, when appropriate.
 %% For example, the constraint
@@ -118,7 +119,7 @@ We list only the route aggregation and community tagging constraints in Figure~\
 
 The semantics of RIR is in terms of ranked paths. Each preference-based regular path constraint (of the form $r_1 \Prefer \dots \Prefer r_j$) maps to a set of concrete paths in the network that match one of $r_i$. We denote a network path as a string of abstract locations (routers or external ASes) of the form: $n_1 n_2 \dots n_k$. A regular expression $r$ matches path $p$, if $p \in \mathcal{L}(r)$, that is the path is in the language of the regular expression, and $p$ is a topologically-valid path. We denote the length of a path $p$ as $\abs{p}$. A path $p$ will have a rank:
 $$(\min_i \set{ p \in \mathcal{L}(r_i) }, \abs{p})$$
-where the rank is lexicographically ordered according to (1) the most preferred regular expression matched, and (2) as a tie breaker, the length of the path. Lower ranks indicate \emph{more} preferred paths. Traffic may be sent along any of the most preferred paths for each pair of starting and ending locations that appear in some valid specified path.
+where the rank is lexicographically ordered according to (1) the most preferred regular expression matched, and (2) as a tie breaker, the path length. Lower ranks indicate \emph{more} preferred paths. Traffic may be sent on any of the most preferred paths for each pair of starting and ending locations that appear in some specified path. There is an implicit lowest preference to drop traffic: $\emptyset$ when no other route is possible.
 
 The set of ranked paths depends on which paths are valid in the topology, and thus when failures occur, the most preferred routes change. The \sysname compiler ensures that generated configurations for a policy always achieve the most preferred path possible given the failures in the topology, using only distributed mechanisms.
 
@@ -273,7 +274,7 @@ Figure~\ref{fig:example-compilation} shows the policy automata for each regular 
 The figure also shows the PGIR after intersecting the topology and policy automata. Every path in it corresponds to a concrete path in the topology. In particular, every path through the PGIR that ends at a node $v$ such that the preference function $P(v) = \set{i_1, \dots, i_m}$ is non-empty, is a valid topological path that satisfies the policy constraints and results in a particular path with preferences $i_1$ through $i_m$.
 %
 For example, the path $X \cdot D \cdot C \cdot A \cdot W$ is a valid path in the topology that BGP route announcements might take, which would lead to obtaining the most prefered preference $1$.
-BGP control messages can start from peer X, which would match the $\Out$ transition from both automata, leading to state $1$ in the first automaton, and state $1$ in the second automaton. This is reflected in the product graph by the node with state $(X,1,1)$. From here, if X were to advertise this route to D, it would result in the path $D X$, which would lead to state $2$ in the first automaton, and state $2$ in the second automaton, and so on.
+BGP control messages can start from peer X, which would match the $\Out$ transition from both automata, leading to state $1$ in the first automaton, and state $1$ in the second automaton. This is reflected in the product graph by the node with state $(X,1,1)$. From here, if X were to advertise this route to D, it would result in the path $D \cdot X$, which would lead to state $2$ in the first automaton, and state $2$ in the second automaton, and so on.
 %
 The ``--" state indicates the corresponding automaton can not accept the current path or any extension of it. Since node $(W,5,-)$ is in an accepting state for the first automata, it indicates this path has preference 1.
 
@@ -477,8 +478,8 @@ To ensure preferred paths are always obtained, for each router $r$ in the topolo
 
 Since the compiler is only able to control community tagging only for routers under the control of the AS being programmed, it cannot match on communities for external ASes. Instead, it translates matches from external ASes into a BGP regular expression filter. For example, node $D$ in Figure~\ref{fig:example-compilation} would match the single hop external paths $X$ or $Y$. In general, if routes are allowed from beyond $X$ or $Y$, these will also be captured in the BGP regular expression filters. The unknown AS topology is modelled as a special node in the PGIR that generates a filter to match any sequence of ASes.
 
-Finally, in our example, the external AS $W$ should prefer our internal router $A$ over $B$. In general, it is not possible to reliably control traffic entering the network beyond certain special cases. In this example, however, assuming our network and $W$ have an agreement to honor MEDs, the BGP MED attribute can influence $W$ to prefer $A$ over $B$. Additionally, the compiler can use the BGP no-export community to ensure that no other AS beyond $W$ can send us traffic. The compiler can perform a simple analysis to determine when it can utilize various BGP special attributes to ensure traffic enters the network in a particular way by looking at links in the product graph that cross from the internal topology to the external topology. 
+Finally, the external AS $W$ should prefer our internal router $A$ over $B$. In general, it is not possible to reliably control traffic entering the network beyond certain special cases. In this example, however, assuming our network and $W$ have an agreement to honor MEDs, the MED attribute can influence $W$ to prefer $A$ over $B$. Additionally, the compiler can use the BGP no-export community to ensure that no other AS beyond $W$ can send us traffic. The compiler can perform a simple analysis to determine when it can utilize BGP special attributes to ensure traffic enters the network in a particular way by looking at links in the product graph that cross from the internal topology to the external topology. 
 %Aggregation is another tool commonly used to influence how traffic can enter the network, by relying on BGP's longest prefix matching default. Since aggregates are provided as additional user constraints, the compiler can also make use of this information to check that incoming preferences can be met given the aggregates specified (e.g., to ensure that all external ASes prefer to enter from one location over another).
 Figure~\ref{fig:abgp-config} shows the full configuration from the compilation example. 
 
-After configuration generation, the compiler further processes the ABGP policy to minimize it, removing community tagging and matching when possible, combining filters, removing dead filters, and so on. In the compilation example, all community tags can be removed since there is never any ambiguity based on the router importing the route, and the neigbor the route is being imported from. Similarly, after removing the communities, the two rules at router $B$ are merged into a single rule.
+After configuration generation, the compiler further processes the ABGP policy, removing community tags when possible, combining filters, removing dead filters, and so on. In the compilation example, all community tags can be removed since there is never any ambiguity based on the router importing the route, and the neigbor the route is being imported from. Similarly, after removing the communities, the two rules at router $B$ are merged into a single rule.

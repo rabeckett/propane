@@ -104,15 +104,16 @@ expressions to specify network paths from
 recent high-level SDN languages such as FatTire~\cite{fattire},
 Merlin~\cite{foster:merlin}, and
 NetKAT~\cite{netkat}.  However, our design also contains several key
-departures from existing languages.  The most important one is semantic:  the paths specified
-by programmers can extend from outside the operator's network to inside
-the network, across several devices internally, and then out again.  This design
+departures from existing languages.  The most important one is semantic:  the paths specified 
+can extend from outside the operator's network to inside
+the network, across several devices internally, and then out again. This design
 choice allows users to specify preferences about both external and internal
 routes in the exact same way.
-%No SDN programming language provides similar facilities.
 In addition, we augment the algebra
 of regular expressions to directly support a notion of {\em preferences} and provide a semantics in terms of sets of ranked paths. The preferences indicate fail-over behaviors:  among all specified paths that are still available,
 the system guarantees that the distributed implementation will always use the highest-ranked ones.
+Although we target a distributed implementation, the language is more general and could potentially be used in an SDN context.
+
 %We also support network operators by defining a
 %set of common abbreviations for entering, leaving, and traversing
 %the user network and we provide abstractions for managing common features %of
