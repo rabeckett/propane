@@ -21,7 +21,7 @@ For instance, a recent misconfiguration led to an hour-long, nation-wide outage 
 
 A fundamental reason for the prevalence of misconfigurations is the
 semantic mismatch between the intended high-level
-policies and the low-level configurations.  
+policies and the low-level configurations.
 Many policies involve network-wide properties---prefer a certain neighbor,
 never announce a particular destination externally,
 use a particular path only if another fails---but configurations describe the behavior of
@@ -31,7 +31,7 @@ Operators therefore must manually decompose network-wide policy into
 device behaviors, such that policy-compliant behavior results from the distributed interactions of
 these devices.
 %
-Policy-compliance must be ensured not only under normal 
+Policy-compliance must be ensured not only under normal
 circumstances but also during failures.  The need to reason
 about possible failures exacerbates the challenge
 for network operators.  As a result, configurations that work
@@ -50,14 +50,14 @@ approach~\cite{hatch,thwack}, in which common tasks are captured as parameterize
 %and model finding tools to correctly and consistently fill in some parameters.
 %
 While templates help ensure certain kinds of consistency across devices,
-they do not provide fundamentally different abstractions from existing configuration languages 
-or bridge the semantic divide between network-wide policies and device-level configuration. 
+they do not provide fundamentally different abstractions from existing configuration languages
+or bridge the semantic divide between network-wide policies and device-level configuration.
 %They do not provide fundamentally different abstractions
-%from existing configuration languages and 
+%from existing configuration languages and
 Thus, they still require operators to
 manually decompose policies into device behaviors.
 
-Configuration analysis tools~\cite{batfish,feamster+:rcc} have been developed as a complementary approach for reducing misconfigurations by checking that the low-level configurations match high-level operator intent. However, such tools cannot help operators come up with the configuration in the first place. Further, today's tools can only check correctness under concrete failure scenarios, rather than under all possible failures. 
+Configuration analysis tools~\cite{batfish,feamster+:rcc} have been developed as a complementary approach for reducing misconfigurations by checking that the low-level configurations match high-level operator intent. However, such tools cannot help operators come up with the configuration in the first place. Further, today's tools can only check correctness under concrete failure scenarios, rather than under all possible failures.
 
 Software-defined networking (SDN) and its abstractions
 are, in part, the research
@@ -104,7 +104,7 @@ expressions to specify network paths from
 recent high-level SDN languages such as FatTire~\cite{fattire},
 Merlin~\cite{foster:merlin}, and
 NetKAT~\cite{netkat}.  However, our design also contains several key
-departures from existing languages.  The most important one is semantic:  the paths specified 
+departures from existing languages.  The most important one is semantic:  the paths specified
 can extend from outside the operator's network to inside
 the network, across several devices internally, and then out again. This design
 choice allows users to specify preferences about both external and internal
@@ -126,19 +126,19 @@ To achieve the second goal, we develop program analysis and compilation
 algorithms that translate the regular policies to a graph-based
 intermediate language and from there to per-device BGP configurations, which include various filters and preferences that govern BGP behavior.
 %import and export filters, local preferences, MED attributes, and community tags.
-We target BGP for pragmatic reasons: 
-it is a highly flexible routing protocol, 
-it is an industry standard, 
-and many networks use it internally as well as externally. 
+We target BGP for pragmatic reasons:
+it is a highly flexible routing protocol,
+it is an industry standard,
+and many networks use it internally as well as externally.
 Despite the advent of SDN, many networks will continue to
 use BGP for the foreseeable future due to existing infrastructure investments, the difficulty of transitioning to SDN, and the scalability and fault-tolerance advantages of a distributed
 control plane.
 
 The BGP configurations produced by our compiler are
 guaranteed to be policy-compliant in the face of
-{\em arbitrary} failures. This does not mean that the implementation is always 
-able to send traffic to its ultimate destination 
-(\EG in the case of a network partition), but rather that it always respects the 
+{\em arbitrary} failures.\footnote{The control plane of a network may use more than one routing protocol, e.g., an IGP in addition to BGP. We assume that these other protocols are correctly configured and do not have adverse interactions with BGP~\cite{igp-correctness1,igp-correctness2}.} This does not mean that the implementation is always
+able to send traffic to its ultimate destination
+(\EG in the case of a network partition), but rather that it always respects the
 centralized policy, which may include dropping traffic when there is no route.
 %
 In this way, we provide network operators
