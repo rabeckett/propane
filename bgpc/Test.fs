@@ -96,7 +96,9 @@ let rDatacenterSmall4 (reb: Regex.REBuilder) =
 
 let rDatacenterSmall5 (reb: Regex.REBuilder) =
     let pref1 = reb.Inter [reb.Through ["M"]; reb.End ["A"]]
-    [reb.Build pref1]
+    let pref2 = reb.Inter [reb.Through ["N"]; reb.End ["A"]]
+    let pref3 = reb.Inter [reb.End ["A"]]
+    [reb.Build pref1; reb.Build pref2; reb.Build pref3]
 
 let rDatacenterMedium1 (reb: Regex.REBuilder) =
     let pref1 = reb.Internal()
@@ -279,10 +281,10 @@ let tests (settings: Args.T) =
      Explanation="Through spine to single location (should fail)";
      Topo= tDatacenterSmall;
      Rf= rDatacenterSmall5; 
-     Receive= None;
-     Originate = None;
-     Prefs = None; 
-     Fail = Some NoPathForRouters};
+     Receive= Some [("X", "A"); ("M", "X"); ("N", "X"); ("Y", "M"); ("Y", "N"); ("C", "Y"); ("D", "Y"); ("C", "Y")];
+     Originate = Some ["A"];
+     Prefs = Some [("Y", "M", "N")];
+     Fail = None};
 
     {Name= "DCmedium1";
      Explanation="Shortest paths routing";

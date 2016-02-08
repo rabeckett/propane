@@ -359,7 +359,10 @@ let genConfig (cg: CGraph.T) (pred: Predicate.T) (ord: Consistency.Ordering) (in
                     | [Match.Peer x] -> Some x
                     | [Match.State(_,x)] -> Some x 
                     | _ -> None
-                let exports = getExports allTopoPeers cgstate inExports sendTo unqMatchPeer
+                let _, toOutside = List.ofSeq sendTo |> List.partition (fun v -> Topology.isInside v.Node)
+                let outsideExports = getExports allTopoPeers cgstate inExports toOutside unqMatchPeer
+                let insideExports = [("*", [SetComm (string cgstate.State)])]
+                let exports = if insideExports = outsideExports then insideExports else outsideExports @ insideExports
                 for m in matches do 
                     filters <- Allow ((m,lp), exports) :: filters
                 originates <- origin || originates
