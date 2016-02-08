@@ -19,7 +19,7 @@ type CounterExample =
 type Match = 
     | Peer of string 
     | State of string * string
-    | PathRE of CGraph.ToRegex.TempHackRegex
+    | PathRE of Regex.T
     | NoMatch
 
     override this.ToString () = 
@@ -151,7 +151,7 @@ let formatPrefix pconfig =
 type IncomingPattern = 
     | Anything
     | Nothing of string
-    | Specific of CGraph.ToRegex.TempHackRegex
+    | Specific of Regex.T
 
 type IncomingInfo = 
     {Peers: seq<CgState>;
@@ -255,7 +255,7 @@ let inline comparePrefThenLoc (x,i1) (y,i2) =
 
 type OutPeerMatch = 
     | PeerMatch of CgState
-    | RegexMatch of CGraph.ToRegex.TempHackRegex
+    | RegexMatch of Regex.T
 
 let inline isPeerMatch x = 
     match x with 
