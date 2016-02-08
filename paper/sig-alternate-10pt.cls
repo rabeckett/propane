@@ -722,7 +722,7 @@
  \null
  \setbox\@acmtitlebox\vbox{%
 \baselineskip 20pt
-\vskip 2em                   % Vertical space above title.
+\vskip 1em                   % Vertical space above title.
    \begin{center}
     {\ttlfnt \@title\par}       % Title set in 18pt Helvetica (Arial) bold size.
     \vskip 0.5em                % Vertical space after title.
@@ -732,7 +732,7 @@
      \lineskip .5em             % tabular environment
      \begin{tabular}[t]{c}\@author
      \end{tabular}\par}
-    \vskip 1.5em               % Vertical space after author.
+    \vskip 2.5em               % Vertical space after author.
    \end{center}}
  \dimen0=\ht\@acmtitlebox
  \advance\dimen0 by -8.75pc\relax % Increased space for title box -- KBT

@@ -1,8 +1,3 @@
-\section{Evaluation}
-\label{sec:evaluation}
-
-We apply \sysname on real policies for backbone and data center networks. Our mains goals are to evaluate if its front-end is expressive enough for real-world policies and the time the compiler takes to generate router configurations.
-
 \begin{figure}
   \subcaptionbox{Data center}
     {\includegraphics[width=.49\columnwidth]{figures/compilation-times-dc.png}}
@@ -12,6 +7,10 @@ We apply \sysname on real policies for backbone and data center networks. Our ma
   \vspace{-1em}
 \end{figure}
 
+\section{Evaluation}
+\label{sec:evaluation}
+
+We apply \sysname on real policies for backbone and data center networks. Our mains goals are to evaluate if its front-end is expressive enough for real-world policies and the time the compiler takes to generate router configurations.
 
 \subsection{Networks studied}
 
@@ -74,7 +73,7 @@ All experiments are run on an 8 core, 3.6 GHz Intel Xeon processor running Windo
 %
 Figure~\ref{fig:compilation-times} shows the compilation times for data centers (a), and backbone networks (b) of different sizes. For both policies, we measure the mean compilation time per prefix since the compiler operates on each prefix in parallel. At their largest sizes, the per-prefix compilation time is roughly 10 seconds for the data center network and 45 seconds for the backbone network.
 
-From the break down of the time by compilation phase, we see that no single compilation phase dominates the running time of the compiler. However, construction and minimization of the product graph take the most time.
+%From the break down of the time by compilation phase, we see that no single compilation phase dominates the running time of the compiler. However, construction and minimization of the product graph take the most time.
 
 Total compilation for the largest data center is less than 9 minutes total. Unlike the data center policy, the number of prefixes for the backbone policy remains relatively fixed as the topology size increases. Compilation for the largest backbone network, takes less than 3 minutes total. The inclusion of more preferences in the backbone policy increases the size of the PGIR, which leads to PGIR construction and minimization taking proportionally more time.
 
@@ -83,7 +82,7 @@ Total compilation for the largest data center is less than 9 minutes total. Unli
 
 \subsection{Configuration size}
 
-Figure~\ref{fig:config-min} shows the size of the compiled ABGP policies as a function of network size. The naive translation of PGIR to ABGP generates large ABGP policies. To offset this, the compiler performs configuration minimization both both during and after the PGIR to ABGP translation.
+Figure~\ref{fig:config-min} shows the size of the compiled ABGP policies as a function of the topology size. The naive translation of PGIR to ABGP outlined in \S\ref{sec:compilation} generates extremely large ABGP policies by default. To offset this, the compiler performs ABGP configuration minimization both during and after the PGIR to ABGP translation phase.
 %Such minimization is useful for limiting the computational expense of matching routes on BGP routers, reducing the number of forwarding entries in routers in certain cases, and making configurations more readable for humans.
 Minimization is highly effective for both the data center and backbone policies. In all cases, minimized policies are a small fraction of the size of their non-minimized counterparts. 
 

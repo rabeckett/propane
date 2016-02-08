@@ -43,8 +43,8 @@ network. Then, \CD{R4} must be configured to not announce to
 $\CD{Peer}$ routes that have communities that correspond to the
 \CD{R2}-\CD{Prov} link but to announce routes with communities for the \CD{R2}-\CD{Cust} and \CD{R1}-\CD{Cust} links. Finally, to implement P4 and P5, the operators will have to compute and configure appropriate prefix- and AS-path-based filters at each router.
 
-Clearly it is no simple task to properly configure even this
-small example network manually; devising correct configurations for real networks can quickly become a nightmare. Such networks have many neighbors across multiple commercial-relationship classes, differing numbers of links per neighbor, along with several neighbor- or prefix-based exceptions to the default behavior. For example, a large AS with many peers in different geographic locations may be faced with complex challenges like keeping traffic within national boundaries.
+Clearly it is difficult to properly configure even this
+small example network manually; devising correct configurations for real networks can quickly become a nightmare. Such networks have many neighbors across multiple commercial-relationship classes, differing numbers of links per neighbor, along with several neighbor- or prefix-based exceptions to the default behavior. A large AS with many peers in different geographic locations may be faced with complex challenges such as keeping traffic within national boundaries.
 Templates help to an extent by keeping preference and community values consistent across routers, but operators must still do much of the conceptually difficult work manually. 
 %\sysname lets operators express such policies easily and intuitively. It then automatically generates per-device import and export filters, local preferences, MED attributes, and community tags to ensure that the policy is implemented correctly under all failure scenarios.
 

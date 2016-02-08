@@ -1,7 +1,7 @@
 \section{Implementation}
 \label{sec:implementation}
 
-We have written a prototype compiler for \sysname that is implemented in roughly 5500 lines of F\# code. Users of \sysname only ever see the high-level constraint-based language presented in Section~\ref{sec:motivation}. The compiler includes command-line flags for enabling or disabling the use of the BGP MED attribute, AS path prepending, the commonly used no-export community, as well as for ensuring at least k-failure safety for user-specified aggregates. Finally, since each prefix has a separate routing policy, the \sysname compiler is able to compile each routing policy in parallel. 
+We have written a prototype compiler for \sysname that is implemented in roughly 5500 lines of F\# code. The compiler includes command-line flags for enabling or disabling the use of the BGP MED attribute, AS path prepending, the no-export community, as well as for ensuring at least k-failure safety for user-specified aggregates. Since each prefix has a separate routing policy, the \sysname compiler is able to compile each routing policy in parallel. The current compiler produces only ABGP policies, which can be incorporated into an existing template-based system, for example by mixing the \sysname configuration with other configuration components, or by generating vendor-specific configurations.
 
 \para{PG construction}
 
@@ -9,9 +9,9 @@ Constructing automata for extended regular expressions (regular expressions incl
 %
 Rather than construct the product graph in full, our implementation prevents exploring parts of the graph when no accepting state is reachable in any of the corresponding regular automata during construction.
 
-\para{PG Minimization}
+%\para{PG Minimization}
 
-The \sysname compiler uses a fast algorithm for computing graph dominators by storing sets of dominators in a compact representation known as a dominator tree~\cite{fast-dominance}. More complex algorithms with better theoretical complexity exist~\cite{linear-dominance, tarjan-dominance} and may be better suited for large enough topologies. All minimization steps are repeated until no more progress can be made.
+%The \sysname compiler uses a fast algorithm for computing graph dominators by storing sets of dominators in a compact representation known as a dominator tree~\cite{fast-dominance}. More complex algorithms with better theoretical complexity exist~\cite{linear-dominance, tarjan-dominance} and may be better suited for large enough topologies. All minimization steps are repeated until no more progress can be made.
 
 \para{Failure Safety}
 
