@@ -19,7 +19,7 @@ val prefix: (uint32*uint32*uint32*uint32) -> uint32 -> T
 /// Human readable for for a prefix
 val str: Pred -> string
 
-///
+/// display prefix ranges in binary
 val binaryPred: Pred -> string
 
 /// Construct a prefix from an integer range

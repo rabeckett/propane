@@ -100,7 +100,6 @@
     <Compile Include="IR.fs" />
     <Compile Include="Test.fsi" />
     <Compile Include="Test.fs" />
-    <Compile Include="Experiment.fs" />
     <Compile Include="Program.fs" />
     <None Include="App.config" />
     <None Include="packages.config" />

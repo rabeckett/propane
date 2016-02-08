@@ -107,7 +107,7 @@ module Map =
         | None -> d 
         | Some x -> x
 
-    let merge (a : Map<'a, 'b>) (b : Map<'a, 'b>) (f : 'a -> 'b * 'b -> 'b) =
+    let merge a b f =
         Map.fold (fun s k v ->
             match Map.tryFind k s with
             | Some v' -> Map.add k (f k (v, v')) s
@@ -145,15 +145,10 @@ module Error =
     let unwrap res = 
         match res with 
         | Ok v -> v 
-        | Err _ -> 
-            failwith "unwrapping error result"
+        | Err _ -> failwith "unwrapping error result"
 
     let map f res = 
         match res with 
         | Ok v -> Ok (f v)
         | Err e -> Err e
 
-    let andThen f res = 
-        match res with 
-        | Ok v -> f v 
-        | Err e -> Err e

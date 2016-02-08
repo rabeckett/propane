@@ -12,10 +12,6 @@ type Failures =
     | Any
     | Concrete of int
 
-type Experiment = 
-    | DataCenter
-    | Backbone
-
 type T = 
     {PolFile: string option;
      OutFile: string option;
@@ -24,7 +20,6 @@ type T =
      UsePrepending: bool;
      UseNoExport: bool;
      Test: bool;
-     Experiment: Experiment option;
      CheckEnter: bool;
      Debug: int; 
      DebugDir: string;
@@ -109,12 +104,6 @@ let setFailures s =
             raise (InvalidArgException ("Invalid number: " + s))
         failures := Concrete i
 
-let setExperiment s = 
-    match s with 
-    | "dc" -> experiment := Some DataCenter
-    | "core" -> experiment := Some Backbone
-    | _ -> raise (InvalidArgException ("Invalid experiment: " + s))
-
 let setCheckEnter s = 
     match s with 
     | "on" -> checkEnter := true
@@ -138,7 +127,6 @@ let args =
       ("--compression:on|off", String setCompression, "Compress rules (default on)");
       ("--format:IR|Templ", String setFormat, "Output format (IR, Template)");
       ("--stats:csv|none", String setStats, "Display performance statistics to stdout (default none)");
-      ("--experiment:dc|core", String (fun s -> setExperiment s), "Run experiment for dc or core");
       ("--checkenter:on|off", String (fun s -> setCheckEnter s), "Run experiment for dc or core");
       ("--test", Unit (fun () -> test := true), "Run unit tests");
       ("--debug-dir", String setDebugDir, "Debugging directory (default 'debug')");
@@ -206,7 +194,6 @@ let parse (argv: string[]) : unit =
               UseNoExport = !useNoExport; 
               Format = !format; 
               Test = !test; 
-              Experiment = !experiment;
               CheckEnter = !checkEnter;
               Debug = !debug; 
               DebugDir = !debugDir;

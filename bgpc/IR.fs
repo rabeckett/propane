@@ -76,10 +76,6 @@ type DeviceAggregates = (Prefix.T list * seq<string>) list
 type DeviceTags = ((string * Prefix.T list) * seq<string>) list
 type DeviceMaxRoutes = (uint32 * seq<string>) list
 
-type Aggregates = Map<string, (Prefix.T list * seq<string>) list>
-type Tags = Map<string, ((string * Prefix.T list) * seq<string>) list>
-type MaxRoutes = Map<string, (uint32 * seq<string>) list>
-
 type DeviceControl = 
     {Aggregates: DeviceAggregates;
      Tags: DeviceTags;

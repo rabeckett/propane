@@ -78,6 +78,7 @@ module Reachable =
     /// Find all destinations reachable from src
     val inline src: T -> CgState -> Direction -> Set<CgState>
 
+    /// Final all reachable preference levels
     val inline srcAccepting: T -> CgState -> Direction -> Set<int>
 
 

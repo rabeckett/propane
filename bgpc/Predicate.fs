@@ -1,6 +1,5 @@
 ﻿module Predicate
 
-
 type Pair = 
     {Prefix: Prefix.Pred;
      Comm: Community.Pred}

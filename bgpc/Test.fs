@@ -118,6 +118,19 @@ let rDatacenterMedium4 (reb: Regex.REBuilder) =
     let pref2 = reb.Inter [reb.End ["F"]; vf]
     [reb.Build pref1; reb.Build pref2]
 
+let rDatacenterMedium5 (reb: Regex.REBuilder) =
+    let vf = reb.ValleyFree([["A";"B";"E";"F"]; ["C";"D";"G";"H"]; ["X";"Y"]])
+    let pref1 = reb.Inter [reb.Through ["X"]; reb.End ["F"]; vf]
+    let pref2 = reb.Inter [reb.Through ["Y"]; reb.End ["F"]; vf]
+    [reb.Build pref1; reb.Build pref2]
+
+let rDatacenterMedium6 (reb: Regex.REBuilder) =
+    let vf = reb.ValleyFree([["A";"B";"E";"F"]; ["C";"D";"G";"H"]; ["X";"Y"]])
+    let pref1 = reb.Inter [reb.Through ["X"]; reb.End ["F"]; vf]
+    let pref2 = reb.Inter [reb.Through ["Y"]; reb.End ["F"]; vf]
+    let pref3 = reb.Inter [reb.End ["F"]; vf]
+    [reb.Build pref1; reb.Build pref2; reb.Build pref3]
+
 let rDatacenterLarge1 (reb: Regex.REBuilder) =
     let pref1 = reb.Inter [reb.Through ["M"]; reb.End ["A"]]
     [reb.Build pref1]
@@ -298,8 +311,7 @@ let tests (settings: Args.T) =
      Prefs = None;
      Fail = Some InconsistentPrefs};
 
-     // TODO: this should compile. need better heuristics
-    (* {Name= "DCmedium4";
+    {Name= "DCmedium4";
      Explanation="Through spine, valley free with simple backup";
      Topo= tDatacenterMedium;
      Rf= rDatacenterMedium4; 
@@ -309,7 +321,25 @@ let tests (settings: Args.T) =
                     ("H","X"); ("H","Y"); ("G","X"); ("G","Y")]; (* Strange, but safe *)
      Originate = Some ["F"];
      Prefs = Some [("C", "X", "Y"); ("D", "X", "Y"); ("G", "F", "X"); ("G", "F", "Y"); ("H", "F", "X"); ("H", "F", "Y")];
-     Fail = None}; *)
+     Fail = None};
+
+    {Name= "DCmedium5";
+     Explanation="Spine Preferences, no backup (should fail)";
+     Topo= tDatacenterMedium;
+     Rf= rDatacenterMedium5; 
+     Receive= None;
+     Originate = None;
+     Prefs = None;
+     Fail = Some InconsistentPrefs};
+
+    {Name= "DCmedium6";
+     Explanation="Spine Preferences with backup";
+     Topo= tDatacenterMedium;
+     Rf= rDatacenterMedium6; 
+     Receive= None;
+     Originate = None;
+     Prefs = None;
+     Fail = Some InconsistentPrefs};
 
     {Name= "DClarge1";
      Explanation="Through spine (should fail)";
@@ -476,9 +506,7 @@ let randomPrefix () =
     let lo = uint32 (rand.Next())
     let hi = uint32 (rand.Next()) + lo
     Prefix.fromRange (lo,hi)
-    
-/// Randomized tests that check that converting a prefix 
-/// to a range-based representation and back are inverse functions
+
 let testPrefixes () =
     printfn "Testing prefix predicates..."
     for i = 1 to maxTests do 
@@ -489,33 +517,6 @@ let testPrefixes () =
         let b = Prefix.str z
         if a <> b then
             printfn "[Failed]: expected: %s, but got %s" a b
-
-
-/// Randomized tests that check that the scope merging cross product 
-/// construction never introduces new prefixes not specified originally
-(* let testPrefixMerging () = 
-    printfn "Testing prefix compaction..."
-    let allPrefixes ccs = 
-        ccs
-        |> List.map (fst >> Set.ofList)
-        |> List.fold Set.union Set.empty
-    let tru = Predicate.prefix (0u,0u,0u,0u) 0u
-    for i = 0 to (maxTests / 10) do
-        let task1 =
-            let x = Predicate.prefixPred (randomPrefix ())
-            let y = Predicate.prefixPred (randomPrefix ())
-            [ (x, [Ast.Empty]); (y, [Ast.Empty]); (tru, [Ast.Empty]) ]
-        let task2 =
-            let x = Predicate.prefixPred (randomPrefix ())
-            let y = Predicate.prefixPred (randomPrefix ())
-            [ (x, [Ast.Empty]); (y, [Ast.Empty]); (tru, [Ast.Empty]) ]
-        let combined = Ast.combineConstraints task1 task2 Ast.OInter
-        /// compare the old to new prefixes
-        let allOriginal = allPrefixes (task1 @ task2)
-        let allCurrent = allPrefixes combined
-        /// check we don't introduce new ones
-        if not (Set.isSubset allCurrent allOriginal) then
-            printfn "[Failed]: Compacted prefixes are not a subset" *)
 
 let testRegexWellFormedness () =
     printfn "Testing regex well-formedness..."
@@ -550,8 +551,6 @@ let  testAggregationFailure () =
         let str = if Option.isNone res.K then "any" else string (Option.get res.K)
         printfn "[Failed]: aggregation failure, expected 2, but got (%s)" str
 
-/// Compiles various examples and ensures that they either don't compile,
-/// or they compile and the resulting configuration is correct
 let testCompilation() =
     printfn "Testing compilation..."
     printfn "----------------------------------------------------------"
@@ -600,23 +599,18 @@ let testCompilation() =
                     printfn "%s" msg
                     logInfo1(0, msg)
                 else
-                    (* Check receiving from peers *)
                     let rs = Option.get test.Receive
                     for (x,y) in rs do 
                         if not (receiveFrom config x y) then
                             let msg = sprintf "\n[Failed]: (%s) - %s should receive from %s but did not\n" test.Name x y
                             printfn "%s" msg
                             logInfo1(0, msg)
-                
-                    (* Check originating routes *)
                     let os = Option.get test.Originate
                     for x in os do 
                         if not (originates config x) then 
                             let msg = sprintf "\n[Failed]: (%s) - %s should originate a route but did not" test.Name x
                             printfn "%s" msg
                             logInfo1(0, msg)
-
-                    (* Test preferences *)
                     let ps = Option.get test.Prefs
                     for (x,a,b) in ps do
                         if not (prefersPeer config x (a,b)) then 
@@ -627,7 +621,6 @@ let testCompilation() =
 let run () =
     printfn ""
     testPrefixes ()
-    // testPrefixMerging ()
     testRegexWellFormedness ()
     testTopologyWellFormedness ()
     testAggregationFailure ()

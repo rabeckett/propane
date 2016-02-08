@@ -1,6 +1,5 @@
 ﻿module Community
 
-
 type Pred = 
     | Bot
     | Val of Set<Set<string> * Set<string>>

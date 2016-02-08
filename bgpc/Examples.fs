@@ -1,6 +1,8 @@
 ﻿module Examples
+
 open QuickGraph
 open Topology
+open System.Collections.Generic
 
 let topoDisconnected () = 
     let g = BidirectionalGraph<State ,TaggedEdge<State,unit>>()
@@ -196,3 +198,55 @@ let topoBackboneWAN () =
     Topology.addVertices g [vA; vSEA; vNY; vX; vY]
     Topology.addEdgesUndirected g [(vA, vSEA); (vA, vNY); (vSEA, vX); (vNY, vY)]
     g
+
+/// Fattree topology 
+
+type Tiers = Dictionary<State,int>
+type Prefixes = Dictionary<State,Prefix.T>
+
+let getPrefix i = 
+    let a = uint32 (i / (256 * 256))
+    let b = uint32 (i / 256)
+    let c = uint32 (i % 256)
+    Prefix.prefix (a, b, c, 0u) 24u
+
+let fatTree k : T * Prefixes * Tiers = 
+    let iT0 = (k * k) / 2
+    let iT1 = (k * k) / 2
+    let iT2 = (k * k) / 4
+    let g = BidirectionalGraph<State, TaggedEdge<State,unit>>()
+    let prefixes = Dictionary()
+    let tiers = Dictionary()
+    let routersT0 = Array.init iT0 (fun i ->
+        let name = "T0_" + string i
+        let v = {Loc=name; Typ=InsideOriginates}
+        ignore (g.AddVertex v)
+        prefixes.[v] <- getPrefix i
+        tiers.[v] <- 0
+        v)
+    let routersT1 = Array.init iT1 (fun i -> 
+        let name = "T1_" + string i
+        let v = {Loc=name; Typ=Inside}
+        ignore (g.AddVertex v)
+        tiers.[v] <- 1
+        v)
+    let routersT2 = Array.init iT2 (fun i ->
+        let name = "T2_" + string i
+        let v = {Loc=name; Typ=Inside}
+        ignore (g.AddVertex v)
+        tiers.[v] <- 2
+        v)
+    let perPod = (k/2)
+    for i = 0 to  iT0-1 do
+        let pod = i / (perPod)
+        for j = 0 to perPod-1 do
+            let x = routersT0.[i]
+            let y = routersT1.[pod*perPod + j]
+            addEdgesUndirected g [(x,y)]
+    for i = 0 to iT1-1 do 
+        for j = 0 to perPod-1 do
+            let rem = i % perPod
+            let x = routersT1.[i]
+            let y = routersT2.[rem*perPod + j]
+            addEdgesUndirected g [(x,y)]
+    (g, prefixes, tiers)

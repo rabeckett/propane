@@ -4,9 +4,8 @@ open Topology
 open QuickGraph
 open Common
 open Common.Error
+open System.Collections.Generic
 
-/// Extended regular expressions with negation and intersection 
-/// Characters classes are modelled using sets of locations
 type T = 
     | Empty
     | Epsilon
@@ -29,8 +28,6 @@ type T =
         | Negate r -> "!(" + r.ToString() + ")"
         | Star r -> (r.ToString() |> addParens) + "*"
 
-/// Standard deterministic finite automaton, implemented 
-/// using maps ans sets for simplicity
 type Automaton =
     {q0: int;
      Q: Set<int>; 
@@ -63,11 +60,6 @@ let rec rev re =
     | Union rs -> Union (List.map rev rs)
     | Negate r -> Negate (rev r)
     | Star r -> Star (rev r)
-
-(* Smart constructors for partitioning regular expressions 
-   according to a few algebraic laws. Nested negation and Kleene star 
-   operators are removed. Intersection, union, and concatenation are 
-   merged and stored as lists that are sorted in ascending order. *)
 
 let rec insertOrdered rs r = 
     match rs with 
@@ -145,23 +137,6 @@ let interAll res =
 let rec union r1 r2 =
     if r1 = r2 then r1 else
     match r1, r2 with
-    (* rewrite x;y + x;z = x;(y+z) *)
-    (* | x, Concat (hd::tl) when x = hd -> concat hd (union epsilon (concatAll tl))
-    | Concat (hd::tl), x when x = hd -> concat hd (union epsilon (concatAll tl))
-    | Concat (hd1::tl1), Concat (hd2::tl2) when hd1 = hd2 -> concat hd1 (union (concatAll tl1) (concatAll tl2))
-    | x, Concat ys when (List.rev ys).Head = x -> concat (union epsilon (concatAll (List.rev (List.tail (List.rev ys))))) x
-    | Concat ys, x when (List.rev ys).Head = x -> concat (union epsilon (concatAll (List.rev (List.tail (List.rev ys))))) x
-    | Concat xs, Concat ys when (List.rev xs).Head = (List.rev ys).Head ->
-        let revx, revy = List.rev xs, List.rev ys
-        let tlx = List.rev (List.tail revx)
-        let tly = List.rev (List.tail revy)
-        concat (union (concatAll tlx) (concatAll tly)) (List.head revx)
-    (* rewrite variants of 1 + y;y* = y* *)
-    | Epsilon, Concat [y1; Star y2] when y1 = y2 -> star y2
-    | Epsilon, Concat [Star y1; y2] when y1 = y2 -> star y2
-    | Concat [y1; Star y2], Epsilon when y1 = y2 -> star y2
-    | Concat [y1; Star y2], Epsilon when y1 = y2 -> star y2 *)
-    (* main identities *)
     | _, Empty -> r1
     | Empty, _ -> r2
     | _, Negate Empty -> r2 
@@ -177,7 +152,6 @@ let unionAll res =
     | [] -> Empty
     | _ -> Common.List.fold1 union res
 
-/// Check if a regular expression accepts the empty string
 let rec nullable r = 
     match r with 
     | Epsilon -> epsilon
@@ -193,13 +167,11 @@ let rec nullable r =
         | Empty -> epsilon
         | _ -> empty 
 
-/// An overapproximation of the set of character classes
 let conserv r s =
     seq {for x in Set.toSeq r do
             for y in Set.toSeq s do 
                 yield Set.intersect x y} |> Set.ofSeq
 
-/// Approximate the character classes for a regular expression
 let rec dclasses alphabet r =
     match r with 
     | Empty | Epsilon -> Set.singleton alphabet
@@ -220,8 +192,6 @@ let rec dclasses alphabet r =
     | Star r -> dclasses alphabet r 
     | Negate r -> dclasses alphabet r
 
-/// Compute the derivative of a regular expression with respect to a character class.
-/// Results in a new regular expression that matches remaining strings
 let rec derivative alphabet a r = 
     match r with 
     | Epsilon | Empty -> empty
@@ -240,7 +210,6 @@ let rec derivative alphabet a r =
     | Negate r' -> negate alphabet (derivative alphabet a r')
     | Star r' -> concat (derivative alphabet a r') r
 
-/// Explore and construct an automaton in a depth-first fashion
 let rec goto alphabet q (Q,trans) S = 
     let c = Set.minElement S
     let qc = derivative alphabet c q 
@@ -255,10 +224,6 @@ and explore alphabet Q trans q =
     let charClasses = Set.remove Set.empty (dclasses alphabet q)
     Set.fold (goto alphabet q) (Q,trans) charClasses
 
-/// Re-index states by integers starting from 0 rather than regular expressions
-
-open System.Collections.Generic
-
 let indexStates (q0, Q, F, trans) =
     let aQ = Set.toArray Q
     let mutable Q' = Set.empty
@@ -271,9 +236,6 @@ let indexStates (q0, Q, F, trans) =
     let trans' = Map.fold (fun acc (re,c) v -> Map.add (idxMap.[re],c) idxMap.[v] acc) Map.empty trans
     (q0', Q', F', trans')
 
-/// Build a DFA for a regular expression directly using regular 
-/// expression derivatives. Works well with complement,
-/// intersection, and character classes. Produces near-minimal DFAs
 let makeDFA alphabet r = 
     let q0 = r
     let (Q, trans) = explore alphabet (Set.singleton q0) Map.empty q0
@@ -281,10 +243,6 @@ let makeDFA alphabet r =
     let (q0', Q', F', trans') = indexStates (q0, Q, F, trans)
     {q0=q0'; Q=Q'; F=F'; trans=trans'}
 
-/// Representation for a regex that we haven't built yet. 
-/// Since we don't have the complete alphabet until we have built the entire
-/// regular expression (due to partial AS topology information), we delay
-/// the construction until the Build method is called in the builder object below.
 type LazyT =
     | LIn
     | LOut
@@ -324,14 +282,6 @@ let getAlphabet (topo: Topology.T) =
     let outside = Set.map (fun (s: Topology.State) -> s.Loc) outStates
     let alphabet = Set.union inside outside
     (inside, outside, alphabet)
-
-let applyTransition (dfa: Automaton) (i: int) (s: string) : int =
-    (* slow *)
-    let k = Map.findKey (fun (i',ss) j -> i' = i && Set.contains s ss) dfa.trans
-    Map.find k dfa.trans
-
-/// Language emptiness test for a DFA
-/// Returns either a simple string, or None
 
 let emptinessAux dfa start = 
     let transitions = 
@@ -394,13 +344,6 @@ let startingLocs (dfa: Automaton) : Set<string> =
     ) Set.empty dfa.trans
 
 
-
-/// Regular expression builder object to parameterize a regular expression by an alphabet. 
-/// Since f# does not support ML-style functors, different objects can use different
-/// alphabets. Additionally, external ASes might not be specified in the topology. 
-/// We must therefore delay applying the smart constructors until we have seen the entire policy.
-/// Client code must ensure a single builder object is used.
-
 exception InvalidPathShapeException of string list
 
 type REBuilder(topo: Topology.T) =
@@ -410,8 +353,6 @@ type REBuilder(topo: Topology.T) =
     let mutable outside = Set.add unknownName outs
     let mutable alphabet = Set.add unknownName alph
     let mutable finalAlphabet = false
-
-    (* Add the unknown special node to the topology *)
     let unknown: Topology.State = {Loc=unknownName; Typ = Topology.Unknown}
     let topo =
         let t = Topology.copyTopology topo
@@ -420,11 +361,9 @@ type REBuilder(topo: Topology.T) =
             if v.Typ = Topology.Outside then 
                 Topology.addEdgesUndirected t [(v,unknown)]
         t
-        
 
     let isInternal l = inside.Contains l
-    
-    (* Invariant: Build has set the alphabet *)
+
     let rec convert (re: LazyT) : T = 
         match re with 
         | LIn -> if Set.isEmpty inside then empty else locs inside
