@@ -102,10 +102,14 @@ module Option =
 
 module Map = 
 
-    let inline getOrDefault v d m = 
-        match Map.tryFind v m with 
+    let inline getOrDefault k d m = 
+        match Map.tryFind k m with 
         | None -> d 
         | Some x -> x
+
+    let inline adjust k d f m = 
+        let current = getOrDefault k d m
+        Map.add k (f current) m
 
     let merge a b f =
         Map.fold (fun s k v ->

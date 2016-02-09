@@ -314,29 +314,68 @@ let inline getExport specialCase inExports x v =
     else [SetComm(string x.State)]
 
 let getExports allTopoPeers x inExports (outgoing: seq<CgState>) unqMatchPeer = 
-    let specialCase = ref false
-    let exports = List.ofSeq outgoing |> List.map (fun v -> (v.Node.Loc, getExport specialCase inExports x v)) 
-    if not !specialCase then
-        let sendToLocs = Seq.map (fun v -> v.Node.Loc) outgoing |> Set.ofSeq
-        let sendToLocs = 
-            match unqMatchPeer with
-            | Some x -> Set.add x sendToLocs
-            | None -> sendToLocs
-        if allTopoPeers = sendToLocs then 
-            [("*", [SetComm(string x.State)])]
-        else exports
-    else exports
+    let toInside, toOutside = 
+        List.ofSeq outgoing 
+        |> List.partition (fun v -> Topology.isInside v.Node)
+    if List.isEmpty toOutside then 
+        [("*", [SetComm (string x.State)])]
+    else
+        let insideExport = [("in", [SetComm (string x.State)])]
+        let specialCase = ref false
+        let exports = List.ofSeq toOutside |> List.map (fun v -> (v.Node.Loc, getExport specialCase inExports x v)) 
+        if not !specialCase then
+            let sendToLocs = Seq.map (fun v -> v.Node.Loc) outgoing |> Set.ofSeq
+            let sendToLocs = 
+                match unqMatchPeer with
+                | Some x -> Set.add x sendToLocs
+                | None -> sendToLocs
+            if allTopoPeers = sendToLocs then 
+                [("*", [SetComm(string x.State)])]
+            else exports @ insideExport
+        else  exports @ insideExport
+
+let updateExports (es: Export list) f : Export list = 
+    List.choose f es
+
+let removeRedundantTag exports m = 
+    match m with 
+    | Match.Peer _ | Match.PathRE _ | Match.NoMatch -> exports 
+    | Match.State(is,_) -> 
+        updateExports exports (fun (peer, acts) -> 
+            let acts' = List.filter (fun a -> 
+                match a with 
+                | SetComm c -> c <> is
+                | _ -> true) acts
+            Some (peer, acts') )
+
+let removeCommMatch cg eCounts v m = 
+    let inline unq e = Map.find e eCounts = 1
+    match m with 
+    | Match.State (c,peers) -> 
+        if peers = "*" then 
+            let ins = CGraph.neighborsIn cg v |> Seq.map CGraph.loc
+            if Seq.forall (fun i -> unq (i, v.Node.Loc)) ins then Match.Peer(peers) else m 
+        else if unq (peers, v.Node.Loc) then Match.Peer(peers)
+        else m
+    | _ -> m
+
+let edgeCounts (cg: CGraph.T) =
+    cg.Graph.Edges
+    |> Seq.fold (fun acc e -> 
+            let key = (e.Source.Node.Loc, e.Target.Node.Loc)
+            Common.Map.adjust key 0 ((+) 1) acc ) Map.empty
 
 let genConfig (cg: CGraph.T) (pred: Predicate.T) (ord: Consistency.Ordering) (inExports: IncomingExportMap) : PredConfig * int * int =
     let settings = Args.getSettings ()
     let ain = Topology.alphabet cg.Topo |> fst |> Set.map (fun v -> v.Loc)
+    let eCounts = edgeCounts cg
     let szRaw = ref 0 
     let szSmart = ref 0
     let mutable config = Map.empty
-    for loc in ain do
+    for router in ain do
         let mutable filters = []
         let mutable originates = false
-        match Map.tryFind loc ord with 
+        match Map.tryFind router ord with 
         | None -> ()
         | Some prefs ->
             let mutable rules = []
@@ -359,11 +398,10 @@ let genConfig (cg: CGraph.T) (pred: Predicate.T) (ord: Consistency.Ordering) (in
                     | [Match.Peer x] -> Some x
                     | [Match.State(_,x)] -> Some x 
                     | _ -> None
-                let _, toOutside = List.ofSeq sendTo |> List.partition (fun v -> Topology.isInside v.Node)
-                let outsideExports = getExports allTopoPeers cgstate inExports toOutside unqMatchPeer
-                let insideExports = [("*", [SetComm (string cgstate.State)])]
-                let exports = if insideExports = outsideExports then insideExports else outsideExports @ insideExports
+                let exports = getExports allTopoPeers cgstate inExports sendTo unqMatchPeer                
                 for m in matches do 
+                    let exports = removeRedundantTag exports m
+                    let m = removeCommMatch cg eCounts cgstate m
                     filters <- Allow ((m,lp), exports) :: filters
                 originates <- origin || originates
                 szRaw := !szRaw + (Seq.length nsIn) * (Seq.length nsOut)
@@ -371,7 +409,7 @@ let genConfig (cg: CGraph.T) (pred: Predicate.T) (ord: Consistency.Ordering) (in
         szSmart := !szSmart + (List.length filters)
         filters <- List.rev (Deny :: filters)
         let deviceConf = {Originates=originates; Filters=filters}
-        config <- Map.add loc deviceConf config
+        config <- Map.add router deviceConf config
     (pred, config), !szRaw, !szSmart
 
  
@@ -440,6 +478,7 @@ let genConfig (cg: CGraph.T) (pred: Predicate.T) (ord: Consistency.Ordering) (in
 
 module Compress =
 
+(*
     let updateDC ((pred, config): PredConfig) f =
         let nConfig = 
             Map.fold (fun acc router dc ->
@@ -469,34 +508,39 @@ module Compress =
             | SetComm is -> Some is 
             | _ -> getTag tl
 
+    let getNeighborMap cg = 
+        let inline pair v = (v.Node.Loc, string v.State)
+        let inline nIn v = CGraph.neighborsIn cg v |> Seq.map CGraph.loc 
+        let inline nOut v = CGraph.neighbors cg v |> Seq.map CGraph.loc
+        cg.Graph.Vertices |> Seq.fold (fun acc v -> Map.add (pair v) (nIn v, nOut v) acc) Map.empty
+
     (* For each pair of (X,Y) edges in the product graph
        if the pair is unique, then there is no need to 
        match/tag on the community, so we can remove it *)
 
     let compressUniquePairs (cg: CGraph.T) (config: PredConfig) : PredConfig =
-        let pairCount =
-            cg.Graph.Edges
-            |> Seq.countBy (fun e -> (e.Source.Node.Loc, e.Target.Node.Loc))
-        let pCount = Dictionary()
-        for e, count in pairCount do
-            pCount.[e] <- count
-        let inline unqPair e = 
-            fst e <> "*" && snd e <> "*" && pCount.[e] = 1 
-        updateDC config (fun loc f ->
+        let nodeMap = getNeighborMap cg
+        let pCount = Seq.fold (fun acc (e: QuickGraph.TaggedEdge<CgState,unit>) -> 
+            let key = (e.Source.Node.Loc, e.Target.Node.Loc)
+            Common.Map.adjust key 0 ((+) 1) acc ) Map.empty cg.Graph.Edges
+        let inline unqPair e = pCount.[e] = 1 
+        updateDC config (fun router f ->
             match f with 
             | Deny -> Some Deny
             | Allow ((m,lp),es) -> 
                 let m' = 
                     match m with
-                    | Match.State(is,x) -> if unqPair (x,loc) then Match.Peer(x) else m
+                    | Match.State(comm,x) ->
+                        if x = "*" then
+                            match nodeMap.TryFind (router, comm) with
+                            | None -> m 
+                            | Some (ins, _) ->
+                                if Seq.forall (fun x -> unqPair (x,router)) ins then Match.Peer(x)
+                                else m
+                        else if unqPair (x,router) then Match.Peer(x) 
+                        else m
                     | _ -> m
-                let es' = updateExports es (fun (peer, acts) -> 
-                    let acts' =
-                        match getTag acts with
-                        | None -> acts
-                        | Some is -> if unqPair (loc,peer) then List.filter (isCommunityTag >> not) acts else acts
-                    Some (peer, acts'))
-                Some (Allow ((m', lp), es')))
+                Some (Allow ((m', lp), es)))
 
     (* Remove tags for the same state as is being matched on. E.g., 
         community=4; community <- 4 *)
@@ -504,14 +548,12 @@ module Compress =
     let compressRedundantTagging (cg: CGraph.T) (config: PredConfig) : PredConfig = 
         updateDC config (fun router filter -> 
             match filter with 
-            | Deny -> Some Deny 
-            | Allow ((m,lp),es) ->
-                match m with
-                | Match.State(is,p) -> 
-                    let es' = updateExports es (fun (peer, acts) -> 
-                        Some (peer, List.filter (isCommunity is >> not) acts))
-                    Some (Allow ((m,lp), es'))
-                | _ -> Some filter)
+            | Allow ((Match.State(is,p) as m,lp),es) ->
+                let es' = updateExports es (fun (peer, acts) -> 
+                    let acts' = List.filter (isCommunity is >> not) acts
+                    Some (peer, acts'))
+                Some (Allow ((m,lp), es'))
+            | _ -> Some filter)
 
 
     (* Removes less preferred, but otherwise identical imports.
@@ -538,52 +580,29 @@ module Compress =
     (* Avoids tagging with a community from A to B, when B never
        needs to distinguish based on that particular community value *)
 
-    let compressTaggingWhenNotImported ((pred, config): PredConfig) : PredConfig =
-        let importCommNeeded = Dictionary()
-        for kv in config do 
-            let loc = kv.Key 
-            let deviceConf = kv.Value 
-            for f in deviceConf.Filters do
-                match f with 
-                | Deny -> () 
-                | Allow ((m,_), _) ->
-                    match m with 
-                    | Match.State(is,x) ->
-                        let edge = (loc,x)
-                        if importCommNeeded.ContainsKey edge then
-                            let iss = importCommNeeded.[edge]
-                            importCommNeeded.[edge] <- Set.add is iss
-                        else importCommNeeded.[edge] <- (Set.singleton is)
-                    | _ -> ()
-        let newConfig = 
-            Map.map (fun loc dc ->
-                let filters' = 
-                    List.map (fun f ->
-                        match f with 
-                        | Deny -> f
-                        | Allow ((m,lp), es) ->
-                        let es' = 
-                            List.map (fun (peer,acts) ->
-                                let acts' = 
-                                    List.filter (fun a ->
-                                        match a with
-                                        | SetComm is ->
-                                            let edge = (peer,loc)
-                                            importCommNeeded.ContainsKey edge &&
-                                            importCommNeeded.[edge].Contains is
-                                        | _ -> true
-                                    ) acts
-                                (peer,acts')
-                            ) es
-                        Allow ((m,lp), es')
-                    ) dc.Filters
-                {Originates=dc.Originates; Filters=filters'}
-            ) config
-        (pred, newConfig)
+(*
+    let compressTaggingWhenNotImported (cg:CGraph.T) ((pred, config) as pconfig: PredConfig) : PredConfig =
+        let nodeMap = getNeighborMap cg
+        let needComm = ref Set.empty
+        Map.iter (fun router dc ->  
+            for Allow ((Match.State(comm,x),_), _) in dc.Filters do
+                let (ins,outs) = nodeMap.[(router, comm)] 
+                let edge = (x,router)
+                needComm := Set.add edge !needComm) config
+        updateDC pconfig (fun router filter -> 
+            match filter with 
+            | Deny -> Some Deny 
+            | Allow ((m,lp),es) ->
+                let es' = updateExports es (fun (peer, acts) -> 
+                    let acts'  = List.filter (fun a -> 
+                        match a with 
+                        | SetComm is -> Set.contains (router, peer) !needComm
+                        | _ -> true) acts
+                    Some (peer, acts') )
+                Some (Allow ((m,lp), es')) ) *)
 
     (* Whenever we export identical routes to all peers, we can replace
        this with a simpler route export of the form: (Export: * ) for readability *)
-
 
     let compressAllExports (cg: CGraph.T) ((pred, config): PredConfig) : PredConfig =
         let mutable newConfig = Map.empty
@@ -679,6 +698,7 @@ module Compress =
             let newDC = {Originates=deviceConf.Originates; Filters=newFilters}
             newConfig <- Map.add loc newDC newConfig
         (pred, newConfig) *)
+*)
 
     let compress (cg: CGraph.T) (config: PredConfig) (outName: string) : PredConfig =
         // let config = compressUniquePairs cg config
@@ -686,7 +706,7 @@ module Compress =
         // let config = compressTaggingWhenNotImported config
         // let config = compressAllExports cg config
         // let config = compressAllImports cg config
-        let config = compressRedundantTagging cg config
+        // let config = compressRedundantTagging cg config
         config
 
 let getLocsThatCantGetPath idx cg (reb: Regex.REBuilder) dfas = 

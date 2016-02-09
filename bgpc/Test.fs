@@ -335,7 +335,7 @@ let tests (settings: Args.T) =
      Fail = Some InconsistentPrefs};
 
     {Name= "DCmedium6";
-     Explanation="Spine Preferences with backup";
+     Explanation="Spine Preferences with backup (should fail)";
      Topo= tDatacenterMedium;
      Rf= rDatacenterMedium6; 
      Receive= None;
@@ -622,8 +622,8 @@ let testCompilation() =
 
 let run () =
     printfn ""
-    testPrefixes ()
+    (* testPrefixes ()
     testRegexWellFormedness ()
     testTopologyWellFormedness ()
-    testAggregationFailure ()
+    testAggregationFailure () *)
     testCompilation ()

@@ -31,6 +31,12 @@ val copyReverseGraph: T -> T
 /// of DFAs for path expressions
 val buildFromAutomata: Topology.T -> Regex.Automaton array -> T
 
+/// Get the location for the state
+val inline loc: CgState -> string
+
+/// Determine if two nodes shadow each other
+val inline shadows: CgState -> CgState -> bool
+
 /// Returns the set of reachable preferences
 val inline preferences: T -> Set<int>
 

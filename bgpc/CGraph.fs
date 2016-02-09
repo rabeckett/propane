@@ -96,8 +96,8 @@ let index ((graph, topo, startNode, endNode): BidirectionalGraph<CgStateTmp, Tag
     for e in graph.Edges do
         let v = e.Source 
         let u = e.Target
-        let x = Map.find (v.TNode.Loc, mapper v.TStates) idxMap
-        let y = Map.find (u.TNode.Loc, mapper u.TStates) idxMap
+        let x = idxMap.[(v.TNode.Loc, mapper v.TStates)]
+        let y = idxMap.[(u.TNode.Loc, mapper u.TStates)]
         newCG.AddEdge (TaggedEdge(x,y,())) |> ignore
     {Start=nstart; Graph=newCG; End=nend; Topo=topo}
 
@@ -145,7 +145,7 @@ let buildFromAutomata (topo: Topology.T) (autos : Regex.Automaton array) : T =
             let dead = ref true
             let nextInfo = Array.init autos.Length (fun i ->
                 let g, v = autos.[i], ss.[i]
-                let newState = Map.find (v,c.Loc) transitions.[i]
+                let newState = transitions.[i].[(v,c.Loc)]
                 if not (garbage.[i].Contains newState) then 
                     dead := false
                 let accept =
@@ -418,10 +418,9 @@ module Minimize =
             if realNodes then 
                 if isRepeatedOut cg x then Seq.exists isInside (neighborsIn cg y)
                 else if isRepeatedOut cg y then
-                    
                     Seq.exists isInside (neighbors cg x) && 
                     (Seq.exists ((=) cg.Start) (neighborsIn cg y) || 
-                    Seq.forall ((<>) cg.Start) (neighborsIn cg x))
+                     Seq.forall ((<>) cg.Start) (neighborsIn cg x))
                 else false
             else false) |> ignore
         cg
@@ -557,18 +556,6 @@ module Consistency =
                 if not (Seq.isEmpty below) then
                     mustPrefer <- Map.add d below mustPrefer
             mustPrefer
-
-            (*
-            // optimization
-            if not (allDisjoint cg dups) then
-                let dups = Map.fold (fun acc _ v -> Set.union acc v) Set.empty dups
-                for d in dups do 
-                    let reach = Reachable.src cg d Down
-                    match Seq.tryFind (shadows d) reach with
-                    | None -> ()
-                    | Some d' ->
-                        // TODO: raise better error
-                        raise (SimplePathException (d,d')) *)
 
     let simulate idx cg cache (doms: Domination.DominationSet) restrict (x,y) (i,j) =
         if Set.contains (x,y,i,j) !cache then true else
@@ -716,7 +703,7 @@ module ToRegex =
                         let re = Regex.union x (Regex.concatAll [y1; Regex.star y2; y3])
                         reMap := Map.add (q1,q2) re !reMap
             cg.Graph.RemoveVertex q |> ignore
-        Map.find (cg.End, cg.Start) !reMap
+        (!reMap).[(cg.End, cg.Start)]
 
 
 module Failure =
