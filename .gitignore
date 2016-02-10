@@ -192,3 +192,24 @@ ModelManifest.xml
 script/generated/*
 *.aux
 /paper/sigplanconf-template.synctex.gz
+
+# Mac specific
+*.DS_Store
+
+# Generated Lexers/Parsers
+bgpc/Lexer.fs
+bgpc/Parser.fs
+bgpc/Parser.fsi
+
+# Images
+data/compilation-times-dc.png
+
+# Generated latex files
+paper/paper.bbl
+paper/paper.blg
+paper/paper.fdb_latexmk
+paper/paper.fls
+paper/paper.pdf
+
+# User preferences
+bgpc.userprefs
