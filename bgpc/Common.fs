@@ -123,33 +123,38 @@ module Error =
 
     let exit () = exit 0
 
-    let writeWithColor (s: string) c = 
-        let color = Console.ForegroundColor
+    let obj = new Object()
+
+    let writeColor (s: string) c = 
         Console.ForegroundColor <- c
         Console.Write s
-        Console.ForegroundColor <- color
+        Console.ResetColor ()
 
     let error (s: string) = 
-        writeWithColor "[Error]: " ConsoleColor.Red
-        Console.WriteLine s
-        Console.WriteLine ()
+        lock obj (fun () ->  
+            writeColor "[Error]:" ConsoleColor.DarkRed
+            Console.WriteLine s
+            Console.WriteLine ())
         exit ()
 
     let warning (s: string) =
-        writeWithColor "[Warning]: " ConsoleColor.Yellow
-        Console.WriteLine s
-        Console.WriteLine ()
+        lock obj (fun () -> 
+            writeColor "[Warning]: " ConsoleColor.DarkYellow
+            Console.WriteLine s
+            Console.WriteLine ())
 
     let parseError (s: string) =
-        writeWithColor "[Parse Error]: " ConsoleColor.Red
-        Console.WriteLine s
-        Console.WriteLine ()
+        lock obj (fun () -> 
+            writeColor "[Parse Error]: " ConsoleColor.DarkRed
+            Console.WriteLine s
+            Console.WriteLine ())
         exit ()
 
     let unimplementable (s: string) =
-        writeWithColor "[Unimplementable]: " ConsoleColor.Red
-        Console.WriteLine s
-        Console.WriteLine ()
+        lock obj (fun () ->
+            writeColor "[Unimplementable]: " ConsoleColor.DarkRed
+            Console.WriteLine s
+            Console.WriteLine ())
         exit ()
 
     type Result<'a, 'b> = 

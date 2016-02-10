@@ -446,7 +446,7 @@ module Minimize =
                     if Set.isSuperset nos nin then 
                         ignore (toDelNodes.Add n)
         cg.Graph.RemoveVertexIf (fun v -> toDelNodes.Contains v) |> ignore
-        cg
+        cg 
           
     let minimize (idx: int) (cg: T) =
         logInfo1(idx, sprintf "Node count: %d" cg.Graph.VertexCount)
