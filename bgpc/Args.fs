@@ -132,7 +132,7 @@ let args =
 let printHelp () = 
     let (s,_,_) = Array.maxBy (fun (s,_, _) -> String.length s) args
     let max = String.length s
-    printfn "\n%s" usage
+    printfn "%s" usage
     for (param, _, descr) in args do
         let nspaces = max - (String.length param) + 3
         let spaces = String.replicate nspaces " "

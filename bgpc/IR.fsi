@@ -39,7 +39,7 @@ type DeviceConfig =
 type PredConfig = Predicate.T * Map<string, DeviceConfig>
 
 type PrefixResult =
-    {K: int option;
+    {K: (int*string*string) option;
      BuildTime: int64;
      MinimizeTime: int64;
      OrderingTime: int64;
@@ -94,5 +94,7 @@ type Stats =
      PerPrefixGenTimes: int64 array;
      JoinTime: int64;}
 
+type AggregationSafetyResult = (int * string * string) option
+
 /// Compile for all prefixes
-val compileAllPrefixes: string -> Topology.T -> Ast.PolicyPair list -> Ast.CConstraint list -> T * int option * Stats
+val compileAllPrefixes: string -> Topology.T -> Ast.PolicyPair list -> Ast.CConstraint list -> T * AggregationSafetyResult * Stats

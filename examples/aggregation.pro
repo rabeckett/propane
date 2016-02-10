@@ -1,5 +1,5 @@
 ﻿control {
-    /* aggregate(10.0.0.0/31, in -> out) */
+    aggregate(10.0.0.0/31, in -> out)
 }
 
 task Routing {

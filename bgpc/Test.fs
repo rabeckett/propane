@@ -548,10 +548,12 @@ let  testAggregationFailure () =
     let res = IR.compileToIR "" 0 (Predicate.prefix (10u, 0u, 0u, 0u) 32u) aggs reb [reb.Build pol]
     match res with
     | Err _ -> printfn "[Failed]: policy failed to compile for testing aggregation black-holing"
-    | Ok(res) when res.K = Some 2 -> ()
     | Ok(res) -> 
-        let str = if Option.isNone res.K then "any" else string (Option.get res.K)
-        printfn "[Failed]: aggregation failure, expected 2, but got (%s)" str
+        match res.K with 
+        | Some (2,_,_) -> ()
+        | _ ->
+            let str = if Option.isNone res.K then "any" else string (Option.get res.K)
+            printfn "[Failed]: aggregation failure, expected 2, but got (%s)" str
 
 let testCompilation() =
     printfn "Testing compilation..."

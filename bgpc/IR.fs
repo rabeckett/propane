@@ -58,7 +58,7 @@ type DeviceConfig =
 type PredConfig = Predicate.T * Map<string, DeviceConfig>
 
 type PrefixResult =
-    {K: int option;
+    {K: (int*string*string) option;
      BuildTime: int64;
      MinimizeTime: int64;
      OrderingTime: int64;
@@ -442,16 +442,19 @@ let getMinAggregateFailures (cg: CGraph.T) pred (aggInfo: Map<string, DeviceAggr
     let originators = CGraph.neighbors cg cg.Start
     let prefixes = Predicate.getPrefixes pred
     let mutable smallest = System.Int32.MaxValue
+    let mutable pairs = None
     for p in prefixes do
         for kv in aggInfo do 
             let aggRouter = kv.Key 
             let aggs = kv.Value 
             let relevantAggs = List.filter (fun (prefix, _) -> Prefix.implies (Prefix.toPredicate prefix) p) aggs
             for (rAgg, _) in relevantAggs do
-                let k = CGraph.Failure.disconnectLocs cg originators aggRouter    
-                smallest <- min smallest k
-    if smallest = System.Int32.MaxValue then  None
-    else Some smallest
+                let k, x, y = CGraph.Failure.disconnectLocs cg originators aggRouter   
+                if k < smallest then 
+                    smallest <- min smallest k
+                    pairs <- Some (x,y)
+    if smallest = System.Int32.MaxValue then None
+    else let x,y = Option.get pairs in Some (smallest, x, y)
 
 let compileToIR fullName idx pred (aggInfo: Map<string,DeviceAggregates>) (reb: Regex.REBuilder) res : CompileResult =
     let settings = Args.getSettings ()
@@ -589,13 +592,16 @@ type Stats =
      PerPrefixGenTimes: int64 array;
      JoinTime: int64;}
 
+type AggregationSafetyResult = (int * string * string) option
+
 let minFails x y = 
     match x, y with 
     | None, _ -> y 
     | _, None -> x 
-    | Some i, Some j -> Some (min i j)
+    | Some (i, a,b), Some (j,c,d) -> 
+        if i < j then x else y
 
-let compileAllPrefixes fullName topo (pairs: Ast.PolicyPair list) constraints : T * int option * Stats =
+let compileAllPrefixes fullName topo (pairs: Ast.PolicyPair list) constraints : T * AggregationSafetyResult * Stats =
     let info = splitConstraints topo constraints
     let (aggInfo, _, _) = info
     let pairs = Array.ofList pairs

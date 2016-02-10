@@ -1,5 +1,6 @@
 ﻿module Common
 
+open System
 
 module Debug =
 
@@ -120,20 +121,36 @@ module Map =
 
 module Error =
 
-    let error s = 
-        printfn "\n[Error]: %s" s
-        exit 0
+    let exit () = exit 0
 
-    let warning s =
-        printfn "\n[Warning]: %s" s
+    let writeWithColor (s: string) c = 
+        let color = Console.ForegroundColor
+        Console.ForegroundColor <- c
+        Console.Write s
+        Console.ForegroundColor <- color
 
-    let parseError s =
-        printfn "\n[Parse Error]: %s" s
-        exit 0
+    let error (s: string) = 
+        writeWithColor "[Error]: " ConsoleColor.Red
+        Console.WriteLine s
+        Console.WriteLine ()
+        exit ()
 
-    let unimplementable s =
-        printfn "\n[Unimplementable]: %s" s
-        exit 0
+    let warning (s: string) =
+        writeWithColor "[Warning]: " ConsoleColor.Yellow
+        Console.WriteLine s
+        Console.WriteLine ()
+
+    let parseError (s: string) =
+        writeWithColor "[Parse Error]: " ConsoleColor.Red
+        Console.WriteLine s
+        Console.WriteLine ()
+        exit ()
+
+    let unimplementable (s: string) =
+        writeWithColor "[Unimplementable]: " ConsoleColor.Red
+        Console.WriteLine s
+        Console.WriteLine ()
+        exit ()
 
     type Result<'a, 'b> = 
         | Ok of 'a

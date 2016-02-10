@@ -4,12 +4,13 @@ open Common.Error
     
 
 [<EntryPoint>]
-let main argv = 
+let main argv =
+    printfn ""
     ignore (Args.parse argv)
     let settings = Args.getSettings ()
     if settings.Test then
         Test.run ()
-        exit 0
+        exit ()
     let fullName = settings.DebugDir + (Common.Option.getOrDefault "output" settings.OutFile)
     let topo = 
         match settings.TopoFile with 
@@ -23,10 +24,10 @@ let main argv =
         let pairs = Ast.makePolicyPairs ast topo
         let (ir, k, _) = IR.compileAllPrefixes fullName topo pairs aggs
         match k, settings.Failures with
-        | Some i, Args.Any -> 
-            error (sprintf "required all-failure safety for aggregation, but only got %d-failure safety" i)
-        | Some i, Args.Concrete j when i < j ->
-            error (sprintf "required %d-failure safety for aggregation, but only got %d-failure safety" j i)
+        | Some (i, x, y), Args.Any -> 
+            error (sprintf "Required all-failure safety for aggregation, but only got %d-failure safety - possible weak point between %s and %s" i x y)
+        | Some (i, x, y), Args.Concrete j when i < j ->
+            error (sprintf "Required %d-failure safety for aggregation, but only got %d-failure safety- possible weak point between %s and %s" j i x y)
         | _ -> ()
         match settings.OutFile with
         | None -> ()

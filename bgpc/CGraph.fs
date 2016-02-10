@@ -772,7 +772,8 @@ module Failure =
                     smallest <- k
                     pair <- Some (src,dst)
         let (x,y) = Option.get pair
-        smallest
+        let k = max 0 (smallest - 1)
+        k, x.Node.Loc, y.Node.Loc
 
     let disconnectLocs (cg: T) srcs dstLoc =
         let dsts = Seq.filter (fun v -> loc v = dstLoc) cg.Graph.Vertices 
