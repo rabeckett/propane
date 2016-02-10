@@ -365,7 +365,9 @@ let checkPredicates (sName: string) (pcs: ConcretePathConstraints) =
             rollingPred <- Predicate.conj rollingPred (Predicate.negate p)
         if rollingPred <> Predicate.bot then
             let s = Predicate.example rollingPred
-            error (sprintf "Incomplete prefixes in scope (%s). An example of a prefix that is not matched: %s" sName s)
+            warning (sprintf "Incomplete prefixes in scope (%s). An example of a prefix that is not matched: %s" sName s)
+            pcs @ [(Predicate.top, [Re.Empty])]
+        else pcs
     with InvalidPrefixException p ->
         error (sprintf "Invalid prefix: %s" (p.ToString()))
 
@@ -389,9 +391,9 @@ let rec mergeTasks ast (re: Re) disjoints : ConcretePathConstraints =
     | Shr _ -> failwith "unreachable"
 
 let addPair acc s =
-    let cconstrs = List.map (fun (p,r) -> (toPredicate p, pushPrefsToTop r)) s.PConstraints
-    checkPredicates s.Name cconstrs
-    Map.add s.Name cconstrs acc
+    let pconstrs = List.map (fun (p,r) -> (toPredicate p, pushPrefsToTop r)) s.PConstraints
+    let pconstrs = checkPredicates s.Name pconstrs
+    Map.add s.Name pconstrs acc
 
 let makePolicyPairs (ast: T) (topo: Topology.T) : PolicyPair list =
     validateDefinitions ast.Defs

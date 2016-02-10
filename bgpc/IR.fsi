@@ -44,7 +44,6 @@ type PrefixResult =
      MinimizeTime: int64;
      OrderingTime: int64;
      ConfigTime: int64;
-     CompressTime: int64;
      CompressSizeInit: int;
      CompressSizeFinal: int;
      Config: PredConfig}
@@ -93,7 +92,6 @@ type Stats =
      PerPrefixMinTimes: int64 array;
      PerPrefixOrderTimes: int64 array;
      PerPrefixGenTimes: int64 array;
-     PerPrefixCompressTimes: int64 array;
      JoinTime: int64;}
 
 /// Compile for all prefixes

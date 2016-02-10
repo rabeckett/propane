@@ -14,6 +14,7 @@ type Failures =
 
 type T = 
     {PolFile: string option;
+     TopoFile: string option;
      OutFile: string option;
      Format: Format;
      UseMed: bool;
@@ -23,13 +24,13 @@ type T =
      CheckEnter: bool;
      Debug: int; 
      DebugDir: string;
-     Compression: bool;
      Failures: Failures;
      Stats: bool}
 
 exception InvalidArgException of string
 
 let polFile = ref None
+let topoFile = ref None
 let outFile = ref None
 let format = ref IR
 let useMed = ref false
@@ -40,7 +41,7 @@ let debug = ref 0
 let debugDir = ref ("debug" + string System.IO.Path.DirectorySeparatorChar)
 let compression = ref true
 let experiment = ref None
-let checkEnter = ref true
+let checkEnter = ref false
 let failures = ref Any
 let stats = ref false
 
@@ -87,12 +88,6 @@ let setDebug s =
         raise (InvalidArgException ("Invalid debug level: " + s))
     debug := i
 
-let setCompression s = 
-    match s with 
-    | "on" -> compression := true
-    | "off" -> compression := false
-    | _ -> raise (InvalidArgException (sprintf "Invalid compression value: %s" s))
-
 let setFailures s = 
     match s with 
     | "any" -> failures := Any
@@ -119,12 +114,12 @@ let setStats s =
 let usage = "Usage: bgpc.exe [options]"
 let args = 
     [|("--pol", String (fun s -> polFile := Some s), "Policy file");
+      ("--topo", String (fun s -> topoFile := Some s), "Topology file");
       ("--out", String (fun s -> outFile := Some s), "Output file");
       ("--failures:any|n", String setFailures, "Failure safety for aggregation (default any)");
       ("--med:on|off", String setMED, "Use MED attribute (default off)");
       ("--prepending:on|off", String setPrepending, "Use AS path prepending (default off)");
       ("--no-export:on|off", String setNoExport, "Use no-export community (default off)");
-      ("--compression:on|off", String setCompression, "Compress rules (default on)");
       ("--format:IR|Templ", String setFormat, "Output format (IR, Template)");
       ("--stats:csv|none", String setStats, "Display performance statistics to stdout (default none)");
       ("--checkenter:on|off", String (fun s -> setCheckEnter s), "Run experiment for dc or core");
@@ -177,7 +172,7 @@ let parse (argv: string[]) : unit =
         exit () 
     else
     try 
-        Array.find (fun s -> s = "--help") argv |> ignore
+        Array.find (fun s -> s = "-help") argv |> ignore
         exit ()
     with _ -> 
         let mutable i = 0
@@ -188,6 +183,7 @@ let parse (argv: string[]) : unit =
     cleanDir !debugDir
     settings := 
         Some {PolFile = !polFile; 
+              TopoFile = !topoFile;
               OutFile = !outFile; 
               UseMed = !useMed; 
               UsePrepending = !usePrepending; 
@@ -197,7 +193,6 @@ let parse (argv: string[]) : unit =
               CheckEnter = !checkEnter;
               Debug = !debug; 
               DebugDir = !debugDir;
-              Compression = !compression;
               Failures = !failures;
               Stats = !stats}
 

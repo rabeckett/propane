@@ -66,8 +66,8 @@ start:
     | definitions control tasks regex EOF   { {Defs=Map.ofList $1; CConstraints=$2; Tasks=$3; Policy=$4} }
 
 control:
+	| CONTROL LBRACE RBRACE                  { [] }
     | CONTROL LBRACE cconstrs RBRACE        { $3 }
-
 
 tasks:
     | TASK ID LBRACE task RBRACE			{ [addTask $2 $4] }

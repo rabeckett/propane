@@ -124,6 +124,9 @@ module Error =
         printfn "\n[Error]: %s" s
         exit 0
 
+    let warning s =
+        printfn "\n[Warning]: %s" s
+
     let parseError s =
         printfn "\n[Parse Error]: %s" s
         exit 0

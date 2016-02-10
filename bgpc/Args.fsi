@@ -10,6 +10,7 @@ type Failures =
 
 type T = 
     {PolFile: string option;
+     TopoFile: string option;
      OutFile: string option;
      Format: Format;
      UseMed: bool;
@@ -19,7 +20,6 @@ type T =
      CheckEnter: bool;
      Debug: int; 
      DebugDir: string;
-     Compression: bool;
      Failures: Failures;
      Stats: bool}
 

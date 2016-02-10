@@ -1,0 +1,24 @@
+﻿<?xml version="1.0" encoding="UTF-8"?>
+<topology>
+	<node internal="true" can-originate="true" name="A"></node>
+	<node internal="true" can-originate="true" name="B"></node>
+	<node internal="true" can-originate="true" name="C"></node>
+	<node internal="true" can-originate="true" name="D"></node>
+	<node internal="true" can-originate="false" name="X"></node>
+	<node internal="true" can-originate="false" name="Y"></node>
+	<node internal="true" can-originate="false" name="M"></node>
+	<node internal="true" can-originate="false" name="N"></node>
+	<node internal="false" can-originate="true" name="CORE"></node>
+
+	<edge source="A" target="X" directed="false"></edge>
+	<edge source="B" target="X" directed="false"></edge>
+	<edge source="C" target="Y" directed="false"></edge>
+	<edge source="D" target="Y" directed="false"></edge>
+	<edge source="X" target="M" directed="false"></edge>
+	<edge source="X" target="N" directed="false"></edge>
+	<edge source="Y" target="M" directed="false"></edge>
+	<edge source="Y" target="N" directed="false"></edge>
+	<edge source="N" target="CORE" directed="false"></edge>
+	<edge source="M" target="CORE" directed="false"></edge>
+
+</topology>

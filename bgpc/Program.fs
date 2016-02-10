@@ -11,7 +11,10 @@ let main argv =
         Test.run ()
         exit 0
     let fullName = settings.DebugDir + (Common.Option.getOrDefault "output" settings.OutFile)
-    let topo = Examples.topoDatacenterSmall()
+    let topo = 
+        match settings.TopoFile with 
+        | None -> error ("No topology file specified")
+        | Some f -> Topology.readTopology f
     match settings.PolFile with 
     | None -> error ("No policy file specified")
     | Some p ->
