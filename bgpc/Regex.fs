@@ -445,6 +445,13 @@ type REBuilder(topo: Topology.T) =
     member this.Any() =
         this.Concat [this.MaybeOutside(); this.Internal(); this.MaybeOutside()]
 
+    member this.Sigma() = 
+        this.Union [this.Inside; this.Outside]
+
+    member this.Always(xs) = 
+        let locs = this.Locs xs
+        this.Inter [this.Any(); this.Star locs]
+
     member this.Through(xs) =
         let (ins,outs) = List.partition isInternal xs
         this.Union 

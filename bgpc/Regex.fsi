@@ -79,6 +79,7 @@ type REBuilder  =
     member Internal: unit -> LazyT
     member External: unit -> LazyT
     member Any: unit -> LazyT
+    member Always: string list -> LazyT
     member Through: string list -> LazyT
     member Avoid: string list -> LazyT
     member End: string list -> LazyT

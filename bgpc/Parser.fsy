@@ -1,16 +1,16 @@
 %{
 open System
 open Ast
+open Common.Error
 open Microsoft.FSharp.Collections
 
-exception EmptyFile
-exception NoTask
-exception NoPathConstraints
-
-let addTask s ps = 
-    {Name=s;
-    PConstraints=ps}
-
+let buildDefinitions defs = 
+    List.fold (fun acc (name, e) -> 
+        match Map.tryFind name acc with
+        | None -> Map.add name e acc
+        | Some _ -> 
+            error (sprintf "\nDuplicate definition of %s" name)
+        ) Map.empty defs
 %}
 
 %start start
@@ -20,7 +20,6 @@ let addTask s ps =
 %token <System.UInt32> INT
 
 %token EQUAL
-%token AT 
 %token LPAREN 
 %token RPAREN 
 %token LBRACKET 
@@ -30,12 +29,11 @@ let addTask s ps =
 %token COMMA 
 %token SLASH
 %token COLON 
-%token SEMICOLON 
 %token RARROW 
 %token ROCKET 
 %token DOT 
 %token EOF
-
+ 
 %token DIFFERENCE
 %token NOT 
 %token STAR 
@@ -45,102 +43,72 @@ let addTask s ps =
 %token TRUE 
 %token FALSE
 
-%token DEFINE 
-%token TASK
+%token DEFINE
 %token CONTROL
 
 %nonassoc EQUALS
+%left RARROW
 %left SHR
-%left UNION INTERSECT
-%left AND OR DIFFERENCE
-%left SEMICOLON
-%left STAR
+%left DIFFERENCE
+%left OR
+%left AND
 %right NOT
+%left STAR
 
 %%
 
-start:
-    | tasks regex EOF                       { {Defs=Map.empty; CConstraints=[]; Tasks=$1; Policy=$2} }
-    | control tasks regex EOF               { {Defs=Map.empty; CConstraints=$1; Tasks=$2; Policy=$3} }
-    | definitions tasks regex EOF           { {Defs=Map.ofList $1; CConstraints=[]; Tasks=$2; Policy=$3} }
-    | definitions control tasks regex EOF   { {Defs=Map.ofList $1; CConstraints=$2; Tasks=$3; Policy=$4} }
+start: 
+	| definitions EOF                        { {Defs=buildDefinitions $1; CConstraints=[]} }
+	| definitions control EOF                { {Defs=buildDefinitions $1; CConstraints=$2} }
 
 control:
 	| CONTROL LBRACE RBRACE                  { [] }
-    | CONTROL LBRACE cconstrs RBRACE        { $3 }
+    | CONTROL LBRACE cconstrs RBRACE         { $3 }
 
-tasks:
-    | TASK ID LBRACE task RBRACE			{ [addTask $2 $4] }
-    | TASK ID LBRACE task RBRACE tasks	    { (addTask $2 $4) :: $6 }
-
-task:
-    | pconstrs                              { $1 }
-
-pconstrs:
-    | pconstr                               { [$1] }
-	| pconstr COMMA                         { [$1] }
-    | pconstr COMMA pconstrs                { $1 :: $3 }
+pconstrs: 
+    | pconstr                                { [$1] }
+	| pconstr COMMA                          { [$1] }
+    | pconstr COMMA pconstrs                 { $1 :: $3 } 
 
 pconstr:
-    | predicate ROCKET regex                { ($1, $3) }
+    | expr ROCKET expr                       { ($1, $3) }
 
 cconstrs:
-    | cconstr                               { [$1] }
-	| cconstr COMMA                         { [$1] }
-    | cconstr COMMA cconstrs                { $1 :: $3 }
+    | cconstr                                { [$1] }
+	| cconstr COMMA                          { [$1] }
+    | cconstr COMMA cconstrs                 { $1 :: $3 }
 
 cconstr:
-    | ID                                    { ($1, []) }
-    | ID LPAREN exprs RPAREN                { ($1, $3) }
+    | ID                                     { ($1, []) }
+    | ID LPAREN exprs RPAREN                 { ($1, $3) }
 
 exprs:
-    | expr                                  { [$1] }
-    | expr COMMA exprs                      { $1 :: $3 }
-
-rawexpr:
-    | INT                                   { Ast.IntLiteral $1 }
-    | predicate	                            { Ast.PredicateExpr $1 }
-    | regex RARROW regex                    { Ast.LinkExpr ($1, $3) }
+    | expr                                   { [$1] }
+    | expr COMMA exprs                       { $1 :: $3 }
 
 expr:
-	| ID									{ Ast.IdentExpr $1 }
-    | rawexpr                               { $1 }
-
-regexes: 
-    | regex                                 { [$1] }
-    | regex COMMA regexes                   { $1 :: $3 }
-
-regexdef:
-	| ID                                    { Ast.Ident ($1, []) }
-	| ID LPAREN regexes RPAREN              { Ast.Ident ($1, $3) }
-
-regex:
-    | regexdef                              { $1 }
-    | LBRACE RBRACE                         { Ast.Empty }
-    | regex SEMICOLON regex                 { Ast.Concat ($1, $3) }
-    | regex AND regex                       { Ast.Inter ($1, $3) }
-    | regex OR regex                        { Ast.Union ($1, $3) }
-    | regex DIFFERENCE regex                { Ast.Difference ($1, $3) }
-    | NOT regex                             { Ast.Negate $2 }
-    | regex STAR                            { Ast.Star $1 }
-	| regex SHR regex						{ Ast.Shr ($1, $3) }
-    | LPAREN regex RPAREN                   { $2 }
-
-predicate: 
-    | INT DOT INT DOT INT DOT INT           { Ast.Prefix($1, $3, $5, $7, None) }
-    | INT DOT INT DOT INT DOT INT SLASH INT { Ast.Prefix($1, $3, $5, $7, Some $9) }
-	| INT COLON INT						    { Ast.Community ($1, $3) }
-    | TRUE                                  { Ast.True }
-    | FALSE                                 { Ast.False }
-    | predicate OR predicate                { Ast.Or($1, $3) }
-    | predicate AND predicate               { Ast.And($1, $3) }
-	| NOT predicate                         { Ast.Not $2 }
-    | LPAREN predicate RPAREN               { $2 }
+	| ID									 { Ast.Ident ($1, []) }
+	| ID LPAREN exprs RPAREN                 { Ast.Ident ($1, $3) }
+    | expr AND expr                          { Ast.AndExpr ($1, $3) }
+    | expr OR expr                           { Ast.OrExpr ($1, $3) }
+    | expr DIFFERENCE expr                   { Ast.DiffExpr ($1, $3) }
+    | NOT expr                               { Ast.NotExpr $2 }
+    | expr STAR                              { Ast.StarExpr $1 }
+	| expr SHR expr					         { Ast.ShrExpr ($1, $3) }
+    | LPAREN expr RPAREN                     { $2 }
+	| expr RARROW expr                       { Ast.LinkExpr ($1, $3) }
+    | INT DOT INT DOT INT DOT INT            { Ast.PrefixLiteral($1, $3, $5, $7, None) }
+    | INT DOT INT DOT INT DOT INT SLASH INT  { Ast.PrefixLiteral($1, $3, $5, $7, Some $9) }
+	| INT COLON INT						     { Ast.CommunityLiteral ($1, $3) }
+	| INT                                    { Ast.IntLiteral $1 }
+    | TRUE                                   { Ast.True } 
+    | FALSE                                  { Ast.False }
+	| LBRACE RBRACE	                         { Ast.BlockExpr [] }
+	| LBRACE pconstrs RBRACE                 { Ast.BlockExpr $2 }
 
 definitions:
-    | definition                            { [$1] }
-    | definition definitions                { $1 :: $2 }
+    | definition                             { [$1] }
+    | definition definitions                 { $1 :: $2 }
 
 definition:
-    | DEFINE ID	EQUAL regex	                { ($2, Ast.DRegex $4) }
-	| DEFINE ID EQUAL rawexpr               { ($2, Ast.DExpr $4) }
+    | DEFINE ID EQUAL expr	                 { ($2, $4) }

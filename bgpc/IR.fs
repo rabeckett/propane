@@ -128,19 +128,18 @@ let format (config: T) =
                     sb.Append("[Pred=" + predStr + "]") |> ignore
                 | Allow ((m, lp), es) ->
                     match m with 
-                    | NoMatch -> 
-                        sb.Append ("\n  Originate: [Pred=" + predStr + "]") |> ignore
+                    | NoMatch -> sb.Append ("\n  Originate: [Pred=" + predStr + "]") |> ignore
                     | _ ->
                         sb.Append("\n  Allow: ") |> ignore
                         sb.Append("[Pred=" + predStr + ", " + string m + "]") |> ignore
                         if (not deviceConf.Originates) && lp <> 100 then
                             sb.Append(" (LP=" + lp.ToString() + ")") |> ignore
-                        for (peer, acts) in es do
-                            sb.Append("\n    Export: [Peer<-" + peer) |> ignore
-                            if acts <> [] then
-                                let str = Common.List.joinBy "," (List.map string acts)
-                                sb.Append(", " + str) |> ignore
-                            sb.Append("]") |> ignore
+                    for (peer, acts) in es do
+                        sb.Append("\n    Export: [Peer<-" + peer) |> ignore
+                        if acts <> [] then
+                            let str = Common.List.joinBy "," (List.map string acts)
+                            sb.Append(", " + str) |> ignore
+                        sb.Append("]") |> ignore
         sb.Append("\n") |> ignore
     sb.ToString()
 
@@ -289,18 +288,20 @@ let getOutPeerType cg (x:CgState) =
         else RegexMatch (CGraph.ToRegex.constructRegex (CGraph.copyReverseGraph cg) x)
     else PeerMatch x
 
-let getMatches allTopoPeers incomingMatches =
-    let peers, regexes = 
-        List.ofSeq incomingMatches 
-        |> List.partition isPeerMatch
+let getMatches (allPeers, inPeers, outPeers) incomingMatches =
+    let peers, regexes = List.partition isPeerMatch (List.ofSeq incomingMatches)
     let peers = List.map getPeerMatch peers |> Set.ofList
-    let peerLocs = Set.map (fun v -> v.Node.Loc) peers
+    let peerLocs = Set.map CGraph.loc peers
     let mutable matches = 
         List.map (fun r -> Match.PathRE (getRegexMatch r)) regexes
     let states = Set.map (fun v -> v.State) peers
     let eqStates = Set.count states = 1
-    if peerLocs = allTopoPeers && eqStates then 
+    if peerLocs = allPeers && eqStates then 
         matches <- Match.State(string (Set.minElement states),"*") :: matches
+    elif peerLocs = inPeers && eqStates then 
+        matches <- Match.State(string (Set.minElement states),"in") :: matches
+    elif peerLocs = outPeers && eqStates then 
+        matches <- Match.State(string (Set.minElement states),"out") :: matches
     else
         for v in peers do 
             let m = Match.State(string v.State, v.Node.Loc)
@@ -316,26 +317,23 @@ let inline getExport specialCase inExports x v =
         ret
     else [SetComm(string x.State)]
 
-let getExports allTopoPeers x inExports (outgoing: seq<CgState>) unqMatchPeer = 
+let getExports (allPeers, inPeers, outPeers) x inExports (outgoing: seq<CgState>) unqMatchPeer = 
     let toInside, toOutside = 
         List.ofSeq outgoing 
         |> List.partition (fun v -> Topology.isInside v.Node)
-    if List.isEmpty toOutside then 
-        [("*", [SetComm (string x.State)])]
-    else
-        let insideExport = [("in", [SetComm (string x.State)])]
-        let specialCase = ref false
-        let exports = List.ofSeq toOutside |> List.map (fun v -> (v.Node.Loc, getExport specialCase inExports x v)) 
-        if not !specialCase then
-            let sendToLocs = Seq.map (fun v -> v.Node.Loc) outgoing |> Set.ofSeq
-            let sendToLocs = 
-                match unqMatchPeer with
-                | Some x -> Set.add x sendToLocs
-                | None -> sendToLocs
-            if allTopoPeers = sendToLocs then 
-                [("*", [SetComm(string x.State)])]
-            else exports @ insideExport
-        else  exports @ insideExport
+    let insideExport = [("in", [SetComm (string x.State)])]
+    let specialCase = ref false
+    let exports = List.ofSeq toOutside |> List.map (fun v -> (v.Node.Loc, getExport specialCase inExports x v)) 
+    if not !specialCase then
+        let sendToLocs = Seq.map (fun v -> v.Node.Loc) outgoing |> Set.ofSeq
+        let sendToLocs = 
+            match unqMatchPeer with
+            | Some x -> Set.add x sendToLocs
+            | None -> sendToLocs
+        if sendToLocs.IsSupersetOf outPeers then
+            [("*", [SetComm(string x.State)])]
+        else exports @ insideExport
+    else  exports @ insideExport
 
 let updateExports (es: Export list) f : Export list = 
     List.choose f es
@@ -352,7 +350,10 @@ let removeRedundantTag exports m =
             Some (peer, acts') )
 
 let removeCommMatch cg eCounts v m = 
-    let inline unq e = Map.find e eCounts = 1
+    let inline unq e = 
+        match Map.tryFind e eCounts with 
+        | Some 1 -> true
+        | _ -> false
     match m with 
     | Match.State (c,peers) -> 
         if peers = "*" then 
@@ -368,6 +369,14 @@ let edgeCounts (cg: CGraph.T) =
             let key = (e.Source.Node.Loc, e.Target.Node.Loc)
             Common.Map.adjust key 0 ((+) 1) acc ) Map.empty
 
+let getPeerInfo vs =
+    let inline setLocs x = 
+        Set.ofSeq (Seq.map (fun (v: Topology.State) -> v.Loc) x) 
+    let all = vs |> setLocs
+    let allIn = vs |> Seq.filter Topology.isInside |> setLocs
+    let allOut = vs |> Seq.filter Topology.isOutside |> setLocs
+    (all, allIn, allOut)
+
 let genConfig (cg: CGraph.T) (pred: Predicate.T) (ord: Consistency.Ordering) (inExports: IncomingExportMap) : PredConfig * int * int =
     let settings = Args.getSettings ()
     let ain = Topology.alphabet cg.Topo |> fst |> Set.map (fun v -> v.Loc)
@@ -375,9 +384,11 @@ let genConfig (cg: CGraph.T) (pred: Predicate.T) (ord: Consistency.Ordering) (in
     let szRaw = ref 0 
     let szSmart = ref 0
     let mutable config = Map.empty
+    // generate a config for each internal router
     for router in ain do
         let mutable filters = []
         let mutable originates = false
+        // look at the nodes according to preference
         match Map.tryFind router ord with 
         | None -> ()
         | Some prefs ->
@@ -385,32 +396,43 @@ let genConfig (cg: CGraph.T) (pred: Predicate.T) (ord: Consistency.Ordering) (in
             let mutable lp = 101
             for cgstate in prefs do
                 lp <- lp - 1
-                let allTopoPeers = 
-                    cg.Topo.OutEdges cgstate.Node
-                    |> Seq.map (fun e -> e.Target.Loc)
-                    |> Set.ofSeq
+                // get incoming and outgoing topology peer information
+                let allInPeers = cg.Topo.InEdges cgstate.Node |> Seq.map (fun e -> e.Source)
+                let allOutPeers = cg.Topo.OutEdges cgstate.Node |> Seq.map (fun e -> e.Target)
+                let inPeerInfo = getPeerInfo allInPeers
+                let outPeerInfo = getPeerInfo allOutPeers
                 let nsIn = neighborsIn cg cgstate
                 let nsOut = neighbors cg cgstate
+                // find who this node needs to send to and receive from
                 let receiveFrom = Seq.filter CGraph.isRealNode nsIn
                 let sendTo = Seq.filter CGraph.isRealNode nsOut
+                // helps to minimize configuration
                 let peerTypes = Seq.map (getOutPeerType cg) receiveFrom
                 let origin = Seq.exists ((=) cg.Start) nsIn
-                let matches =  if origin then [Match.NoMatch] else getMatches allTopoPeers peerTypes
+                // get the compressed set of matches using *, in, out when possible
+                let matches =  if origin then [Match.NoMatch] else getMatches inPeerInfo peerTypes
+                // get the compressed set of exports taking into account if there is a unique receive peer
                 let unqMatchPeer = 
                     match matches with 
                     | [Match.Peer x] -> Some x
                     | [Match.State(_,x)] -> Some x 
                     | _ -> None
-                let exports = getExports allTopoPeers cgstate inExports sendTo unqMatchPeer                
+                let exports = getExports outPeerInfo cgstate inExports sendTo unqMatchPeer 
+                // perform community minimization while adding the match export filters
                 for m in matches do 
                     let exports = removeRedundantTag exports m
                     let m = removeCommMatch cg eCounts cgstate m
                     filters <- Allow ((m,lp), exports) :: filters
                 originates <- origin || originates
+                // update the compression stats
                 szRaw := !szRaw + (Seq.length nsIn) * (Seq.length nsOut)
                 szSmart := !szSmart + (List.length exports)
         szSmart := !szSmart + (List.length filters)
-        filters <- List.rev (Deny :: filters)
+        // no need for explicit deny if we allow everything
+        match filters with 
+        | [Allow ((Match.Peer "*",_), _)] -> ()
+        | _ -> filters <- List.rev (Deny :: filters)
+        // build the final configuration
         let deviceConf = {Originates=originates; Filters=filters}
         config <- Map.add router deviceConf config
     (pred, config), !szRaw, !szSmart

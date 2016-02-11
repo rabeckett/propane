@@ -114,7 +114,7 @@ let findLinks (topo: T) (froms, tos) =
     pairs
 
 
-type Topo = XmlProvider<"../examples/datacenter.xml">
+type Topo = XmlProvider<"../examples/dc-small.xml">
 
 let readTopology (file: string) : T =
     let g = BidirectionalGraph<State,TaggedEdge<State,unit>>()
