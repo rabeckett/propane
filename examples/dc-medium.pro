@@ -1,27 +1,26 @@
-define PG1 = 1.1.1.0/32
-define PG2 = 1.1.1.1/32
-define PG = PG1 or PG2
-
-define PL1 = 2.2.2.0/32
-define PL2 = 2.2.2.1/32
-define PL = PL1 or PL2
-
-define PAGG  = 1.1.1.1/31
+define PG1 = 1.0.0.0/24
+define PG2 = 1.0.1.0/24
+define PL1 = 2.0.0.0/24
+define PL2 = 2.0.1.1/24
+define PAGG  = 1.0.0.0/16
 
 define routing = {
-    PG => any,
-    PL => always(in)
+	PL1 or PL2 => always(in),
+	PG1 or PG2 => any,
+	true => exit(out)
 }
 
 define ownership = {
 	PG1 => end(A),
-    PG2 => end(B),
-    PL1 => end(E),
-    PL2 => end(F)
+	PG2 => end(B),
+	PL1 => end(E),
+	PL2 => end(F),
+	true => any
 }
 
-define main = routing and ownership
+
+define main = ownership and routing
 
 control {
-    aggregate(PAGG, in -> out)
+	aggregate(PAGG, in -> out)
 }

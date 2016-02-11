@@ -289,23 +289,39 @@ let getOutPeerType cg (x:CgState) =
     else PeerMatch x
 
 let getMatches (allPeers, inPeers, outPeers) incomingMatches =
-    let peers, regexes = List.partition isPeerMatch (List.ofSeq incomingMatches)
-    let peers = List.map getPeerMatch peers |> Set.ofList
+    let inline eqStates states = 
+        Set.count states = 1
+    let peermatches, regexes = List.partition isPeerMatch (List.ofSeq incomingMatches)
+    
+    let mutable peers = Set.ofList (List.map getPeerMatch peermatches)
     let peerLocs = Set.map CGraph.loc peers
+    let peersIn = Set.filter (fun v -> Topology.isInside v.Node) peers
+    let peersOut = Set.filter (fun v -> Topology.isOutside v.Node) peers
+    let peerLocsIn =  Set.map CGraph.loc peersIn
+    let peerLocsOut = Set.map CGraph.loc peersOut
+
     let mutable matches = 
         List.map (fun r -> Match.PathRE (getRegexMatch r)) regexes
-    let states = Set.map (fun v -> v.State) peers
-    let eqStates = Set.count states = 1
-    if peerLocs = allPeers && eqStates then 
+    let states = peers |> Set.map (fun v -> v.State)
+    let statesIn = peers |> Set.filter (fun v -> Topology.isInside v.Node) |> Set.map (fun v -> v.State)
+    let statesOut = peers |> Set.filter (fun v -> Topology.isOutside v.Node) |> Set.map (fun v -> v.State)
+    if peerLocs = allPeers && (eqStates states) then 
         matches <- Match.State(string (Set.minElement states),"*") :: matches
-    elif peerLocs = inPeers && eqStates then 
-        matches <- Match.State(string (Set.minElement states),"in") :: matches
-    elif peerLocs = outPeers && eqStates then 
-        matches <- Match.State(string (Set.minElement states),"out") :: matches
-    else
-        for v in peers do 
-            let m = Match.State(string v.State, v.Node.Loc)
+        peers <- Set.empty
+    else 
+        if peerLocsIn = inPeers && (eqStates statesIn) && not peerLocsIn.IsEmpty then 
+            matches <- Match.State(string (Set.minElement statesIn),"in") :: matches
+            peers <- Set.difference peers peersIn
+        if peerLocsOut = outPeers && (eqStates statesOut) && not peerLocsOut.IsEmpty then 
+            matches <- Match.Peer("out") :: matches
+            peers <- Set.difference peers peersOut
+        for v in peers do
+            let m = 
+                if Topology.isInside v.Node then  
+                    Match.State(string v.State, v.Node.Loc)
+                else Match.Peer(v.Node.Loc)
             matches <- m :: matches
+
     matches
 
 let inline getExport specialCase inExports x v = 
@@ -431,6 +447,7 @@ let genConfig (cg: CGraph.T) (pred: Predicate.T) (ord: Consistency.Ordering) (in
         // no need for explicit deny if we allow everything
         match filters with 
         | [Allow ((Match.Peer "*",_), _)] -> ()
+        | [Allow ((Match.NoMatch,_), _)] -> ()
         | _ -> filters <- List.rev (Deny :: filters)
         // build the final configuration
         let deviceConf = {Originates=originates; Filters=filters}

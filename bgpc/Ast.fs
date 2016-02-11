@@ -412,7 +412,7 @@ let rec expandBlocks (e: Expr)  =
 
 let makePolicyPairs (ast: T) (topo: Topology.T) : PolicyPair list =
     match Map.tryFind "main" ast.Defs with 
-    | None -> error (sprintf "\nMain policy not defined \nUse define main = ...")
+    | None -> error (sprintf "\nMain policy not defined, use define main = ...")
     | Some e ->
         let e = substitute ast.Defs e
         match wellFormed e with

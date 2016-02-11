@@ -24,10 +24,10 @@
   <edge source="C" target="Y" directed="false"></edge>
   <edge source="D" target="X" directed="false"></edge>
   <edge source="D" target="Y" directed="false"></edge>
-  <edge source="E" target="X" directed="false"></edge>
-  <edge source="E" target="Y" directed="false"></edge>
-  <edge source="F" target="X" directed="false"></edge>
-  <edge source="F" target="Y" directed="false"></edge>
+  <edge source="G" target="X" directed="false"></edge>
+  <edge source="G" target="Y" directed="false"></edge>
+  <edge source="H" target="X" directed="false"></edge>
+  <edge source="H" target="Y" directed="false"></edge>
   <edge source="X" target="CORE" directed="false"></edge>
   <edge source="Y" target="CORE" directed="false"></edge>
 </topology>
