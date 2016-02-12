@@ -65,7 +65,7 @@ type CConstraint =
 type PolicyPair = (Predicate.T * Regex.REBuilder * Regex.T list)
 
 type T = 
-    {Defs: Map<string, Expr>;
+    {Defs: Map<string, string list * Expr>;
      CConstraints: ControlConstraints}
 
 
@@ -84,7 +84,7 @@ let builtInRes =
         ["start"; "end"; "enter"; 
          "exit"; "valleyfree"; "always"; 
          "through"; "avoid"; "internal"; 
-         "external"; "any"; "none"; "in"; "out"]
+         "external"; "any"; "drop"; "in"; "out"]
 
 let builtInConstraints = 
     Set.ofList 
@@ -101,25 +101,39 @@ let format (e: Expr) : string =
    an expression. Keep track of seen expansions
    to prevent recursive definitions *)
 
-let substitute (defs: Map<string, Expr>) (e: Expr) : Expr = 
-    let rec aux seen e =
+let substitute (defs: Map<string, string list * Expr>) (e: Expr) : Expr = 
+    let rec aux defs seen e =
         match e with
-        | BlockExpr es -> BlockExpr (List.map (fun (e1,e2) -> (aux seen e1, aux seen e2)) es)
-        | LinkExpr (e1, e2) -> LinkExpr (aux seen e1, aux seen e2)
-        | DiffExpr (e1, e2) -> DiffExpr (aux seen e1, aux seen e2)
-        | ShrExpr (e1, e2) -> ShrExpr (aux seen e1, aux seen e2)
-        | OrExpr (e1, e2) -> OrExpr (aux seen e1, aux seen e2)
-        | AndExpr (e1, e2) -> AndExpr (aux seen e1, aux seen e2)
-        | StarExpr e1 -> StarExpr (aux seen e1)
-        | NotExpr e1 -> NotExpr (aux seen e1)
+        | BlockExpr es -> BlockExpr (List.map (fun (e1,e2) -> (aux defs seen e1, aux defs seen e2)) es)
+        | LinkExpr (e1, e2) -> LinkExpr (aux defs seen e1, aux defs seen e2)
+        | DiffExpr (e1, e2) -> DiffExpr (aux defs seen e1, aux defs seen e2)
+        | ShrExpr (e1, e2) -> ShrExpr (aux defs seen e1, aux defs seen e2)
+        | OrExpr (e1, e2) -> OrExpr (aux defs seen e1, aux defs seen e2)
+        | AndExpr (e1, e2) -> AndExpr (aux defs seen e1, aux defs seen e2)
+        | StarExpr e1 -> StarExpr (aux defs seen e1)
+        | NotExpr e1 -> NotExpr (aux defs seen e1)
         | True | False | PrefixLiteral _ | CommunityLiteral _ | IntLiteral _ -> e
         | Ident (id, []) ->
             if Set.contains id seen then error (sprintf "\nRecursive definition of %s" id)
             match Map.tryFind id defs with
             | None -> e
-            | Some e1 -> aux (Set.add id seen) e1
-        | Ident (_,_) -> e
-    aux Set.empty e
+            | Some (_,e1) -> aux defs (Set.add id seen) e1
+        | Ident (id,args) -> 
+            // substitute for args
+            if Set.contains id seen then error (sprintf "\nRecursive definition of %s" id)
+            match Map.tryFind id defs with
+            | None -> e
+            | Some (ids,e1) -> 
+                let required = List.length ids 
+                let provided = List.length args
+                if required <> provided then 
+                    error (sprintf "\nInvalid number of parameters to function %s \nRequired %d parameters, but provided %d" id required provided)
+                let defs' =
+                    List.zip ids args
+                    |> List.fold (fun acc (id,e) -> Map.add id ([], e) acc) defs
+                aux defs' (Set.add id seen) e1
+            //Ident (id, List.map (aux seen) args)
+    aux defs Set.empty e
 
 (* Test well-formedness of an expression. 
    Ensures expressions are of the proper type, 
@@ -245,7 +259,7 @@ let rec buildRegex (ast: T) (reb: Regex.REBuilder) (r: Expr) : Regex.LazyT =
         | "internal" -> ignore (checkParams id 0 args); reb.Internal()
         | "external" -> ignore (checkParams id 0 args); reb.External()
         | "any" -> ignore (checkParams id 0 args); reb.Any()
-        | "none" -> ignore (checkParams id 0 args); reb.Empty
+        | "drop" -> ignore (checkParams id 0 args); reb.Empty
         | "in" -> ignore (checkParams id 0 args); reb.Inside 
         | "out" -> ignore (checkParams id 0 args);  reb.Outside
         | l -> 
@@ -377,7 +391,7 @@ let checkBlock pcs =
     if rollingPred <> Predicate.bot then
         let s = Predicate.example rollingPred
         warning (sprintf "\nIncomplete prefixes in block \nAn example of a prefix that is not matched: %s" s)
-        pcs @ [(Predicate.top, [Ident ("none", [])])]
+        pcs @ [(Predicate.top, [Ident ("drop", [])])]
     else pcs
 
 let combineBlocks pcs1 pcs2 (op: BinOp) =
@@ -412,13 +426,11 @@ let rec expandBlocks (e: Expr)  =
 
 let makePolicyPairs (ast: T) (topo: Topology.T) : PolicyPair list =
     match Map.tryFind "main" ast.Defs with 
-    | None -> error (sprintf "\nMain policy not defined, use define main = ...")
-    | Some e ->
+    | Some ([],e) ->
         let e = substitute ast.Defs e
         match wellFormed e with
         | BlockType -> ()
         | typ ->
-            printfn "Expression: %A" e 
             error (sprintf "\nExpected block in main policy \nGot an expression with type %s" (string typ))
         let topLevel = 
             expandBlocks e
@@ -428,3 +440,4 @@ let makePolicyPairs (ast: T) (topo: Topology.T) : PolicyPair list =
             let res = List.map (buildRegex ast reb) res
             let res = List.map reb.Build res
             (p, reb, res) ) topLevel
+    | _ -> error (sprintf "\nMain policy not defined, use define main = ...")

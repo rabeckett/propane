@@ -1,5 +1,7 @@
 ﻿module Args
 
+open System.IO
+
 type Spec = 
     | Unit of (unit -> unit)
     | String of (string -> unit)
@@ -29,6 +31,9 @@ type T =
 
 exception InvalidArgException of string
 
+let currentDir = System.Environment.CurrentDirectory
+let sep = string Path.DirectorySeparatorChar
+
 let polFile = ref None
 let topoFile = ref None
 let outFile = ref None
@@ -38,7 +43,7 @@ let usePrepending = ref false
 let useNoExport = ref false
 let test = ref false
 let debug = ref 0
-let debugDir = ref ("debug" + string System.IO.Path.DirectorySeparatorChar)
+let debugDir = ref (currentDir + sep + "debug" + sep)
 let compression = ref true
 let experiment = ref None
 let checkEnter = ref false
@@ -47,11 +52,10 @@ let stats = ref false
 
 let settings = ref None
 
-
 let cleanDir dir = 
-    if System.IO.Directory.Exists dir then
-        System.IO.Directory.Delete(dir, true)
-    System.IO.Directory.CreateDirectory(dir).Create()
+    if Directory.Exists dir then
+        Directory.Delete(dir, true)
+    Directory.CreateDirectory(dir).Create()
 
 let setMED s = 
     match s with 
@@ -78,7 +82,7 @@ let setFormat s =
     | _ -> raise (InvalidArgException ("Invalid format value: " + s))
 
 let setDebugDir s =
-    debugDir := s + string System.IO.Path.DirectorySeparatorChar
+    debugDir := currentDir + sep + s + sep
 
 let setDebug s = 
     let i = 
@@ -111,32 +115,38 @@ let setStats s =
     | "none" -> stats := false
     | _ -> raise (InvalidArgException (sprintf "Invalid stats value: %s" s))
 
-let usage = "Usage: bgpc.exe [options]"
+let setFile s = 
+    let f = currentDir + sep + s
+    if File.Exists f then f
+    else raise (InvalidArgException (sprintf "Invalid file: %s" s))
+
+let usage = "Usage: propane [options]"
 let args = 
-    [|("--pol", String (fun s -> polFile := Some s), "Policy file");
-      ("--topo", String (fun s -> topoFile := Some s), "Topology file");
-      ("--out", String (fun s -> outFile := Some s), "Output file");
-      ("--failures:any|n", String setFailures, "Failure safety for aggregation (default any)");
-      ("--med:on|off", String setMED, "Use MED attribute (default off)");
-      ("--prepending:on|off", String setPrepending, "Use AS path prepending (default off)");
-      ("--no-export:on|off", String setNoExport, "Use no-export community (default off)");
-      ("--format:IR|Templ", String setFormat, "Output format (IR, Template)");
-      ("--stats:csv|none", String setStats, "Display performance statistics to stdout (default none)");
-      ("--checkenter:on|off", String (fun s -> setCheckEnter s), "Run experiment for dc or core");
-      ("--test", Unit (fun () -> test := true), "Run unit tests");
-      ("--debug-dir", String setDebugDir, "Debugging directory (default 'debug')");
-      ("--debug:0|1|2|3", String setDebug, "Debug level (default lowest 0)");
-      ("--help", Unit (fun () -> ()), "Display this message");
+    [|("-pol", String (fun s -> polFile := Some (setFile s)), "Policy file");
+      ("-topo", String (fun s -> topoFile := Some (setFile s)), "Topology file");
+      ("-out", String (fun s -> outFile := Some s), "Output file");
+      ("-failures:any|n", String setFailures, "Failure safety for aggregation (default any)");
+      ("-med:on|off", String setMED, "Use MED attribute (default off)");
+      ("-prepending:on|off", String setPrepending, "Use AS path prepending (default off)");
+      ("-no-export:on|off", String setNoExport, "Use no-export community (default off)");
+      ("-format:IR|Templ", String setFormat, "Output format (IR, Template)");
+      ("-stats:csv|none", String setStats, "Display performance statistics to stdout (default none)");
+      ("-checkenter:on|off", String (fun s -> setCheckEnter s), "Run experiment for dc or core");
+      ("-test", Unit (fun () -> test := true), "Run unit tests");
+      ("-debug-dir", String setDebugDir, "Debugging directory (default 'debug')");
+      ("-debug:0|1|2|3", String setDebug, "Debug level (default lowest 0)");
+      ("-help", Unit (fun () -> ()), "Display this message");
     |]
 
 let printHelp () = 
     let (s,_,_) = Array.maxBy (fun (s,_, _) -> String.length s) args
     let max = String.length s
-    printfn "%s" usage
+    printfn "\n%s" usage
     for (param, _, descr) in args do
         let nspaces = max - (String.length param) + 3
         let spaces = String.replicate nspaces " "
         printfn "%s%s%s" param spaces descr
+    printfn ""
 
 let exit () = 
     printHelp () 
@@ -148,7 +158,7 @@ let lookup (s: string) next i =
         let s = arr.[0]
         match Array.tryFind (fun (s' : string,_,_) -> s = s'.Split(':').[0]) args with
         | None -> 
-            printfn "Unrecognized option: %s" s
+            printfn "\nUnrecognized option: %s" s
             exit ()
         | Some (p,run,descr) ->
             match run with
@@ -160,11 +170,11 @@ let lookup (s: string) next i =
                 else
                     match next with 
                     | None ->
-                        printfn "Invalid usage: %s, %s" p descr
+                        printfn "\nInvalid usage: %s, %s" p descr
                         exit ()
                     | Some s' -> f s'; i + 2
     with InvalidArgException msg -> 
-        printfn "%s" msg
+        printfn "\n%s" msg
         exit ()
 
 let parse (argv: string[]) : unit =

@@ -121,9 +121,11 @@ module Map =
 
 module Error =
 
-    let exit () = exit 0
+    let exit () = 
+        printfn ""
+        exit 0
 
-    let obj = new Object()
+    let didWarn = ref false
 
     let writeColor (s: string) c = 
         Console.ForegroundColor <- c
@@ -131,30 +133,27 @@ module Error =
         Console.ResetColor ()
 
     let error (s: string) = 
-        lock obj (fun () ->  
-            writeColor "[Error]:" ConsoleColor.DarkRed
-            Console.WriteLine s
-            Console.WriteLine ())
+        lock didWarn (fun () ->  
+            writeColor "\n[Error]:" ConsoleColor.DarkRed
+            Console.WriteLine s)
         exit ()
 
     let warning (s: string) =
         lock obj (fun () -> 
-            writeColor "[Warning]: " ConsoleColor.DarkYellow
-            Console.WriteLine s
-            Console.WriteLine ())
+            writeColor "\n[Warning]: " ConsoleColor.DarkYellow
+            didWarn := true
+            Console.WriteLine s)
 
     let parseError (s: string) =
-        lock obj (fun () -> 
-            writeColor "[Parse Error]: " ConsoleColor.DarkRed
-            Console.WriteLine s
-            Console.WriteLine ())
+        lock didWarn (fun () -> 
+            writeColor "\n[Parse Error]: " ConsoleColor.DarkRed
+            Console.WriteLine s)
         exit ()
 
     let unimplementable (s: string) =
-        lock obj (fun () ->
-            writeColor "[Unimplementable]: " ConsoleColor.DarkRed
-            Console.WriteLine s
-            Console.WriteLine ())
+        lock didWarn (fun () ->
+            writeColor "\n[Unimplementable]: " ConsoleColor.DarkRed
+            Console.WriteLine s)
         exit ()
 
     type Result<'a, 'b> = 

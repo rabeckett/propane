@@ -520,6 +520,7 @@ let testPrefixes () =
         if a <> b then
             printfn "[Failed]: expected: %s, but got %s" a b
 
+(*
 let testRegexWellFormedness () =
     printfn "Testing regex well-formedness..."
     let reb = Regex.REBuilder tStretchingManWAN
@@ -530,7 +531,7 @@ let testRegexWellFormedness () =
         try 
             ignore (reb.Build p)
             printfn "\n[Failed]:\n  Should catch invalid path shape for regex: %s" (p.ToString())
-        with Regex.InvalidPathShapeException is -> ()
+        with Regex.InvalidPathShapeException is -> () *)
 
 let testTopologyWellFormedness () =
     printfn "Testing topology well-formedness..."

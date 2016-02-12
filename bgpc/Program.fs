@@ -5,7 +5,6 @@ open Common.Error
 
 [<EntryPoint>]
 let main argv =
-    printfn ""
     ignore (Args.parse argv)
     let settings = Args.getSettings ()
     if settings.Test then
@@ -25,9 +24,9 @@ let main argv =
         let (ir, k, _) = IR.compileAllPrefixes fullName topo pairs aggs
         match k, settings.Failures with
         | Some (i, x, y), Args.Any -> 
-            error (sprintf "\nRequired all-failure safety for aggregation, but only got %d-failure safety \nPossible weak point between %s and %s" i x y)
+            error (sprintf "\nRequired all-failure safety for aggregation, but only got %d-failure safety \nCan possibly disconnect prefix at %s from aggregate at %s" i x y)
         | Some (i, x, y), Args.Concrete j when i < j ->
-            error (sprintf "\nRequired %d-failure safety for aggregation, but only got %d-failure safety \nPossible weak point between %s and %s" j i x y)
+            error (sprintf "\nRequired %d-failure safety for aggregation, but only got %d-failure safety \nCan possibly disconnect prefix at %s from aggregate at %s" j i x y)
         | _ -> ()
         match settings.OutFile with
         | None -> ()
@@ -36,5 +35,7 @@ let main argv =
         match settings.Format with 
         | Args.IR -> ()
         | Args.Template -> () 
+        if !Common.Error.didWarn then 
+            printfn ""
 
     0

@@ -29,7 +29,7 @@ type ControlConstraints = (string * Expr list) list
 
 /// Ast type with final definitions, control contraint, task definitions, and the final policy
 type T = 
-    {Defs: Map<string, Expr>;
+    {Defs: Map<string, string list * Expr>;
      CConstraints: ControlConstraints}
 
 /// Final pairs of predicate, regular preferences after merging tasks

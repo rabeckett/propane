@@ -343,9 +343,7 @@ let startingLocs (dfa: Automaton) : Set<string> =
         else acc
     ) Set.empty dfa.trans
 
-
-exception InvalidPathShapeException of string list
-
+   
 type REBuilder(topo: Topology.T) =
     let unknownName = "out"
     let (ins, outs, alph) = getAlphabet topo
@@ -391,7 +389,7 @@ type REBuilder(topo: Topology.T) =
         match this.WellFormed re with
         | None -> convert re
         | Some cs ->
-            raise (InvalidPathShapeException cs)
+            error (sprintf "\Invalid path shape: %s \nPaths must go through the internal network exactly once" (string cs))
 
     member __.Empty = LEmpty
     member __.Epsilon = LEpsilon
