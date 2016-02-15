@@ -30,12 +30,13 @@ type CConstraint =
     | CMaxRoutes of uint32 * Set<string> * Set<string>
     | CLongestPath of uint32
 
-type PathConstraints = (Expr * Expr) list
 type ControlConstraints = (string * Expr list) list
+type Definitions = Map<string, string list * Expr>
 
 /// Ast type with final definitions, control contraint, task definitions, and the final policy
 type T = 
-    {Defs: Map<string, string list * Expr>;
+    {Input: string [];
+     Defs: Definitions;
      CConstraints: ControlConstraints}
 
 /// Final pairs of predicate, regular preferences after merging tasks

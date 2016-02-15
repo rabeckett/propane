@@ -55,12 +55,8 @@ type Value =
         | LinkValue -> "Links"
         | IntValue -> "Int"
 
-type PathConstraints = (Expr * Expr) list
 type ControlConstraints = (string * Expr list) list
-
-type Task =
-    {Name: string;
-     PConstraints: PathConstraints}
+type Definitions = Map<string, string list * Expr>
 
 type CConstraint = 
     | CAggregate of Prefix.T list * Set<string> * Set<string>
@@ -71,7 +67,8 @@ type CConstraint =
 type PolicyPair = (Predicate.T * Regex.REBuilder * Regex.T list)
 
 type T = 
-    {Defs: Map<string, string list * Expr>;
+    {Input: string [];
+     Defs: Definitions;
      CConstraints: ControlConstraints}
 
 
@@ -105,8 +102,10 @@ let dummyPos =
      ELine = -1;
      ECol = -1}
 
-let format (e: Expr) : string =
-    ""
+(* Marking errors and warnings *)
+
+
+
 
 (* Helper functions *)
 

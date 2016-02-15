@@ -41,7 +41,7 @@ let buildDefinitions defs =
 %}
 
 %start start
-%type <Ast.T> start
+%type <Ast.Definitions * Ast.ControlConstraints> start
 
 %token <LineInfo> TRUE
 %token <LineInfo> FALSE
@@ -87,8 +87,8 @@ let buildDefinitions defs =
 %%
 
 start: 
-	| definitions EOF                            { {Defs=buildDefinitions $1; CConstraints=[]} }
-	| definitions control EOF                    { {Defs=buildDefinitions $1; CConstraints=$2} }
+	| definitions EOF                            { (buildDefinitions $1, []) }
+	| definitions control EOF                    { (buildDefinitions $1, $2) }
 
 control:
 	| CONTROL LBRACE RBRACE                      { [] }
