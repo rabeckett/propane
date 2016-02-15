@@ -16,7 +16,7 @@ let readFromFile fname =
         | Lexer.EofInComment ->
             parseError ("End of file detected in comment")
         | _ ->
-           let pos = lexbuf.EndPos
-           let line = pos.Line
-           let column = pos.Column
-           parseError (sprintf "Line: %d, Char: %d" line column)
+            let pos = lexbuf.EndPos
+            let line = pos.Line
+            let column = pos.Column
+            parseError (sprintf "Line: %d, Char: %d" line column)

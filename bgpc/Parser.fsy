@@ -3,6 +3,33 @@ open System
 open Ast
 open Common.Error
 open Microsoft.FSharp.Collections
+open Microsoft.FSharp.Text.Lexing
+
+type LineInfo = Position * Position
+
+let pos ((p1, p2): Position * Position) : Ast.Position =
+    {SLine = p1.Line; 
+     SCol = p1.Column;
+     ELine = p2.Line;
+     ECol = p2.Column}
+
+let fromStartEnd (p1: Ast.Position) (p2: Ast.Position) : Ast.Position =
+    {SLine = p1.SLine; 
+     SCol = p1.SCol;
+     ELine = p2.ELine;
+     ECol = p2.ECol}
+
+let buildUnaryExpr left p x : Ast.Position * Expr = 
+    let p1 = pos p
+    let p2 = Ast.getPosition x in 
+    if left then
+        (fromStartEnd p1 p2, x)
+    else (fromStartEnd p2 p1, x)
+
+let buildBinaryExpr x y = 
+    let p1 = Ast.getPosition x in 
+    let p2 = Ast.getPosition y in
+    (fromStartEnd p1 p2, x, y)
 
 let buildDefinitions defs = 
     List.fold (fun acc (name, x) -> 
@@ -16,35 +43,37 @@ let buildDefinitions defs =
 %start start
 %type <Ast.T> start
 
-%token <string> ID
-%token <System.UInt32> INT
+%token <LineInfo> TRUE
+%token <LineInfo> FALSE
+%token <LineInfo * string> ID
+%token <LineInfo * System.UInt32> INT
 
-%token EQUAL
-%token LPAREN 
-%token RPAREN 
-%token LBRACKET 
-%token RBRACKET 
-%token LBRACE 
-%token RBRACE 
-%token COMMA 
-%token SLASH
-%token COLON 
-%token RARROW 
-%token ROCKET 
-%token DOT 
+%token <LineInfo> NOT 
+%token <LineInfo> STAR 
+%token <LineInfo> DIFFERENCE
+%token <LineInfo> SHR 
+%token <LineInfo> AND 
+%token <LineInfo> OR
+
+%token <LineInfo> DEFINE
+%token <LineInfo> CONTROL
+
+%token <LineInfo> EQUAL
+%token <LineInfo> LPAREN 
+%token <LineInfo> RPAREN 
+%token <LineInfo> LBRACKET 
+%token <LineInfo> RBRACKET 
+%token <LineInfo> LBRACE 
+%token <LineInfo> RBRACE 
+%token <LineInfo> COMMA 
+%token <LineInfo> SLASH
+%token <LineInfo> COLON 
+%token <LineInfo> RARROW 
+%token <LineInfo> ROCKET 
+%token <LineInfo> DOT
+
 %token EOF
- 
-%token DIFFERENCE
-%token NOT 
-%token STAR 
-%token SHR 
-%token AND 
-%token OR 
-%token TRUE 
-%token FALSE
 
-%token DEFINE
-%token CONTROL
 
 %nonassoc EQUALS
 %left RARROW
@@ -79,41 +108,44 @@ cconstrs:
     | cconstr COMMA cconstrs                     { $1 :: $3 }
 
 cconstr:
-    | ID                                         { ($1, []) }
-    | ID LPAREN exprs RPAREN                     { ($1, $3) }
+    | ID                                         { (snd $1, []) }
+    | ID LPAREN exprs RPAREN                     { (snd $1, $3) }
 
 exprs:
     | expr                                       { [$1] }
     | expr COMMA exprs                           { $1 :: $3 }
 
 expr:
-	| ID									     { Ast.Ident ($1, []) }
-	| ID LPAREN exprs RPAREN                     { Ast.Ident ($1, $3) }
-    | expr AND expr                              { Ast.AndExpr ($1, $3) }
-    | expr OR expr                               { Ast.OrExpr ($1, $3) }
-    | expr DIFFERENCE expr                       { Ast.DiffExpr ($1, $3) }
-    | NOT expr                                   { Ast.NotExpr $2 }
-    | expr STAR                                  { Ast.StarExpr $1 }
-	| expr SHR expr					             { Ast.ShrExpr ($1, $3) }
+	| ID									     { Ast.Ident (pos (fst $1), (snd $1), []) }
+	| ID LPAREN exprs RPAREN                     { Ast.Ident (pos (fst $1), (snd $1), $3) }
+    | expr AND expr                              { Ast.AndExpr (buildBinaryExpr $1 $3) }
+    | expr OR expr                               { Ast.OrExpr (buildBinaryExpr $1 $3) }
+    | expr DIFFERENCE expr                       { Ast.DiffExpr (buildBinaryExpr $1 $3) }
+	| expr SHR expr					             { Ast.ShrExpr (buildBinaryExpr $1 $3) }
+    | NOT expr                                   { Ast.NotExpr (buildUnaryExpr true $1 $2) }
+    | expr STAR                                  { Ast.StarExpr (buildUnaryExpr false $2 $1) }
     | LPAREN expr RPAREN                         { $2 }
-	| expr RARROW expr                           { Ast.LinkExpr ($1, $3) }
-    | INT DOT INT DOT INT DOT INT                { Ast.PrefixLiteral($1, $3, $5, $7, None) }
-    | INT DOT INT DOT INT DOT INT SLASH INT      { Ast.PrefixLiteral($1, $3, $5, $7, Some $9) }
-	| INT COLON INT						         { Ast.CommunityLiteral ($1, $3) }
-	| INT                                        { Ast.IntLiteral $1 }
-    | TRUE                                       { Ast.True } 
-    | FALSE                                      { Ast.False }
-	| LBRACE RBRACE	                             { Ast.BlockExpr [] }
-	| LBRACE pconstrs RBRACE                     { Ast.BlockExpr $2 }
+	| expr RARROW expr                           { Ast.LinkExpr (buildBinaryExpr $1 $3) }
+    | INT DOT INT DOT INT DOT INT                { let p = fromStartEnd (pos (fst $1)) (pos (fst $7)) in
+                                                   Ast.PrefixLiteral (p, (snd $1, snd $3, snd $5, snd $7, None)) }
+    | INT DOT INT DOT INT DOT INT SLASH INT      { let p = fromStartEnd (pos (fst $1)) (pos (fst $9)) in
+                                                   Ast.PrefixLiteral (p,(snd $1, snd $3, snd $5, snd $7, Some (snd $9))) }
+	| INT COLON INT						         { let p = fromStartEnd (pos (fst $1)) (pos (fst $3)) in
+                                                   Ast.CommunityLiteral (p,(snd $1, snd $3)) }
+	| INT                                        { Ast.IntLiteral (pos (fst $1), snd $1) }
+    | TRUE                                       { Ast.True (pos $1) } 
+    | FALSE                                      { Ast.False (pos $1) }
+	| LBRACE RBRACE	                             { Ast.BlockExpr (fromStartEnd (pos $1) (pos $2), []) }
+	| LBRACE pconstrs RBRACE                     { Ast.BlockExpr (fromStartEnd (pos $1) (pos $3), $2) }
 
 ids:
-	| ID                                         { [$1] }
-	| ID COMMA ids                               { $1 :: $3 }
+	| ID                                         { [snd $1] }
+	| ID COMMA ids                               { (snd $1) :: $3 }
 
 definitions:
     | definition                                 { [$1] }
     | definition definitions                     { $1 :: $2 }
 
 definition:
-    | DEFINE ID EQUAL expr	                     { ($2, ([], $4)) }
-    | DEFINE ID LPAREN ids RPAREN EQUAL expr     { ($2, ($4, $7)) }
+    | DEFINE ID EQUAL expr	                     { (snd $2, ([], $4)) }
+    | DEFINE ID LPAREN ids RPAREN EQUAL expr     { (snd $2, ($4, $7)) }

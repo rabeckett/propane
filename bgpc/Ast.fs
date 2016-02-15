@@ -3,21 +3,27 @@
 open Topology
 open Common.Error
 
+type Position = 
+    {SLine: int;
+     SCol: int;
+     ELine: int;
+     ECol: int;}
+
 type Expr =
-    | Ident of string * Expr list
-    | BlockExpr of (Expr * Expr) list
-    | LinkExpr of Expr * Expr
-    | DiffExpr of Expr * Expr
-    | StarExpr of Expr
-    | ShrExpr of Expr * Expr
-    | OrExpr of Expr * Expr
-    | AndExpr of Expr * Expr
-    | NotExpr of Expr
-    | PrefixLiteral of uint32 * uint32 * uint32 * uint32 * uint32 option
-    | CommunityLiteral of uint32 * uint32 
-    | IntLiteral of uint32
-    | True
-    | False
+    | Ident of Position * string * Expr list
+    | BlockExpr of Position * (Expr * Expr) list
+    | LinkExpr of Position * Expr * Expr
+    | DiffExpr of Position * Expr * Expr
+    | StarExpr of Position * Expr
+    | ShrExpr of Position * Expr * Expr
+    | OrExpr of Position * Expr * Expr
+    | AndExpr of Position * Expr * Expr
+    | NotExpr of Position * Expr
+    | PrefixLiteral of Position * (uint32 * uint32 * uint32 * uint32 * uint32 option)
+    | CommunityLiteral of Position * (uint32 * uint32) 
+    | IntLiteral of Position * uint32
+    | True of Position
+    | False of Position
 
 type Type = 
     | LinkType
@@ -93,30 +99,49 @@ let builtInConstraints =
 
 let builtIns = Set.union builtInRes builtInConstraints
 
+let dummyPos = 
+    {SLine = -1;
+     SCol = -1;
+     ELine = -1;
+     ECol = -1}
 
 let format (e: Expr) : string =
     ""
 
-(* Helper functions for operating on each subexpression *)
+(* Helper functions *)
+
+let getPosition (e: Expr) = 
+    match e with
+    | LinkExpr (p, _, _)  
+    | DiffExpr (p, _, _)  
+    | ShrExpr (p, _, _) 
+    | OrExpr (p, _, _) 
+    | AndExpr (p, _, _)
+    | StarExpr (p,_)
+    | BlockExpr (p,_)
+    | NotExpr (p,_)
+    | True p | False p | PrefixLiteral (p,_) | CommunityLiteral (p,_) | IntLiteral (p,_)
+    | Ident (p, _, _) -> p
+
 let rec iter f (e: Expr) =
     f e
     match e with
-    | BlockExpr es -> List.iter (fun (e1,e2) -> iter f e1; iter f e2) es
-    | LinkExpr (e1, e2)  
-    | DiffExpr (e1, e2)  
-    | ShrExpr (e1, e2) 
-    | OrExpr (e1, e2) 
-    | AndExpr (e1, e2) -> iter f e1; iter f e2
-    | StarExpr e1
-    | NotExpr e1 -> iter f e1
-    | True | False | PrefixLiteral _ | CommunityLiteral _ | IntLiteral _ -> ()
-    | Ident (id, args) -> List.iter f args
+    | BlockExpr (_,es) -> List.iter (fun (e1,e2) -> iter f e1; iter f e2) es
+    | LinkExpr (_, e1, e2)  
+    | DiffExpr (_, e1, e2)  
+    | ShrExpr (_, e1, e2) 
+    | OrExpr (_, e1, e2) 
+    | AndExpr (_, e1, e2) -> iter f e1; iter f e2
+    | StarExpr (_,e1)
+    | NotExpr (_,e1) -> iter f e1
+    | True _ | False _ | PrefixLiteral _ | CommunityLiteral _ | IntLiteral _ -> ()
+    | Ident (_, id, args) -> List.iter f args
 
 (* Compiler warnings for common mistakes *)
 
 let getUsed seen e = 
     match e with 
-    | Ident(id, _) -> 
+    | Ident(_, id, _) -> 
         seen := Set.add id !seen
     | _ -> ()
 
@@ -151,25 +176,25 @@ let warnUnused (ast: T) (e: Expr) : unit =
 let substitute (defs: Map<string, string list * Expr>) (e: Expr) : Expr = 
     let rec aux defs seen e =
         match e with
-        | BlockExpr es -> BlockExpr (List.map (fun (e1,e2) -> (aux defs seen e1, aux defs seen e2)) es)
-        | LinkExpr (e1, e2) -> LinkExpr (aux defs seen e1, aux defs seen e2)
-        | DiffExpr (e1, e2) -> DiffExpr (aux defs seen e1, aux defs seen e2)
-        | ShrExpr (e1, e2) -> ShrExpr (aux defs seen e1, aux defs seen e2)
-        | OrExpr (e1, e2) -> OrExpr (aux defs seen e1, aux defs seen e2)
-        | AndExpr (e1, e2) -> AndExpr (aux defs seen e1, aux defs seen e2)
-        | StarExpr e1 -> StarExpr (aux defs seen e1)
-        | NotExpr e1 -> NotExpr (aux defs seen e1)
-        | True | False | PrefixLiteral _ | CommunityLiteral _ | IntLiteral _ -> e
-        | Ident (id, []) ->
+        | BlockExpr (p,es) -> BlockExpr (p, List.map (fun (e1,e2) -> (aux defs seen e1, aux defs seen e2)) es)
+        | LinkExpr (p, e1, e2) -> LinkExpr (p, aux defs seen e1, aux defs seen e2)
+        | DiffExpr (p, e1, e2) -> DiffExpr (p, aux defs seen e1, aux defs seen e2)
+        | ShrExpr (p, e1, e2) -> ShrExpr (p, aux defs seen e1, aux defs seen e2)
+        | OrExpr (p, e1, e2) -> OrExpr (p, aux defs seen e1, aux defs seen e2)
+        | AndExpr (p, e1, e2) -> AndExpr (p, aux defs seen e1, aux defs seen e2)
+        | StarExpr (p, e1) -> StarExpr (p, aux defs seen e1)
+        | NotExpr (p, e1) -> NotExpr (p, aux defs seen e1)
+        | True _ | False _ | PrefixLiteral _ | CommunityLiteral _ | IntLiteral _ -> e
+        | Ident (_, id, []) ->
             if Set.contains id seen then error (sprintf "Recursive definition of %s" id)
             match Map.tryFind id defs with
             | None -> e
             | Some (_,e1) -> aux defs (Set.add id seen) e1
-        | Ident (id,es) -> 
+        | Ident (p, id,es) -> 
             // substitute for args
             if Set.contains id seen then error (sprintf "Recursive definition of %s" id)
             match Map.tryFind id defs with
-            | None -> Ident(id, List.map (aux defs seen) es)
+            | None -> Ident(p, id, List.map (aux defs seen) es)
             | Some (ids,e1) -> 
                 let required = List.length ids 
                 let provided = List.length es
@@ -200,46 +225,46 @@ let wellFormedPrefix (a,b,c,d,bits) =
 let wellFormed (e: Expr) : Type =
     let rec aux block e =
         match e with
-        | BlockExpr es -> 
+        | BlockExpr (_, es) -> 
             if block then error (sprintf "\nNested block for expression %s" (format e))
             for (e1, e2) in es do 
                 match aux true e1, aux true e2 with
                 | PredicateType, RegexType -> ()
                 | _, _ -> error (sprintf "\nInvalid block expression %s" (format e))
             BlockType
-        | LinkExpr (e1, e2) -> 
+        | LinkExpr (_, e1, e2) -> 
             match aux block e1, aux block e2 with 
             | RegexType, RegexType -> LinkType
                 //TODO: check single locations
             | _, _ -> error (sprintf "Invalid expression %s, specify links with regular expressions" (format e))
-        | DiffExpr (e1, e2) -> 
+        | DiffExpr (_, e1, e2) -> 
             match aux block e1, aux block e2 with 
             | RegexType, RegexType -> RegexType
             | BlockType, BlockType -> BlockType
             | _, _ -> error (sprintf "Invalid expression %s, expected regular expression or block" (format e))
-        | ShrExpr (e1, e2) ->
+        | ShrExpr (_, e1, e2) ->
             match aux block e1, aux block e2 with 
             | RegexType, RegexType -> RegexType
             | _, _ -> error (sprintf "Invalid expression %s, expected regular expression" (format e))
-        | OrExpr (e1, e2)
-        | AndExpr (e1, e2) ->
+        | OrExpr (_, e1, e2)
+        | AndExpr (_, e1, e2) ->
             match aux block e1, aux block e2 with 
             | RegexType, RegexType -> RegexType
             | PredicateType, PredicateType -> PredicateType
             | BlockType, BlockType -> BlockType
             | _, _ -> error (sprintf "Invalid expression %s, expected regular expressions or predicates" (format e))
-        | StarExpr e1 ->
+        | StarExpr (_, e1) ->
             if aux block e1 = RegexType then RegexType
             else error (sprintf "Invalid expression %s, expected regular expression" (format e))
-        | NotExpr e1 -> 
+        | NotExpr (_, e1) -> 
             match aux block e1 with
             | RegexType -> RegexType
             | PredicateType -> PredicateType
             | _ -> error (sprintf "Invalid expression %s, expected regular expression or predicate" (format e))
-        | PrefixLiteral (a,b,c,d,bits) -> wellFormedPrefix (a,b,c,d,bits); PredicateType
-        | True | False | CommunityLiteral _ -> PredicateType
+        | PrefixLiteral (_,(a,b,c,d,bits)) -> wellFormedPrefix (a,b,c,d,bits); PredicateType
+        | True _ | False _ | CommunityLiteral _ -> PredicateType
         | IntLiteral _ -> IntType
-        | Ident (id, _) -> 
+        | Ident (_, id, _) -> 
             if builtInConstraints.Contains id then ControlType 
             else RegexType
     aux false e
@@ -250,12 +275,12 @@ let wellFormed (e: Expr) : Type =
 
 let rec pushPrefsToTop (e: Expr) : Expr list = 
     match e with 
-    | AndExpr (x,y) -> merge e (x,y) (fun a b -> AndExpr(a,b))
-    | OrExpr (x,y) -> merge e (x,y) (fun a b -> OrExpr(a,b))
-    | DiffExpr (x,y) -> merge e (x,y) (fun a b -> DiffExpr(a,b))
-    | StarExpr x -> mergeSingle e x "star"
-    | NotExpr x -> mergeSingle e x "negation"
-    | ShrExpr (x,y) -> (pushPrefsToTop x) @ (pushPrefsToTop y)
+    | AndExpr (p,x,y) -> merge e (x,y) (fun a b -> AndExpr(p,a,b))
+    | OrExpr (p,x,y) -> merge e (x,y) (fun a b -> OrExpr(p,a,b))
+    | DiffExpr (p,x,y) -> merge e (x,y) (fun a b -> DiffExpr(p,a,b))
+    | StarExpr (_,x) -> mergeSingle e x "star"
+    | NotExpr (_,x) -> mergeSingle e x "negation"
+    | ShrExpr (_, x,y) -> (pushPrefsToTop x) @ (pushPrefsToTop y)
     | Ident _ -> [e]
     | _ -> failwith "unreachable"
 and merge e (x,y) f =
@@ -289,12 +314,12 @@ let rec buildRegex (ast: T) (reb: Regex.REBuilder) (r: Expr) : Regex.LazyT =
             error (sprintf "\nParameter for %s must refer to locations only" id)
         else List.map (Option.get >> Set.toList) wf
     match r with
-    | AndExpr(x,y) -> reb.Inter [(buildRegex ast reb x); (buildRegex ast reb y)]
-    | OrExpr(x,y) -> reb.Union [(buildRegex ast reb x); (buildRegex ast reb y)]
-    | DiffExpr(x,y) -> reb.Inter [(buildRegex ast reb x); reb.Negate (buildRegex ast reb y)]
-    | NotExpr x -> reb.Negate (buildRegex ast reb x)
-    | StarExpr x -> reb.Star (buildRegex ast reb x)
-    | Ident(id, args) ->
+    | AndExpr(_,x,y) -> reb.Inter [(buildRegex ast reb x); (buildRegex ast reb y)]
+    | OrExpr(_,x,y) -> reb.Union [(buildRegex ast reb x); (buildRegex ast reb y)]
+    | DiffExpr(_,x,y) -> reb.Inter [(buildRegex ast reb x); reb.Negate (buildRegex ast reb y)]
+    | NotExpr (_,x) -> reb.Negate (buildRegex ast reb x)
+    | StarExpr (_,x) -> reb.Star (buildRegex ast reb x)
+    | Ident(_, id, args) ->
         match id with
         | "valleyfree" -> let locs = checkParams id args.Length args in reb.ValleyFree locs
         | "start" -> let locs = checkParams id 1 args in reb.Start locs.Head
@@ -321,12 +346,12 @@ let rec buildRegex (ast: T) (reb: Regex.REBuilder) (r: Expr) : Regex.LazyT =
 
 let rec buildPredicate (e: Expr) : Predicate.T = 
     match e with 
-    | True -> Predicate.top
-    | False -> Predicate.bot
-    | AndExpr(a,b) -> Predicate.conj (buildPredicate a) (buildPredicate b)
-    | OrExpr(a,b) -> Predicate.disj (buildPredicate a) (buildPredicate b)
-    | NotExpr a -> Predicate.negate (buildPredicate a)
-    | PrefixLiteral (a,b,c,d,bits) ->
+    | True _ -> Predicate.top
+    | False _ -> Predicate.bot
+    | AndExpr(_,a,b) -> Predicate.conj (buildPredicate a) (buildPredicate b)
+    | OrExpr(_,a,b) -> Predicate.disj (buildPredicate a) (buildPredicate b)
+    | NotExpr (_,a) -> Predicate.negate (buildPredicate a)
+    | PrefixLiteral (_,(a,b,c,d,bits)) ->
         let adjBits = adjustBits bits
         Predicate.prefix (a,b,c,d) adjBits
     | CommunityLiteral (x,y) ->  Predicate.community (string x + ":" + string y)
@@ -337,22 +362,22 @@ let rec buildPredicate (e: Expr) : Predicate.T =
 
 let inline getPrefix x = 
     match x with 
-    | PrefixLiteral (a,b,c,d,bits) -> (a,b,c,d,bits)
+    | PrefixLiteral (_,(a,b,c,d,bits)) -> (a,b,c,d,bits)
     | _ -> failwith "unreachable" 
 
 let inline getLinks x = 
     match x with 
-    | LinkExpr(x,y) -> (x,y)
+    | LinkExpr(_,x,y) -> (x,y)
     | _ -> failwith "unreachable"
 
 let inline getInt x = 
     match x with 
-    | IntLiteral i -> i 
+    | IntLiteral (_,i) -> i 
     | _ -> failwith "unreachable"
 
 let inline getComm x = 
     match x with 
-    | CommunityLiteral (a,b) -> (a,b)
+    | CommunityLiteral (_,(a,b)) -> (a,b)
     | _ -> failwith "unreachable"
 
 (* Build the control constraints
@@ -427,9 +452,9 @@ type BinOp =
 
 let applyOp r1 r2 op = 
     match op with
-    | OInter -> AndExpr(r1,r2)
-    | OUnion -> OrExpr(r1,r2)
-    | ODifference -> DiffExpr(r1,r2)
+    | OInter -> AndExpr(dummyPos,r1,r2)
+    | OUnion -> OrExpr(dummyPos,r1,r2)
+    | ODifference -> DiffExpr(dummyPos,r1,r2)
 
 let checkBlock pcs =
     let mutable remaining = Predicate.top
@@ -445,7 +470,7 @@ let checkBlock pcs =
     if remaining <> Predicate.bot then
         // let s = Predicate.example rollingPred
         // warning (sprintf "\nIncomplete prefixes in block \nAn example of a prefix that is not matched: %s" s)
-        pcs @ [(Predicate.top, [Ident ("any", [])])]
+        pcs @ [(Predicate.top, [Ident (dummyPos,"any", [])])]
     else pcs
 
 let combineBlocks pcs1 pcs2 (op: BinOp) =
@@ -462,14 +487,14 @@ let combineBlocks pcs1 pcs2 (op: BinOp) =
     List.rev combined
 
 let inline collapsePrefs (es: Expr list) : Expr = 
-    Common.List.fold1 (fun e1 e2 -> ShrExpr (e1,e2)) es
+    Common.List.fold1 (fun e1 e2 -> ShrExpr (dummyPos,e1,e2)) es
 
 let rec expandBlocks (e: Expr)  = 
     match e with
-    | OrExpr (e1,e2) -> combineBlocks (expandBlocks e1) (expandBlocks e2) OUnion
-    | AndExpr (e1,e2) -> combineBlocks (expandBlocks e1) (expandBlocks e2) OInter
-    | DiffExpr (e1,e2) -> combineBlocks (expandBlocks e1) (expandBlocks e2) ODifference
-    | BlockExpr es ->  
+    | OrExpr (_,e1,e2) -> combineBlocks (expandBlocks e1) (expandBlocks e2) OUnion
+    | AndExpr (_,e1,e2) -> combineBlocks (expandBlocks e1) (expandBlocks e2) OInter
+    | DiffExpr (_,e1,e2) -> combineBlocks (expandBlocks e1) (expandBlocks e2) ODifference
+    | BlockExpr (_,es) ->  
         List.map (fun (x,y) -> (buildPredicate x, pushPrefsToTop y)) es
         |> checkBlock
         |> List.map (fun (p,es) -> (p, collapsePrefs es))

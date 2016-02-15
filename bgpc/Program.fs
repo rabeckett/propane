@@ -1,4 +1,6 @@
-﻿open Common
+﻿module Program
+
+open Common
 open Common.Debug
 open Common.Error
     

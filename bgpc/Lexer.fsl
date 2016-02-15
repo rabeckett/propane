@@ -8,8 +8,10 @@ exception EofInComment
 
 let newline (lexbuf: LexBuffer<_>) =
     lexbuf.EndPos <- lexbuf.EndPos.NextLine
-}
 
+let position (lexbuf: LexBuffer<_>) =
+    (lexbuf.StartPos, lexbuf.EndPos)
+}
 
 let digits = ['0'-'9']+ 
 let id = ['a'-'z' 'A'-'Z' '_'] ['a'-'z' 'A'-'Z' '0'-'9' '_']*
@@ -17,31 +19,31 @@ let whitespace = [ ' ' '\t' '\r' '\n' ]
 
 rule tokenize = parse
 	| "/*"                  { comments 0 lexbuf } 
-	| "define"              { DEFINE }
-	| "not"	                { NOT }
-	| "and"                 { AND }
-	| "or"                  { OR }
-	| "true"                { TRUE }
-	| "false"               { FALSE }
-	| "control"             { CONTROL }
-	| id                    { ID (LexBuffer<char>.LexemeString lexbuf) }
-	| digits                { INT (UInt32.Parse (LexBuffer<char>.LexemeString lexbuf)) }
-	| '='                   { EQUAL }
-	| '('                   { LPAREN }
-	| ')'                   { RPAREN }
-	| "->"                  { RARROW }
-	| "=>"                  { ROCKET }
-	| '['                   { LBRACKET }
-	| ']'                   { RBRACKET }
-	| '{'                   { LBRACE }
-	| '}'                   { RBRACE }
-	| ','                   { COMMA }
-	| '/'                   { SLASH }
-	| '\\'                  { DIFFERENCE }
-	| ':'                   { COLON }
-	| '.'                   { DOT }
-	| '*'                   { STAR }
-	| ">>"                  { SHR }
+	| "define"              { DEFINE (position lexbuf) }
+	| "not"	                { NOT (position lexbuf) }
+	| "and"                 { AND (position lexbuf) }
+	| "or"                  { OR (position lexbuf) }
+	| "true"                { TRUE (position lexbuf) }
+	| "false"               { FALSE (position lexbuf) }
+	| "control"             { CONTROL (position lexbuf) }
+	| id                    { ID (position lexbuf, LexBuffer<char>.LexemeString lexbuf) }
+	| digits                { INT (position lexbuf, UInt32.Parse (LexBuffer<char>.LexemeString lexbuf)) }
+	| '='                   { EQUAL (position lexbuf) }
+	| '('                   { LPAREN (position lexbuf) }
+	| ')'                   { RPAREN (position lexbuf) }
+	| "->"                  { RARROW (position lexbuf) }
+	| "=>"                  { ROCKET (position lexbuf) }
+	| '['                   { LBRACKET (position lexbuf) }
+	| ']'                   { RBRACKET (position lexbuf) }
+	| '{'                   { LBRACE (position lexbuf) }
+	| '}'                   { RBRACE (position lexbuf) }
+	| ','                   { COMMA (position lexbuf) }
+	| '/'                   { SLASH (position lexbuf) }
+	| '\\'                  { DIFFERENCE (position lexbuf) }
+	| ':'                   { COLON (position lexbuf) }
+	| '.'                   { DOT (position lexbuf) }
+	| '*'                   { STAR (position lexbuf) }
+	| ">>"                  { SHR (position lexbuf) } 
 	| [' ' '\t' '\r']       { tokenize lexbuf }
 	| '\n'                  { newline lexbuf; tokenize lexbuf }
 	| eof                   { EOF }
