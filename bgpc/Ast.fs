@@ -97,6 +97,53 @@ let builtIns = Set.union builtInRes builtInConstraints
 let format (e: Expr) : string =
     ""
 
+(* Helper functions for operating on each subexpression *)
+let rec iter f (e: Expr) =
+    f e
+    match e with
+    | BlockExpr es -> List.iter (fun (e1,e2) -> iter f e1; iter f e2) es
+    | LinkExpr (e1, e2)  
+    | DiffExpr (e1, e2)  
+    | ShrExpr (e1, e2) 
+    | OrExpr (e1, e2) 
+    | AndExpr (e1, e2) -> iter f e1; iter f e2
+    | StarExpr e1
+    | NotExpr e1 -> iter f e1
+    | True | False | PrefixLiteral _ | CommunityLiteral _ | IntLiteral _ -> ()
+    | Ident (id, args) -> List.iter f args
+
+(* Compiler warnings for common mistakes *)
+
+let getUsed seen e = 
+    match e with 
+    | Ident(id, _) -> 
+        seen := Set.add id !seen
+    | _ -> ()
+
+let warnUnusedDefs ast e =
+    let used = ref (Set.singleton "main")
+    iter (getUsed used) e
+    Map.iter (fun _ (_,e) -> iter (getUsed used) e) ast.Defs
+    let defs = Map.fold (fun acc k _ -> Set.add k acc) Set.empty ast.Defs
+    let unused = Set.difference defs !used
+    if Set.count unused > 0 then
+        let msg = Common.Set.joinBy "," unused
+        warning (sprintf "Unused definition(s): %s" msg)
+
+let warnUnusedParams (ast: T) = 
+    Map.iter (fun id (ps,e) ->
+        let seen = ref (Set.empty)
+        iter (getUsed seen) e
+        let unused = Set.difference (Set.ofList ps) !seen
+        if Set.count unused > 0 then 
+            let msg = Common.Set.joinBy "," unused
+            warning (sprintf "Unused parameter(s): %s in definition %s" msg id)
+        )ast.Defs
+
+let warnUnused (ast: T) (e: Expr) : unit = 
+    warnUnusedDefs ast e
+    warnUnusedParams ast
+
 (* Recursively expand all definitions in 
    an expression. Keep track of seen expansions
    to prevent recursive definitions *)
@@ -114,25 +161,24 @@ let substitute (defs: Map<string, string list * Expr>) (e: Expr) : Expr =
         | NotExpr e1 -> NotExpr (aux defs seen e1)
         | True | False | PrefixLiteral _ | CommunityLiteral _ | IntLiteral _ -> e
         | Ident (id, []) ->
-            if Set.contains id seen then error (sprintf "\nRecursive definition of %s" id)
+            if Set.contains id seen then error (sprintf "Recursive definition of %s" id)
             match Map.tryFind id defs with
             | None -> e
             | Some (_,e1) -> aux defs (Set.add id seen) e1
-        | Ident (id,args) -> 
+        | Ident (id,es) -> 
             // substitute for args
-            if Set.contains id seen then error (sprintf "\nRecursive definition of %s" id)
+            if Set.contains id seen then error (sprintf "Recursive definition of %s" id)
             match Map.tryFind id defs with
-            | None -> e
+            | None -> Ident(id, List.map (aux defs seen) es)
             | Some (ids,e1) -> 
                 let required = List.length ids 
-                let provided = List.length args
+                let provided = List.length es
                 if required <> provided then 
                     error (sprintf "\nInvalid number of parameters to function %s \nRequired %d parameters, but provided %d" id required provided)
                 let defs' =
-                    List.zip ids args
+                    List.zip ids es
                     |> List.fold (fun acc (id,e) -> Map.add id ([], e) acc) defs
                 aux defs' (Set.add id seen) e1
-            //Ident (id, List.map (aux seen) args)
     aux defs Set.empty e
 
 (* Test well-formedness of an expression. 
@@ -149,7 +195,7 @@ let wellFormedPrefix (a,b,c,d,bits) =
     let bits = adjustBits bits
     let p = Prefix.prefix (a,b,c,d) bits
     if (a > 255u || b > 255u || c > 255u || d > 255u || (bits > 32u)) then
-        error (sprintf "\nInvalid prefix %s" (string p))
+        error (sprintf "Invalid prefix %s" (string p))
 
 let wellFormed (e: Expr) : Type =
     let rec aux block e =
@@ -165,35 +211,37 @@ let wellFormed (e: Expr) : Type =
             match aux block e1, aux block e2 with 
             | RegexType, RegexType -> LinkType
                 //TODO: check single locations
-            | _, _ -> error (sprintf "\nInvalid expression %s \nSpecify links with regular expressions" (format e))
+            | _, _ -> error (sprintf "Invalid expression %s, specify links with regular expressions" (format e))
         | DiffExpr (e1, e2) -> 
             match aux block e1, aux block e2 with 
             | RegexType, RegexType -> RegexType
             | BlockType, BlockType -> BlockType
-            | _, _ -> error (sprintf "\nInvalid expression %s \nExpected regular expression or block" (format e))
+            | _, _ -> error (sprintf "Invalid expression %s, expected regular expression or block" (format e))
         | ShrExpr (e1, e2) ->
             match aux block e1, aux block e2 with 
             | RegexType, RegexType -> RegexType
-            | _, _ -> error (sprintf "\nInvalid expression %s \nExpected regular expression" (format e))
+            | _, _ -> error (sprintf "Invalid expression %s, expected regular expression" (format e))
         | OrExpr (e1, e2)
         | AndExpr (e1, e2) ->
             match aux block e1, aux block e2 with 
             | RegexType, RegexType -> RegexType
             | PredicateType, PredicateType -> PredicateType
             | BlockType, BlockType -> BlockType
-            | _, _ -> error (sprintf "\nInvalid expression %s \nExpected regular expressions or predicates" (format e))
+            | _, _ -> error (sprintf "Invalid expression %s, expected regular expressions or predicates" (format e))
         | StarExpr e1 ->
             if aux block e1 = RegexType then RegexType
-            else error (sprintf "\nInvalid expression %s \nExpected regular expression" (format e))
+            else error (sprintf "Invalid expression %s, expected regular expression" (format e))
         | NotExpr e1 -> 
             match aux block e1 with
             | RegexType -> RegexType
             | PredicateType -> PredicateType
-            | _ -> error (sprintf "\nInvalid expression %s \nExpected regular expression or predicate" (format e))
+            | _ -> error (sprintf "Invalid expression %s, expected regular expression or predicate" (format e))
         | PrefixLiteral (a,b,c,d,bits) -> wellFormedPrefix (a,b,c,d,bits); PredicateType
         | True | False | CommunityLiteral _ -> PredicateType
         | IntLiteral _ -> IntType
-        | Ident (id, _) -> if builtInConstraints.Contains id then ControlType else RegexType
+        | Ident (id, _) -> 
+            if builtInConstraints.Contains id then ControlType 
+            else RegexType
     aux false e
    
 (* Given an expression, which is known to be a regex, 
@@ -264,7 +312,7 @@ let rec buildRegex (ast: T) (reb: Regex.REBuilder) (r: Expr) : Regex.LazyT =
         | "out" -> ignore (checkParams id 0 args);  reb.Outside
         | l -> 
             if args.Length > 0 then 
-                error (sprintf "\nUndefined macro %s" l)
+                error (sprintf "Undefined macro %s" l)
             else reb.Loc l
     | _ -> failwith "unreachable"
 
@@ -384,14 +432,20 @@ let applyOp r1 r2 op =
     | ODifference -> DiffExpr(r1,r2)
 
 let checkBlock pcs =
-    let mutable rollingPred = Predicate.top
-    for (pred, _) in pcs do
-        let p = Predicate.conj pred rollingPred
-        rollingPred <- Predicate.conj rollingPred (Predicate.negate p)
-    if rollingPred <> Predicate.bot then
-        let s = Predicate.example rollingPred
-        warning (sprintf "\nIncomplete prefixes in block \nAn example of a prefix that is not matched: %s" s)
-        pcs @ [(Predicate.top, [Ident ("drop", [])])]
+    let mutable remaining = Predicate.top
+    let mutable matched = Predicate.bot
+    for (pred, es) in pcs do
+        let p = Predicate.conj pred remaining
+        remaining <- Predicate.conj remaining (Predicate.negate p)
+        let p' = Predicate.disj pred matched
+        if p' = matched then
+            warning (sprintf "Dead prefix %s will never apply" (string p'))
+        matched <- p'
+
+    if remaining <> Predicate.bot then
+        // let s = Predicate.example rollingPred
+        // warning (sprintf "\nIncomplete prefixes in block \nAn example of a prefix that is not matched: %s" s)
+        pcs @ [(Predicate.top, [Ident ("any", [])])]
     else pcs
 
 let combineBlocks pcs1 pcs2 (op: BinOp) =
@@ -427,11 +481,12 @@ let rec expandBlocks (e: Expr)  =
 let makePolicyPairs (ast: T) (topo: Topology.T) : PolicyPair list =
     match Map.tryFind "main" ast.Defs with 
     | Some ([],e) ->
+        warnUnused ast e
         let e = substitute ast.Defs e
         match wellFormed e with
         | BlockType -> ()
         | typ ->
-            error (sprintf "\nExpected block in main policy \nGot an expression with type %s" (string typ))
+            error (sprintf "Expected block in main, but got an expression with type %s" (string typ))
         let topLevel = 
             expandBlocks e
             |> List.map (fun (p,e) -> (p, pushPrefsToTop e))
@@ -440,4 +495,4 @@ let makePolicyPairs (ast: T) (topo: Topology.T) : PolicyPair list =
             let res = List.map (buildRegex ast reb) res
             let res = List.map reb.Build res
             (p, reb, res) ) topLevel
-    | _ -> error (sprintf "\nMain policy not defined, use define main = ...")
+    | _ -> error (sprintf "Main policy not defined, use define main = ...")

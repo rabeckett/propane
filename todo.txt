@@ -1,6 +1,8 @@
-﻿Well-formedness:
-	Ensure no recursive definitions
-
-Error Reporting
+﻿Error Reporting
 	More detailed counterexamples (include exact failure scenario)
 	Line numbers for parse errors caught later
+
+Warnings:
+  An empty language for a policy which is not drop
+  Anycast for locations not specifically mentioned syntactically (maybe error)
+  

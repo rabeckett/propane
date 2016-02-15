@@ -20,5 +20,3 @@ let readFromFile fname =
            let line = pos.Line
            let column = pos.Column
            parseError (sprintf "Line: %d, Char: %d" line column)
-
-

@@ -4,7 +4,6 @@ open CGraph
 open Common.Error
 
 type CounterExample = 
-    | UnusedPreferences of Map<int, Regex.T>
     | NoPathForRouters of Set<string>
     | InconsistentPrefs of CgState * CgState
     | UncontrollableEnter of string

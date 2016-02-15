@@ -10,7 +10,6 @@ exception UncontrollableEnterException of string
 exception UncontrollablePeerPreferenceException of string
 
 type CounterExample = 
-    | UnusedPreferences of Map<int, Regex.T>
     | NoPathForRouters of Set<string>
     | InconsistentPrefs of CgState * CgState
     | UncontrollableEnter of string
@@ -475,6 +474,7 @@ let getUnusedPrefs cg res =
     let numberedRegexes = seq {for i in 1.. List.length res do yield i}  |> Set.ofSeq
     let prefs = CGraph.preferences cg
     Set.difference numberedRegexes prefs
+    |> Set.filter (fun i -> res.[i-1] <> Regex.empty)
 
 // TODO: only do this once total per prefix
 let getMinAggregateFailures (cg: CGraph.T) pred (aggInfo: Map<string, DeviceAggregates>) = 
@@ -506,43 +506,40 @@ let compileToIR fullName idx pred (aggInfo: Map<string,DeviceAggregates>) (reb: 
     let cg, delTime = Profile.time (CGraph.Minimize.delMissingSuffixPaths) cg
     let cg, minTime = Profile.time (CGraph.Minimize.minimize idx) cg
     let minTime = delTime + minTime
-    debug1 (fun () -> CGraph.generatePNG cg (fullName + "-min"))
+    debug1 (fun () -> CGraph.generatePNG cg (fullName + "-min")) 
     // check there is a route for each location specified
     let lost = getLocsThatCantGetPath idx cg reb dfas
     if not (Set.isEmpty lost) then Err(NoPathForRouters(lost)) else
-    
-    // TODO: handle this better
-    // let unusedPrefs = getUnusedPrefs cg res
-    // if not (Set.isEmpty unusedPrefs)  then
-    //    let cexamples = Set.fold (fun acc p -> 
-    //        Map.add p (List.item (p-1) res) acc) Map.empty unusedPrefs
-    //    Err(UnusedPreferences(cexamples))
-    //else
-        try
-            // check that BGP can ensure incoming traffic compliance
-            let inExports = configureIncomingTraffic cg
-            // check aggregation failure consistency
-            let k = getMinAggregateFailures cg pred aggInfo
-            // check  that BGP preferences can be set properly
-            let (ordering, orderTime) = Profile.time (Consistency.findOrderingConservative idx cg) fullName
-            match ordering with 
-            | Ok ord ->
-                let (config, szRaw, szSmart), configTime = Profile.time (genConfig cg pred ord) inExports
-                let result = 
-                    {K=k; 
-                      BuildTime=buildTime; 
-                      MinimizeTime=minTime; 
-                      OrderingTime=orderTime;
-                      ConfigTime=configTime; 
-                      CompressSizeInit=szRaw;
-                      CompressSizeFinal=szSmart;
-                      Config=config}
-                debug1 (fun () -> System.IO.File.WriteAllText (sprintf "%s.ir" fullName, formatPrefix result) )
-                Ok (result)
-            | Err((x,y)) -> Err(InconsistentPrefs(x,y))
-        with 
-            | UncontrollableEnterException s -> Err(UncontrollableEnter s)
-            | UncontrollablePeerPreferenceException s -> Err(UncontrollablePeerPreference s)
+    // Find unused preferences for policies that were not drop
+    let unusedPrefs = getUnusedPrefs cg res
+    if not (Set.isEmpty unusedPrefs)  then
+        for i in unusedPrefs do 
+            warning (sprintf "Unused preference %d for predicate %s for a non-drop policy" i (string pred))
+    try
+        // check that BGP can ensure incoming traffic compliance
+        let inExports = configureIncomingTraffic cg
+        // check aggregation failure consistency
+        let k = getMinAggregateFailures cg pred aggInfo
+        // check  that BGP preferences can be set properly
+        let (ordering, orderTime) = Profile.time (Consistency.findOrderingConservative idx cg) fullName
+        match ordering with 
+        | Ok ord ->
+            let (config, szRaw, szSmart), configTime = Profile.time (genConfig cg pred ord) inExports
+            let result = 
+                {K=k; 
+                  BuildTime=buildTime; 
+                  MinimizeTime=minTime; 
+                  OrderingTime=orderTime;
+                  ConfigTime=configTime; 
+                  CompressSizeInit=szRaw;
+                  CompressSizeFinal=szSmart;
+                  Config=config}
+            debug1 (fun () -> System.IO.File.WriteAllText (sprintf "%s.ir" fullName, formatPrefix result) )
+            Ok (result)
+        | Err((x,y)) -> Err(InconsistentPrefs(x,y))
+    with 
+        | UncontrollableEnterException s -> Err(UncontrollableEnter s)
+        | UncontrollablePeerPreferenceException s -> Err(UncontrollablePeerPreference s)
 
 let compileForSinglePrefix fullName idx (aggInfo: Map<string, DeviceAggregates>) (pred, reb, res) =
     try 
@@ -550,10 +547,8 @@ let compileForSinglePrefix fullName idx (aggInfo: Map<string, DeviceAggregates>)
         | Ok(config) -> config
         | Err(x) ->
             match x with
-            | UnusedPreferences m ->
-                error (sprintf "\nUnused preferences %A" m)
             | NoPathForRouters rs ->
-                unimplementable (sprintf "\nUnable to find a path for routers: %s for predicate %s" (string rs) (string pred))
+                unimplementable (sprintf "Unable to find a path for routers: %s for predicate %s" (string rs) (string pred))
             | InconsistentPrefs(x,y) ->
                 let xs = x.ToString()
                 let ys = y.ToString() 
