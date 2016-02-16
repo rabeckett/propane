@@ -34,7 +34,7 @@ type CConstraint =
     | CAggregate of Prefix.T list * Set<string> * Set<string>
     | CCommunity of string * Prefix.T list * Set<string> * Set<string>
     | CMaxRoutes of uint32 * Set<string> * Set<string>
-    | CLongestPath of uint32
+    | CLongestPath of uint32 * Set<string>
 
 type ControlConstraints = (Ident * Expr list) list
 type Definitions = Map<string, Position * Ident list * Expr>

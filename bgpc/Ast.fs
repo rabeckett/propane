@@ -33,7 +33,7 @@ and Node =
 
 type Type = 
     | LinkType
-    | LocationType
+    | LocType
     | RegexType
     | PredicateType
     | IntType
@@ -43,7 +43,7 @@ type Type =
     override this.ToString() = 
         match this with
         | LinkType -> "Links"
-        | LocationType -> "Location"
+        | LocType -> "Location"
         | RegexType -> "Constraint"
         | PredicateType -> "Predicate"
         | IntType -> "Int"
@@ -55,6 +55,7 @@ type Value =
     | CommunityValue
     | LinkValue
     | IntValue
+    | LocValue
 
     override this.ToString() = 
         match this with
@@ -62,6 +63,7 @@ type Value =
         | CommunityValue -> "Community"
         | LinkValue -> "Links"
         | IntValue -> "Int"
+        | LocValue -> "Location"
 
 type ControlConstraints = (Ident * Expr list) list
 type Definitions = Map<string, Position * Ident list * Expr>
@@ -70,7 +72,7 @@ type CConstraint =
     | CAggregate of Prefix.T list * Set<string> * Set<string>
     | CCommunity of string * Prefix.T list * Set<string> * Set<string>
     | CMaxRoutes of uint32 * Set<string> * Set<string>
-    | CLongestPath of uint32
+    | CLongestPath of uint32 * Set<string>
 
 type PolicyPair = (Predicate.T * Regex.REBuilder * Regex.T list)
 
@@ -88,7 +90,7 @@ let paramInfo =
         [("aggregate", (2, [PrefixValue; LinkValue]));
          ("tag", (3, [CommunityValue; PrefixValue; LinkValue]));
          ("maxroutes", (2, [IntValue; LinkValue]));
-         ("longest_path", (1, [IntValue])) ]
+         ("longest_path", (1, [IntValue; LocValue])) ]
 
 let builtInLocs = 
     Set.ofList ["in"; "out"]
@@ -332,7 +334,7 @@ let wellFormed ast (e: Expr) : Type =
                 let t1, t2 = aux true e1, aux true e2
                 match t1, t2 with
                 | PredicateType, RegexType
-                | PredicateType, LocationType -> ()
+                | PredicateType, LocType -> ()
                 | PredicateType, _ -> Message.errorAst ast (typeMsg [RegexType] t2) e2.Pos
                 | _, _ ->  Message.errorAst ast (typeMsg [PredicateType] t1) e1.Pos
             BlockType
@@ -340,35 +342,35 @@ let wellFormed ast (e: Expr) : Type =
             let t1 = aux block e1
             let t2 = aux block e2
             match t1, t2 with
-            | LocationType, LocationType -> LinkType
-            | _, LocationType -> Message.errorAst ast (typeMsg [LocationType] t1) e1.Pos
-            | LocationType, _ -> Message.errorAst ast (typeMsg [LocationType] t2) e2.Pos
-            | _, _ -> Message.errorAst ast (typeMsg2 [LocationType] t1 t2) e.Pos
+            | LocType, LocType -> LinkType
+            | _, LocType -> Message.errorAst ast (typeMsg [LocType] t1) e1.Pos
+            | LocType, _ -> Message.errorAst ast (typeMsg [LocType] t2) e2.Pos
+            | _, _ -> Message.errorAst ast (typeMsg2 [LocType] t1 t2) e.Pos
         | DiffExpr (e1, e2)
         | ShrExpr (e1, e2) -> 
             let t1 = aux block e1
             let t2 = aux block e2
             match t1, t2 with 
-            | LocationType, LocationType -> LocationType
-            | LocationType, RegexType
-            | RegexType, LocationType
+            | LocType, LocType -> LocType
+            | LocType, RegexType
+            | RegexType, LocType
             | RegexType, RegexType -> RegexType
             | BlockType, BlockType -> BlockType
             | _, BlockType -> Message.errorAst ast (typeMsg [BlockType] t1) e1.Pos
             | BlockType, _ -> Message.errorAst ast (typeMsg [BlockType] t2) e2.Pos
             | _, RegexType 
-            | _, LocationType -> Message.errorAst ast (typeMsg [RegexType] t1) e1.Pos
+            | _, LocType -> Message.errorAst ast (typeMsg [RegexType] t1) e1.Pos
             | RegexType, _
-            | LocationType, _ -> Message.errorAst ast (typeMsg [RegexType] t2) e2.Pos
+            | LocType, _ -> Message.errorAst ast (typeMsg [RegexType] t2) e2.Pos
             | _, _ -> Message.errorAst ast (typeMsg2 [BlockType; RegexType] t1 t2) e.Pos
         | OrExpr (e1, e2)
         | AndExpr (e1, e2) ->
             let t1 = aux block e1
             let t2 = aux block e2
             match t1, t2 with 
-            | LocationType, LocationType -> LocationType
-            | LocationType, RegexType
-            | RegexType, LocationType
+            | LocType, LocType -> LocType
+            | LocType, RegexType
+            | RegexType, LocType
             | RegexType, RegexType -> RegexType
             | BlockType, BlockType -> BlockType
             | PredicateType, PredicateType -> PredicateType
@@ -377,26 +379,35 @@ let wellFormed ast (e: Expr) : Type =
             | _, BlockType -> Message.errorAst ast (typeMsg [BlockType] t1) e1.Pos
             | BlockType, _ -> Message.errorAst ast (typeMsg [BlockType] t2) e2.Pos
             | _, RegexType 
-            | _, LocationType -> Message.errorAst ast (typeMsg [RegexType] t1) e1.Pos
+            | _, LocType -> Message.errorAst ast (typeMsg [RegexType] t1) e1.Pos
             | RegexType, _
-            | LocationType, _ -> Message.errorAst ast (typeMsg [RegexType] t2) e2.Pos
+            | LocType, _ -> Message.errorAst ast (typeMsg [RegexType] t2) e2.Pos
             | _, _ -> Message.errorAst ast (typeMsg2 [BlockType; RegexType] t1 t2) e.Pos
         | NotExpr e1 -> 
             let t = aux block e1
             match t with
-            | LocationType -> LocationType
+            | LocType -> LocType
             | RegexType -> RegexType
             | PredicateType -> PredicateType
             | _ -> Message.errorAst ast (typeMsg [RegexType; PredicateType] t) e.Pos
         | PrefixLiteral (a,b,c,d,bits) -> wellFormedPrefix ast e.Pos (a,b,c,d,bits); PredicateType
         | True _ | False _ | CommunityLiteral _ -> PredicateType
         | IntLiteral _ -> IntType
-        | Ident (id, _) ->
+        | Ident (id, args) ->
             // TODO: check for AS
-            if builtInConstraints.Contains id.Name then ControlType
-            elif builtInLocs.Contains id.Name then LocationType
-            elif builtInRes.Contains id.Name then RegexType 
-            else LocationType
+            if builtInConstraints.Contains id.Name then 
+                ControlType
+            elif builtInLocs.Contains id.Name then LocType
+            elif builtInRes.Contains id.Name then 
+                for e in args do 
+                    let t = aux block e
+                    match t with 
+                    | LocType -> ()
+                    | _ ->             
+                        let msg = (typeMsg [LocType] t)
+                        Message.errorAst ast msg e.Pos
+                RegexType 
+            else LocType
     aux false e
    
 (* Given an expression, which is known to be a regex, 
@@ -434,13 +445,12 @@ and mergeSingle e x op =
 let rec buildRegex (ast: T) (reb: Regex.REBuilder) (r: Expr) : Regex.LazyT =
     let checkParams id n args =
         let m = List.length args
-        if m <> n then 
-            error (sprintf "Expected %d arguments for %s, but received %d" n id.Name m) 
+        if m <> n then
+            let msg = sprintf "Expected %d arguments for %s, but received %d" n id.Name m 
+            Message.errorAst ast msg id.Pos
         let args = List.map (buildRegex ast reb) args
         let wf = List.map (Regex.singleLocations (reb.Topo())) args
-        if List.exists Option.isNone wf then 
-            error (sprintf "\nParameter for %s must refer to locations only" id.Name)
-        else List.map (Option.get >> Set.toList) wf
+        List.map (Option.get >> Set.toList) wf
     match r.Node with
     | AndExpr(x,y) -> reb.Inter [(buildRegex ast reb x); (buildRegex ast reb y)]
     | OrExpr(x,y) -> reb.Union [(buildRegex ast reb x); (buildRegex ast reb y)]
@@ -527,6 +537,7 @@ let rec checkArgs ast id args argsOrig =
             | PredicateType, CommunityLiteral _, CommunityValue -> ()
             | LinkType, LinkExpr _, LinkValue -> ()
             | IntType, IntLiteral _, IntValue -> ()
+            | LocType, _, LocValue -> ()
             | _, _, _ -> 
                 let msg = sprintf "Expected parameter %d of %s to be a %s value" i id.Name (string y)
                 Message.errorAst ast msg origE.Pos
@@ -541,11 +552,9 @@ let buildCConstraint ast (topo: Topology.T) (cc: Ident * Expr list) =
         wellFormedPrefix ast dummyPos p  // TODO: fixme
         Prefix.prefix (a,b,c,d) (adjustBits bits)
     let inline getLinkLocations (x,y) =
-        let locsX = Regex.singleLocations (reb.Topo()) (buildRegex ast reb x)
-        let locsY = Regex.singleLocations (reb.Topo()) (buildRegex ast reb y)
-        match locsX, locsY with 
-        | Some xs, Some ys -> (xs,ys)
-        | _, _ -> Common.unreachable ()
+        let xs = Regex.singleLocations (reb.Topo()) (buildRegex ast reb x) |> Option.get
+        let ys = Regex.singleLocations (reb.Topo()) (buildRegex ast reb y) |> Option.get
+        (xs,ys)
     match id.Name with
     | "aggregate" ->
         let p = prefix (List.head args).Node
@@ -566,7 +575,9 @@ let buildCConstraint ast (topo: Topology.T) (cc: Ident * Expr list) =
         CMaxRoutes (i,xs,ys)
     | "longest_path" -> 
         let i = getInt (List.head args).Node
-        CLongestPath i
+        let r = buildRegex ast reb (List.item 1 args)
+        let locs = Regex.singleLocations (reb.Topo()) r 
+        CLongestPath (i, Option.get locs)
     | _ -> Common.unreachable ()
 
 let getControlConstraints (ast: T) (topo: Topology.T) : CConstraint list = 
