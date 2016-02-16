@@ -3,6 +3,9 @@ define PG2 = 1.0.1.0/24
 define PL1 = 2.0.0.0/24
 define PL2 = 2.0.1.0/24
 
+
+define transit(X,Y) = X or in
+
 define ownership = {
 	PG1 => end(A),
 	PG2 => end(B),

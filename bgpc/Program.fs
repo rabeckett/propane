@@ -30,14 +30,14 @@ let main argv =
         | Some (i, x, y), Args.Any -> 
             let msg = 
                 sprintf "Required black-hole safety for aggregates under all failures, " + 
-                sprintf "but could only prove failure safety for up to %d failures. " i +
+                sprintf "but could only prove safety for up to %d failures. " i +
                 sprintf "It may be possible disconnect prefix at %s from aggregate at %s after %d failures. " x y (i+1) +
                 sprintf "Consider using the -failures:n flag to specify a tolerable failure level."
             warning msg
         | Some (i, x, y), Args.Concrete j when i < j ->
             let msg = 
                 sprintf "Required black-hole safety for aggregates under any combination of %d failures, " j +
-                sprintf "but could only prove failure safety for up to %d failures. " i +
+                sprintf "but could only prove safety for up to %d failures. " i +
                 sprintf "It may be possible to disconnect prefix at %s from aggregate at %s after %d failures" x y (i+1) +
                 sprintf "Consider using the -failures:n flag to specify a tolerable failure level."
             warning msg

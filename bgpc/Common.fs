@@ -163,8 +163,9 @@ module Color =
         for word in words do
             let len = word.Length
             if count + len + 2 > footerSize then 
-                result <- result + "\n" + word
-                count <- word.Length
+                let spaces = String.replicate offset " "
+                result <- result + "\n" + spaces + word
+                count <- word.Length + offset
             else 
                 let space = (if result = "" then "" else " ")
                 result <- result + space + word
@@ -183,7 +184,7 @@ module Color =
         printfn ""
 
     let writeFooter () =
-        printfn "\n%s" (String.replicate footerSize "-")
+        printfn "%s" (String.replicate footerSize "-")
 
     let error str = 
         lock obj (fun () ->
