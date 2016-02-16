@@ -28,9 +28,19 @@ let main argv =
         let (ir, k, _) = IR.compileAllPrefixes fullName topo pairs aggs
         match k, settings.Failures with
         | Some (i, x, y), Args.Any -> 
-            warning (sprintf "Required all-failure safety for aggregation, but only got %d-failure safety. Can possibly disconnect prefix at %s from aggregate at %s" i x y)
+            let msg = 
+                sprintf "Required black-hole safety for aggregates under all failures, " + 
+                sprintf "but could only prove failure safety for up to %d failures. " i +
+                sprintf "It may be possible disconnect prefix at %s from aggregate at %s after %d failures. " x y (i+1) +
+                sprintf "Consider using the -failures:n flag to specify a tolerable failure level."
+            warning msg
         | Some (i, x, y), Args.Concrete j when i < j ->
-            warning (sprintf "Required %d-failure safety for aggregation, but only got %d-failure safety. Can possibly disconnect prefix at %s from aggregate at %s" j i x y)
+            let msg = 
+                sprintf "Required black-hole safety for aggregates under any combination of %d failures, " j +
+                sprintf "but could only prove failure safety for up to %d failures. " i +
+                sprintf "It may be possible to disconnect prefix at %s from aggregate at %s after %d failures" x y (i+1) +
+                sprintf "Consider using the -failures:n flag to specify a tolerable failure level."
+            warning msg
         | _ -> ()
         match settings.OutFile with
         | None -> ()

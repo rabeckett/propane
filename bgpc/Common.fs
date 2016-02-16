@@ -149,19 +149,54 @@ module Color =
 
     let obj = new Object()
 
+    let footerSize = 70
+
+    let wrapText offset (s: string) : string = 
+        let s = s.Trim()
+        let words = s.Split(' ')
+        let mutable count = offset 
+        let mutable result = ""
+        for word in words do
+            let len = word.Length
+            if count + len + 2 > footerSize then 
+                result <- result + "\n" + word
+                count <- word.Length
+            else 
+                let space = (if result = "" then "" else " ")
+                result <- result + space + word
+                count <- count + len + 1
+        result
+
     let writeColor (s: string) c = 
         Console.ForegroundColor <- c
         Console.Write s
         Console.ResetColor ()
 
+    let writeHeader () =
+        let settings = Args.getSettings () 
+        let name = Option.get settings.PolFile
+        writeColor name ConsoleColor.DarkCyan
+        printfn ""
+
+    let writeFooter () =
+        printfn "\n%s" (String.replicate footerSize "-")
+
     let error str = 
         lock obj (fun () ->
-            writeColor "Error: " ConsoleColor.DarkRed
-            printfn "%s" str
+            writeHeader ()
+            printfn ""
+            let s = "Error: "
+            writeColor s ConsoleColor.DarkRed
+            printfn "%s" (wrapText s.Length str)
+            writeFooter ()
             exit 0)
 
     let warning str = 
         lock obj (fun () ->
-            writeColor "Warning: " ConsoleColor.DarkYellow
-            printfn "%s" str)
+            writeHeader ()
+            printfn ""
+            let s = "Warning: "
+            writeColor s ConsoleColor.DarkYellow
+            printfn "%s" (wrapText s.Length str)
+            writeFooter ())
        

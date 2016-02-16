@@ -133,6 +133,7 @@ let format (e:Expr) = ""
 module Message = 
 
     open System
+    open Common.Color
 
     type Kind = 
         | Error 
@@ -155,12 +156,8 @@ module Message =
         let spaces = String.replicate (maxLineNo - sl.Length + 1) " "
         let sl = sl + spaces + "|"
         let len = sl.Length 
-        Common.Color.writeColor sl ConsoleColor.DarkGray
+        writeColor sl ConsoleColor.DarkGray
         printf "%s%s" (String.replicate (msgOffset-len) " ") s
-
-    let displayHeader msg (ccolor, errorTyp) = 
-        Common.Color.writeColor errorTyp ccolor
-        printfn "%s" msg
 
     let displayMultiLine ast p ccolor =
         let mutable longestLineNo = 0
@@ -185,29 +182,26 @@ module Message =
         let len = (string p.SLine).Length
         displayLine str len p.SLine
         printf "\n%s" spaces
-        Common.Color.writeColor s ccolor
+        writeColor s ccolor
         printfn ""
+
+    let displayFooter msg (color, errorTyp) = 
+        Common.Color.writeColor errorTyp color
+        printfn "%s" (wrapText errorTyp.Length msg)
+        writeFooter ()
 
     let colorInfo (kind: Kind) =
         match kind with
         | Warning -> ConsoleColor.DarkYellow, "Warning: "
         | Error -> ConsoleColor.DarkRed, "Error:   "
 
-    let problem (msg: string) (kind: Kind) =
-        let ccolor, errorTyp = colorInfo kind
-        displayHeader msg (ccolor, errorTyp)
-
     let issueAst (ast: T) (msg: string) (p: Position) (kind: Kind) =
         let ccolor, errorTyp = colorInfo kind
-        displayHeader msg (ccolor, errorTyp)
+        writeHeader ()
         if p.SLine = p.ELine 
         then displaySingleLine ast p ccolor
         else displayMultiLine ast p ccolor
-        printfn ""
-
-    let issue (msg: string) (kind: Kind) =
-        let ccolor, errorTyp = colorInfo kind
-        displayHeader msg (ccolor, errorTyp)
+        displayFooter msg (ccolor, errorTyp)
 
     let errorAst ast msg p = 
         lock obj (fun () -> 
@@ -234,7 +228,7 @@ let warnUnusedDefs ast e =
     let defs = Map.fold (fun acc k (p,_,_) -> Map.add k p acc) Map.empty ast.Defs
     Map.iter (fun id p -> 
         if id <> "main" && id.[0] <> '_' && not (Set.contains id !used) then
-            let msg = sprintf "Unused definition of '%s'. Consider renaming variable to _%s." id id
+            let msg = sprintf "Unused definition of '%s'" id
             Message.warningAst ast msg p) defs
 
 
@@ -257,7 +251,7 @@ let warnUnused (ast: T) (e: Expr) : unit =
    to prevent recursive definitions *)
 
 // TODO: get rid of this
-let substitute (defs: Definitions) (e: Expr) : Expr = 
+let substitute (ast: T) (e: Expr) : Expr = 
     let rec aux defs seen e : Expr =
         match e.Node with
         | BlockExpr es -> {Pos=e.Pos;Node=BlockExpr (List.map (fun (e1,e2) -> (aux defs seen e1, aux defs seen e2)) es)}
@@ -270,13 +264,15 @@ let substitute (defs: Definitions) (e: Expr) : Expr =
         | NotExpr e1 -> {Pos=e.Pos;Node=NotExpr (aux defs seen e1)}
         | True | False | PrefixLiteral _ | CommunityLiteral _ | IntLiteral _ -> e
         | Ident (id, []) ->
-            if Set.contains id.Name seen then error (sprintf "Recursive definition of %s" id.Name)
+            if Set.contains id.Name seen then 
+                Message.errorAst ast (sprintf "Recursive definition of %s" id.Name) id.Pos
             match Map.tryFind id.Name defs with
             | None -> e
             | Some (_,_,e1) -> aux defs (Set.add id.Name seen) e1
         | Ident (id,es) -> 
             // substitute for args
-            if Set.contains id.Name seen then error (sprintf "Recursive definition of %s" id.Name)
+            if Set.contains id.Name seen then 
+                Message.errorAst ast (sprintf "Recursive definition of %s" id.Name) id.Pos
             match Map.tryFind id.Name defs with
             | None -> {Pos=e.Pos;Node=Ident(id, List.map (aux defs seen) es)}
             | Some (_,ids,e1) -> 
@@ -288,7 +284,7 @@ let substitute (defs: Definitions) (e: Expr) : Expr =
                     List.zip ids es
                     |> List.fold (fun acc (id,e) -> Map.add id.Name (dummyPos, [], e) acc) defs
                 aux defs' (Set.add id.Name seen) e1
-    aux defs Set.empty e
+    aux ast.Defs Set.empty e
 
 (* Test well-formedness of an expression. 
    Ensures expressions are of the proper type, 
@@ -494,7 +490,7 @@ let rec checkArgs ast name args =
 let buildCConstraint ast (topo: Topology.T) (cc: string * Expr list) =
     let reb = Regex.REBuilder(topo) 
     let (name, args) = cc
-    let args = List.map (fun e -> substitute ast.Defs e) args
+    let args = List.map (fun e -> substitute ast e) args
     checkArgs ast name args
     let inline prefix x = 
         let (a,b,c,d,bits) as p = getPrefix x
@@ -598,7 +594,7 @@ let makePolicyPairs (ast: T) (topo: Topology.T) : PolicyPair list =
     match Map.tryFind "main" ast.Defs with 
     | Some (_,[],e) ->
         warnUnused ast e
-        let e = substitute ast.Defs e
+        let e = substitute ast e
         match wellFormed ast e with
         | BlockType -> ()
         | typ ->
