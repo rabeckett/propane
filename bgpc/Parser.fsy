@@ -7,36 +7,24 @@ open Microsoft.FSharp.Text.Lexing
 
 type LineInfo = Position * Position
 
-let pos ((p1, p2): Position * Position) : Ast.Position =
+let pos ((p1, p2): LineInfo) : Ast.Position =
     {SLine = p1.Line; 
      SCol = p1.Column;
      ELine = p2.Line;
      ECol = p2.Column}
 
-let fromStartEnd (p1: Ast.Position) (p2: Ast.Position) : Ast.Position =
+let range (p1: Ast.Position) (p2: Ast.Position) : Ast.Position =
     {SLine = p1.SLine; 
      SCol = p1.SCol;
      ELine = p2.ELine;
      ECol = p2.ECol}
 
-let buildUnaryExpr left p x : Ast.Position * Expr = 
-    let p1 = pos p
-    let p2 = Ast.getPosition x in 
-    if left then
-        (fromStartEnd p1 p2, x)
-    else (fromStartEnd p2 p1, x)
-
-let buildBinaryExpr x y = 
-    let p1 = Ast.getPosition x in 
-    let p2 = Ast.getPosition y in
-    (fromStartEnd p1 p2, x, y)
-
-let buildDefinitions defs = 
+let buildDefinitions defs : Ast.Definitions = 
     List.fold (fun acc (name, x) -> 
         match Map.tryFind name acc with
         | None -> Map.add name x acc
         | Some _ -> 
-            error (sprintf "\nDuplicate definition of %s" name)
+            error (sprintf "Duplicate definition of %s" name)
         ) Map.empty defs
 %}
 
@@ -116,27 +104,24 @@ exprs:
     | expr COMMA exprs                           { $1 :: $3 }
 
 expr:
-	| ID									     { Ast.Ident (pos (fst $1), (snd $1), []) }
-	| ID LPAREN exprs RPAREN                     { Ast.Ident (pos (fst $1), (snd $1), $3) }
-    | expr AND expr                              { Ast.AndExpr (buildBinaryExpr $1 $3) }
-    | expr OR expr                               { Ast.OrExpr (buildBinaryExpr $1 $3) }
-    | expr DIFFERENCE expr                       { Ast.DiffExpr (buildBinaryExpr $1 $3) }
-	| expr SHR expr					             { Ast.ShrExpr (buildBinaryExpr $1 $3) }
-    | NOT expr                                   { Ast.NotExpr (buildUnaryExpr true $1 $2) }
-    | expr STAR                                  { Ast.StarExpr (buildUnaryExpr false $2 $1) }
-    | LPAREN expr RPAREN                         { $2 }
-	| expr RARROW expr                           { Ast.LinkExpr (buildBinaryExpr $1 $3) }
-    | INT DOT INT DOT INT DOT INT                { let p = fromStartEnd (pos (fst $1)) (pos (fst $7)) in
-                                                   Ast.PrefixLiteral (p, (snd $1, snd $3, snd $5, snd $7, None)) }
-    | INT DOT INT DOT INT DOT INT SLASH INT      { let p = fromStartEnd (pos (fst $1)) (pos (fst $9)) in
-                                                   Ast.PrefixLiteral (p,(snd $1, snd $3, snd $5, snd $7, Some (snd $9))) }
-	| INT COLON INT						         { let p = fromStartEnd (pos (fst $1)) (pos (fst $3)) in
-                                                   Ast.CommunityLiteral (p,(snd $1, snd $3)) }
-	| INT                                        { Ast.IntLiteral (pos (fst $1), snd $1) }
-    | TRUE                                       { Ast.True (pos $1) } 
-    | FALSE                                      { Ast.False (pos $1) }
-	| LBRACE RBRACE	                             { Ast.BlockExpr (fromStartEnd (pos $1) (pos $2), []) }
-	| LBRACE pconstrs RBRACE                     { Ast.BlockExpr (fromStartEnd (pos $1) (pos $3), $2) }
+	| ID									     { {Pos = pos (fst $1); Node = Ast.Ident ({Pos=pos (fst $1); Name=snd $1}, [])} }
+	| ID LPAREN exprs RPAREN                     { {Pos = range (pos (fst $1)) (pos $4); Node = Ast.Ident ({Pos=pos (fst $1); Name=snd $1}, $3)} }
+    | expr AND expr                              { {Pos = range $1.Pos $3.Pos; Node = Ast.AndExpr ($1, $3)} }
+    | expr OR expr                               { {Pos = range $1.Pos $3.Pos; Node = Ast.OrExpr ($1, $3)} }
+    | expr DIFFERENCE expr                       { {Pos = range $1.Pos $3.Pos; Node = Ast.DiffExpr ($1, $3)} }
+	| expr SHR expr					             { {Pos = range $1.Pos $3.Pos; Node = Ast.ShrExpr ($1, $3)} }
+    | NOT expr                                   { {Pos = range (pos $1) $2.Pos; Node = Ast.NotExpr $2} }
+    | expr STAR                                  { {Pos = range $1.Pos (pos $2); Node = Ast.StarExpr $1} }
+    | LPAREN expr RPAREN                         { {Pos = range (pos $1) (pos $3); Node = $2.Node} }
+	| expr RARROW expr                           { {Pos = range $1.Pos $3.Pos; Node = Ast.LinkExpr ($1, $3)} }
+    | INT DOT INT DOT INT DOT INT                { {Pos = range (pos (fst $1)) (pos (fst $7)); Node = Ast.PrefixLiteral (snd $1, snd $3, snd $5, snd $7, None)} }
+    | INT DOT INT DOT INT DOT INT SLASH INT      { {Pos = range (pos (fst $1)) (pos (fst $9)); Node = Ast.PrefixLiteral (snd $1, snd $3, snd $5, snd $7, Some (snd $9))} }
+	| INT COLON INT						         { {Pos = range (pos (fst $1)) (pos (fst $3)); Node = Ast.CommunityLiteral (snd $1, snd $3)} }
+	| INT                                        { {Pos = pos (fst $1); Node = Ast.IntLiteral (snd $1)} }
+    | TRUE                                       { {Pos = pos $1; Node = Ast.True} } 
+    | FALSE                                      { {Pos = pos $1; Node = Ast.False} }
+	| LBRACE RBRACE	                             { {Pos = range (pos $1) (pos $2); Node = Ast.BlockExpr []} }
+	| LBRACE pconstrs RBRACE                     { {Pos = range (pos $1) (pos $3); Node = Ast.BlockExpr $2} }
 
 ids:
 	| ID                                         { [snd $1] }
@@ -147,5 +132,5 @@ definitions:
     | definition definitions                     { $1 :: $2 }
 
 definition:
-    | DEFINE ID EQUAL expr	                     { (snd $2, ([], $4)) }
-    | DEFINE ID LPAREN ids RPAREN EQUAL expr     { (snd $2, ($4, $7)) }
+    | DEFINE ID EQUAL expr	                     { (snd $2, (range (pos $1) $4.Pos, [], $4)) }
+    | DEFINE ID LPAREN ids RPAREN EQUAL expr     { (snd $2, (range (pos $1) $7.Pos, $4, $7)) }

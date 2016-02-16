@@ -26,9 +26,9 @@ let main argv =
         let (ir, k, _) = IR.compileAllPrefixes fullName topo pairs aggs
         match k, settings.Failures with
         | Some (i, x, y), Args.Any -> 
-            warning (sprintf "\nRequired all-failure safety for aggregation, but only got %d-failure safety \nCan possibly disconnect prefix at %s from aggregate at %s" i x y)
+            warning (sprintf "Required all-failure safety for aggregation, but only got %d-failure safety. Can possibly disconnect prefix at %s from aggregate at %s" i x y)
         | Some (i, x, y), Args.Concrete j when i < j ->
-            warning (sprintf "\nRequired %d-failure safety for aggregation, but only got %d-failure safety \nCan possibly disconnect prefix at %s from aggregate at %s" j i x y)
+            warning (sprintf "Required %d-failure safety for aggregation, but only got %d-failure safety. Can possibly disconnect prefix at %s from aggregate at %s" j i x y)
         | _ -> ()
         match settings.OutFile with
         | None -> ()

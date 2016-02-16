@@ -7,21 +7,28 @@ type Position =
      ELine: int;
      ECol: int;}
 
+type Ident = 
+    {Pos: Position;
+     Name: string}
+
 type Expr =
-    | Ident of Position * string * Expr list
-    | BlockExpr of Position * (Expr * Expr) list
-    | LinkExpr of Position * Expr * Expr
-    | DiffExpr of Position * Expr * Expr
-    | StarExpr of Position * Expr
-    | ShrExpr of Position * Expr * Expr
-    | OrExpr of Position * Expr * Expr
-    | AndExpr of Position * Expr * Expr
-    | NotExpr of Position * Expr
-    | PrefixLiteral of Position * (uint32 * uint32 * uint32 * uint32 * uint32 option)
-    | CommunityLiteral of Position * (uint32 * uint32) 
-    | IntLiteral of Position * uint32
-    | True of Position
-    | False of Position
+    {Pos: Position;
+     Node: Node}
+and Node =
+    | Ident of Ident * Expr list
+    | BlockExpr of (Expr * Expr) list
+    | LinkExpr of Expr * Expr
+    | DiffExpr of Expr * Expr
+    | StarExpr of Expr
+    | ShrExpr of Expr * Expr
+    | OrExpr of Expr * Expr
+    | AndExpr of Expr * Expr
+    | NotExpr of Expr
+    | PrefixLiteral of uint32 * uint32 * uint32 * uint32 * uint32 option
+    | CommunityLiteral of uint32 * uint32
+    | IntLiteral of uint32
+    | True
+    | False
 
 /// Individual control constraint 
 type CConstraint = 
@@ -31,7 +38,7 @@ type CConstraint =
     | CLongestPath of uint32
 
 type ControlConstraints = (string * Expr list) list
-type Definitions = Map<string, string list * Expr>
+type Definitions = Map<string, Position * string list * Expr>
 
 /// Ast type with final definitions, control contraint, task definitions, and the final policy
 type T = 
@@ -41,8 +48,6 @@ type T =
 
 /// Final pairs of predicate, regular preferences after merging tasks
 type PolicyPair = (Predicate.T * Regex.REBuilder * Regex.T list)
-
-val getPosition: Expr -> Position
 
 /// Parse control constraint information w.r.t the topology
 val getControlConstraints: T -> Topology.T -> CConstraint list
