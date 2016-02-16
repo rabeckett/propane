@@ -2,6 +2,10 @@
 
 open System
 
+
+let unreachable () = 
+    failwith "unreachable"
+
 module Debug =
 
     let debug n f =
@@ -149,7 +153,7 @@ module Color =
 
     let obj = new Object()
 
-    let footerSize = 70
+    let footerSize = 80
 
     let wrapText offset (s: string) : string = 
         let s = s.Trim()

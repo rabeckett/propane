@@ -42,7 +42,6 @@ rule tokenize = parse
 	| '\\'                  { DIFFERENCE (position lexbuf) }
 	| ':'                   { COLON (position lexbuf) }
 	| '.'                   { DOT (position lexbuf) }
-	| '*'                   { STAR (position lexbuf) }
 	| ">>"                  { SHR (position lexbuf) } 
 	| [' ' '\t' '\r']       { tokenize lexbuf }
 	| '\n'                  { newline lexbuf; tokenize lexbuf }

@@ -13,6 +13,10 @@ let pos ((p1, p2): LineInfo) : Ast.Position =
      ELine = p2.Line;
      ECol = p2.Column}
 
+let ident x : Ast.Ident = 
+    {Pos = pos (fst x);
+     Name = snd x}
+
 let range (p1: Ast.Position) (p2: Ast.Position) : Ast.Position =
     {SLine = p1.SLine; 
      SCol = p1.SCol;
@@ -37,7 +41,6 @@ let buildDefinitions defs : Ast.Definitions =
 %token <LineInfo * System.UInt32> INT
 
 %token <LineInfo> NOT 
-%token <LineInfo> STAR 
 %token <LineInfo> DIFFERENCE
 %token <LineInfo> SHR 
 %token <LineInfo> AND 
@@ -70,7 +73,6 @@ let buildDefinitions defs : Ast.Definitions =
 %left OR
 %left AND
 %right NOT
-%left STAR
 
 %%
 
@@ -96,22 +98,21 @@ cconstrs:
     | cconstr COMMA cconstrs                     { $1 :: $3 }
 
 cconstr:
-    | ID                                         { (snd $1, []) }
-    | ID LPAREN exprs RPAREN                     { (snd $1, $3) }
+    | ID                                         { (ident $1, []) }
+    | ID LPAREN exprs RPAREN                     { (ident $1, $3) }
 
 exprs:
     | expr                                       { [$1] }
     | expr COMMA exprs                           { $1 :: $3 }
 
 expr:
-	| ID									     { {Pos = pos (fst $1); Node = Ast.Ident ({Pos=pos (fst $1); Name=snd $1}, [])} }
-	| ID LPAREN exprs RPAREN                     { {Pos = range (pos (fst $1)) (pos $4); Node = Ast.Ident ({Pos=pos (fst $1); Name=snd $1}, $3)} }
+	| ID									     { {Pos = pos (fst $1); Node = Ast.Ident (ident $1, [])} }
+	| ID LPAREN exprs RPAREN                     { {Pos = range (pos (fst $1)) (pos $4); Node = Ast.Ident (ident $1, $3)} }
     | expr AND expr                              { {Pos = range $1.Pos $3.Pos; Node = Ast.AndExpr ($1, $3)} }
     | expr OR expr                               { {Pos = range $1.Pos $3.Pos; Node = Ast.OrExpr ($1, $3)} }
     | expr DIFFERENCE expr                       { {Pos = range $1.Pos $3.Pos; Node = Ast.DiffExpr ($1, $3)} }
 	| expr SHR expr					             { {Pos = range $1.Pos $3.Pos; Node = Ast.ShrExpr ($1, $3)} }
     | NOT expr                                   { {Pos = range (pos $1) $2.Pos; Node = Ast.NotExpr $2} }
-    | expr STAR                                  { {Pos = range $1.Pos (pos $2); Node = Ast.StarExpr $1} }
     | LPAREN expr RPAREN                         { {Pos = range (pos $1) (pos $3); Node = $2.Node} }
 	| expr RARROW expr                           { {Pos = range $1.Pos $3.Pos; Node = Ast.LinkExpr ($1, $3)} }
     | INT DOT INT DOT INT DOT INT                { {Pos = range (pos (fst $1)) (pos (fst $7)); Node = Ast.PrefixLiteral (snd $1, snd $3, snd $5, snd $7, None)} }
@@ -124,8 +125,8 @@ expr:
 	| LBRACE pconstrs RBRACE                     { {Pos = range (pos $1) (pos $3); Node = Ast.BlockExpr $2} }
 
 ids:
-	| ID                                         { [{Pos = pos (fst $1); Name = snd $1}] }
-	| ID COMMA ids                               { {Pos = pos (fst $1); Name = snd $1} :: $3 }
+	| ID                                         { [ident $1] }
+	| ID COMMA ids                               { (ident $1) :: $3 }
 
 definitions:
     | definition                                 { [$1] }

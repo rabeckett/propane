@@ -21,7 +21,6 @@ and Node =
     | BlockExpr of (Expr * Expr) list
     | LinkExpr of Expr * Expr
     | DiffExpr of Expr * Expr
-    | StarExpr of Expr
     | ShrExpr of Expr * Expr
     | OrExpr of Expr * Expr
     | AndExpr of Expr * Expr
@@ -34,6 +33,7 @@ and Node =
 
 type Type = 
     | LinkType
+    | LocationType
     | RegexType
     | PredicateType
     | IntType
@@ -43,6 +43,7 @@ type Type =
     override this.ToString() = 
         match this with
         | LinkType -> "Links"
+        | LocationType -> "Location"
         | RegexType -> "Constraint"
         | PredicateType -> "Predicate"
         | IntType -> "Int"
@@ -62,7 +63,7 @@ type Value =
         | LinkValue -> "Links"
         | IntValue -> "Int"
 
-type ControlConstraints = (string * Expr list) list
+type ControlConstraints = (Ident * Expr list) list
 type Definitions = Map<string, Position * Ident list * Expr>
 
 type CConstraint = 
@@ -89,12 +90,15 @@ let paramInfo =
          ("maxroutes", (2, [IntValue; LinkValue]));
          ("longest_path", (1, [IntValue])) ]
 
+let builtInLocs = 
+    Set.ofList ["in"; "out"]
+
 let builtInRes = 
     Set.ofList 
         ["start"; "end"; "enter"; 
          "exit"; "valleyfree"; "always"; 
          "through"; "avoid"; "internal"; 
-         "external"; "any"; "drop"; "in"; "out"]
+         "any"; "drop"; "in"; "out"]
 
 let builtInConstraints = 
     Set.ofList 
@@ -109,7 +113,8 @@ let dummyPos =
      ELine = -1;
      ECol = -1}
 
-(* Helper functions *)
+(* Helper function for traversing an AST expression 
+   and applying a user-defined function f at each node *)
 
 let rec iter f (e: Expr) =
     f e
@@ -120,15 +125,17 @@ let rec iter f (e: Expr) =
     | ShrExpr (e1, e2) 
     | OrExpr (e1, e2) 
     | AndExpr (e1, e2) -> iter f e1; iter f e2
-    | StarExpr e1
     | NotExpr e1 -> iter f e1
     | True | False | PrefixLiteral _ | CommunityLiteral _ | IntLiteral _ -> ()
     | Ident (id, args) -> List.iter f args
 
 
-(* Marking errors and warnings *)
-
-let format (e:Expr) = ""
+(* Pretty printing of error and warning messages. 
+   When errors occur on a single line, display the line 
+   and underline the problem. When errors are multi-line,
+   then display the source lines but no underlining. 
+   In either case, source line numbers are displayed
+   next to the error/warning messages. *)
 
 module Message = 
 
@@ -212,8 +219,9 @@ module Message =
         lock obj (fun () -> issueAst ast msg p Warning)
 
 
-
-(* Compiler warnings for common mistakes *)
+(* Compiler warnings for a variety of common mistakes. 
+   Unused definitions or parameters not starting with '_',
+   TODO: unused aggregates, etc. *)
 
 let getUsed seen e =
     match e.Node with
@@ -246,11 +254,10 @@ let warnUnused (ast: T) (e: Expr) : unit =
     warnUnusedDefs ast e
     warnUnusedParams ast
 
-(* Recursively expand all definitions in 
-   an expression. Keep track of seen expansions
-   to prevent recursive definitions *)
+(* Fully expand all definitions in an expression. 
+   Keep track of seen expansions to prevent recursive definitions.
+   The position of the new, expanded block is set to the old expression. *)
 
-// TODO: get rid of this
 let substitute (ast: T) (e: Expr) : Expr = 
     let rec aux defs seen e : Expr =
         match e.Node with
@@ -260,7 +267,6 @@ let substitute (ast: T) (e: Expr) : Expr =
         | ShrExpr (e1, e2) -> {Pos=e.Pos;Node=ShrExpr (aux defs seen e1, aux defs seen e2)}
         | OrExpr (e1, e2) -> {Pos=e.Pos;Node=OrExpr (aux defs seen e1, aux defs seen e2)}
         | AndExpr (e1, e2) -> {Pos=e.Pos;Node=AndExpr (aux defs seen e1, aux defs seen e2)}
-        | StarExpr e1 -> {Pos=e.Pos;Node=StarExpr (aux defs seen e1)}
         | NotExpr e1 -> {Pos=e.Pos;Node=NotExpr (aux defs seen e1)}
         | True | False | PrefixLiteral _ | CommunityLiteral _ | IntLiteral _ -> e
         | Ident (id, []) ->
@@ -269,8 +275,7 @@ let substitute (ast: T) (e: Expr) : Expr =
             match Map.tryFind id.Name defs with
             | None -> e
             | Some (_,_,e1) -> aux defs (Set.add id.Name seen) e1
-        | Ident (id,es) -> 
-            // substitute for args
+        | Ident (id,es) ->
             if Set.contains id.Name seen then 
                 Message.errorAst ast (sprintf "Recursive definition of %s" id.Name) id.Pos
             match Map.tryFind id.Name defs with
@@ -303,57 +308,95 @@ let wellFormedPrefix ast pos (a,b,c,d,bits) =
         let msg = sprintf "Found an invalid prefix %s, must be [0-255].[0-255].[0-255].[0-255]/[0-32] " (string p)
         Message.errorAst ast msg pos
 
+let typeMsg (expected: Type list) (t1: Type) = 
+    let t = Common.List.joinBy " or " (List.map string expected)
+    sprintf "Invalid type, expected %s, but got %s" 
+        (string t) 
+        (string t1)
+
+let typeMsg2 (expected: Type list) (t1: Type) (t2: Type) = 
+    let t = Common.List.joinBy " or " (List.map string expected)
+    sprintf "Invalid type, expected %s, but got %s and %s" 
+        (string t) 
+        (string t1)
+        (string t2)
+
 let wellFormed ast (e: Expr) : Type =
     let rec aux block e =
         match e.Node with
         | BlockExpr es -> 
             if block then 
-                Message.errorAst ast (sprintf "Invalid syntax, nested block expression found") e.Pos
+                let msg = "Invalid syntax, nested block expression found"
+                Message.errorAst ast msg e.Pos
             for (e1, e2) in es do 
                 let t1, t2 = aux true e1, aux true e2
                 match t1, t2 with
-                | PredicateType, RegexType -> ()
-                | PredicateType, _ -> Message.errorAst ast (sprintf "Invalid type, expected Constraint, but got %s" (string t2)) e2.Pos
-                | _, _ -> Message.errorAst ast (sprintf "Invalid type, expected Predicate, but got %s" (string t1)) e1.Pos
+                | PredicateType, RegexType
+                | PredicateType, LocationType -> ()
+                | PredicateType, _ -> Message.errorAst ast (typeMsg [RegexType] t2) e2.Pos
+                | _, _ ->  Message.errorAst ast (typeMsg [PredicateType] t1) e1.Pos
             BlockType
         | LinkExpr (e1, e2) -> 
-            match aux block e1, aux block e2 with 
-            | RegexType, RegexType -> LinkType
-                //TODO: check single locations
-            | _, _ -> error (sprintf "Invalid type %s, specify links with regular expressions" (format e))
-        | DiffExpr (e1, e2) -> 
-            match aux block e1, aux block e2 with 
+            let t1 = aux block e1
+            let t2 = aux block e2
+            match t1, t2 with
+            | LocationType, LocationType -> LinkType
+            | _, LocationType -> Message.errorAst ast (typeMsg [LocationType] t1) e1.Pos
+            | LocationType, _ -> Message.errorAst ast (typeMsg [LocationType] t2) e2.Pos
+            | _, _ -> Message.errorAst ast (typeMsg2 [LocationType] t1 t2) e.Pos
+        | DiffExpr (e1, e2)
+        | ShrExpr (e1, e2) -> 
+            let t1 = aux block e1
+            let t2 = aux block e2
+            match t1, t2 with 
+            | LocationType, LocationType -> LocationType
+            | LocationType, RegexType
+            | RegexType, LocationType
             | RegexType, RegexType -> RegexType
             | BlockType, BlockType -> BlockType
-            | _, RegexType
-            | _, BlockType -> Message.errorAst ast (sprintf "Invalid type, expected Constraint or Block") e1.Pos
-            | _, _ -> Message.errorAst ast (sprintf "Invalid expression, expected Constraint or Block") e2.Pos
-        | ShrExpr (e1, e2) ->
-            match aux block e1, aux block e2 with 
-            | RegexType, RegexType -> RegexType
-            | _, RegexType -> Message.errorAst ast (sprintf "Invalid type, expected Constraint") e1.Pos
-            | _, _ -> Message.errorAst ast (sprintf "Invalid type, expected Constraint") e2.Pos
+            | _, BlockType -> Message.errorAst ast (typeMsg [BlockType] t1) e1.Pos
+            | BlockType, _ -> Message.errorAst ast (typeMsg [BlockType] t2) e2.Pos
+            | _, RegexType 
+            | _, LocationType -> Message.errorAst ast (typeMsg [RegexType] t1) e1.Pos
+            | RegexType, _
+            | LocationType, _ -> Message.errorAst ast (typeMsg [RegexType] t2) e2.Pos
+            | _, _ -> Message.errorAst ast (typeMsg2 [BlockType; RegexType] t1 t2) e.Pos
         | OrExpr (e1, e2)
         | AndExpr (e1, e2) ->
-            match aux block e1, aux block e2 with 
+            let t1 = aux block e1
+            let t2 = aux block e2
+            match t1, t2 with 
+            | LocationType, LocationType -> LocationType
+            | LocationType, RegexType
+            | RegexType, LocationType
             | RegexType, RegexType -> RegexType
-            | PredicateType, PredicateType -> PredicateType
             | BlockType, BlockType -> BlockType
-            | _, _  -> Message.errorAst ast (sprintf "Invalid type, expected Constraints, Blocks, or Predicates") e.Pos
-        | StarExpr e1 ->
-            if aux block e1 = RegexType then RegexType
-            else Message.errorAst ast (sprintf "Invalid type, expected Constraint") e.Pos // TODO: remove star from grammar
+            | PredicateType, PredicateType -> PredicateType
+            | _, PredicateType -> Message.errorAst ast (typeMsg [PredicateType] t1) e1.Pos
+            | PredicateType, _ -> Message.errorAst ast (typeMsg [PredicateType] t2) e2.Pos
+            | _, BlockType -> Message.errorAst ast (typeMsg [BlockType] t1) e1.Pos
+            | BlockType, _ -> Message.errorAst ast (typeMsg [BlockType] t2) e2.Pos
+            | _, RegexType 
+            | _, LocationType -> Message.errorAst ast (typeMsg [RegexType] t1) e1.Pos
+            | RegexType, _
+            | LocationType, _ -> Message.errorAst ast (typeMsg [RegexType] t2) e2.Pos
+            | _, _ -> Message.errorAst ast (typeMsg2 [BlockType; RegexType] t1 t2) e.Pos
         | NotExpr e1 -> 
-            match aux block e1 with
+            let t = aux block e1
+            match t with
+            | LocationType -> LocationType
             | RegexType -> RegexType
             | PredicateType -> PredicateType
-            | _ -> Message.errorAst ast (sprintf "Invalid type, expected Constraint or Predicate") e.Pos
+            | _ -> Message.errorAst ast (typeMsg [RegexType; PredicateType] t) e.Pos
         | PrefixLiteral (a,b,c,d,bits) -> wellFormedPrefix ast e.Pos (a,b,c,d,bits); PredicateType
         | True _ | False _ | CommunityLiteral _ -> PredicateType
         | IntLiteral _ -> IntType
-        | Ident (id, _) -> 
-            if builtInConstraints.Contains id.Name then ControlType 
-            else RegexType
+        | Ident (id, _) ->
+            // TODO: check for AS
+            if builtInConstraints.Contains id.Name then ControlType
+            elif builtInLocs.Contains id.Name then LocationType
+            elif builtInRes.Contains id.Name then RegexType 
+            else LocationType
     aux false e
    
 (* Given an expression, which is known to be a regex, 
@@ -365,11 +408,10 @@ let rec pushPrefsToTop (e: Expr) : Expr list =
     | AndExpr (x,y) -> merge e (x,y) (fun a b -> {Pos=e.Pos;Node=AndExpr(a,b)})
     | OrExpr (x,y) -> merge e (x,y) (fun a b -> {Pos=e.Pos;Node=OrExpr(a,b)})
     | DiffExpr (x,y) -> merge e (x,y) (fun a b -> {Pos=e.Pos;Node=DiffExpr(a,b)})
-    | StarExpr x -> mergeSingle e x "star"
     | NotExpr x -> mergeSingle e x "negation"
     | ShrExpr (x,y) -> (pushPrefsToTop x) @ (pushPrefsToTop y)
     | Ident _ -> [e]
-    | _ -> failwith "unreachable"
+    | _ -> Common.unreachable ()
 and merge e (x,y) f =
     let xs = pushPrefsToTop x 
     let ys = pushPrefsToTop y
@@ -377,13 +419,12 @@ and merge e (x,y) f =
     | [a], _ -> List.map (fun b -> f a b) ys
     | _, [b] -> List.map (fun a -> f a b) xs
     | a::_, b::_ -> 
-        let sx, sy, sr = format x, format y, format e 
-        error (sprintf "\nInvalid use of preferences in regex \nCannot merge: %s and %s in %s" sx sy sr)
-    | _, _ -> failwith "impossible"
+        error (sprintf "Invalid use of preferences in regex")
+    | _, _ -> Common.unreachable ()
 and mergeSingle e x op =
     let xs = pushPrefsToTop x
     if xs.Length > 1 then
-        error (sprintf "\nInvalid use of preferences in regex \nCannot nest under %s operator: %s" op (format e))
+        error (sprintf "Invalid use of preferences in regex. Cannot nest preferences under %s operator" op)
     else xs 
 
 (* Construct an actual regular expression from an 
@@ -405,7 +446,6 @@ let rec buildRegex (ast: T) (reb: Regex.REBuilder) (r: Expr) : Regex.LazyT =
     | OrExpr(x,y) -> reb.Union [(buildRegex ast reb x); (buildRegex ast reb y)]
     | DiffExpr(x,y) -> reb.Inter [(buildRegex ast reb x); reb.Negate (buildRegex ast reb y)]
     | NotExpr x -> reb.Negate (buildRegex ast reb x)
-    | StarExpr x -> reb.Star (buildRegex ast reb x)
     | Ident(id, args) ->
         match id.Name with
         | "valleyfree" -> let locs = checkParams id args.Length args in reb.ValleyFree locs
@@ -417,7 +457,6 @@ let rec buildRegex (ast: T) (reb: Regex.REBuilder) (r: Expr) : Regex.LazyT =
         | "through" -> let locs = checkParams id 1 args in reb.Through locs.Head
         | "avoid" -> let locs = checkParams id 1 args in reb.Avoid locs.Head
         | "internal" -> ignore (checkParams id 0 args); reb.Internal()
-        | "external" -> ignore (checkParams id 0 args); reb.External()
         | "any" -> ignore (checkParams id 0 args); reb.Any()
         | "drop" -> ignore (checkParams id 0 args); reb.Empty
         | "in" -> ignore (checkParams id 0 args); reb.Inside 
@@ -426,7 +465,7 @@ let rec buildRegex (ast: T) (reb: Regex.REBuilder) (r: Expr) : Regex.LazyT =
             if args.Length > 0 then 
                 error (sprintf "Undefined macro %s" l)
             else reb.Loc l
-    | _ -> failwith "unreachable"
+    | _ -> Common.unreachable ()
 
 (* Build a concrete predicate from an expression
    that is known the have predicate type *)
@@ -442,7 +481,7 @@ let rec buildPredicate (e: Expr) : Predicate.T =
         let adjBits = adjustBits bits
         Predicate.prefix (a,b,c,d) adjBits
     | CommunityLiteral (x,y) ->  Predicate.community (string x + ":" + string y)
-    | _ -> failwith "unreachable"
+    | _ -> Common.unreachable ()
 
 (* Helper getter functions for expressions
    where the kind of value is known *)
@@ -450,48 +489,53 @@ let rec buildPredicate (e: Expr) : Predicate.T =
 let inline getPrefix x = 
     match x with 
     | PrefixLiteral (a,b,c,d,bits) -> (a,b,c,d,bits)
-    | _ -> failwith "unreachable" 
+    | _ -> Common.unreachable ()
 
 let inline getLinks x = 
     match x with 
     | LinkExpr(x,y) -> (x,y)
-    | _ -> failwith "unreachable"
+    | _ -> Common.unreachable ()
 
 let inline getInt x = 
     match x with 
     | IntLiteral i -> i 
-    | _ -> failwith "unreachable"
+    | _ -> Common.unreachable ()
 
 let inline getComm x = 
     match x with 
     | CommunityLiteral (a,b) -> (a,b)
-    | _ -> failwith "unreachable"
+    | _ -> Common.unreachable ()
 
 (* Build the control constraints
    and extract concrete parameter values *)
 
-let rec checkArgs ast name args = 
-    match Map.tryFind name paramInfo with
-    | None -> error (sprintf "Unrecognized constraint: %s" name)
+let rec checkArgs ast id args argsOrig = 
+    match Map.tryFind id.Name paramInfo with
+    | None -> 
+        let msg = sprintf "Unrecognized constraint '%s'" id.Name
+        Message.errorAst ast msg id.Pos
     | Some (n, typs) -> 
         let len = List.length args
         if len <> n then 
-            error (sprintf "Invalid number of parameters to: %s, expected: %d, but received %d" name n len)
+            let msg = sprintf "Expected %d parameters to %s, but got %d" n id.Name len
+            Message.errorAst ast msg id.Pos
         let mutable i = 0
-        for (x,y) in List.zip args typs do 
+        for (x,origE,y) in List.zip3 args argsOrig typs do 
             i <- i + 1
             match wellFormed ast x, x.Node, y with
-            | PredicateType _, _, PrefixValue -> ()
+            | PredicateType _, PrefixLiteral _, PrefixValue -> ()
             | PredicateType, CommunityLiteral _, CommunityValue -> ()
-            | LinkType, _, LinkValue -> ()
-            | IntType, _, IntValue -> ()
-            | _, _, _ -> error (sprintf "\nExpected parameter %d of constraint (%s) to be of type: %s" i name (string y))
+            | LinkType, LinkExpr _, LinkValue -> ()
+            | IntType, IntLiteral _, IntValue -> ()
+            | _, _, _ -> 
+                let msg = sprintf "Expected parameter %d of %s to be a %s value" i id.Name (string y)
+                Message.errorAst ast msg origE.Pos
 
-let buildCConstraint ast (topo: Topology.T) (cc: string * Expr list) =
+let buildCConstraint ast (topo: Topology.T) (cc: Ident * Expr list) =
     let reb = Regex.REBuilder(topo) 
-    let (name, args) = cc
-    let args = List.map (fun e -> substitute ast e) args
-    checkArgs ast name args
+    let (id, argsOrig) = cc
+    let args = List.map (fun e -> substitute ast e) argsOrig
+    checkArgs ast id args argsOrig
     let inline prefix x = 
         let (a,b,c,d,bits) as p = getPrefix x
         wellFormedPrefix ast dummyPos p  // TODO: fixme
@@ -501,8 +545,8 @@ let buildCConstraint ast (topo: Topology.T) (cc: string * Expr list) =
         let locsY = Regex.singleLocations (reb.Topo()) (buildRegex ast reb y)
         match locsX, locsY with 
         | Some xs, Some ys -> (xs,ys)
-        | _, _ -> error (sprintf "\nLink expression must denote single locations in parameter to: %s" name)
-    match name with
+        | _, _ -> Common.unreachable ()
+    match id.Name with
     | "aggregate" ->
         let p = prefix (List.head args).Node
         let (x,y) = getLinks (List.item 1 args).Node
@@ -523,7 +567,7 @@ let buildCConstraint ast (topo: Topology.T) (cc: string * Expr list) =
     | "longest_path" -> 
         let i = getInt (List.head args).Node
         CLongestPath i
-    | _ -> failwith "unreachable"
+    | _ -> Common.unreachable ()
 
 let getControlConstraints (ast: T) (topo: Topology.T) : CConstraint list = 
     List.map (buildCConstraint ast topo) ast.CConstraints
@@ -555,7 +599,7 @@ let checkBlock pcs =
         matched <- p'
     if remaining <> Predicate.bot then
         // let s = Predicate.example rollingPred
-        // warning (sprintf "\nIncomplete prefixes in block \nAn example of a prefix that is not matched: %s" s)
+        // warning (sprintf "Incomplete prefixes in block. An example of a prefix that is not matched: %s" s)
         pcs @ [(Predicate.top, [ {Pos=dummyPos; Node=Ident ({Pos=dummyPos;Name="any"}, [])} ])]
     else pcs
 
@@ -585,7 +629,7 @@ let rec expandBlocks (e: Expr) =
         List.map (fun (x,y) -> (buildPredicate x, pushPrefsToTop y)) es
         |> checkBlock
         |> List.map (fun (p,es) -> (p, collapsePrefs es))
-    | _ -> failwith "unreachable"
+    | _ -> Common.unreachable ()
 
 (* Given the AST and the topology, check well-formedness
    and produce the top-level, merged path constraints. *)
@@ -593,12 +637,15 @@ let rec expandBlocks (e: Expr) =
 let makePolicyPairs (ast: T) (topo: Topology.T) : PolicyPair list =
     match Map.tryFind "main" ast.Defs with 
     | Some (_,[],e) ->
-        warnUnused ast e
         let e = substitute ast e
-        match wellFormed ast e with
+        warnUnused ast e
+        let t = wellFormed ast e
+        match t with
         | BlockType -> ()
-        | typ ->
-            error (sprintf "Expected block in main, but got an expression with type %s" (string typ))
+        | _ -> Message.errorAst ast (typeMsg [BlockType] t) e.Pos
+        Map.iter (fun id (p,args,e) ->
+            let e = substitute ast e
+            ignore (wellFormed ast e)) ast.Defs
         let topLevel = 
             expandBlocks e
             |> List.map (fun (p,e) -> (p, pushPrefsToTop e))

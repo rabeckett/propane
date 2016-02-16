@@ -19,7 +19,6 @@ and Node =
     | BlockExpr of (Expr * Expr) list
     | LinkExpr of Expr * Expr
     | DiffExpr of Expr * Expr
-    | StarExpr of Expr
     | ShrExpr of Expr * Expr
     | OrExpr of Expr * Expr
     | AndExpr of Expr * Expr
@@ -37,7 +36,7 @@ type CConstraint =
     | CMaxRoutes of uint32 * Set<string> * Set<string>
     | CLongestPath of uint32
 
-type ControlConstraints = (string * Expr list) list
+type ControlConstraints = (Ident * Expr list) list
 type Definitions = Map<string, Position * Ident list * Expr>
 
 /// Ast type with final definitions, control contraint, task definitions, and the final policy
