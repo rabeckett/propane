@@ -38,7 +38,7 @@ type CConstraint =
     | CLongestPath of uint32
 
 type ControlConstraints = (string * Expr list) list
-type Definitions = Map<string, Position * string list * Expr>
+type Definitions = Map<string, Position * Ident list * Expr>
 
 /// Ast type with final definitions, control contraint, task definitions, and the final policy
 type T = 

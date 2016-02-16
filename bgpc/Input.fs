@@ -17,9 +17,13 @@ let readFromFile fname : Ast.T =
         {Input=lines; Defs=defs; CConstraints=cs}
     with
         | Lexer.EofInComment ->
-            parseError ("End of file detected in comment")
+            Common.Color.writeColor "Error: " System.ConsoleColor.DarkRed
+            printfn "End of file detected in comment"
+            exit 0
         | _ ->
             let pos = lexbuf.EndPos
             let line = pos.Line
             let column = pos.Column
-            parseError (sprintf "Line: %d, Char: %d" line column)
+            Common.Color.writeColor "Error: " System.ConsoleColor.DarkRed
+            printfn "Line: %d, Char: %d" line column
+            exit 0

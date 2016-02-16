@@ -2,8 +2,10 @@
 
 open Common
 open Common.Debug
-open Common.Error
+open Common.Color
+open System
     
+
 
 [<EntryPoint>]
 let main argv =
@@ -11,14 +13,14 @@ let main argv =
     let settings = Args.getSettings ()
     if settings.Test then
         Test.run ()
-        exit ()
+        exit 0
     let fullName = settings.DebugDir + (Common.Option.getOrDefault "output" settings.OutFile)
     let topo = 
         match settings.TopoFile with 
-        | None -> error ("No topology file specified, use -topo:file compiler flag")
+        | None -> error "No topology file specified, use -topo:file compiler flag"
         | Some f -> Topology.readTopology f
     match settings.PolFile with 
-    | None -> error ("No policy file specified, use -pol:file compiler flag")
+    | None -> error "No policy file specified, use -pol:file compiler flag"
     | Some p ->
         let ast = Input.readFromFile p
         let aggs = Ast.getControlConstraints ast topo

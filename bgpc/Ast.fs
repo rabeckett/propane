@@ -1,7 +1,7 @@
 ﻿module Ast
 
 open Topology
-open Common.Error
+open Common.Color
 
 type Position = 
     {SLine: int;
@@ -43,10 +43,10 @@ type Type =
     override this.ToString() = 
         match this with
         | LinkType -> "Links"
-        | RegexType -> "Regex"
+        | RegexType -> "Constraint"
         | PredicateType -> "Predicate"
         | IntType -> "Int"
-        | ControlType -> "Control Constraint"
+        | ControlType -> "Control"
         | BlockType -> "Block"
 
 type Value = 
@@ -63,7 +63,7 @@ type Value =
         | IntValue -> "Int"
 
 type ControlConstraints = (string * Expr list) list
-type Definitions = Map<string, Position * string list * Expr>
+type Definitions = Map<string, Position * Ident list * Expr>
 
 type CConstraint = 
     | CAggregate of Prefix.T list * Set<string> * Set<string>
@@ -138,7 +138,9 @@ module Message =
         | Error 
         | Warning
 
-    let msgOffset = 10
+    let msgOffset = 9
+
+    let obj = new Object()
 
     let inline count (c: char) (s: string) = 
         s.Split(c).Length - 1
@@ -148,18 +150,31 @@ module Message =
             (fun c -> c <> ' ' && c <> '\t') 
             (s.ToCharArray())
 
-    let displayLine (s:string) (line: int) =
-        let sl = string line + " |>"
-        Common.Error.writeColor sl ConsoleColor.DarkMagenta
+    let displayLine (s:string) (maxLineNo: int) (line: int) =
+        let sl = string line 
+        let spaces = String.replicate (maxLineNo - sl.Length + 1) " "
+        let sl = sl + spaces + "|"
         let len = sl.Length 
+        Common.Color.writeColor sl ConsoleColor.DarkGray
         printf "%s%s" (String.replicate (msgOffset-len) " ") s
 
     let displayHeader msg (ccolor, errorTyp) = 
-        Common.Error.writeColor errorTyp ccolor
+        Common.Color.writeColor errorTyp ccolor
         printfn "%s" msg
 
     let displayMultiLine ast p ccolor =
-        failwith ""
+        let mutable longestLineNo = 0
+        let mutable minLineStart = Int32.MaxValue
+        for i = p.SLine to p.ELine do 
+            let str = ast.Input.[i-1]
+            longestLineNo <- max (string i).Length longestLineNo
+            minLineStart <- min minLineStart (firstNonSpace str)
+        for i = p.SLine to p.ELine do 
+            let str = ast.Input.[i-1]
+            let str = str.[minLineStart..]
+            displayLine str longestLineNo i
+            printfn ""
+        printfn ""
 
     let displaySingleLine ast p ccolor =
         let str = ast.Input.[p.SLine-1]
@@ -167,15 +182,16 @@ module Message =
         let str = str.Trim()
         let spaces = String.replicate (p.SCol - lineStart + msgOffset) " "
         let s = String.replicate (p.ECol - p.SCol) "~"
-        displayLine str p.SLine
+        let len = (string p.SLine).Length
+        displayLine str len p.SLine
         printf "\n%s" spaces
-        Common.Error.writeColor s ccolor
+        Common.Color.writeColor s ccolor
         printfn ""
 
     let colorInfo (kind: Kind) =
         match kind with
         | Warning -> ConsoleColor.DarkYellow, "Warning: "
-        | Error -> ConsoleColor.DarkRed, "Error: "
+        | Error -> ConsoleColor.DarkRed, "Error:   "
 
     let problem (msg: string) (kind: Kind) =
         let ccolor, errorTyp = colorInfo kind
@@ -187,51 +203,49 @@ module Message =
         if p.SLine = p.ELine 
         then displaySingleLine ast p ccolor
         else displayMultiLine ast p ccolor
-        if kind = Error then 
-            exit ()
+        printfn ""
 
     let issue (msg: string) (kind: Kind) =
         let ccolor, errorTyp = colorInfo kind
         displayHeader msg (ccolor, errorTyp)
-        if kind = Error then 
-            exit ()
 
-    let errorAst ast msg p = issueAst ast msg p Error
+    let errorAst ast msg p = 
+        lock obj (fun () -> 
+            issueAst ast msg p Error
+            exit 0)
 
-    let error msg = issue msg Error
+    let warningAst ast msg p = 
+        lock obj (fun () -> issueAst ast msg p Warning)
 
-    let warningAst ast msg p = issueAst ast msg p Warning
-
-    let warning msg = issue msg Warning
 
 
 (* Compiler warnings for common mistakes *)
 
-let getUsed seen e = 
-    match e.Node with 
+let getUsed seen e =
+    match e.Node with
     | Ident(id, _) -> 
         seen := Set.add id.Name !seen
     | _ -> ()
 
-// TODO: don't consider main, and get positions
 let warnUnusedDefs ast e =
     let used = ref Set.empty
     iter (getUsed used) e
     Map.iter (fun _ (_,_,e) -> iter (getUsed used) e) ast.Defs
-    let defs = Map.fold (fun acc k (p,_,_) -> Set.add k acc) Set.empty ast.Defs
-    let unused = Set.difference defs !used
-    if Set.count unused > 0 then
-        let msg = Common.Set.joinBy "," unused
-        warning (sprintf "Unused definition(s): %s" msg)
+    let defs = Map.fold (fun acc k (p,_,_) -> Map.add k p acc) Map.empty ast.Defs
+    Map.iter (fun id p -> 
+        if id <> "main" && id.[0] <> '_' && not (Set.contains id !used) then
+            let msg = sprintf "Unused definition of '%s'. Consider renaming variable to _%s." id id
+            Message.warningAst ast msg p) defs
+
 
 let warnUnusedParams (ast: T) = 
     Map.iter (fun id (_,ps,e) ->
         let seen = ref (Set.empty)
         iter (getUsed seen) e
-        let unused = Set.difference (Set.ofList ps) !seen
-        if Set.count unused > 0 then 
-            let msg = Common.Set.joinBy "," unused
-            warning (sprintf "Unused parameter(s): %s in definition %s" msg id)
+        for p in ps do
+            if p.Name.[0] <> '_' && not (Set.contains p.Name !seen) then
+                let msg = sprintf "Unused parameter '%s' in definition of '%s'" p.Name id
+                Message.warningAst ast msg p.Pos 
         ) ast.Defs
 
 let warnUnused (ast: T) (e: Expr) : unit = 
@@ -272,7 +286,7 @@ let substitute (defs: Definitions) (e: Expr) : Expr =
                     error (sprintf "\nInvalid number of parameters to function %s \nRequired %d parameters, but provided %d" id.Name required provided)
                 let defs' =
                     List.zip ids es
-                    |> List.fold (fun acc (id,e) -> Map.add id (dummyPos, [], e) acc) defs
+                    |> List.fold (fun acc (id,e) -> Map.add id.Name (dummyPos, [], e) acc) defs
                 aux defs' (Set.add id.Name seen) e1
     aux defs Set.empty e
 
@@ -286,53 +300,59 @@ let inline adjustBits bits =
     | None -> 32u
     | Some b -> b
 
-let wellFormedPrefix (a,b,c,d,bits) =
+let wellFormedPrefix ast pos (a,b,c,d,bits) =
     let bits = adjustBits bits
     let p = Prefix.prefix (a,b,c,d) bits
     if (a > 255u || b > 255u || c > 255u || d > 255u || (bits > 32u)) then
-        error (sprintf "Invalid prefix %s" (string p))
+        let msg = sprintf "Found an invalid prefix %s, must be [0-255].[0-255].[0-255].[0-255]/[0-32] " (string p)
+        Message.errorAst ast msg pos
 
 let wellFormed ast (e: Expr) : Type =
     let rec aux block e =
         match e.Node with
         | BlockExpr es -> 
-            if block then error (sprintf "\nNested block for expression %s" (format e))
+            if block then 
+                Message.errorAst ast (sprintf "Invalid syntax, nested block expression found") e.Pos
             for (e1, e2) in es do 
-                match aux true e1, aux true e2 with
+                let t1, t2 = aux true e1, aux true e2
+                match t1, t2 with
                 | PredicateType, RegexType -> ()
-                | _, _ -> error (sprintf "\nInvalid block expression %s" (format e))
+                | PredicateType, _ -> Message.errorAst ast (sprintf "Invalid type, expected Constraint, but got %s" (string t2)) e2.Pos
+                | _, _ -> Message.errorAst ast (sprintf "Invalid type, expected Predicate, but got %s" (string t1)) e1.Pos
             BlockType
         | LinkExpr (e1, e2) -> 
             match aux block e1, aux block e2 with 
             | RegexType, RegexType -> LinkType
                 //TODO: check single locations
-            | _, _ -> error (sprintf "Invalid expression %s, specify links with regular expressions" (format e))
+            | _, _ -> error (sprintf "Invalid type %s, specify links with regular expressions" (format e))
         | DiffExpr (e1, e2) -> 
             match aux block e1, aux block e2 with 
             | RegexType, RegexType -> RegexType
             | BlockType, BlockType -> BlockType
-            | _, _ -> error (sprintf "Invalid expression %s, expected regular expression or block" (format e))
+            | _, RegexType
+            | _, BlockType -> Message.errorAst ast (sprintf "Invalid type, expected Constraint or Block") e1.Pos
+            | _, _ -> Message.errorAst ast (sprintf "Invalid expression, expected Constraint or Block") e2.Pos
         | ShrExpr (e1, e2) ->
             match aux block e1, aux block e2 with 
             | RegexType, RegexType -> RegexType
-            | _, _ -> error (sprintf "Invalid expression %s, expected regular expression" (format e))
+            | _, RegexType -> Message.errorAst ast (sprintf "Invalid type, expected Constraint") e1.Pos
+            | _, _ -> Message.errorAst ast (sprintf "Invalid type, expected Constraint") e2.Pos
         | OrExpr (e1, e2)
         | AndExpr (e1, e2) ->
-            Message.warningAst ast "binary op issue..." e.Pos
             match aux block e1, aux block e2 with 
             | RegexType, RegexType -> RegexType
             | PredicateType, PredicateType -> PredicateType
             | BlockType, BlockType -> BlockType
-            | _, _ -> error (sprintf "Invalid expression %s, expected regular expressions or predicates" (format e))
+            | _, _  -> Message.errorAst ast (sprintf "Invalid type, expected Constraints, Blocks, or Predicates") e.Pos
         | StarExpr e1 ->
             if aux block e1 = RegexType then RegexType
-            else error (sprintf "Invalid expression %s, expected regular expression" (format e))
+            else Message.errorAst ast (sprintf "Invalid type, expected Constraint") e.Pos // TODO: remove star from grammar
         | NotExpr e1 -> 
             match aux block e1 with
             | RegexType -> RegexType
             | PredicateType -> PredicateType
-            | _ -> error (sprintf "Invalid expression %s, expected regular expression or predicate" (format e))
-        | PrefixLiteral (a,b,c,d,bits) -> wellFormedPrefix (a,b,c,d,bits); PredicateType
+            | _ -> Message.errorAst ast (sprintf "Invalid type, expected Constraint or Predicate") e.Pos
+        | PrefixLiteral (a,b,c,d,bits) -> wellFormedPrefix ast e.Pos (a,b,c,d,bits); PredicateType
         | True _ | False _ | CommunityLiteral _ -> PredicateType
         | IntLiteral _ -> IntType
         | Ident (id, _) -> 
@@ -378,7 +398,7 @@ let rec buildRegex (ast: T) (reb: Regex.REBuilder) (r: Expr) : Regex.LazyT =
     let checkParams id n args =
         let m = List.length args
         if m <> n then 
-            parseError (sprintf "\nExpected %d arguments for %s, but received %d" n id.Name m) 
+            error (sprintf "Expected %d arguments for %s, but received %d" n id.Name m) 
         let args = List.map (buildRegex ast reb) args
         let wf = List.map (Regex.singleLocations (reb.Topo())) args
         if List.exists Option.isNone wf then 
@@ -456,11 +476,11 @@ let inline getComm x =
 
 let rec checkArgs ast name args = 
     match Map.tryFind name paramInfo with
-    | None -> error (sprintf "\nUnrecognized constraint: %s" name)
+    | None -> error (sprintf "Unrecognized constraint: %s" name)
     | Some (n, typs) -> 
         let len = List.length args
         if len <> n then 
-            error (sprintf "\nInvalid number of parameters to: %s \nExpected: %d, but received %d" name n len)
+            error (sprintf "Invalid number of parameters to: %s, expected: %d, but received %d" name n len)
         let mutable i = 0
         for (x,y) in List.zip args typs do 
             i <- i + 1
@@ -478,7 +498,7 @@ let buildCConstraint ast (topo: Topology.T) (cc: string * Expr list) =
     checkArgs ast name args
     let inline prefix x = 
         let (a,b,c,d,bits) as p = getPrefix x
-        wellFormedPrefix p
+        wellFormedPrefix ast dummyPos p  // TODO: fixme
         Prefix.prefix (a,b,c,d) (adjustBits bits)
     let inline getLinkLocations (x,y) =
         let locsX = Regex.singleLocations (reb.Topo()) (buildRegex ast reb x)
@@ -537,7 +557,6 @@ let checkBlock pcs =
         if p' = matched then
             warning (sprintf "Dead prefix %s will never apply" (string p'))
         matched <- p'
-
     if remaining <> Predicate.bot then
         // let s = Predicate.example rollingPred
         // warning (sprintf "\nIncomplete prefixes in block \nAn example of a prefix that is not matched: %s" s)

@@ -1,7 +1,7 @@
 %{
 open System
 open Ast
-open Common.Error
+open Common.Color
 open Microsoft.FSharp.Collections
 open Microsoft.FSharp.Text.Lexing
 
@@ -23,7 +23,7 @@ let buildDefinitions defs : Ast.Definitions =
     List.fold (fun acc (name, x) -> 
         match Map.tryFind name acc with
         | None -> Map.add name x acc
-        | Some _ -> 
+        | Some _ ->
             error (sprintf "Duplicate definition of %s" name)
         ) Map.empty defs
 %}
@@ -124,13 +124,13 @@ expr:
 	| LBRACE pconstrs RBRACE                     { {Pos = range (pos $1) (pos $3); Node = Ast.BlockExpr $2} }
 
 ids:
-	| ID                                         { [snd $1] }
-	| ID COMMA ids                               { (snd $1) :: $3 }
+	| ID                                         { [{Pos = pos (fst $1); Name = snd $1}] }
+	| ID COMMA ids                               { {Pos = pos (fst $1); Name = snd $1} :: $3 }
 
 definitions:
     | definition                                 { [$1] }
     | definition definitions                     { $1 :: $2 }
 
 definition:
-    | DEFINE ID EQUAL expr	                     { (snd $2, (range (pos $1) $4.Pos, [], $4)) }
-    | DEFINE ID LPAREN ids RPAREN EQUAL expr     { (snd $2, (range (pos $1) $7.Pos, $4, $7)) }
+    | DEFINE ID EQUAL expr	                     { (snd $2, (pos (fst $2), [], $4)) }
+    | DEFINE ID LPAREN ids RPAREN EQUAL expr     { (snd $2, (pos (fst $2), $4, $7)) }

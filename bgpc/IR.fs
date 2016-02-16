@@ -4,6 +4,7 @@ open CGraph
 open Common
 open Common.Debug
 open Common.Error
+open Common.Color
 open System.Collections.Generic
 
 exception UncontrollableEnterException of string
@@ -548,25 +549,25 @@ let compileForSinglePrefix fullName idx (aggInfo: Map<string, DeviceAggregates>)
         | Err(x) ->
             match x with
             | NoPathForRouters rs ->
-                unimplementable (sprintf "Unable to find a path for routers: %s for predicate %s" (string rs) (string pred))
+                error (sprintf "Unable to find a path for routers: %s for predicate %s" (string rs) (string pred))
             | InconsistentPrefs(x,y) ->
                 let xs = x.ToString()
                 let ys = y.ToString() 
-                unimplementable (sprintf "\nCannot choose preference between:\n%s \n%s for predicate %s" xs ys (string pred))
+                error (sprintf "Cannot choose preference between:\n%s \n%s for predicate %s" xs ys (string pred))
             | UncontrollableEnter x -> 
-                unimplementable (sprintf "\nCannot control inbound traffic from peer: %s for predicate %s" x (string pred))
+                error (sprintf "Cannot control inbound traffic from peer: %s for predicate %s" x (string pred))
             | UncontrollablePeerPreference x -> 
-                unimplementable (sprintf "\nCannot control inbound preference from peer: %s for predicate %s \nPossibly enable prepending: --prepending:on" x (string pred))
+                error (sprintf "Cannot control inbound preference from peer: %s for predicate %s \nPossibly enable prepending: --prepending:on" x (string pred))
     with Topology.InvalidTopologyException -> 
-        error (sprintf "\nInvalid Topology, internal topology must be connected")
+        error (sprintf "Invalid Topology, internal topology must be connected")
 
 let checkAggregateLocs ins _ prefix links = 
     if Set.contains "out" ins then
-        error (sprintf "\nCannot aggregate on external location: out for prefix: %s" (string prefix))
+        error (sprintf "Cannot aggregate on external location: out for prefix: %s" (string prefix))
     match List.tryFind (fst >> Topology.isOutside) links with
     | None -> ()
     | Some x -> 
-        error (sprintf "\nCannot aggregate on external location: %s for prefix: %s" (fst x).Loc (string prefix))
+        error (sprintf "Cannot aggregate on external location: %s for prefix: %s" (fst x).Loc (string prefix))
 
 let checkCommunityTagLocs ins _ (c, prefix) links =
     if Set.contains "out" ins then
@@ -574,7 +575,7 @@ let checkCommunityTagLocs ins _ (c, prefix) links =
     match List.tryFind (fst >> Topology.isOutside) links with
     | None -> ()
     | Some x -> 
-        error (sprintf "\nCannot tag communities on external location: %s for community %s prefix: %s" (fst x).Loc c (string prefix))
+        error (sprintf "Cannot tag communities on external location: %s for community %s prefix: %s" (fst x).Loc c (string prefix))
 
 let checkMaxRouteLocs ins outs i links =
     let v = List.exists (fun (a,b) -> Topology.isOutside a && Topology.isOutside b) links

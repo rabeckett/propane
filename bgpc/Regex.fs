@@ -3,7 +3,7 @@
 open Topology
 open QuickGraph
 open Common
-open Common.Error
+open Common.Color
 open System.Collections.Generic
 
 type T = 
@@ -389,7 +389,7 @@ type REBuilder(topo: Topology.T) =
         match this.WellFormed re with
         | None -> convert re
         | Some cs ->
-            error (sprintf "\Invalid path shape: %s \nPaths must go through the internal network exactly once" (string cs))
+            error (sprintf "Invalid path shape: %s, paths must go through the internal network exactly once" (string cs))
 
     member __.Empty = LEmpty
     member __.Epsilon = LEpsilon

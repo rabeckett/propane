@@ -1,6 +1,7 @@
 ﻿module Topology
 
 open Common.Error
+open Common.Color
 open QuickGraph
 open QuickGraph.Algorithms
 open System.Xml
