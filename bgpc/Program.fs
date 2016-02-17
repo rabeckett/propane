@@ -15,20 +15,21 @@ let main argv =
         Test.run ()
         exit 0
     let fullName = settings.DebugDir + (Common.Option.getOrDefault "output" settings.OutFile)
-    let topo = 
+    let topoInfo = 
         match settings.TopoFile with 
         | None -> error "No topology file specified, use -topo:file compiler flag"
         | Some f -> Topology.readTopology f
     match settings.PolFile with 
     | None -> error "No policy file specified, use -pol:file compiler flag"
     | Some p ->
-        let ast = Input.readFromFile p
-        let aggs = Ast.getControlConstraints ast topo
-        let pairs = Ast.makePolicyPairs ast topo
-        let (ir, k, _) = IR.compileAllPrefixes fullName topo pairs aggs
+        let (lines, defs, cs) = Input.readFromFile p
+        let ast : Ast.T = {Input = lines; TopoInfo = topoInfo; Defs = defs; CConstraints = cs}
+        let aggs = Ast.getControlConstraints ast topoInfo.Graph
+        let pairs = Ast.makePolicyPairs ast topoInfo.Graph
+        let (ir, k, _) = IR.compileAllPrefixes fullName topoInfo.Graph pairs aggs
         match k, settings.Failures with
         | Some (i, x, y), Args.Any -> 
-            let msg = 
+            let msg =  
                 sprintf "Required black-hole safety for aggregates under all failures, " + 
                 sprintf "but could only prove safety for up to %d failures. " i +
                 sprintf "It may be possible disconnect prefix at %s from aggregate at %s after %d failures. " x y (i+1) +

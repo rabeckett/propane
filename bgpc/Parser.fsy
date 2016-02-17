@@ -39,6 +39,7 @@ let buildDefinitions defs : Ast.Definitions =
 %token <LineInfo> FALSE
 %token <LineInfo * string> ID
 %token <LineInfo * System.UInt32> INT
+%token <LineInfo * System.UInt32> ASN
 
 %token <LineInfo> NOT 
 %token <LineInfo> DIFFERENCE
@@ -119,6 +120,7 @@ expr:
     | INT DOT INT DOT INT DOT INT SLASH INT      { {Pos = range (pos (fst $1)) (pos (fst $9)); Node = Ast.PrefixLiteral (snd $1, snd $3, snd $5, snd $7, Some (snd $9))} }
 	| INT COLON INT						         { {Pos = range (pos (fst $1)) (pos (fst $3)); Node = Ast.CommunityLiteral (snd $1, snd $3)} }
 	| INT                                        { {Pos = pos (fst $1); Node = Ast.IntLiteral (snd $1)} }
+    | ASN                                        { {Pos = pos (fst $1); Node = Ast.Asn (snd $1)} }
     | TRUE                                       { {Pos = pos $1; Node = Ast.True} } 
     | FALSE                                      { {Pos = pos $1; Node = Ast.False} }
 	| LBRACE RBRACE	                             { {Pos = range (pos $1) (pos $2); Node = Ast.BlockExpr []} }

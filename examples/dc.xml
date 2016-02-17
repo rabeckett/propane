@@ -1,16 +1,16 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <topology>
-  <node internal="true" can-originate="true" name="A"></node>
-  <node internal="true" can-originate="true" name="B"></node>
-  <node internal="true" can-originate="false" name="C"></node>
-  <node internal="true" can-originate="false" name="D"></node>
-  <node internal="true" can-originate="true" name="E"></node>
-  <node internal="true" can-originate="true" name="F"></node>
-  <node internal="true" can-originate="false" name="G"></node>
-  <node internal="true" can-originate="false" name="H"></node>
-  <node internal="true" can-originate="false" name="X"></node>
-  <node internal="true" can-originate="false" name="Y"></node>
-  <node internal="false" can-originate="true" name="CORE"></node>
+  <node internal="true" can-originate="true" asn="100" name="A"></node>
+  <node internal="true" can-originate="true" asn="101" name="B"></node>
+  <node internal="true" can-originate="false" asn="102" name="C"></node>
+  <node internal="true" can-originate="false" asn="103" name="D"></node>
+  <node internal="true" can-originate="true" asn="104" name="E"></node>
+  <node internal="true" can-originate="true" asn="105" name="F"></node>
+  <node internal="true" can-originate="false" asn="106" name="G"></node>
+  <node internal="true" can-originate="false" asn="107" name="H"></node>
+  <node internal="true" can-originate="false" asn="108" name="X"></node>
+  <node internal="true" can-originate="false" asn="109" name="Y"></node>
+  <node internal="false" can-originate="true" asn="110" name="CORE"></node>
 
   <edge source="A" target="C" directed="false"></edge>
   <edge source="A" target="D" directed="false"></edge>

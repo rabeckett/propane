@@ -3,10 +3,7 @@ define PG2 = 1.0.1.0/24
 define PL1 = 2.0.0.0/24
 define PL2 = 2.0.1.0/24
 
-define A = as100
-define B = as101
-define E = as102
-define F = as103
+define _transit(X) = enter(X) and exit(X)
 
 define ownership = {
 	PG1 => end(A),
@@ -17,7 +14,9 @@ define ownership = {
 }
 
 define routing = {
-	PL1 or PL2 => always(in)
+	PL1 or PL2 => always(in),
+	/* true => drop */
+	true => any
 }
 
 define main = 

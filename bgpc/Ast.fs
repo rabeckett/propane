@@ -27,6 +27,7 @@ and Node =
     | NotExpr of Expr
     | PrefixLiteral of uint32 * uint32 * uint32 * uint32 * uint32 option
     | CommunityLiteral of uint32 * uint32
+    | Asn of uint32
     | IntLiteral of uint32
     | True
     | False
@@ -76,9 +77,9 @@ type PolicyPair = (Predicate.T * Regex.REBuilder * Regex.T list)
 
 type T = 
     {Input: string [];
+     TopoInfo: Topology.TopoInfo;
      Defs: Definitions;
      CConstraints: ControlConstraints}
-
 
 (* Built-in control constraints and path constraints.
    May add a way for the user to define new constraints. *)
@@ -112,7 +113,7 @@ let builtIns = Set.union builtInRes builtInConstraints
 
 (* Helper functions for traversing an AST expression 
    and applying a user-defined function f at each node *)
-
+ 
 let rec iter f (e: Expr) =
     f e
     match e.Node with
@@ -123,17 +124,8 @@ let rec iter f (e: Expr) =
     | OrExpr (e1, e2) 
     | AndExpr (e1, e2) -> iter f e1; iter f e2
     | NotExpr e1 -> iter f e1
-    | True | False | PrefixLiteral _ | CommunityLiteral _ | IntLiteral _ -> ()
+    | True | False | PrefixLiteral _ | CommunityLiteral _ | IntLiteral _ | Asn _ -> ()
     | Ident (id, args) -> List.iter f args
-
-let getAS (s: string) : uint32 option =
-    if s.Length > 2 then
-        let n = s.[2..]
-        let mutable i = uint32 0
-        if System.UInt32.TryParse(n, &i) then
-            Some i
-        else None
-    else None
 
 (* Pretty printing of error and warning messages. 
    When errors occur on a single line, display the line 
@@ -150,6 +142,12 @@ module Message =
     type Kind = 
         | Error 
         | Warning
+
+    let dummyPos = 
+        {SLine = -1;
+         SCol = -1;
+         ELine = -1;
+         ECol = -1}
 
     let msgOffset = 9
 
@@ -215,22 +213,32 @@ module Message =
         else displayMultiLine ast p ccolor
         displayFooter msg (ccolor, errorTyp)
 
+    let inline validate p = 
+        if p = dummyPos then 
+            printfn "Internal positioning error"
+            exit 0
+
     let errorAst ast msg p = 
+        validate p
         lock obj (fun () -> 
             issueAst ast msg p Error
             exit 0)
 
     let warningAst ast msg p = 
+        validate p
         lock obj (fun () -> issueAst ast msg p Warning)
 
 
 (* Compiler warnings for a variety of common mistakes. 
    Unused definitions or parameters not starting with '_',
-   TODO: unused aggregates, etc. *)
 
-let getUsed seen e =
+   TODO: unused aggregates, etc.
+   TODO: using raw asn literal for internal 
+   TODO: *)
+
+let inline getUsed seen e =
     match e.Node with
-    | Ident(id, _) -> 
+    | Ident(id, []) -> 
         seen := Set.add id.Name !seen
     | _ -> ()
 
@@ -240,24 +248,52 @@ let warnUnusedDefs ast e =
     Map.iter (fun _ (_,_,e) -> iter (getUsed used) e) ast.Defs
     let defs = Map.fold (fun acc k (p,_,_) -> Map.add k p acc) Map.empty ast.Defs
     Map.iter (fun id p -> 
-        if id <> "main" && id.[0] <> '_' && not (Set.contains id !used) then
+        let notMain = (id <> "main")
+        let notUnder = (id.[0] <> '_')
+        let notUsed = (not (Set.contains id !used))
+        let notRouter = (not (ast.TopoInfo.AsnMap.ContainsKey id))
+        if notMain && notUnder && notUsed && notRouter then
             let msg = sprintf "Unused definition of '%s'" id
             Message.warningAst ast msg p) defs
 
-
 let warnUnusedParams (ast: T) = 
-    Map.iter (fun id (_,ps,e) ->
-        let seen = ref (Set.empty)
-        iter (getUsed seen) e
+    Map.iter (fun (id:string) (_,ps,e) ->
+        let used = ref (Set.empty) 
+        iter (getUsed used) e
         for p in ps do
-            if p.Name.[0] <> '_' && not (Set.contains p.Name !seen) then
+            let notUnder = (id.[0] <> '_')
+            let notUsed = (not (Set.contains p.Name !used))
+            if notUnder && notUsed then
                 let msg = sprintf "Unused parameter '%s' in definition of '%s'" p.Name id
-                Message.warningAst ast msg p.Pos 
-        ) ast.Defs
+                Message.warningAst ast msg p.Pos) ast.Defs
 
-let warnUnused (ast: T) (e: Expr) : unit = 
-    warnUnusedDefs ast e
+let warnUnused (ast: T) (main: Expr) : unit = 
+    warnUnusedDefs ast main
     warnUnusedParams ast
+
+let inline getAsns asns e =
+    match e.Node with
+    | Asn i -> asns := Set.add (e,i) !asns
+    | _ -> ()
+
+let warnRawAsn (ast: T) =
+    let rawAsns = ref Set.empty
+    Map.iter (fun def (_,_,e) -> 
+        let isRouter = 
+            (ast.TopoInfo.InternalNames.Contains def) ||
+            (ast.TopoInfo.ExternalNames.Contains def)
+        if not isRouter then
+            iter (getAsns rawAsns) e) ast.Defs
+    for (e,asn) in !rawAsns do
+        let inline isRouter r n = n = asn && ast.TopoInfo.AllNames.Contains r
+        match Map.tryFindKey isRouter ast.TopoInfo.AsnMap with
+        | Some router ->
+            let msg = 
+                sprintf "Raw ASN literal %s used for named topology router. " (string asn) +
+                sprintf "Prefer to use the router name '%s' directly." router
+            Message.warningAst ast msg e.Pos
+        | None -> ()
+
 
 (* Fully expand all definitions in an expression. 
    Keep track of seen expansions to prevent recursive definitions.
@@ -273,28 +309,19 @@ let substitute (ast: T) (e: Expr) : Expr =
         | OrExpr (e1, e2) -> {Pos=e.Pos;Node=OrExpr (aux defs seen e1, aux defs seen e2)}
         | AndExpr (e1, e2) -> {Pos=e.Pos;Node=AndExpr (aux defs seen e1, aux defs seen e2)}
         | NotExpr e1 -> {Pos=e.Pos;Node=NotExpr (aux defs seen e1)}
-        | True | False | PrefixLiteral _ | CommunityLiteral _ | IntLiteral _ -> e
-        | Ident (id, []) ->
-            if Set.contains id.Name seen then 
-                Message.errorAst ast (sprintf "Recursive definition of %s" id.Name) id.Pos
-            match Map.tryFind id.Name defs with
-            | None -> 
-                if builtInSingle.Contains id.Name || Option.isSome (getAS id.Name) then e 
-                else Message.errorAst ast (sprintf "Unbound variable '%s'" id.Name) id.Pos
-            | Some (_,_,e1) -> aux defs (Set.add id.Name seen) e1
+        | True | False | PrefixLiteral _ | CommunityLiteral _ | IntLiteral _ | Asn _ -> e
         | Ident (id,es) ->
             if Set.contains id.Name seen then 
                 Message.errorAst ast (sprintf "Recursive definition of %s" id.Name) id.Pos
             match Map.tryFind id.Name defs with
             | None ->
-                if builtInRes.Contains id.Name then 
-                    {Pos=e.Pos;Node=Ident(id, List.map (aux defs seen) es)}
-                else Message.errorAst ast (sprintf "Undefined function '%s'" id.Name) id.Pos
+                if builtInSingle.Contains id.Name then e
+                elif builtInRes.Contains id.Name then {Pos=e.Pos;Node=Ident(id, List.map (aux defs seen) es)}
+                else Message.errorAst ast (sprintf "Unbound identifier '%s'" id.Name) id.Pos
             | Some (_,ids,e1) -> 
-                let required = List.length ids 
-                let provided = List.length es
-                if required <> provided then
-                    let msg = sprintf "Expected %d parameters to '%s', but only received %d" required id.Name provided
+                let req, prov = List.length ids, List.length es
+                if req <> prov then
+                    let msg = sprintf "Expected %d parameters to '%s', but only received %d" req id.Name prov
                     Message.errorAst ast msg e.Pos
                 let defs' =
                     List.zip ids es
@@ -365,12 +392,6 @@ let wellFormed ast (e: Expr) : Type =
             | RegexType, LocType
             | RegexType, RegexType -> RegexType
             | BlockType, BlockType -> BlockType
-            | _, BlockType -> Message.errorAst ast (typeMsg [BlockType] t1) e1.Pos
-            | BlockType, _ -> Message.errorAst ast (typeMsg [BlockType] t2) e2.Pos
-            | _, RegexType 
-            | _, LocType -> Message.errorAst ast (typeMsg [RegexType] t1) e1.Pos
-            | RegexType, _
-            | LocType, _ -> Message.errorAst ast (typeMsg [RegexType] t2) e2.Pos
             | _, _ -> Message.errorAst ast (typeMsg2 [BlockType; RegexType] t1 t2) e.Pos
         | OrExpr (e1, e2)
         | AndExpr (e1, e2) ->
@@ -383,15 +404,7 @@ let wellFormed ast (e: Expr) : Type =
             | RegexType, RegexType -> RegexType
             | BlockType, BlockType -> BlockType
             | PredicateType, PredicateType -> PredicateType
-            | _, PredicateType -> Message.errorAst ast (typeMsg [PredicateType] t1) e1.Pos
-            | PredicateType, _ -> Message.errorAst ast (typeMsg [PredicateType] t2) e2.Pos
-            | _, BlockType -> Message.errorAst ast (typeMsg [BlockType] t1) e1.Pos
-            | BlockType, _ -> Message.errorAst ast (typeMsg [BlockType] t2) e2.Pos
-            | _, RegexType 
-            | _, LocType -> Message.errorAst ast (typeMsg [RegexType] t1) e1.Pos
-            | RegexType, _
-            | LocType, _ -> Message.errorAst ast (typeMsg [RegexType] t2) e2.Pos
-            | _, _ -> Message.errorAst ast (typeMsg2 [BlockType; RegexType] t1 t2) e.Pos
+            | _, _ -> Message.errorAst ast (typeMsg2 [BlockType; RegexType; PredicateType] t1 t2) e.Pos
         | NotExpr e1 -> 
             let t = aux block e1
             match t with
@@ -402,26 +415,20 @@ let wellFormed ast (e: Expr) : Type =
         | PrefixLiteral (a,b,c,d,bits) -> wellFormedPrefix ast e.Pos (a,b,c,d,bits); PredicateType
         | True _ | False _ | CommunityLiteral _ -> PredicateType
         | IntLiteral _ -> IntType
+        | Asn _ -> LocType
         | Ident (id, args) ->
-            match getAS id.Name with 
-            | Some i -> LocType 
-            | None ->
-                if builtInConstraints.Contains id.Name then
-                    let msg = sprintf "Invalid control constraint '%s' found in expression" id.Name
-                    Message.errorAst ast msg id.Pos
-                elif builtInLocs.Contains id.Name then LocType
-                elif builtInRes.Contains id.Name then
-                    for e in args do 
-                        let t = aux block e
-                        match t with 
-                        | LocType -> ()
-                        | _ ->             
-                            let msg = (typeMsg [LocType] t)
-                            Message.errorAst ast msg e.Pos
-                    RegexType 
-                else
-                    printfn "MADE IT WITH: %s" id.Name 
-                    aux block (substitute ast e)
+            if builtInConstraints.Contains id.Name then
+                let msg = sprintf "Invalid control constraint '%s' found in expression" id.Name
+                Message.errorAst ast msg id.Pos
+            elif builtInLocs.Contains id.Name then LocType
+            elif builtInRes.Contains id.Name then
+                for e in args do 
+                    let t = aux block e
+                    match t with 
+                    | LocType -> ()
+                    | _ -> Message.errorAst ast (typeMsg [LocType] t) e.Pos
+                RegexType 
+            else aux block (substitute ast e)
     aux false e
    
 (* Given an expression, which is known to be a regex, 
@@ -475,6 +482,7 @@ let rec buildRegex (ast: T) (reb: Regex.REBuilder) (r: Expr) : Regex.LazyT =
     | OrExpr(x,y) -> reb.Union [(buildRegex ast reb x); (buildRegex ast reb y)]
     | DiffExpr(x,y) -> reb.Inter [(buildRegex ast reb x); reb.Negate (buildRegex ast reb y)]
     | NotExpr x -> reb.Negate (buildRegex ast reb x)
+    | Asn i -> reb.Loc (string i)
     | Ident(id, args) ->
         match id.Name with
         | "valleyfree" -> let locs = checkParams id args.Length args in reb.ValleyFree locs
@@ -490,10 +498,7 @@ let rec buildRegex (ast: T) (reb: Regex.REBuilder) (r: Expr) : Regex.LazyT =
         | "drop" -> ignore (checkParams id 0 args); reb.Empty
         | "in" -> ignore (checkParams id 0 args); reb.Inside 
         | "out" -> ignore (checkParams id 0 args);  reb.Outside
-        | l -> 
-            if args.Length > 0 then 
-                error (sprintf "Undefined macro %s" l)
-            else reb.Loc l
+        | _ -> Common.unreachable ()
     | _ -> Common.unreachable ()
 
 (* Build a concrete predicate from an expression
@@ -599,8 +604,7 @@ let buildCConstraint ast (topo: Topology.T) (cc: Ident * Expr list) =
         CLongestPath (i, Option.get locs)
     | _ -> Common.unreachable ()
 
-let getControlConstraints (ast: T) (topo: Topology.T) : CConstraint list = 
-
+let getControlConstraints ast topo : CConstraint list = 
     List.map (buildCConstraint ast topo) ast.CConstraints
 
 (* Expand blocks in a regular expression to a
@@ -629,8 +633,8 @@ let checkBlock pcs =
             warning (sprintf "Dead prefix %s will never apply" (string p'))
         matched <- p'
     if remaining <> Predicate.bot then
-        // let s = Predicate.example rollingPred
-        // warning (sprintf "Incomplete prefixes in block. An example of a prefix that is not matched: %s" s)
+        let s = Predicate.example remaining
+        warning (sprintf "Incomplete prefixes in block. An example of a prefix that is not matched: %s" s)
         let e = pcs |> List.head |> snd |> List.head
         pcs @ [(Predicate.top, [ {Pos=e.Pos; Node=Ident ({Pos=e.Pos;Name="any"}, [])} ])]
     else pcs
@@ -663,14 +667,28 @@ let rec expandBlocks ast (e: Expr) =
         |> List.map (fun (p,es) -> (p, collapsePrefs e.Pos es))
     | _ -> Common.unreachable ()
 
+let addTopoDefinitions (ast: T) : T =
+    let asnDefs = 
+        Map.map (fun name asn -> 
+            let pos = Message.dummyPos
+            let node = Asn asn
+            pos, [], {Pos = pos; Node = node}) ast.TopoInfo.AsnMap
+    let defs = 
+        Common.Map.merge ast.Defs asnDefs (fun name ((p,_,_),_) -> 
+            let msg = sprintf "Definition of '%s' clashes with router name in topology" name
+            Message.errorAst ast msg p)
+    {ast with Defs = defs}
+
 (* Given the AST and the topology, check well-formedness
    and produce the top-level, merged path constraints. *)
 
 let makePolicyPairs (ast: T) (topo: Topology.T) : PolicyPair list =
+    let ast = addTopoDefinitions ast
     match Map.tryFind "main" ast.Defs with 
     | Some (_,[],e) ->
-        let e = substitute ast e
         warnUnused ast e
+        warnRawAsn ast
+        let e = substitute ast e
         let t = wellFormed ast e
         match t with
         | BlockType -> ()

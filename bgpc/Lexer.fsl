@@ -6,16 +6,20 @@ open Microsoft.FSharp.Text.Lexing
 
 exception EofInComment
 
-let newline (lexbuf: LexBuffer<_>) =
+let inline getAsn (s: string) =
+    System.UInt32.Parse  s.[2..]
+
+let inline newline (lexbuf: LexBuffer<_>) =
     lexbuf.EndPos <- lexbuf.EndPos.NextLine
 
-let position (lexbuf: LexBuffer<_>) =
+let inline position (lexbuf: LexBuffer<_>) =
     (lexbuf.StartPos, lexbuf.EndPos)
 }
 
 let digits = ['0'-'9']+ 
 let id = ['a'-'z' 'A'-'Z' '_'] ['a'-'z' 'A'-'Z' '0'-'9' '_']*
 let whitespace = [ ' ' '\t' '\r' '\n' ]
+let asn = "as" digits
 
 rule tokenize = parse
 	| "/*"                  { comments 0 lexbuf } 
@@ -26,6 +30,7 @@ rule tokenize = parse
 	| "true"                { TRUE (position lexbuf) }
 	| "false"               { FALSE (position lexbuf) }
 	| "control"             { CONTROL (position lexbuf) }
+    | asn                   { ASN (position lexbuf, getAsn (LexBuffer<char>.LexemeString lexbuf)) }
 	| id                    { ID (position lexbuf, LexBuffer<char>.LexemeString lexbuf) }
 	| digits                { INT (position lexbuf, UInt32.Parse (LexBuffer<char>.LexemeString lexbuf)) }
 	| '='                   { EQUAL (position lexbuf) }

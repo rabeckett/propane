@@ -53,5 +53,12 @@ val addEdgesUndirected: T -> (State*State) list -> unit
 /// Find all the valid topology links corresponding to pairs of locations
 val findLinks: T -> Set<string> * Set<string> -> (State * State) list
 
+type TopoInfo =
+    {Graph: T; 
+     AsnMap: Map<string, uint32>;
+     InternalNames: Set<string>;
+     ExternalNames: Set<string>;
+     AllNames: Set<string>}
+
 /// Read a topology from an XML file
-val readTopology: string -> T
+val readTopology: string -> TopoInfo

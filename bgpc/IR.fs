@@ -572,7 +572,7 @@ let checkAggregateLocs ins _ prefix links =
 
 let checkCommunityTagLocs ins _ (c, prefix) links =
     if Set.contains "out" ins then
-        error (sprintf "\nCannot tag communities on external location: out for community %s, prefix: %s" c (string prefix))
+        error (sprintf "Cannot tag communities on external location: out for community %s, prefix: %s" c (string prefix))
     match List.tryFind (fst >> Topology.isOutside) links with
     | None -> ()
     | Some x -> 
@@ -585,7 +585,7 @@ let checkMaxRouteLocs ins outs i links =
     let y = List.exists (fst >> Topology.isOutside) links
     let z = List.exists (snd >> Topology.isOutside) links
     if v || ((w || y) && (x || z)) then 
-        error (sprintf "\nCannot set maxroutes(%d) on links without and edge in the internal topology" i)
+        error (sprintf "Cannot set maxroutes(%d) on links without an edge in the internal topology" i)
 
 let splitByLocation f topo (vs: _ list) = 
     let mutable acc = Map.empty

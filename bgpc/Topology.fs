@@ -115,24 +115,44 @@ let findLinks (topo: T) (froms, tos) =
     pairs
 
 
-type Topo = XmlProvider<"../examples/dc-small.xml">
+type Topo = XmlProvider<"../examples/dc.xml">
 
-let readTopology (file: string) : T =
+type TopoInfo =
+    {Graph: T; 
+     AsnMap: Map<string, uint32>;
+     InternalNames: Set<string>;
+     ExternalNames: Set<string>;
+     AllNames: Set<string>}
+
+let inline getAsn name asn =
+    if asn < 0 then 
+        error (sprintf "Negate AS number '%d' in topology for node '%s'" asn name)
+    else uint32 asn
+
+let readTopology (file: string) : TopoInfo =
     let g = BidirectionalGraph<State,TaggedEdge<State,unit>>()
     let topo = Topo.Load file
-
     let mutable nodeMap = Map.empty
+    let mutable asnMap = Map.empty
+    let mutable internalNames = Set.empty
+    let mutable externalNames = Set.empty
     for n in topo.Nodes do
-        if n.Name.Contains "@" then 
-            error (sprintf "Router name contains reserved '@' symbol: %s, in %s" n.Name file)
+        match Map.tryFind n.Name asnMap with
+        | None -> asnMap <- Map.add n.Name (getAsn n.Name n.Asn) asnMap
+        | Some _ -> error (sprintf "Duplicate router name '%s' in topology" n.Name)
         let typ = 
             match n.Internal, n.CanOriginate with 
             | true, false -> Inside
             | true, true -> InsideOriginates
             | false, true
             | false, false -> Outside
+        if n.Internal then 
+            internalNames <- Set.add n.Name internalNames
+        else 
+            externalNames <- Set.add n.Name externalNames
         // TODO: duplicate names not handled
-        let state = {Loc = n.Name; Typ=typ}
+        let asn = string n.Asn
+        let state = {Loc = asn; Typ=typ}
         nodeMap <- Map.add n.Name state nodeMap
         ignore (g.AddVertex state)
 
@@ -148,4 +168,8 @@ let readTopology (file: string) : T =
                 addEdgesDirected g [(x,y)]
             else 
                 addEdgesUndirected g [(x,y)]
-    g
+    {Graph = g; 
+     AsnMap = asnMap; 
+     InternalNames = internalNames; 
+     ExternalNames = externalNames; 
+     AllNames = Set.union internalNames externalNames }

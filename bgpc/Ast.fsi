@@ -25,6 +25,7 @@ and Node =
     | NotExpr of Expr
     | PrefixLiteral of uint32 * uint32 * uint32 * uint32 * uint32 option
     | CommunityLiteral of uint32 * uint32
+    | Asn of uint32
     | IntLiteral of uint32
     | True
     | False
@@ -42,6 +43,7 @@ type Definitions = Map<string, Position * Ident list * Expr>
 /// Ast type with final definitions, control contraint, task definitions, and the final policy
 type T = 
     {Input: string [];
+     TopoInfo: Topology.TopoInfo;
      Defs: Definitions;
      CConstraints: ControlConstraints}
 
