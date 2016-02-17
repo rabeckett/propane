@@ -211,5 +211,8 @@ paper/paper.fdb_latexmk
 paper/paper.fls
 paper/paper.pdf
 
+# Generated compilation files
+*.ir
+
 # User preferences
 bgpc.userprefs
