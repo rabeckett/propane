@@ -93,6 +93,9 @@ let paramInfo =
 let builtInLocs = 
     Set.ofList ["in"; "out"]
 
+let builtInSingle = 
+    Set.add "drop" builtInLocs
+
 let builtInRes = 
     Set.ofList 
         ["start"; "end"; "enter"; 
@@ -107,13 +110,7 @@ let builtInConstraints =
 
 let builtIns = Set.union builtInRes builtInConstraints
 
-let dummyPos = 
-    {SLine = -1;
-     SCol = -1;
-     ELine = -1;
-     ECol = -1}
-
-(* Helper function for traversing an AST expression 
+(* Helper functions for traversing an AST expression 
    and applying a user-defined function f at each node *)
 
 let rec iter f (e: Expr) =
@@ -129,6 +126,14 @@ let rec iter f (e: Expr) =
     | True | False | PrefixLiteral _ | CommunityLiteral _ | IntLiteral _ -> ()
     | Ident (id, args) -> List.iter f args
 
+let getAS (s: string) : uint32 option =
+    if s.Length > 2 then
+        let n = s.[2..]
+        let mutable i = uint32 0
+        if System.UInt32.TryParse(n, &i) then
+            Some i
+        else None
+    else None
 
 (* Pretty printing of error and warning messages. 
    When errors occur on a single line, display the line 
@@ -273,13 +278,18 @@ let substitute (ast: T) (e: Expr) : Expr =
             if Set.contains id.Name seen then 
                 Message.errorAst ast (sprintf "Recursive definition of %s" id.Name) id.Pos
             match Map.tryFind id.Name defs with
-            | None -> e
+            | None -> 
+                if builtInSingle.Contains id.Name || Option.isSome (getAS id.Name) then e 
+                else Message.errorAst ast (sprintf "Unbound variable '%s'" id.Name) id.Pos
             | Some (_,_,e1) -> aux defs (Set.add id.Name seen) e1
         | Ident (id,es) ->
             if Set.contains id.Name seen then 
                 Message.errorAst ast (sprintf "Recursive definition of %s" id.Name) id.Pos
             match Map.tryFind id.Name defs with
-            | None -> {Pos=e.Pos;Node=Ident(id, List.map (aux defs seen) es)}
+            | None ->
+                if builtInRes.Contains id.Name then 
+                    {Pos=e.Pos;Node=Ident(id, List.map (aux defs seen) es)}
+                else Message.errorAst ast (sprintf "Undefined function '%s'" id.Name) id.Pos
             | Some (_,ids,e1) -> 
                 let required = List.length ids 
                 let provided = List.length es
@@ -288,7 +298,7 @@ let substitute (ast: T) (e: Expr) : Expr =
                     Message.errorAst ast msg e.Pos
                 let defs' =
                     List.zip ids es
-                    |> List.fold (fun acc (id,e) -> Map.add id.Name (dummyPos, [], e) acc) defs
+                    |> List.fold (fun acc (id,e) -> Map.add id.Name (e.Pos, [], e) acc) defs
                 aux defs' (Set.add id.Name seen) e1
     aux ast.Defs Set.empty e
 
@@ -393,21 +403,25 @@ let wellFormed ast (e: Expr) : Type =
         | True _ | False _ | CommunityLiteral _ -> PredicateType
         | IntLiteral _ -> IntType
         | Ident (id, args) ->
-            // TODO: check for AS
-            if builtInConstraints.Contains id.Name then
-                let msg = sprintf "Invalid control constraint '%s' found in expression" id.Name
-                Message.errorAst ast msg id.Pos
-            elif builtInLocs.Contains id.Name then LocType
-            elif builtInRes.Contains id.Name then 
-                for e in args do 
-                    let t = aux block e
-                    match t with 
-                    | LocType -> ()
-                    | _ ->             
-                        let msg = (typeMsg [LocType] t)
-                        Message.errorAst ast msg e.Pos
-                RegexType 
-            else LocType
+            match getAS id.Name with 
+            | Some i -> LocType 
+            | None ->
+                if builtInConstraints.Contains id.Name then
+                    let msg = sprintf "Invalid control constraint '%s' found in expression" id.Name
+                    Message.errorAst ast msg id.Pos
+                elif builtInLocs.Contains id.Name then LocType
+                elif builtInRes.Contains id.Name then
+                    for e in args do 
+                        let t = aux block e
+                        match t with 
+                        | LocType -> ()
+                        | _ ->             
+                            let msg = (typeMsg [LocType] t)
+                            Message.errorAst ast msg e.Pos
+                    RegexType 
+                else
+                    printfn "MADE IT WITH: %s" id.Name 
+                    aux block (substitute ast e)
     aux false e
    
 (* Given an expression, which is known to be a regex, 
