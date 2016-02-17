@@ -3,6 +3,10 @@ define PG2 = 1.0.1.0/24
 define PL1 = 2.0.0.0/24
 define PL2 = 2.0.1.0/24
 
+
+define foo = 
+	{true => not (end(X) >> end(Y))}
+
 define ownership = {
 	PG1 => end(A),
 	PG2 => end(B),
@@ -11,11 +15,11 @@ define ownership = {
 }
 
 define routing = {
-	PL1 or PL2 => avoid(CORE)
+	PL1 or PL2 => always(in)
 }
 
 define main = 
-	ownership and routing
+	ownership and routing and foo 
 
 control {
 	aggregate(1.0.0.0/16, in -> out)

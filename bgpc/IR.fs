@@ -551,13 +551,14 @@ let compileForSinglePrefix fullName idx (aggInfo: Map<string, DeviceAggregates>)
             | NoPathForRouters rs ->
                 error (sprintf "Unable to find a path for routers: %s for predicate %s" (string rs) (string pred))
             | InconsistentPrefs(x,y) ->
-                let xs = x.ToString()
-                let ys = y.ToString() 
-                error (sprintf "Cannot choose preference between:\n%s \n%s for predicate %s" xs ys (string pred))
+                let msg = sprintf "Cannot find preferences for router %s for predicate %s" x.Node.Loc (string pred)
+                error msg
             | UncontrollableEnter x -> 
-                error (sprintf "Cannot control inbound traffic from peer: %s for predicate %s" x (string pred))
+                let msg = sprintf "Cannot control inbound traffic from peer: %s for predicate %s" x (string pred)
+                error msg
             | UncontrollablePeerPreference x -> 
-                error (sprintf "Cannot control inbound preference from peer: %s for predicate %s \nPossibly enable prepending: --prepending:on" x (string pred))
+                let msg = sprintf "Cannot control inbound preference from peer: %s for predicate %s. Possibly enable prepending: --prepending:on" x (string pred)
+                error msg
     with Topology.InvalidTopologyException -> 
         error (sprintf "Invalid Topology, internal topology must be connected")
 

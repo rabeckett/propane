@@ -37,7 +37,6 @@ type Type =
     | RegexType
     | PredicateType
     | IntType
-    | ControlType
     | BlockType
 
     override this.ToString() = 
@@ -47,7 +46,6 @@ type Type =
         | RegexType -> "Constraint"
         | PredicateType -> "Predicate"
         | IntType -> "Int"
-        | ControlType -> "Control"
         | BlockType -> "Block"
 
 type Value = 
@@ -87,10 +85,10 @@ type T =
 
 let paramInfo = 
     Map.ofList 
-        [("aggregate", (2, [PrefixValue; LinkValue]));
-         ("tag", (3, [CommunityValue; PrefixValue; LinkValue]));
-         ("maxroutes", (2, [IntValue; LinkValue]));
-         ("longest_path", (1, [IntValue; LocValue])) ]
+        [("aggregate", [PrefixValue; LinkValue]);
+         ("tag", [CommunityValue; PrefixValue; LinkValue]);
+         ("maxroutes", [IntValue; LinkValue]);
+         ("longest_path", [IntValue; LocValue]) ]
 
 let builtInLocs = 
     Set.ofList ["in"; "out"]
@@ -285,8 +283,9 @@ let substitute (ast: T) (e: Expr) : Expr =
             | Some (_,ids,e1) -> 
                 let required = List.length ids 
                 let provided = List.length es
-                if required <> provided then 
-                    error (sprintf "\nInvalid number of parameters to function %s \nRequired %d parameters, but provided %d" id.Name required provided)
+                if required <> provided then
+                    let msg = sprintf "Expected %d parameters to '%s', but only received %d" required id.Name provided
+                    Message.errorAst ast msg e.Pos
                 let defs' =
                     List.zip ids es
                     |> List.fold (fun acc (id,e) -> Map.add id.Name (dummyPos, [], e) acc) defs
@@ -395,8 +394,9 @@ let wellFormed ast (e: Expr) : Type =
         | IntLiteral _ -> IntType
         | Ident (id, args) ->
             // TODO: check for AS
-            if builtInConstraints.Contains id.Name then 
-                ControlType
+            if builtInConstraints.Contains id.Name then
+                let msg = sprintf "Invalid control constraint '%s' found in expression" id.Name
+                Message.errorAst ast msg id.Pos
             elif builtInLocs.Contains id.Name then LocType
             elif builtInRes.Contains id.Name then 
                 for e in args do 
@@ -414,28 +414,33 @@ let wellFormed ast (e: Expr) : Type =
    recursively push the preferences to the top level.
    Assumes blocks have already been expanded. *)
 
-let rec pushPrefsToTop (e: Expr) : Expr list = 
+let rec pushPrefsToTop ast (e: Expr) : Expr list = 
     match e.Node with 
-    | AndExpr (x,y) -> merge e (x,y) (fun a b -> {Pos=e.Pos;Node=AndExpr(a,b)})
-    | OrExpr (x,y) -> merge e (x,y) (fun a b -> {Pos=e.Pos;Node=OrExpr(a,b)})
-    | DiffExpr (x,y) -> merge e (x,y) (fun a b -> {Pos=e.Pos;Node=DiffExpr(a,b)})
-    | NotExpr x -> mergeSingle e x "negation"
-    | ShrExpr (x,y) -> (pushPrefsToTop x) @ (pushPrefsToTop y)
+    | AndExpr (x,y) -> merge ast e (x,y) (fun a b -> {Pos=e.Pos;Node=AndExpr(a,b)})
+    | OrExpr (x,y) -> merge ast e (x,y) (fun a b -> {Pos=e.Pos;Node=OrExpr(a,b)})
+    | DiffExpr (x,y) -> merge ast e (x,y) (fun a b -> {Pos=e.Pos;Node=DiffExpr(a,b)})
+    | NotExpr x -> mergeSingle ast e x "negation"
+    | ShrExpr (x,y) -> (pushPrefsToTop ast x) @ (pushPrefsToTop ast y)
     | Ident _ -> [e]
     | _ -> Common.unreachable ()
-and merge e (x,y) f =
-    let xs = pushPrefsToTop x 
-    let ys = pushPrefsToTop y
+and merge ast e (x,y) f =
+    let xs = pushPrefsToTop ast x 
+    let ys = pushPrefsToTop ast y
     match xs, ys with
     | [a], _ -> List.map (fun b -> f a b) ys
     | _, [b] -> List.map (fun a -> f a b) xs
-    | a::_, b::_ -> 
-        error (sprintf "Invalid use of preferences in regex")
+    | a::_, b::_ ->
+        let msg = 
+            sprintf "Invalid use of preferences when merging main policy." + 
+            sprintf "This can lead to ambiguous preferences unless clarified."
+        Message.errorAst ast msg e.Pos
+        error msg
     | _, _ -> Common.unreachable ()
-and mergeSingle e x op =
-    let xs = pushPrefsToTop x
+and mergeSingle ast e x op =
+    let xs = pushPrefsToTop ast x
     if xs.Length > 1 then
-        error (sprintf "Invalid use of preferences in regex. Cannot nest preferences under %s operator" op)
+        let msg = sprintf "Invalid use of preferences with %s" op
+        Message.errorAst ast msg e.Pos
     else xs 
 
 (* Construct an actual regular expression from an 
@@ -519,12 +524,13 @@ let inline getComm x =
 (* Build the control constraints
    and extract concrete parameter values *)
 
-let rec checkArgs ast id args argsOrig = 
+let rec wellFormedCCs ast id args argsOrig = 
     match Map.tryFind id.Name paramInfo with
     | None -> 
         let msg = sprintf "Unrecognized constraint '%s'" id.Name
         Message.errorAst ast msg id.Pos
-    | Some (n, typs) -> 
+    | Some typs -> 
+        let n = typs.Length
         let len = List.length args
         if len <> n then 
             let msg = sprintf "Expected %d parameters to %s, but got %d" n id.Name len
@@ -546,10 +552,9 @@ let buildCConstraint ast (topo: Topology.T) (cc: Ident * Expr list) =
     let reb = Regex.REBuilder(topo) 
     let (id, argsOrig) = cc
     let args = List.map (fun e -> substitute ast e) argsOrig
-    checkArgs ast id args argsOrig
+    wellFormedCCs ast id args argsOrig
     let inline prefix x = 
         let (a,b,c,d,bits) as p = getPrefix x
-        wellFormedPrefix ast dummyPos p  // TODO: fixme
         Prefix.prefix (a,b,c,d) (adjustBits bits)
     let inline getLinkLocations (x,y) =
         let xs = Regex.singleLocations (reb.Topo()) (buildRegex ast reb x) |> Option.get
@@ -581,6 +586,7 @@ let buildCConstraint ast (topo: Topology.T) (cc: Ident * Expr list) =
     | _ -> Common.unreachable ()
 
 let getControlConstraints (ast: T) (topo: Topology.T) : CConstraint list = 
+
     List.map (buildCConstraint ast topo) ast.CConstraints
 
 (* Expand blocks in a regular expression to a
@@ -611,10 +617,11 @@ let checkBlock pcs =
     if remaining <> Predicate.bot then
         // let s = Predicate.example rollingPred
         // warning (sprintf "Incomplete prefixes in block. An example of a prefix that is not matched: %s" s)
-        pcs @ [(Predicate.top, [ {Pos=dummyPos; Node=Ident ({Pos=dummyPos;Name="any"}, [])} ])]
+        let e = pcs |> List.head |> snd |> List.head
+        pcs @ [(Predicate.top, [ {Pos=e.Pos; Node=Ident ({Pos=e.Pos;Name="any"}, [])} ])]
     else pcs
 
-let combineBlocks pcs1 pcs2 (op: BinOp) =
+let combineBlocks pos pcs1 pcs2 (op: BinOp) =
     let mutable combined = []
     let mutable rollingPred = Predicate.bot
     for (ps, res) in pcs1 do 
@@ -626,20 +633,20 @@ let combineBlocks pcs1 pcs2 (op: BinOp) =
                 let both = (comb, applyOp res res' op)
                 combined <- both :: combined
     List.rev combined
-    |> List.map (fun (p,n) -> p, {Pos=dummyPos; Node=n})
+    |> List.map (fun (pred,n) -> pred, {Pos=pos; Node=n})
 
-let inline collapsePrefs (es: Expr list) : Expr = 
-    Common.List.fold1 (fun e1 e2 -> {Pos=dummyPos; Node=ShrExpr (e1,e2)}) es
+let inline collapsePrefs pos (es: Expr list) : Expr =
+    Common.List.fold1 (fun e1 e2 -> {Pos=pos; Node=ShrExpr (e1,e2)}) es
 
-let rec expandBlocks (e: Expr) = 
+let rec expandBlocks ast (e: Expr) = 
     match e.Node with
-    | OrExpr (e1,e2) -> combineBlocks (expandBlocks e1) (expandBlocks e2) OUnion
-    | AndExpr (e1,e2) -> combineBlocks (expandBlocks e1) (expandBlocks e2) OInter
-    | DiffExpr (e1,e2) -> combineBlocks (expandBlocks e1) (expandBlocks e2) ODifference
+    | OrExpr (e1,e2) -> combineBlocks e.Pos (expandBlocks ast e1) (expandBlocks ast e2) OUnion
+    | AndExpr (e1,e2) -> combineBlocks e.Pos (expandBlocks ast e1) (expandBlocks ast e2) OInter
+    | DiffExpr (e1,e2) -> combineBlocks e.Pos (expandBlocks ast e1) (expandBlocks ast e2) ODifference
     | BlockExpr es ->  
-        List.map (fun (x,y) -> (buildPredicate x, pushPrefsToTop y)) es
+        List.map (fun (x,y) -> (buildPredicate x, pushPrefsToTop ast y)) es
         |> checkBlock
-        |> List.map (fun (p,es) -> (p, collapsePrefs es))
+        |> List.map (fun (p,es) -> (p, collapsePrefs e.Pos es))
     | _ -> Common.unreachable ()
 
 (* Given the AST and the topology, check well-formedness
@@ -658,8 +665,8 @@ let makePolicyPairs (ast: T) (topo: Topology.T) : PolicyPair list =
             let e = substitute ast e
             ignore (wellFormed ast e)) ast.Defs
         let topLevel = 
-            expandBlocks e
-            |> List.map (fun (p,e) -> (p, pushPrefsToTop e))
+            expandBlocks ast e
+            |> List.map (fun (p,e) -> (p, pushPrefsToTop ast e))
         List.map (fun (p, res) -> 
             let reb = Regex.REBuilder(topo)
             let res = List.map (buildRegex ast reb) res
