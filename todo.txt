@@ -1,8 +1,12 @@
-﻿Error Reporting
-	More detailed counterexamples (include exact failure scenario)
-	Line numbers for parse errors caught later
 
-Warnings:
-  An empty language for a policy which is not drop
-  Anycast for locations not specifically mentioned syntactically (maybe error)
-  
+
+Fix issue with reading in file from working path
+Rewrite Args code to be less repetitive
+Catch likely anycast problems by setting universe to things in end(...)
+Avoid duplicate constraints (which level?)
+Concrete failure scenario for counterexample
+Fix issue with MED, Prepending etc for Backbone example
+Need better, router-level minimization
+Issue with avoid for external peers when going through out
+Can we do a better job avoiding garbage states when building the automaton
+Reuse finding path code across Regex and CGraph modules

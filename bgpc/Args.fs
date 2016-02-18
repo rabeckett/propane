@@ -86,7 +86,7 @@ let setParallel s =
 
 let setTarget s = 
     match s with
-    | "off" -> target := Off
+    | "none" -> target := Off
     | "ir" -> target := IR 
     | "templ" -> target := Template
     | _ -> raise (InvalidArgException ("Invalid format value: " + s))
@@ -125,11 +125,15 @@ let setStats s =
     | "none" -> stats := false
     | _ -> raise (InvalidArgException (sprintf "Invalid stats value: %s" s))
 
+let inline adjustPath f = 
+    if Path.IsPathRooted(f) then f 
+    else currentDir + sep + f
+
 let setFile f = 
-    if File.Exists f then f 
+    if File.Exists f then adjustPath f 
     else
         let f' = currentDir + sep + f
-        if File.Exists f' then f'
+        if File.Exists f' then adjustPath f'
         else raise (InvalidArgException (sprintf "Invalid file: %s" f))
 
 let usage = "Usage: propane [options]"
@@ -142,7 +146,7 @@ let args =
       ("-prepending:on|off", String setPrepending, "Use AS path prepending (default off)");
       ("-no-export:on|off", String setNoExport, "Use no-export community (default off)");
       ("-parallel:on|off", String setParallel, "Parallelize compilation (default on)");
-      ("-compile:off|ir|templ", String setTarget, "Compilation target");
+      ("-target:none|ir|templ", String setTarget, "Compilation target");
       ("-stats:csv|none", String setStats, "Display performance statistics to stdout (default none)");
       ("-checkenter:on|off", String (fun s -> setCheckEnter s), "Run experiment for dc or core");
       ("-test", Unit (fun () -> test := true), "Run unit tests");

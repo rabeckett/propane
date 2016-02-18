@@ -208,14 +208,14 @@ module Message =
 
     let displayFooter msg (color, errorTyp) = 
         writeColor errorTyp color
-        printfn "%s" (wrapText errorTyp.Length msg)
+        printfn "%s" (wrapText msg)
         writeFooter ()
 
     let colorInfo (kind: Kind) =
         match kind with
         | Warning -> ConsoleColor.DarkYellow, "Warning: "
         | Error -> ConsoleColor.DarkRed, "Error:   "
-
+         
     let issueAst (ast: T) (msg: string) (p: Position) (kind: Kind) =
         let settings = Args.getSettings ()
         let ccolor, errorTyp = colorInfo kind

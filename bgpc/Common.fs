@@ -152,11 +152,19 @@ module Error =
 
 module Format =
 
-    let obj = new Object()
+    let obj = ref false
 
     let footerSize = 80
 
-    let wrapText offset (s: string) : string = 
+    let offset = 9
+
+    let inline lockObj f = 
+        lock obj (fun () -> 
+            let res = f ()
+            obj := true
+            res)
+
+    let wrapText (s: string) : string = 
         let s = s.Trim()
         let words = s.Split(' ')
         let mutable count = offset 
@@ -177,34 +185,6 @@ module Format =
         Console.ForegroundColor <- c
         Console.Write s
         Console.ResetColor ()
-
-    let writeHeader () =
-        let settings = Args.getSettings () 
-        let name = Option.get settings.PolFile
-        writeColor name ConsoleColor.DarkCyan
-        printfn ""
-
-    let writeFooter () =
-        printfn "%s" (String.replicate footerSize "-")
-
-    let error str = 
-        lock obj (fun () ->
-            writeHeader ()
-            printfn ""
-            let s = "Error: "
-            writeColor s ConsoleColor.DarkRed
-            printfn "%s" (wrapText s.Length str)
-            writeFooter ()
-            exit 0)
-
-    let warning str = 
-        lock obj (fun () ->
-            writeHeader ()
-            printfn ""
-            let s = "Warning: "
-            writeColor s ConsoleColor.DarkYellow
-            printfn "%s" (wrapText s.Length str)
-            writeFooter ())
 
     let inline cyan (s: string) = 
         lock obj (fun () -> writeColor s ConsoleColor.DarkCyan)
@@ -228,6 +208,44 @@ module Format =
             elif s.Length >= 7 && s.[0..5] = "(gray)" then gray s.[6..]
             elif s.Length >= 7 && s.[0..5] = "(cyan)" then cyan s.[6..]
             else lock obj (fun () -> printf "%s" s)
+
+    let writeFooter () =
+        let banner = String.replicate footerSize "-"
+        writeFormatted (sprintf "#(gray)%s#\n" banner)
+
+    let writeHeader () =
+        let settings = Args.getSettings () 
+        let name = Option.get settings.PolFile
+        let sep = System.IO.Path.DirectorySeparatorChar
+        let arr = name.Split(sep)
+        let len = arr.Length
+        let name = 
+            if len > 1 then 
+                arr.[len-2] + (string sep) + arr.[len-1]
+            else arr.[len-1]
+        lockObj (fun () -> 
+            if not !obj then 
+                writeFooter ()
+            writeFormatted (sprintf "#(cyan)%s#\n" name))
+
+    let error str = 
+        writeHeader ()
+        lockObj (fun () ->
+            printfn ""
+            let s = "Error:   "
+            writeColor s ConsoleColor.DarkRed
+            printfn "%s" (wrapText str)
+            writeFooter ()
+            exit 0)
+
+    let warning str = 
+        writeHeader ()
+        lockObj (fun () ->
+            printfn ""
+            let s = "Warning: "
+            writeColor s ConsoleColor.DarkYellow
+            printfn "%s" (wrapText str)
+            writeFooter ())
 
     let header s = 
         let eqs = "========="
