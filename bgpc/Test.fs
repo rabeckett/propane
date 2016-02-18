@@ -544,14 +544,14 @@ let testAggregationFailure () =
     let topo = Examples.topoDatacenterMedium () 
     let reb = Regex.REBuilder(topo)
     let pol = reb.End ["A"]
-    let aggs = Map.add "X" [([Prefix.prefix (10u, 0u, 0u, 0u) 31u], Seq.ofList ["PEER"])] Map.empty
-    let aggs = Map.add "Y" [([Prefix.prefix (10u, 0u, 0u, 0u) 31u], Seq.ofList["PEER"])] aggs
+    let aggs = Map.add "X" [(Prefix.prefix (10u, 0u, 0u, 0u) 31u, Seq.ofList ["PEER"])] Map.empty
+    let aggs = Map.add "Y" [(Prefix.prefix (10u, 0u, 0u, 0u) 31u, Seq.ofList["PEER"])] aggs
     let res = IR.compileToIR "" 0 (Predicate.prefix (10u, 0u, 0u, 0u) 32u) aggs reb [reb.Build pol]
     match res with
     | Err _ -> printfn "[Failed]: policy failed to compile for testing aggregation black-holing"
     | Ok(res) -> 
         match res.K with 
-        | Some (2,_,_,_) -> ()
+        | Some (2,_,_,_,_) -> ()
         | _ ->
             let str = if Option.isNone res.K then "any" else string (Option.get res.K)
             printfn "[Failed]: aggregation failure, expected 2, but got (%s)" str

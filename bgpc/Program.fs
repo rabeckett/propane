@@ -28,7 +28,7 @@ let main argv =
         let pairs = Ast.makePolicyPairs ast topoInfo.Graph
         let (ir, k, _) = IR.compileAllPrefixes fullName topoInfo.Graph pairs aggs
         match k, settings.Failures with
-        | Some (i, x, y, p), _ ->
+        | Some (i, x, y, p, agg), _ ->
             let bad = 
                 match settings.Failures with 
                 | Args.Any -> true
@@ -36,11 +36,10 @@ let main argv =
             if bad then
                 let x = Map.findKey (fun _ v -> string v = x) topoInfo.AsnMap
                 let y = Map.findKey (fun _ v -> string v = y) topoInfo.AsnMap
-                let pfxStr = string p.Head
                 let msg = 
                     sprintf "Could only prove aggregation black-hole safety for up to %d failures. " i +
-                    sprintf "It may be possible to disconnect the prefix %s at location %s from the " pfxStr x +
-                    sprintf "aggregate at %s after %d failures. " y (i+1) +
+                    sprintf "It may be possible to disconnect the prefix %s at location %s from the " (string p) x +
+                    sprintf "aggregate prefix %s at %s after %d failures. " (string agg) y (i+1) +
                     sprintf "Consider using the -failures:n flag to specify a tolerable failure level."
                 warning msg
         | _ -> ()

@@ -37,7 +37,7 @@ type DeviceConfig =
 
 type PredConfig = Predicate.T * Map<string, DeviceConfig>
 
-type AggregationSafetyResult = (int * string * string * Prefix.T list) option
+type AggregationSafetyResult = (int * string * string * Prefix.T * Prefix.T) option
 
 type PrefixResult =
     {K: AggregationSafetyResult;
@@ -53,7 +53,7 @@ type CompileResult = Result<PrefixResult, CounterExample>
 
 /// Result from compiling the entire policy
 
-type DeviceAggregates = (Prefix.T list * seq<string>) list
+type DeviceAggregates = (Prefix.T * seq<string>) list
 type DeviceTags = ((string * Prefix.T list) * seq<string>) list
 type DeviceMaxRoutes = (uint32 * seq<string>) list
 

@@ -22,6 +22,7 @@ type T =
      UseMed: bool;
      UsePrepending: bool;
      UseNoExport: bool;
+     Parallel: bool;
      Test: bool;
      CheckEnter: bool;
      Debug: int; 
@@ -41,6 +42,7 @@ let format = ref IR
 let useMed = ref false
 let usePrepending = ref false
 let useNoExport = ref false
+let isParallel = ref true
 let test = ref false
 let debug = ref 0
 let debugDir = ref (currentDir + sep + "debug" + sep)
@@ -74,6 +76,12 @@ let setNoExport s =
     | "on" -> useNoExport := true
     | "off" -> useNoExport := false
     | _ -> raise (InvalidArgException ("Invalid No Export value: " + s))
+
+let setParallel s =
+    match s with 
+    | "on" -> isParallel := true
+    | "off" -> isParallel := false
+    | _ -> raise (InvalidArgException ("Invalid parallel value: " + s))
 
 let setFormat s = 
     match s with 
@@ -129,6 +137,7 @@ let args =
       ("-med:on|off", String setMED, "Use MED attribute (default off)");
       ("-prepending:on|off", String setPrepending, "Use AS path prepending (default off)");
       ("-no-export:on|off", String setNoExport, "Use no-export community (default off)");
+      ("-parallel:on|off", String setParallel, "Parallelize compilation (default on)");
       ("-format:IR|Templ", String setFormat, "Output format (IR, Template)");
       ("-stats:csv|none", String setStats, "Display performance statistics to stdout (default none)");
       ("-checkenter:on|off", String (fun s -> setCheckEnter s), "Run experiment for dc or core");
@@ -198,6 +207,7 @@ let parse (argv: string[]) : unit =
               UseMed = !useMed; 
               UsePrepending = !usePrepending; 
               UseNoExport = !useNoExport; 
+              Parallel = !isParallel;
               Format = !format; 
               Test = !test; 
               CheckEnter = !checkEnter;

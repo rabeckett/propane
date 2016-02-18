@@ -68,7 +68,7 @@ type ControlConstraints = (Ident * Expr list) list
 type Definitions = Map<string, Position * Ident list * Expr>
 
 type CConstraint = 
-    | CAggregate of Prefix.T list * Set<string> * Set<string>
+    | CAggregate of Prefix.T * Set<string> * Set<string>
     | CCommunity of string * Prefix.T list * Set<string> * Set<string>
     | CMaxRoutes of uint32 * Set<string> * Set<string>
     | CLongestPath of uint32 * Set<string>
@@ -518,7 +518,7 @@ let buildCConstraint ast (topo: Topology.T) (cc: Ident * Expr list) =
         let p = prefix (List.head args).Node
         let (x,y) = getLinks (List.item 1 args).Node
         let (xs,ys) = getLinkLocations (x,y)
-        CAggregate ([p], xs, ys)
+        CAggregate (p, xs, ys)
     | "tag" -> 
         let (a,b) = getComm (List.head args).Node
         let p = prefix (List.item 1 args).Node

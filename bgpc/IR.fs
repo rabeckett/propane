@@ -57,7 +57,7 @@ type DeviceConfig =
 
 type PredConfig = Predicate.T * Map<string, DeviceConfig>
 
-type AggregationSafetyResult = (int * string * string * Prefix.T list) option
+type AggregationSafetyResult = (int * string * string * Prefix.T * Prefix.T) option
 
 type PrefixResult =
     {K: AggregationSafetyResult;
@@ -73,7 +73,7 @@ type CompileResult = Result<PrefixResult, CounterExample>
 
 /// Result from compiling the entire policy
 
-type DeviceAggregates = (Prefix.T list * seq<string>) list
+type DeviceAggregates = (Prefix.T * seq<string>) list
 type DeviceTags = ((string * Prefix.T list) * seq<string>) list
 type DeviceMaxRoutes = (uint32 * seq<string>) list
 
@@ -486,19 +486,19 @@ let getMinAggregateFailures (cg: CGraph.T) pred (aggInfo: Map<string, DeviceAggr
     let mutable smallest = System.Int32.MaxValue
     let mutable pairs = None
     for p in prefixes do
-        for kv in aggInfo do 
-            let aggRouter = kv.Key 
-            let aggs = kv.Value
-            let relevantAggs = List.filter (fun (prefix, _) -> Prefix.implies (Prefix.toPredicate prefix) p) aggs
-            for (rAgg, _) in relevantAggs do
+        Map.iter (fun aggRouter aggs ->
+            let relevantAggs = List.filter (fun (prefix, _) -> Prefix.implies (Prefix.toPredicate [prefix]) p) aggs
+            if not relevantAggs.IsEmpty then 
+                let rAgg, _ = relevantAggs.Head
                 match CGraph.Failure.disconnectLocs cg originators aggRouter with 
                 | None -> () 
                 | Some (k,x,y) ->
                     if k < smallest then 
                         smallest <- min smallest k
-                        pairs <- Some (x,y, Prefix.toPrefixes p)
+                        let p = (x,y, List.head (Prefix.toPrefixes p), rAgg)
+                        pairs <- Some p ) aggInfo
     if smallest = System.Int32.MaxValue then None
-    else let x,y,p = Option.get pairs in Some (smallest, x, y, p)
+    else let x,y,p,agg = Option.get pairs in Some (smallest, x, y, p, agg)
 
 let compileToIR fullName idx pred (aggInfo: Map<string,DeviceAggregates>) (reb: Regex.REBuilder) res : CompileResult =
     let settings = Args.getSettings ()
@@ -633,15 +633,17 @@ let minFails x y =
     match x, y with 
     | None, _ -> y 
     | _, None -> x 
-    | Some (i,a,b,p1), Some (j,c,d,p2) -> 
+    | Some (i,_,_,_,_), Some (j,_,_,_,_) -> 
         if i < j then x else y
 
 let compileAllPrefixes fullName topo (pairs: Ast.PolicyPair list) constraints : T * AggregationSafetyResult * Stats =
+    let settings = Args.getSettings () 
+    let mapi = if settings.Parallel then Array.Parallel.mapi else Array.mapi
     let info = splitConstraints topo constraints
     let (aggInfo, _, _) = info
     let pairs = Array.ofList pairs
     let timedConfigs, prefixTime =
-        Profile.time (Array.Parallel.mapi (fun i x -> 
+        Profile.time (mapi (fun i x -> 
             Profile.time (compileForSinglePrefix fullName (i+1) aggInfo) x)) pairs
     let nAggFails = Array.map (fun (res,_) -> res.K) timedConfigs
     let k = Array.fold minFails None nAggFails

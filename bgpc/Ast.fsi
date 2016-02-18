@@ -32,7 +32,7 @@ and Node =
 
 /// Individual control constraint 
 type CConstraint = 
-    | CAggregate of Prefix.T list * Set<string> * Set<string>
+    | CAggregate of Prefix.T * Set<string> * Set<string>
     | CCommunity of string * Prefix.T list * Set<string> * Set<string>
     | CMaxRoutes of uint32 * Set<string> * Set<string>
     | CLongestPath of uint32 * Set<string>
