@@ -28,24 +28,21 @@ let main argv =
         let pairs = Ast.makePolicyPairs ast topoInfo.Graph
         let (ir, k, _) = IR.compileAllPrefixes fullName topoInfo.Graph pairs aggs
         match k, settings.Failures with
-        | Some (i, x, y), Args.Any -> 
-            let x = Map.findKey (fun _ v -> string v = x) topoInfo.AsnMap
-            let y = Map.findKey (fun _ v -> string v = y) topoInfo.AsnMap
-            let msg =  
-                sprintf "Required black-hole safety for aggregates under all failures, " + 
-                sprintf "but could only prove safety for up to %d failures. " i +
-                sprintf "It may be possible to disconnect the prefix at %s from the aggregate at %s after %d failures. " x y (i+1) +
-                sprintf "Consider using the -failures:n flag to specify a tolerable failure level."
-            warning msg
-        | Some (i, x, y), Args.Concrete j when i < j ->
-            let x = Map.findKey (fun _ v -> string v = x) topoInfo.AsnMap
-            let y = Map.findKey (fun _ v -> string v = y) topoInfo.AsnMap
-            let msg = 
-                sprintf "Required black-hole safety for aggregates under any combination of %d failures, " j +
-                sprintf "but could only prove safety for up to %d failures. " i +
-                sprintf "It may be possible to disconnect the prefix at %s from the aggregate at %s after %d failures" x y (i+1) +
-                sprintf "Consider using the -failures:n flag to specify a tolerable failure level."
-            warning msg
+        | Some (i, x, y, p), _ ->
+            let bad = 
+                match settings.Failures with 
+                | Args.Any -> true
+                | Args.Concrete j -> i < j 
+            if bad then
+                let x = Map.findKey (fun _ v -> string v = x) topoInfo.AsnMap
+                let y = Map.findKey (fun _ v -> string v = y) topoInfo.AsnMap
+                let pfxStr = string p.Head
+                let msg = 
+                    sprintf "Could only prove aggregation black-hole safety for up to %d failures. " i +
+                    sprintf "It may be possible to disconnect the prefix %s at location %s from the " pfxStr x +
+                    sprintf "aggregate at %s after %d failures. " y (i+1) +
+                    sprintf "Consider using the -failures:n flag to specify a tolerable failure level."
+                warning msg
         | _ -> ()
         match settings.OutFile with
         | None -> ()

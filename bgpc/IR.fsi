@@ -37,8 +37,10 @@ type DeviceConfig =
 
 type PredConfig = Predicate.T * Map<string, DeviceConfig>
 
+type AggregationSafetyResult = (int * string * string * Prefix.T list) option
+
 type PrefixResult =
-    {K: (int*string*string) option;
+    {K: AggregationSafetyResult;
      BuildTime: int64;
      MinimizeTime: int64;
      OrderingTime: int64;
@@ -92,8 +94,6 @@ type Stats =
      PerPrefixOrderTimes: int64 array;
      PerPrefixGenTimes: int64 array;
      JoinTime: int64;}
-
-type AggregationSafetyResult = (int * string * string) option
 
 /// Compile for all prefixes
 val compileAllPrefixes: string -> Topology.T -> Ast.PolicyPair list -> Ast.CConstraint list -> T * AggregationSafetyResult * Stats

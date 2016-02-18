@@ -539,7 +539,7 @@ let testTopologyWellFormedness () =
     if Topology.isWellFormed topo then 
         printfn "\n[Failed]:\n  Should mark disconnected topology as invalid"
 
-let  testAggregationFailure () = 
+let testAggregationFailure () = 
     printfn "Testing aggregation failures"
     let topo = Examples.topoDatacenterMedium () 
     let reb = Regex.REBuilder(topo)
@@ -551,7 +551,7 @@ let  testAggregationFailure () =
     | Err _ -> printfn "[Failed]: policy failed to compile for testing aggregation black-holing"
     | Ok(res) -> 
         match res.K with 
-        | Some (2,_,_) -> ()
+        | Some (2,_,_,_) -> ()
         | _ ->
             let str = if Option.isNone res.K then "any" else string (Option.get res.K)
             printfn "[Failed]: aggregation failure, expected 2, but got (%s)" str

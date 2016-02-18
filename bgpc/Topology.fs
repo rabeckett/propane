@@ -22,7 +22,6 @@ type State =
 
 type T = BidirectionalGraph<State,TaggedEdge<State,unit>>
 
-exception InvalidTopologyException
 
 let copyTopology (topo: T) : T = 
     let newTopo = BidirectionalGraph<State,TaggedEdge<State,unit>>()

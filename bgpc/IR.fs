@@ -57,8 +57,10 @@ type DeviceConfig =
 
 type PredConfig = Predicate.T * Map<string, DeviceConfig>
 
+type AggregationSafetyResult = (int * string * string * Prefix.T list) option
+
 type PrefixResult =
-    {K: (int*string*string) option;
+    {K: AggregationSafetyResult;
      BuildTime: int64;
      MinimizeTime: int64;
      OrderingTime: int64;
@@ -494,9 +496,9 @@ let getMinAggregateFailures (cg: CGraph.T) pred (aggInfo: Map<string, DeviceAggr
                 | Some (k,x,y) ->
                     if k < smallest then 
                         smallest <- min smallest k
-                        pairs <- Some (x,y)
+                        pairs <- Some (x,y, Prefix.toPrefixes p)
     if smallest = System.Int32.MaxValue then None
-    else let x,y = Option.get pairs in Some (smallest, x, y)
+    else let x,y,p = Option.get pairs in Some (smallest, x, y, p)
 
 let compileToIR fullName idx pred (aggInfo: Map<string,DeviceAggregates>) (reb: Regex.REBuilder) res : CompileResult =
     let settings = Args.getSettings ()
@@ -545,24 +547,21 @@ let compileToIR fullName idx pred (aggInfo: Map<string,DeviceAggregates>) (reb: 
         | UncontrollablePeerPreferenceException s -> Err(UncontrollablePeerPreference s)
 
 let compileForSinglePrefix fullName idx (aggInfo: Map<string, DeviceAggregates>) (pred, reb, res) =
-    try 
-        match compileToIR fullName idx pred aggInfo reb res with 
-        | Ok(config) -> config
-        | Err(x) ->
-            match x with
-            | NoPathForRouters rs ->
-                error (sprintf "Unable to find a path for routers: %s for predicate %s" (string rs) (string pred))
-            | InconsistentPrefs(x,y) ->
-                let msg = sprintf "Cannot find preferences for router %s for predicate %s" x.Node.Loc (string pred)
-                error msg
-            | UncontrollableEnter x -> 
-                let msg = sprintf "Cannot control inbound traffic from peer: %s for predicate %s" x (string pred)
-                error msg
-            | UncontrollablePeerPreference x -> 
-                let msg = sprintf "Cannot control inbound preference from peer: %s for predicate %s. Possibly enable prepending: --prepending:on" x (string pred)
-                error msg
-    with Topology.InvalidTopologyException -> 
-        error (sprintf "Invalid Topology, internal topology must be connected")
+    match compileToIR fullName idx pred aggInfo reb res with 
+    | Ok(config) -> config
+    | Err(x) ->
+        match x with
+        | NoPathForRouters rs ->
+            error (sprintf "Unable to find a path for routers: %s for predicate %s" (string rs) (string pred))
+        | InconsistentPrefs(x,y) ->
+            let msg = sprintf "Cannot find preferences for router %s for predicate %s" x.Node.Loc (string pred)
+            error msg
+        | UncontrollableEnter x -> 
+            let msg = sprintf "Cannot control inbound traffic from peer: %s for predicate %s" x (string pred)
+            error msg
+        | UncontrollablePeerPreference x -> 
+            let msg = sprintf "Cannot control inbound preference from peer: %s for predicate %s. Possibly enable prepending: --prepending:on" x (string pred)
+            error msg
 
 let checkAggregateLocs ins _ prefix links = 
     if Set.contains "out" ins then
@@ -630,13 +629,11 @@ type Stats =
      PerPrefixGenTimes: int64 array;
      JoinTime: int64;}
 
-type AggregationSafetyResult = (int * string * string) option
-
 let minFails x y = 
     match x, y with 
     | None, _ -> y 
     | _, None -> x 
-    | Some (i, a,b), Some (j,c,d) -> 
+    | Some (i,a,b,p1), Some (j,c,d,p2) -> 
         if i < j then x else y
 
 let compileAllPrefixes fullName topo (pairs: Ast.PolicyPair list) constraints : T * AggregationSafetyResult * Stats =

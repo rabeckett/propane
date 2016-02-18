@@ -2,6 +2,7 @@
 
 open Common.Error
 open Common.Debug
+open Common.Color
 open System.Collections.Generic
 open System.Diagnostics
 open QuickGraph
@@ -122,7 +123,7 @@ let getGarbageStates (auto: Regex.Automaton) =
 
 let buildFromAutomata (topo: Topology.T) (autos : Regex.Automaton array) : T =
     if not (Topology.isWellFormed topo) then
-        raise Topology.InvalidTopologyException
+        error (sprintf "Invalid topology. Topology must be weakly connected.")
     let unqTopo = Set.ofSeq topo.Vertices
     let transitions = getTransitions autos
     let garbage = Array.map getGarbageStates autos

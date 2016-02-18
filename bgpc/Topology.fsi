@@ -17,7 +17,6 @@ type State =
 
 type T = BidirectionalGraph<State,TaggedEdge<State,unit>>
 
-exception InvalidTopologyException
 
 /// Make a defensive copy of the topology
 val copyTopology: T -> T
