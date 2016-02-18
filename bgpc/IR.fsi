@@ -1,13 +1,5 @@
 ﻿module IR
 
-open CGraph
-open Common.Error
-
-type CounterExample = 
-    | NoPathForRouters of Set<string>
-    | InconsistentPrefs of CgState * CgState
-    | UncontrollableEnter of string
-    | UncontrollablePeerPreference of string
 
 type Match = 
     | Peer of string 
@@ -35,21 +27,8 @@ type DeviceConfig =
     {Originates: bool;
      Filters: Filter list}
 
-type PredConfig = Predicate.T * Map<string, DeviceConfig>
-
 type AggregationSafetyResult = (int * string * string * Prefix.T * Prefix.T) option
 
-type PrefixResult =
-    {K: AggregationSafetyResult;
-     BuildTime: int64;
-     MinimizeTime: int64;
-     OrderingTime: int64;
-     ConfigTime: int64;
-     CompressSizeInit: int;
-     CompressSizeFinal: int;
-     Config: PredConfig}
-
-type CompileResult = Result<PrefixResult, CounterExample>
 
 /// Result from compiling the entire policy
 
@@ -71,16 +50,6 @@ type T = Map<string, RouterConfig>
 
 /// Debug config output
 val format: T -> string
-
-/// Generate the BGP match/action rules that are guaranteed to 
-/// implement the user policy under all possible failure scenarios for a given prefix. 
-/// This function returns either an intermediate representation (IR) 
-/// for BGP policies, or a counterexample indicating why compilation will not work.
-val compileToIR: string -> int -> Predicate.T -> Map<string, DeviceAggregates> -> Regex.REBuilder -> Regex.T list -> CompileResult
-
-/// Compile to an intermediate representation for a given prefix. 
-/// Gives a counterexample and quits the program if compilation is not possible.
-val compileForSinglePrefix: string -> int -> Map<string, DeviceAggregates> -> Ast.PolicyPair -> PrefixResult
 
 type Stats = 
     {NumPrefixes: int;
