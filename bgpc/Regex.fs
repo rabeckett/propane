@@ -3,7 +3,7 @@
 open Topology
 open QuickGraph
 open Common
-open Common.Color
+open Common.Format
 open System.Collections.Generic
 
 type T = 
@@ -505,3 +505,23 @@ type REBuilder(topo: Topology.T) =
              this.Concat [this.MaybeOutside(); this.Internal(); this.Locs outs; this.MaybeOutside()]]
     
     member this.Only(xs) = this.Concat [xs; this.Star xs]
+
+
+module Test =
+
+    let testRegexWellFormedness () =
+        writeFormatted "Regex well-formedness "
+        let reb = REBuilder (Examples.topoStretchingManWAN ())
+        let pref1 = reb.Path ["X"; "B"; "X"; "B"]
+        let pref2 = reb.Concat [reb.External(); reb.Internal(); reb.External(); reb.Internal()]
+        let pref3 = reb.Concat [reb.Internal(); reb.External(); reb.Internal()]
+        let mutable fail = false
+        for p in [pref1; pref2; pref3] do
+            try 
+                ignore (reb.Build p)
+                fail <- true
+            with _ -> ()
+        if fail then failed () else passed ()
+
+    let run () = 
+        testRegexWellFormedness ()

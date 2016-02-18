@@ -1,7 +1,7 @@
 ﻿module Ast
 
 open Topology
-open Common.Color
+open Common.Format
 
 type Position = 
     {SLine: int;
@@ -137,7 +137,6 @@ let rec iter f (e: Expr) =
 module Message = 
 
     open System
-    open Common.Color
 
     type Kind = 
         | Error 
@@ -196,7 +195,7 @@ module Message =
         printfn ""
 
     let displayFooter msg (color, errorTyp) = 
-        Common.Color.writeColor errorTyp color
+        writeColor errorTyp color
         printfn "%s" (wrapText errorTyp.Length msg)
         writeFooter ()
 

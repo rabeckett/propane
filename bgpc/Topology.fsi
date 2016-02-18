@@ -61,3 +61,28 @@ type TopoInfo =
 
 /// Read a topology from an XML file
 val readTopology: string -> TopoInfo
+
+/// Examples of useful topologies for testing
+module Examples = 
+    val topoDisconnected: unit -> T
+    val topoDiamond: unit -> T
+    val topoDatacenterSmall: unit -> T 
+    val topoDatacenterMedium: unit -> T
+    val topoDatacenterMediumAggregation: unit -> T
+    val topoDatacenterLarge: unit -> T
+    val topoBadGadget: unit -> T
+    val topoBrokenTriangle: unit -> T
+    val topoBigDipper: unit -> T
+    val topoSeesaw: unit -> T
+    val topoStretchingManWAN: unit -> T
+    val topoStretchingManWAN2: unit -> T
+    val topoPinCushionWAN: unit -> T
+    val topoBackboneWAN: unit -> T
+    /// Fattree topology 
+    type Tiers = Dictionary<State,int>
+    type Prefixes = Dictionary<State,Prefix.T>
+    val fatTree: int -> T * Prefixes * Tiers
+
+/// Module with unit tests
+module Test = 
+    val run: unit -> unit

@@ -143,3 +143,33 @@ let example x =
     | _, "true" -> exPrefix
     | "0.0.0.0/0", _ -> exComm
     | _, _ -> exPrefix + " and " + exComm
+
+
+module Test = 
+
+    open Common.Format
+
+    let maxTests = 1000
+
+    let rand = System.Random()
+
+    let randomPrefix () =
+        let lo = uint32 (rand.Next())
+        let hi = uint32 (rand.Next()) + lo
+        Prefix.fromRange (lo,hi)
+
+    let testPrefixes () =
+        printf "Prefix predicates "
+        let mutable fail = false
+        for i = 1 to maxTests do 
+            let x = randomPrefix ()
+            let y = Prefix.toPrefixes x
+            let z = Prefix.toPredicate y
+            let a = Prefix.str x 
+            let b = Prefix.str z
+            if a <> b then
+                fail <- true
+        if fail then failed () else passed ()
+
+    let run () = 
+        testPrefixes ()

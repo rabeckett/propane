@@ -1,6 +1,7 @@
 ﻿module Input
 
 open Common.Error
+open Common.Format
 open System.IO
 open Microsoft.FSharp.Text.Lexing
 
@@ -17,7 +18,7 @@ let readFromFile fname =
         (lines, defs, cs)
     with
         | Lexer.EofInComment ->
-            Common.Color.writeColor "Error: " System.ConsoleColor.DarkRed
+            writeColor "Error: " System.ConsoleColor.DarkRed
             printfn "End of file detected in comment"
             exit 0
         | e ->
@@ -25,6 +26,6 @@ let readFromFile fname =
             let pos = lexbuf.EndPos
             let line = pos.Line
             let column = pos.Column
-            Common.Color.writeColor "Error: " System.ConsoleColor.DarkRed
+            writeColor "Error: " System.ConsoleColor.DarkRed
             printfn "Line: %d, Char: %d" line column
             exit 0

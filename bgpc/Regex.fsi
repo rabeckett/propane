@@ -85,3 +85,8 @@ type REBuilder  =
     member Enter: string list -> LazyT
     member Exit: string list -> LazyT
     member Only: LazyT -> LazyT
+
+
+/// Run unit tests
+module Test = 
+    val run: unit -> unit

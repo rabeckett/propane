@@ -82,7 +82,6 @@
     <Compile Include="Predicate.fs" />
     <Compile Include="Topology.fsi" />
     <Compile Include="Topology.fs" />
-    <Compile Include="Examples.fs" />
     <Compile Include="Regex.fsi" />
     <Compile Include="Regex.fs" />
     <Compile Include="Ast.fsi" />
@@ -103,8 +102,6 @@
     <Compile Include="CGraph.fs" />
     <Compile Include="IR.fsi" />
     <Compile Include="IR.fs" />
-    <Compile Include="Test.fsi" />
-    <Compile Include="Test.fs" />
     <Compile Include="Program.fs" />
     <None Include="App.config" />
     <None Include="packages.config" />

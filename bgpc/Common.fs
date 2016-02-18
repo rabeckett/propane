@@ -149,7 +149,8 @@ module Error =
         | Ok v -> Ok (f v)
         | Err e -> Err e
 
-module Color =
+
+module Format =
 
     let obj = new Object()
 
@@ -204,4 +205,38 @@ module Color =
             writeColor s ConsoleColor.DarkYellow
             printfn "%s" (wrapText s.Length str)
             writeFooter ())
-       
+
+    let inline cyan (s: string) = 
+        lock obj (fun () -> writeColor s ConsoleColor.DarkCyan)
+
+    let inline green (s: string) =
+        lock obj (fun () -> writeColor s ConsoleColor.DarkGreen)
+
+    let inline red (s: string) = 
+        lock obj (fun () -> writeColor s ConsoleColor.DarkRed)
+
+    let inline gray (s: string) = 
+        lock obj (fun () -> writeColor s ConsoleColor.DarkGray)
+
+    let writeFormatted (s:string) =
+        let arr = s.Split('#')
+        if arr.Length <= 2 then
+            printf "%s" s
+        for s in arr.[0..(arr.Length - 1)] do 
+            if s.Length >= 6 && s.[0..4] = "(red)" then red s.[5..]
+            elif s.Length >= 8 && s.[0..6] = "(green)" then green s.[7..]
+            elif s.Length >= 7 && s.[0..5] = "(gray)" then gray s.[6..]
+            elif s.Length >= 7 && s.[0..5] = "(cyan)" then cyan s.[6..]
+            else lock obj (fun () -> printf "%s" s)
+
+    let passed () = 
+        writeFormatted "#(green)passed#\n"
+
+    let failed () = 
+        writeFormatted "#(red)failed#\n" 
+
+    
+
+
+
+

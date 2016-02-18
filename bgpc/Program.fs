@@ -2,18 +2,29 @@
 
 open Common
 open Common.Debug
-open Common.Color
+open Common.Format
 open System
-    
+   
+let header s = 
+    let eqs = "========="
+    let right = eqs + "> "
+    let left = " <" + eqs
+    sprintf "#(cyan)%s%s%s#\n" right s left
 
+let runUnitTests () = 
+    writeFormatted (header "Running unit tests ")
+    Topology.Test.run () 
+    Regex.Test.run () 
+    Predicate.Test.run ()
+    IR.Test.run ()
+    exit 0
 
 [<EntryPoint>]
 let main argv =
     ignore (Args.parse argv)
     let settings = Args.getSettings ()
     if settings.Test then
-        Test.run ()
-        exit 0
+        runUnitTests ()
     let fullName = settings.DebugDir + (Common.Option.getOrDefault "output" settings.OutFile)
     let topoInfo = 
         match settings.TopoFile with 
@@ -46,6 +57,7 @@ let main argv =
         match settings.OutFile with
         | None -> ()
         | Some out -> System.IO.File.WriteAllText(out + ".ir", IR.format ir)
+       
         (* TODO: another compilation step *)
         match settings.Format with 
         | Args.IR -> ()

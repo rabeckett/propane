@@ -2,7 +2,7 @@
 
 open Common.Error
 open Common.Debug
-open Common.Color
+open Common.Format
 open System.Collections.Generic
 open System.Diagnostics
 open QuickGraph

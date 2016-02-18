@@ -1,7 +1,7 @@
 %{
 open System
 open Ast
-open Common.Color
+open Common.Format
 open Microsoft.FSharp.Collections
 open Microsoft.FSharp.Text.Lexing
 

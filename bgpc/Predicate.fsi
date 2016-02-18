@@ -39,3 +39,8 @@ val getPrefixes: T -> seq<Prefix.Pred>
 
 /// Generate a simple, near-minimal, symbolic example that satisfies the predicate
 val example: T -> string
+
+
+/// Module for unit tests
+module Test = 
+    val run: unit -> unit

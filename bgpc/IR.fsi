@@ -97,3 +97,8 @@ type Stats =
 
 /// Compile for all prefixes
 val compileAllPrefixes: string -> Topology.T -> Ast.PolicyPair list -> Ast.CConstraint list -> T * AggregationSafetyResult * Stats
+
+
+/// Compilation unit tests
+module Test = 
+    val run: unit -> unit

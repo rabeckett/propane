@@ -4,7 +4,7 @@ open CGraph
 open Common
 open Common.Debug
 open Common.Error
-open Common.Color
+open Common.Format
 open System.Collections.Generic
 
 exception UncontrollableEnterException of string
@@ -668,3 +668,611 @@ let compileAllPrefixes fullName topo (pairs: Ast.PolicyPair list) constraints : 
          PerPrefixGenTimes=genTimes;
          JoinTime=joinTime}
     joined, k, stats
+
+
+
+module Test = 
+
+    let isPeer ain x m = 
+        match m with 
+        | Peer y -> x = y || y = "*" || (y = "in" && Set.contains x ain)
+        | State(_,y) -> x = y || y = "*" || (y = "in" && Set.contains x ain)
+        | _ -> false
+
+    let getPref ain (x:string) (dc: DeviceConfig) = 
+        let lp = List.tryFind (fun f -> 
+            match f with 
+            | Deny -> false 
+            | Allow ((m,_),_) -> isPeer ain x m) dc.Filters
+        match lp with
+        | Some (Allow ((_,lp), _)) -> lp
+        | _ -> 100
+
+    let prefersPeer ain (_,config) x (a,b) =
+        try 
+            let deviceConfig = Map.find x config 
+            let lp1 = getPref ain a deviceConfig
+            let lp2 = getPref ain b deviceConfig
+            lp1 > lp2
+        with _ -> false
+
+    let receiveFrom ain (_,config) x y = 
+        let deviceConf = Map.find x config 
+        List.exists (fun f -> 
+            match f with 
+            | Deny -> false 
+            | Allow ((m,_), _) -> isPeer ain y m) deviceConf.Filters
+
+    let originates ((_, config): PredConfig) x =
+        let deviceConfig = Map.find x config
+        deviceConfig.Originates
+
+    type FailReason = 
+        | FRInconsistentPrefs
+        | FRNoPathForRouters
+        | FRCantControlPeers
+
+    type Test = 
+        {Name: string;
+         Explanation: string;
+         Topo: Topology.T;
+         Rf: Regex.REBuilder -> Regex.T list;
+         Receive: (string*string) list option;
+         Originate: string list option;
+         Prefs: (string*string*string) list option
+         Fail: FailReason option}
+
+    let tDiamond = Topology.Examples.topoDiamond () 
+    let tDatacenterSmall = Topology.Examples.topoDatacenterSmall ()
+    let tDatacenterMedium = Topology.Examples.topoDatacenterMedium ()
+    let tDatacenterLarge = Topology.Examples.topoDatacenterLarge ()
+    let tBrokenTriangle = Topology.Examples.topoBrokenTriangle ()
+    let tBigDipper = Topology.Examples.topoBigDipper () 
+    let tBadGadget = Topology.Examples.topoBadGadget ()
+    let tSeesaw = Topology.Examples.topoSeesaw ()
+    let tStretchingManWAN = Topology.Examples.topoStretchingManWAN ()
+    let tStretchingManWAN2 = Topology.Examples.topoStretchingManWAN2 ()
+    let tPinCushionWAN = Topology.Examples.topoPinCushionWAN ()
+    let tBackboneWAN = Topology.Examples.topoBackboneWAN ()
+
+    let rDiamond1 (reb: Regex.REBuilder) = 
+        let pref1 = reb.Concat (List.map reb.Loc ["A"; "X"; "N"; "Y"; "B"])
+        [reb.Build pref1]
+
+    let rDiamond2 (reb: Regex.REBuilder) = 
+        let pref1 = reb.Concat (List.map reb.Loc ["A"; "X"; "N"; "Y"; "B"])
+        let pref2 = reb.Concat [reb.Loc "A"; reb.Star reb.Inside; reb.Loc "N"; reb.Loc "Z"; reb.Loc "B"]
+        [reb.Build pref1; reb.Build pref2]
+
+    let rDatacenterSmall1 (reb: Regex.REBuilder) = 
+        let pref1 = reb.Internal()
+        [reb.Build pref1]
+
+    let rDatacenterSmall2 (reb: Regex.REBuilder) = 
+        let pref1 = reb.Inter [reb.Through ["M"]; reb.End ["A"]]
+        [reb.Build pref1]
+
+    let rDatacenterSmall3 (reb: Regex.REBuilder) =
+        let pref1 = reb.Inter [reb.Through ["M"]; reb.End ["A"]]
+        let pref2 = reb.Inter [reb.Internal(); reb.End ["A"]]
+        [reb.Build pref1; reb.Build pref2]
+
+    let rDatacenterSmall4 (reb: Regex.REBuilder) =
+        let pref1 = reb.End(["A"])
+        [reb.Build pref1]
+
+    let rDatacenterSmall5 (reb: Regex.REBuilder) =
+        let pref1 = reb.Inter [reb.Through ["M"]; reb.End ["A"]]
+        let pref2 = reb.Inter [reb.Through ["N"]; reb.End ["A"]]
+        let pref3 = reb.Inter [reb.End ["A"]]
+        [reb.Build pref1; reb.Build pref2; reb.Build pref3]
+
+    let rDatacenterMedium1 (reb: Regex.REBuilder) =
+        let pref1 = reb.Internal()
+        [reb.Build pref1]
+
+    let rDatacenterMedium2 (reb: Regex.REBuilder) =
+        let pref1 = reb.Inter [reb.Start ["A"]; reb.Through ["X"]; reb.End ["F"]]
+        [reb.Build pref1]
+
+    let rDatacenterMedium3 (reb: Regex.REBuilder) =
+        let vf = reb.ValleyFree([["A";"B";"E";"F"]; ["C";"D";"G";"H"]; ["X";"Y"]])
+        let pref1 = reb.Inter [reb.Through ["X"]; reb.End ["F"]; vf]
+        [reb.Build pref1]
+
+    let rDatacenterMedium4 (reb: Regex.REBuilder) =
+        let vf = reb.ValleyFree([["A";"B";"E";"F"]; ["C";"D";"G";"H"]; ["X";"Y"]])
+        let start = reb.Start(["A"; "B"])
+        let pref1 = reb.Inter [start; reb.Through ["X"]; reb.End ["F"]; vf]
+        let pref2 = reb.Inter [reb.End ["F"]; vf]
+        [reb.Build pref1; reb.Build pref2]
+
+    let rDatacenterMedium5 (reb: Regex.REBuilder) =
+        let vf = reb.ValleyFree([["A";"B";"E";"F"]; ["C";"D";"G";"H"]; ["X";"Y"]])
+        let pref1 = reb.Inter [reb.Through ["X"]; reb.End ["F"]; vf]
+        let pref2 = reb.Inter [reb.Through ["Y"]; reb.End ["F"]; vf]
+        [reb.Build pref1; reb.Build pref2]
+
+    let rDatacenterMedium6 (reb: Regex.REBuilder) =
+        let vf = reb.ValleyFree([["A";"B";"E";"F"]; ["C";"D";"G";"H"]; ["X";"Y"]])
+        let pref1 = reb.Inter [reb.Through ["X"]; reb.End ["F"]; vf]
+        let pref2 = reb.Inter [reb.Through ["Y"]; reb.End ["F"]; vf]
+        let pref3 = reb.Inter [reb.End ["F"]; vf]
+        [reb.Build pref1; reb.Build pref2; reb.Build pref3]
+
+    let rDatacenterLarge1 (reb: Regex.REBuilder) =
+        let pref1 = reb.Inter [reb.Through ["M"]; reb.End ["A"]]
+        [reb.Build pref1]
+
+    let rDatacenterLarge2 (reb: Regex.REBuilder) =
+        let pref1 = reb.Inter [reb.Through ["M"]; reb.End ["A"]]
+        let pref2 = reb.End ["A"]
+        [reb.Build pref1; reb.Build pref2]
+
+    let rDatacenterLarge3 (reb: Regex.REBuilder) =
+        let pref1 = reb.Inter [reb.Through ["M"]; reb.End ["A"]]
+        let pref2 = reb.Inter [reb.Through ["N"]; reb.End ["A"]]
+        let pref3 = reb.End ["A"]
+        [reb.Build pref1; reb.Build pref2; reb.Build pref3]
+
+    let rBrokenTriangle1 (reb: Regex.REBuilder) =
+        let pref1 = reb.Union [reb.Path ["C"; "A"; "E"; "D"]; reb.Path ["A"; "B"; "D"]]
+        [reb.Build pref1]
+
+    let rBigDipper1 (reb: Regex.REBuilder) =
+        let op1 = reb.Path ["C"; "A"; "E"; "D"]
+        let op2 = reb.Path ["A"; "E"; "D"]
+        let op3 = reb.Path ["A"; "D"]
+        let pref1 = reb.Union [op1; op2; op3]
+        [reb.Build pref1]
+
+    let rBadGadget1 (reb: Regex.REBuilder) =
+        let op1 = reb.Path ["A"; "C"; "D"]
+        let op2 = reb.Path ["B"; "A"; "D"]
+        let op3 = reb.Path ["C"; "B"; "D"]
+        let pref1 = reb.Union [op1; op2; op3]
+        let op4 = reb.Path ["A"; "D"]
+        let op5 = reb.Path ["B"; "D"]
+        let op6 = reb.Path ["C"; "D"]
+        let pref2 = reb.Union [op4; op5; op6]
+        [reb.Build pref1; reb.Build pref2]
+
+    let rBadGadget2 (reb: Regex.REBuilder) =
+        let op1 = reb.Path ["A"; "C"; "D"]
+        let op2 = reb.Path ["B"; "A"; "D"]
+        let op3 = reb.Path ["C"; "B"; "D"]
+        let op4 = reb.Path ["A"; "D"]
+        let op5 = reb.Path ["B"; "D"]
+        let op6 = reb.Path ["C"; "D"]
+        let pref1 = reb.Union [op1; op2; op3; op4; op5; op6]
+        [reb.Build pref1]
+
+    let rSeesaw1 (reb: Regex.REBuilder) = 
+        let op1 = reb.Path ["A"; "X"; "N"; "M"]
+        let op2 = reb.Path ["B"; "X"; "N"; "M"]
+        let op3 = reb.Path ["A"; "X"; "O"; "M"]
+        let op4 = reb.Path ["X"; "O"; "M"]
+        let pref1 = reb.Union [op1; op2; op3; op4]
+        let pref2 = reb.Path ["X"; "N"; "M"]
+        [reb.Build pref1; reb.Build pref2]
+
+    let rStretchingManWAN1 (reb: Regex.REBuilder) = 
+        let pref1 = reb.Concat [reb.Star reb.Outside; reb.Loc "A"; reb.Star reb.Inside; reb.Loc "Y"]
+        let pref2 = reb.Concat [reb.Star reb.Outside; reb.Loc "B"; reb.Star reb.Inside; reb.Outside]
+        [reb.Build pref1; reb.Build pref2]
+
+    let rStretchingManWAN2 (reb: Regex.REBuilder) = 
+        let pref1 = reb.Concat [reb.Outside; reb.Loc "A"; reb.Star reb.Inside; reb.Loc "Y"]
+        let pref2 = reb.Concat [reb.Outside; reb.Loc "B"; reb.Star reb.Inside; reb.Outside]
+        [reb.Build pref1; reb.Build pref2]
+
+    let rStretchingManWAN3 (reb: Regex.REBuilder) = 
+        let pref1 = 
+            reb.Concat [
+                reb.Star reb.Outside; 
+                reb.Loc "A"; reb.Star reb.Inside; 
+                reb.Loc "Y"; reb.Star reb.Outside; 
+                reb.Loc "ASChina" ]
+        [reb.Build pref1]
+
+    let rStretchingManWAN4 (reb: Regex.REBuilder) = 
+        let pref1 = reb.Concat [reb.Loc "W"; reb.Loc "A"; reb.Loc "C"; reb.Loc "D"; reb.Outside]
+        let pref2 = reb.Concat [reb.Loc "W"; reb.Loc "B"; reb.Internal(); reb.Outside]
+        [reb.Build pref1; reb.Build pref2]
+
+    let rPinCushionWAN1 (reb: Regex.REBuilder) =
+        let pref1 = reb.Concat [reb.Loc "W"; reb.Internal(); reb.Loc "Y"]
+        let pref2 = reb.Concat [reb.Loc "X"; reb.Internal(); reb.Loc "Z"]
+        [reb.Build pref1; reb.Build pref2]
+
+    let rBackboneWAN1 (reb: Regex.REBuilder) =
+        let pref1 = reb.End(["A"])
+        [reb.Build pref1]
+
+    let tests (settings: Args.T) = 
+        let controlIn = settings.UseMed || settings.UsePrepending
+        let noExport = settings.UseNoExport
+
+        [
+        
+        {Name= "Diamond1";
+         Explanation="A simple path";
+         Topo= tDiamond;
+         Rf= rDiamond1; 
+         Receive= Some [("Y", "B"); ("N","Y"); ("X","N"); ("A","X")];
+         Originate = Some ["B"];
+         Prefs = Some [];
+         Fail = None};
+
+        {Name= "Diamond2";
+         Explanation="Impossible Backup (should fail)";
+         Topo= tDiamond;
+         Rf= rDiamond2; 
+         Receive= None;
+         Originate = None;
+         Prefs = None; 
+         Fail = Some FRInconsistentPrefs};
+
+        {Name= "DCsmall1";
+         Explanation="Shortest paths routing";
+         Topo= tDatacenterSmall;
+         Rf= rDatacenterSmall1; 
+         Receive= Some [];
+         Originate = Some ["A"; "B"; "C"; "D"];
+         Prefs = Some [];
+         Fail = None};
+       
+        {Name= "DCsmall2";
+         Explanation="Through spine no backup (should fail)";
+         Topo= tDatacenterSmall;
+         Rf= rDatacenterSmall2; 
+         Receive= None;
+         Originate = None;
+         Prefs = None; 
+         Fail = Some FRNoPathForRouters};
+
+        {Name= "DCsmall3";
+         Explanation="Through spine with backup";
+         Topo= tDatacenterSmall;
+         Rf= rDatacenterSmall3; 
+         Receive= Some [("X", "A"); ("M", "X"); ("N", "X"); 
+                        ("B", "X"); ("Y", "M"); ("Y", "N"); 
+                        ("C", "Y"); ("D", "Y")];
+         Originate = Some ["A"];
+         Prefs = Some [("Y", "M", "N")]; 
+         Fail = None};
+
+        {Name= "DCsmall4";
+         Explanation="End at single location";
+         Topo= tDatacenterSmall;
+         Rf= rDatacenterSmall4; 
+         Receive= Some [("X", "A"); ("M","X"); ("N", "X"); 
+                        ("Y", "M"); ("Y", "N"); ("C", "Y"); ("D", "Y")];
+         Originate = Some ["A"];
+         Prefs = Some []; 
+         Fail = None };
+
+        {Name= "DCsmall5";
+         Explanation="Through spine to single location (should fail)";
+         Topo= tDatacenterSmall;
+         Rf= rDatacenterSmall5; 
+         Receive= Some [("X", "A"); ("M", "X"); ("N", "X"); 
+                        ("Y", "M"); ("Y", "N"); ("C", "Y"); 
+                        ("D", "Y"); ("C", "Y")];
+         Originate = Some ["A"];
+         Prefs = Some [("Y", "M", "N")];
+         Fail = None};
+
+        {Name= "DCmedium1";
+         Explanation="Shortest paths routing";
+         Topo= tDatacenterMedium;
+         Rf= rDatacenterMedium1; 
+         Receive= Some [];
+         Originate = Some [];
+         Prefs = Some [];
+         Fail = None};
+
+        {Name= "DCmedium2";
+         Explanation="Through spine (should fail)";
+         Topo= tDatacenterMedium;
+         Rf= rDatacenterMedium2; 
+         Receive= None;
+         Originate = None;
+         Prefs = None;
+         Fail = Some FRInconsistentPrefs}; 
+
+        {Name= "DCmedium3";
+         Explanation="Through spine, valley free (should fail)";
+         Topo= tDatacenterMedium;
+         Rf= rDatacenterMedium3; 
+         Receive= None;
+         Originate = None;
+         Prefs = None;
+         Fail = Some FRInconsistentPrefs};
+
+        {Name= "DCmedium4";
+         Explanation="Through spine, valley free with simple backup";
+         Topo= tDatacenterMedium;
+         Rf= rDatacenterMedium4; 
+         Receive= Some [("G", "F"); ("H", "F"); ("E","G"); ("E","H"); ("X", "G"); 
+                        ("X","H"); ("Y","G"); ("Y", "H"); ("C","X"); ("C","Y"); 
+                        ("D","X"); ("D","Y"); ("A","C"); ("A","D"); ("B","C"); ("B", "D"); 
+                        ("H","X"); ("H","Y"); ("G","X"); ("G","Y")]; (* Strange, but safe *)
+         Originate = Some ["F"];
+         Prefs = Some [("C", "X", "Y"); ("D", "X", "Y"); ("G", "F", "X"); 
+                       ("G", "F", "Y"); ("H", "F", "X"); ("H", "F", "Y")];
+         Fail = None};
+
+        {Name= "DCmedium5";
+         Explanation="Spine Preferences, no backup (should fail)";
+         Topo= tDatacenterMedium;
+         Rf= rDatacenterMedium5; 
+         Receive= None;
+         Originate = None;
+         Prefs = None;
+         Fail = Some FRInconsistentPrefs};
+
+        {Name= "DCmedium6";
+         Explanation="Spine Preferences with backup (should fail)";
+         Topo= tDatacenterMedium;
+         Rf= rDatacenterMedium6; 
+         Receive= None;
+         Originate = None;
+         Prefs = None;
+         Fail = Some FRInconsistentPrefs};
+
+        {Name= "DClarge1";
+         Explanation="Through spine (should fail)";
+         Topo= tDatacenterLarge;
+         Rf= rDatacenterLarge1; 
+         Receive= None;
+         Originate = None;
+         Prefs = None;
+         Fail = Some FRNoPathForRouters};
+
+        {Name= "DClarge2";
+         Explanation="Through spine with backup (should fail)";
+         Topo= tDatacenterLarge;
+         Rf= rDatacenterLarge2; 
+         Receive= None;
+         Originate = None;
+         Prefs = None;
+         Fail = Some FRInconsistentPrefs};
+
+        {Name= "DClarge3";
+         Explanation="Through spines w/prefs + backup (should fail)";
+         Topo= tDatacenterLarge;
+         Rf= rDatacenterLarge3; 
+         Receive= None;
+         Originate = None;
+         Prefs = None;
+         Fail = Some FRInconsistentPrefs};
+
+        {Name= "BrokenTriangle";
+         Explanation="Inconsistent path suffixes (should fail)";
+         Topo= tBrokenTriangle;
+         Rf= rBrokenTriangle1; 
+         Receive= None;
+         Originate = None;
+         Prefs = None;
+         Fail = Some FRNoPathForRouters};
+
+        {Name= "BigDipper";
+         Explanation="Must choose the correct preference";
+         Topo= tBigDipper;
+         Rf= rBigDipper1; 
+         Receive= Some [("E", "D"); ("A", "E"); ("C", "A")];
+         Originate = Some ["D"];
+         Prefs = Some [("A","E","D")];
+         Fail = None};
+
+        {Name= "BadGadget";
+         Explanation="Total ordering prevents instability (should fail)";
+         Topo= tBadGadget;
+         Rf= rBadGadget1; 
+         Receive= None;
+         Originate = None;
+         Prefs = None;
+         Fail = Some FRInconsistentPrefs};
+
+        {Name= "OkGadget";
+         Explanation="Must find correct total ordering";
+         Topo= tBadGadget;
+         Rf= rBadGadget2; 
+         Receive= Some [("A", "D"); ("B", "D"); ("C", "D")];
+         Originate = Some ["D"];
+         Prefs = Some [("A", "D", "C"); ("B", "D", "A"); ("C", "D", "B")];
+         Fail = None};
+
+        {Name= "Seesaw";
+         Explanation="Must get all best preferences (should fail)";
+         Topo= tSeesaw;
+         Rf= rSeesaw1; 
+         Receive= None;
+         Originate = None;
+         Prefs = None;
+         Fail = Some FRInconsistentPrefs};
+
+        (* TODO: test preferences on filters *)
+        (if controlIn then
+            {Name= "StretchingMan1";
+             Explanation="Can't control inbound traffic";
+             Topo= tStretchingManWAN;
+             Rf= rStretchingManWAN1; 
+             Receive= Some [("D", "Y"); ("D", "Z"); ("C", "D"); 
+                            ("A", "C"); ("B", "C")];
+             Originate = Some [];
+             Prefs = Some [];
+             Fail = None}
+        else
+            {Name= "StretchingMan1";
+             Explanation="Can't control inbound traffic";
+             Topo= tStretchingManWAN;
+             Rf= rStretchingManWAN1; 
+             Receive= None;
+             Originate = None;
+             Prefs = None;
+             Fail = Some FRCantControlPeers});
+
+        (if controlIn && noExport then
+            {Name= "StretchingMan2";
+             Explanation="Prefer one AS over another";
+             Topo= tStretchingManWAN;
+             Rf= rStretchingManWAN2; 
+             Receive= Some [("C", "D"); ("A","C"); ("B", "C")];
+             Originate = Some [];
+             Prefs = Some [("D", "Y", "Z")];
+             Fail = None};
+         else
+            {Name= "StretchingMan2";
+             Explanation="Prefer one AS over another";
+             Topo= tStretchingManWAN;
+             Rf= rStretchingManWAN2; 
+             Receive= None;
+             Originate = None;
+             Prefs = None;
+             Fail = Some FRCantControlPeers});
+
+        {Name= "StretchingMan3";
+         Explanation="Using peer not listed in the topology";
+         Topo= tStretchingManWAN;
+         Rf= rStretchingManWAN3; 
+         Receive= Some [];
+         Originate = Some [];
+         Prefs = Some [];
+         Fail = None};
+
+         // TODO: test filters etc
+         (if controlIn && noExport then
+            {Name= "StretchingMan4";
+             Explanation="Use MED, Prepending, No-export, and Local-pref";
+             Topo= tStretchingManWAN2;
+             Rf= rStretchingManWAN4; 
+             Receive= Some [];
+             Originate = Some [];
+             Prefs = Some [];
+             Fail = None};
+         else 
+            {Name= "StretchingMan4";
+             Explanation="Use MED, Prepending, No-export, and Local-pref";
+             Topo= tStretchingManWAN2;
+             Rf= rStretchingManWAN4; 
+             Receive= None;
+             Originate = None;
+             Prefs = None;
+             Fail = Some FRCantControlPeers});
+         
+        {Name= "PinCushion";
+         Explanation="Unimplementable peer preference";
+         Topo= tPinCushionWAN;
+         Rf= rPinCushionWAN1; 
+         Receive= None;
+         Originate = None;
+         Prefs = None;
+         Fail = Some FRCantControlPeers};
+
+        {Name= "Backbone";
+         Explanation="Incoming traffic from multiple peers";
+         Topo= tBackboneWAN;
+         Rf= rBackboneWAN1; 
+         Receive= Some [("NY", "A"); ("SEA", "A")];
+         Originate = Some ["A"];
+         Prefs = Some [];
+         Fail = None};
+    ]
+
+    let testAggregationFailure () = 
+        printf "Aggregation failures "
+        let topo = Topology.Examples.topoDatacenterMedium () 
+        let reb = Regex.REBuilder(topo)
+        let pol = reb.End ["A"]
+        let aggs = Map.add "X" [(Prefix.prefix (10u, 0u, 0u, 0u) 31u, Seq.ofList ["PEER"])] Map.empty
+        let aggs = Map.add "Y" [(Prefix.prefix (10u, 0u, 0u, 0u) 31u, Seq.ofList["PEER"])] aggs
+        let res = compileToIR "" 0 (Predicate.prefix (10u, 0u, 0u, 0u) 32u) aggs reb [reb.Build pol]
+        match res with
+        | Err _ -> failed ()
+        | Ok(res) -> 
+            match res.K with 
+            | Some (1,_,_,_,_) -> passed ()
+            | _ -> failed ()
+
+    let testCompilation () =
+        let border = String.replicate 80 "-"
+        printfn "%s" border
+        let settings = Args.getSettings ()
+        let tests = tests settings
+        let longestName = List.maxBy (fun t -> t.Name.Length) tests
+        let longestName = longestName.Name.Length
+        let longestDesc = List.maxBy (fun t -> t.Explanation.Length) tests
+        let longestDesc = longestDesc.Explanation.Length
+        for test in tests do
+            let spacesName = String.replicate (longestName - test.Name.Length + 3) " "
+            let spacesDesc = String.replicate (longestDesc - test.Explanation.Length + 3) " "
+            let msg = sprintf "%s%s%s%s" test.Name spacesName test.Explanation spacesDesc
+            printf "%s" msg
+            logInfo1(0, "\n" + msg)
+            let (ain, _) = Topology.alphabet test.Topo
+            let ain = ain |> Set.map (fun v -> v.Loc)
+            let reb = Regex.REBuilder(test.Topo)
+            let built = test.Rf reb
+            if not (Topology.isWellFormed test.Topo) then 
+                failed ()
+                logInfo1(0, msg)
+            else
+                let pred = Predicate.top
+                match compileToIR (settings.DebugDir + test.Name) 0 pred Map.empty reb built with 
+                | Err(x) ->
+                    if (Option.isSome test.Receive || 
+                        Option.isSome test.Originate || 
+                        Option.isSome test.Prefs || 
+                        Option.isNone test.Fail) then 
+                        failed ()
+                        let msg = sprintf "[Failed]: Name: %s, should compile but did not" test.Name
+                        logInfo1(0, msg)
+                    match test.Fail, x with 
+                    | Some FRNoPathForRouters, NoPathForRouters _ -> passed ()
+                    | Some FRInconsistentPrefs, InconsistentPrefs _ -> passed ()
+                    | Some FRCantControlPeers, UncontrollableEnter _ -> passed ()
+                    | Some FRCantControlPeers, UncontrollablePeerPreference _ -> passed ()
+                    | _ ->
+                        failed ()
+                        let msg = sprintf "[Failed]: Name: %s, expected error" test.Name
+                        logInfo1(0, msg)
+                | Ok(res) -> 
+                    let config = res.Config
+                    if (Option.isNone test.Receive || 
+                        Option.isNone test.Originate || 
+                        Option.isNone test.Prefs || 
+                        Option.isSome test.Fail) then
+                        failed ()
+                        let msg = sprintf "[Failed]: Name: %s, should not compile but did" test.Name
+                        logInfo1(0, msg)
+                    else
+                        let mutable fail = false
+                        let rs = Option.get test.Receive
+                        for (x,y) in rs do 
+                            if not (receiveFrom ain config x y) then
+                                fail <- true
+                                let msg = sprintf "[Failed]: (%s) - %s should receive from %s but did not" test.Name x y
+                                logInfo1(0, msg)
+                        let os = Option.get test.Originate
+                        for x in os do 
+                            if not (originates config x) then 
+                                fail <- true
+                                let msg = sprintf "[Failed]: (%s) - %s should originate a route but did not" test.Name x
+                                logInfo1(0, msg)
+                        let ps = Option.get test.Prefs
+                        for (x,a,b) in ps do
+                            if not (prefersPeer ain config x (a,b)) then 
+                                fail <- true
+                                let msg = sprintf "[Failed]: (%s) - %s should prefer %s to %s but did not" test.Name x a b
+                                logInfo1(0, msg)
+                        if fail 
+                        then failed ()
+                        else passed ()
+        printfn "%s" border
+
+
+    let run () =
+        testAggregationFailure ()
+        testCompilation ()
