@@ -585,7 +585,7 @@ let warnUnusedParams (ast: T) =
         let used = ref (Set.empty) 
         iter (getUsed used) e
         for p in ps do
-            let notUnder = (id.[0] <> '_')
+            let notUnder = (p.Name.[0] <> '_')
             let notUsed = (not (Set.contains p.Name !used))
             if notUnder && notUsed then
                 let msg = sprintf "Unused parameter '%s' in definition of '%s'" p.Name id
