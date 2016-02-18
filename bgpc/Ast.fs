@@ -127,6 +127,13 @@ let rec iter f (e: Expr) =
     | True | False | PrefixLiteral _ | CommunityLiteral _ | IntLiteral _ | Asn _ -> ()
     | Ident (id, args) -> List.iter f args
 
+let iterAllExpr (ast: T) e f =
+    Map.iter (fun name (_,_,e) -> 
+        iter f e) ast.Defs
+    iter f e
+    List.iter (fun (id, es) -> 
+        List.iter (iter f) es) ast.CConstraints
+
 (* Pretty printing of error and warning messages. 
    When errors occur on a single line, display the line 
    and underline the problem. When errors are multi-line,
@@ -150,6 +157,8 @@ module Message =
 
     let msgOffset = 9
 
+    let maxLineMsg = 8
+
     let obj = new Object()
 
     let inline count (c: char) (s: string) = 
@@ -160,7 +169,8 @@ module Message =
             (fun c -> c <> ' ' && c <> '\t') 
             (s.ToCharArray())
 
-    let displayLine (s:string) (maxLineNo: int) (line: int) =
+    let displayLine (s:string option) (maxLineNo: int) (line: int) =
+        let s = match s with None -> "..." | Some x -> x
         let sl = string line 
         let spaces = String.replicate (maxLineNo - sl.Length + 1) " "
         let sl = sl + spaces + "|"
@@ -175,10 +185,12 @@ module Message =
             let str = ast.Input.[i-1]
             longestLineNo <- max (string i).Length longestLineNo
             minLineStart <- min minLineStart (firstNonSpace str)
-        for i = p.SLine to p.ELine do 
+        let lines = min maxLineMsg (p.ELine - p.SLine)
+        for i = p.SLine to p.SLine + lines do 
             let str = ast.Input.[i-1]
             let str = str.[minLineStart..]
-            displayLine str longestLineNo i
+            let msg = if i = p.SLine + maxLineMsg then None else Some str
+            displayLine msg longestLineNo i
             printfn ""
         printfn ""
 
@@ -189,7 +201,7 @@ module Message =
         let spaces = String.replicate (p.SCol - lineStart + msgOffset) " "
         let s = String.replicate (p.ECol - p.SCol) "~"
         let len = (string p.SLine).Length
-        displayLine str len p.SLine
+        displayLine (Some str) len p.SLine
         printf "\n%s" spaces
         writeColor s ccolor
         printfn ""
@@ -557,8 +569,7 @@ let inline getUsed seen e =
 
 let warnUnusedDefs ast e =
     let used = ref Set.empty
-    iter (getUsed used) e
-    Map.iter (fun _ (_,_,e) -> iter (getUsed used) e) ast.Defs
+    iterAllExpr ast e (getUsed used)
     let defs = Map.fold (fun acc k (p,_,_) -> Map.add k p acc) Map.empty ast.Defs
     Map.iter (fun id p -> 
         let notMain = (id <> "main")
@@ -620,19 +631,21 @@ let inline getPrefixes ast pfxs e =
     | _ -> ()
 
 let warnUnusedAggregates (ast:T) =
+    let inline isPfxFor agg p = 
+        p <> agg && Prefix.implies agg p
     let prefixes = ref Set.empty 
-    Map.iter (fun def (_,_,e) -> 
+    Map.iter (fun def (_,_,e) ->
         iter (getPrefixes ast prefixes) e) ast.Defs
     let prefixes = Set.map Prefix.toPredicate !prefixes
     for (id, es) in ast.CConstraints do 
         for e in es do
             let e = substitute ast e
-            match e.Node with 
+            match e.Node with
             | PrefixLiteral (a,b,c,d,bits) ->
                 wellFormedPrefix ast e.Pos (a,b,c,d,bits)
                 let pfx = buildPrefix ast (a,b,c,d,bits)
                 let pred = Prefix.toPredicate [pfx]
-                if not (Set.exists (Prefix.implies pred) prefixes) then 
+                if not (Set.exists (isPfxFor pred) prefixes) then 
                     let msg = 
                         sprintf "The aggregate prefix %s does not summarize any " (string pfx) +
                         sprintf "specific prefix used in the policy."
@@ -655,7 +668,7 @@ let applyOp r1 r2 op =
     | OUnion -> OrExpr(r1,r2)
     | ODifference -> DiffExpr(r1,r2)
 
-let checkBlock pcs =
+let checkBlock ast e pcs =
     let mutable remaining = Predicate.top
     let mutable matched = Predicate.bot
     for (pred, es) in pcs do
@@ -667,7 +680,8 @@ let checkBlock pcs =
         matched <- p'
     if remaining <> Predicate.bot then
         let s = Predicate.example remaining
-        warning (sprintf "Incomplete prefixes in block. An example of a prefix that is not matched: %s" s)
+        let msg = sprintf "Incomplete prefixes in block. An example of a prefix that is not matched: %s" s
+        Message.warningAst ast msg e.Pos
         let e = pcs |> List.head |> snd |> List.head
         pcs @ [(Predicate.top, [ {Pos=e.Pos; Node=Ident ({Pos=e.Pos;Name="any"}, [])} ])]
     else pcs
@@ -696,7 +710,7 @@ let rec expandBlocks ast (e: Expr) =
     | DiffExpr (e1,e2) -> combineBlocks e.Pos (expandBlocks ast e1) (expandBlocks ast e2) ODifference
     | BlockExpr es ->  
         List.map (fun (x,y) -> (buildPredicate x, pushPrefsToTop ast y)) es
-        |> checkBlock
+        |> checkBlock ast e
         |> List.map (fun (p,es) -> (p, collapsePrefs e.Pos es))
     | _ -> Common.unreachable ()
 

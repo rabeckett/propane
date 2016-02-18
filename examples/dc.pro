@@ -8,14 +8,15 @@ define PL2 = 2.0.1.0/24
 define PAGG = 1.0.0.0/16
 
 define ownership = {
-	PG1 => end(A),
-	PG2 => end(B),
-	PL1 => end(E),
-	PL2 => end(F),
+  PG1 => end(A),
+  PG2 => end(B),
+  PL1 => end(E),
+  PL2 => end(F),
 }
 
 define routing = {
-	PL1 or PL2 => always(in),
+  PL1 or PL2 => always(in),
+  PG1 or PG2 => any
 }
 
 define main = ownership and routing
