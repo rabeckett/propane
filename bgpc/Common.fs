@@ -152,17 +152,13 @@ module Error =
 
 module Format =
 
-    let obj = ref false
+    let first = ref false
+
+    let obj = new Object()
 
     let footerSize = 80
 
     let offset = 9
-
-    let inline lockObj f = 
-        lock obj (fun () -> 
-            let res = f ()
-            obj := true
-            res)
 
     let wrapText (s: string) : string = 
         let s = s.Trim()
@@ -220,17 +216,18 @@ module Format =
         let arr = name.Split(sep)
         let len = arr.Length
         let name = 
-            if len > 1 then 
-                arr.[len-2] + (string sep) + arr.[len-1]
+            if len > 1 
+            then arr.[len-2] + (string sep) + arr.[len-1]
             else arr.[len-1]
-        lockObj (fun () -> 
-            if not !obj then 
+        lock obj (fun () -> 
+            if not !first then
+                first := true 
                 writeFooter ()
             writeFormatted (sprintf "#(cyan)%s#\n" name))
 
     let error str = 
-        writeHeader ()
-        lockObj (fun () ->
+        lock obj (fun () ->
+            writeHeader ()
             printfn ""
             let s = "Error:   "
             writeColor s ConsoleColor.DarkRed
@@ -239,8 +236,8 @@ module Format =
             exit 0)
 
     let warning str = 
-        writeHeader ()
-        lockObj (fun () ->
+        lock obj (fun () ->
+            writeHeader ()
             printfn ""
             let s = "Warning: "
             writeColor s ConsoleColor.DarkYellow

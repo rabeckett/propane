@@ -552,15 +552,16 @@ let compileForSinglePrefix fullName idx (aggInfo: Map<string, DeviceAggregates>)
     | Err(x) ->
         match x with
         | NoPathForRouters rs ->
-            error (sprintf "Unable to find a path for routers: %s for predicate %s" (string rs) (string pred))
+            let routers = Common.Set.toString (Set.map (fun r -> "as" + r) rs)
+            error (sprintf "Unable to find a path for routers: %s for predicate %s" routers (string pred))
         | InconsistentPrefs(x,y) ->
-            let msg = sprintf "Cannot find preferences for router %s for predicate %s" x.Node.Loc (string pred)
+            let msg = sprintf "Cannot find preferences for router as%s for predicate %s" x.Node.Loc (string pred)
             error msg
         | UncontrollableEnter x -> 
-            let msg = sprintf "Cannot control inbound traffic from peer: %s for predicate %s" x (string pred)
+            let msg = sprintf "Cannot control inbound traffic from peer: as%s for predicate %s" x (string pred)
             error msg
         | UncontrollablePeerPreference x -> 
-            let msg = sprintf "Cannot control inbound preference from peer: %s for predicate %s. Possibly enable prepending: --prepending:on" x (string pred)
+            let msg = sprintf "Cannot control inbound preference from peer: as%s for predicate %s. Possibly enable prepending: --prepending:on" x (string pred)
             error msg
 
 let checkAggregateLocs ins _ prefix links = 

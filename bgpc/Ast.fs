@@ -319,8 +319,7 @@ let wellFormed ast (e: Expr) : Type =
             for (e1, e2) in es do 
                 let t1, t2 = aux true e1, aux true e2
                 match t1, t2 with
-                | PredicateType, RegexType
-                | PredicateType, LocType -> ()
+                | PredicateType, RegexType -> ()
                 | PredicateType, _ -> Message.errorAst ast (typeMsg [RegexType] t2) e2.Pos
                 | _, _ ->  Message.errorAst ast (typeMsg [PredicateType] t1) e1.Pos
             BlockType
@@ -630,12 +629,11 @@ let inline getPrefixes ast pfxs e =
         pfxs := Set.add [pfx] !pfxs
     | _ -> ()
 
-let warnUnusedAggregates (ast:T) =
+let warnUnusedAggregates (ast:T) e =
     let inline isPfxFor agg p = 
         p <> agg && Prefix.implies agg p
     let prefixes = ref Set.empty 
-    Map.iter (fun def (_,_,e) ->
-        iter (getPrefixes ast prefixes) e) ast.Defs
+    iter (getPrefixes ast prefixes) e
     let prefixes = Set.map Prefix.toPredicate !prefixes
     for (id, es) in ast.CConstraints do 
         for e in es do
@@ -651,7 +649,6 @@ let warnUnusedAggregates (ast:T) =
                         sprintf "specific prefix used in the policy."
                     Message.warningAst ast msg e.Pos
             | _ -> ()
-
 
 (* Expand blocks in a regular expression to a
    single top-level block, and check if the 
@@ -746,7 +743,7 @@ let makePolicyPairs (ast: T) (topo: Topology.T) : PolicyPair list =
             let e = substitute ast e
             ignore (wellFormed ast e)) ast.Defs
 
-        warnUnusedAggregates ast
+        warnUnusedAggregates ast e
 
         let topLevel = 
             expandBlocks ast e

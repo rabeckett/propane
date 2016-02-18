@@ -1,10 +1,14 @@
-
-Rewrite Args code to be less repetitive
 Catch likely anycast problems by setting universe to things in end(...)
-Avoid duplicate constraints (which level?)
+add syntax for building ranges of ASes (e.g., as[101-500])
+always display the router name when possible, wrap this in a single function
+
+Need better, router-level minimization
 Concrete failure scenario for counterexample
 Fix issue with MED, Prepending etc for Backbone example
-Need better, router-level minimization
 Issue with avoid for external peers when going through out
-Can we do a better job avoiding garbage states when building the automaton
+
+Avoid duplicate constraints (which level?)
 Reuse finding path code across Regex and CGraph modules
+Can we do a better job avoiding garbage states when building the automaton
+add syntax + support for IP V6
+add syntax + support for different prefix matches (e.g., 1.0)

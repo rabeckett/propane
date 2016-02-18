@@ -5,22 +5,24 @@ define PL2 = 2.0.1.0/24
 
 define PAGG = 1.0.0.0/16
 
-/* bug where Y is not marked as unused */
-define transit(X,_Y) = X
-
-define ownership = {
+define _ownership = {
   PG1 => end(A),
   PG2 => end(B),
   PL1 => end(E),
   PL2 => end(F),
 }
 
-define routing = {
-  PL1 or PL2 => always(end(A)),
+define _routing = {
+  PL1 or PL2 => always(in),
   PG1 or PG2 => any
 }
 
-define main = ownership and routing
+define main = {
+  PG1 => through(X),
+  PG2 => through(X),
+  PL1 => through(X),
+  PL2 => through(X)
+}
 
 control {
 	aggregate(PAGG, in -> out)
