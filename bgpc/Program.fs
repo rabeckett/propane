@@ -5,12 +5,6 @@ open Common.Debug
 open Common.Format
 open System
    
-let header s = 
-    let eqs = "========="
-    let right = eqs + "> "
-    let left = " <" + eqs
-    sprintf "#(cyan)%s%s%s#\n" right s left
-
 let runUnitTests () = 
     writeFormatted (header "Running unit tests ")
     Topology.Test.run () 
@@ -37,30 +31,28 @@ let main argv =
         let ast : Ast.T = {Input = lines; TopoInfo = topoInfo; Defs = defs; CConstraints = cs}
         let aggs = Ast.getControlConstraints ast topoInfo.Graph
         let pairs = Ast.makePolicyPairs ast topoInfo.Graph
-        let (ir, k, _) = IR.compileAllPrefixes fullName topoInfo.Graph pairs aggs
-        match k, settings.Failures with
-        | Some (i, x, y, p, agg), _ ->
-            let bad = 
-                match settings.Failures with 
-                | Args.Any -> true
-                | Args.Concrete j -> i < j 
-            if bad then
-                let x = Map.findKey (fun _ v -> string v = x) topoInfo.AsnMap
-                let y = Map.findKey (fun _ v -> string v = y) topoInfo.AsnMap
-                let msg = 
-                    sprintf "Could only prove aggregation black-hole safety for up to %d failures. " i +
-                    sprintf "It may be possible to disconnect the prefix %s at location %s from the " (string p) x +
-                    sprintf "aggregate prefix %s at %s after %d failures. " (string agg) y (i+1) +
-                    sprintf "Consider using the -failures:n flag to specify a tolerable failure level."
-                warning msg
-        | _ -> ()
-        match settings.OutFile with
-        | None -> ()
-        | Some out -> System.IO.File.WriteAllText(out + ".ir", IR.format ir)
-       
-        (* TODO: another compilation step *)
-        match settings.Format with 
-        | Args.IR -> ()
-        | Args.Template -> () 
+
+        if settings.Target <> Args.Off then
+            let (ir, k, _) = IR.compileAllPrefixes fullName topoInfo.Graph pairs aggs
+            match k, settings.Failures with
+            | Some (i, x, y, p, agg), _ ->
+                let bad = 
+                    match settings.Failures with 
+                    | Args.Any -> true
+                    | Args.Concrete j -> i < j 
+                if bad then
+                    let x = Map.findKey (fun _ v -> string v = x) topoInfo.AsnMap
+                    let y = Map.findKey (fun _ v -> string v = y) topoInfo.AsnMap
+                    let msg = 
+                        sprintf "Could only prove aggregation black-hole safety for up to %d failures. " i +
+                        sprintf "It may be possible to disconnect the prefix %s at location %s from the " (string p) x +
+                        sprintf "aggregate prefix %s at %s after %d failures. " (string agg) y (i+1) +
+                        sprintf "Consider using the -failures:n flag to specify a tolerable failure level."
+                    warning msg
+            | _ -> ()
+            match settings.OutFile, settings.Target with
+            | None, _ -> ()
+            | Some out, Args.IR -> System.IO.File.WriteAllText(out + ".ir", IR.format ir)
+            | Some _, _ -> ()
 
     0

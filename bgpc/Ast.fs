@@ -205,12 +205,17 @@ module Message =
         | Error -> ConsoleColor.DarkRed, "Error:   "
 
     let issueAst (ast: T) (msg: string) (p: Position) (kind: Kind) =
+        let settings = Args.getSettings ()
         let ccolor, errorTyp = colorInfo kind
-        writeHeader ()
-        if p.SLine = p.ELine 
-        then displaySingleLine ast p ccolor
-        else displayMultiLine ast p ccolor
-        displayFooter msg (ccolor, errorTyp)
+        if settings.Target = Args.Off then 
+            printfn "%s(%d,%d,%d,%d) %s" 
+                (errorTyp.Trim()) p.SLine p.SCol p.ELine p.ECol msg
+        else
+            writeHeader ()
+            if p.SLine = p.ELine 
+            then displaySingleLine ast p ccolor
+            else displayMultiLine ast p ccolor
+            displayFooter msg (ccolor, errorTyp)
 
     let inline validate p = 
         if p = dummyPos then 

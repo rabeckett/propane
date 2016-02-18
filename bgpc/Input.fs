@@ -22,10 +22,13 @@ let readFromFile fname =
             printfn "End of file detected in comment"
             exit 0
         | e ->
-            printfn "Exception: %A" e
             let pos = lexbuf.EndPos
             let line = pos.Line
             let column = pos.Column
-            writeColor "Error: " System.ConsoleColor.DarkRed
-            printfn "Line: %d, Char: %d" line column
+            let settings = Args.getSettings ()
+            writeColor "Error:" System.ConsoleColor.DarkRed
+            if settings.Target = Args.Off then
+                printfn "(%d,%d,%d,%d) Parse error" line column line column
+            else 
+                printfn " Line %d, Column %d" line column
             exit 0

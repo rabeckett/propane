@@ -1,6 +1,7 @@
 ﻿module Args
 
-type Format = 
+type Target =
+    | Off 
     | IR 
     | Template
 
@@ -12,7 +13,7 @@ type T =
     {PolFile: string option;
      TopoFile: string option;
      OutFile: string option;
-     Format: Format;
+     Target: Target;
      UseMed: bool;
      UsePrepending: bool;
      UseNoExport: bool;

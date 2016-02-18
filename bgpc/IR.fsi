@@ -17,8 +17,6 @@ type Peer = string
 type Import = Match * LocalPref
 type Export = Peer * Action list
 
-/// Result from compiling a single prefix
-
 type Filter = 
     | Deny
     | Allow of Import * (Export list)
@@ -26,11 +24,6 @@ type Filter =
 type DeviceConfig =
     {Originates: bool;
      Filters: Filter list}
-
-type AggregationSafetyResult = (int * string * string * Prefix.T * Prefix.T) option
-
-
-/// Result from compiling the entire policy
 
 type DeviceAggregates = (Prefix.T * seq<string>) list
 type DeviceTags = ((string * Prefix.T list) * seq<string>) list
@@ -45,12 +38,13 @@ type RouterConfig =
     {Actions: (Predicate.T * DeviceConfig) list;
      Control: DeviceControl}
 
+/// An final, merged, configuration
 type T = Map<string, RouterConfig>
-
 
 /// Debug config output
 val format: T -> string
 
+/// Performance + size statistics from compilation
 type Stats = 
     {NumPrefixes: int;
      SizeRaw: int;
@@ -64,10 +58,15 @@ type Stats =
      PerPrefixGenTimes: int64 array;
      JoinTime: int64;}
 
-/// Compile for all prefixes
+/// Result of aggregation safety failure analysis
+/// Returns (number of failures, pfx loc, agg loc, prefix, aggregate) option
+type AggregationSafetyResult = (int * string * string * Prefix.T * Prefix.T) option
+
+
+/// Compile a policy
 val compileAllPrefixes: string -> Topology.T -> Ast.PolicyPair list -> Ast.CConstraint list -> T * AggregationSafetyResult * Stats
 
 
-/// Compilation unit tests
+/// Unit tests
 module Test = 
     val run: unit -> unit

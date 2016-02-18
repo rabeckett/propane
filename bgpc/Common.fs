@@ -229,14 +229,14 @@ module Format =
             elif s.Length >= 7 && s.[0..5] = "(cyan)" then cyan s.[6..]
             else lock obj (fun () -> printf "%s" s)
 
+    let header s = 
+        let eqs = "========="
+        let right = eqs + "> "
+        let left = " <" + eqs
+        sprintf "#(cyan)%s%s%s#\n" right s left
+
     let passed () = 
         writeFormatted "#(green)passed#\n"
 
     let failed () = 
-        writeFormatted "#(red)failed#\n" 
-
-    
-
-
-
-
+        writeFormatted "#(red)failed#\n"

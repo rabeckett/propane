@@ -6,7 +6,8 @@ type Spec =
     | Unit of (unit -> unit)
     | String of (string -> unit)
 
-type Format = 
+type Target = 
+    | Off
     | IR 
     | Template
 
@@ -18,7 +19,7 @@ type T =
     {PolFile: string option;
      TopoFile: string option;
      OutFile: string option;
-     Format: Format;
+     Target: Target;
      UseMed: bool;
      UsePrepending: bool;
      UseNoExport: bool;
@@ -38,7 +39,7 @@ let sep = string Path.DirectorySeparatorChar
 let polFile = ref None
 let topoFile = ref None
 let outFile = ref None
-let format = ref IR
+let target = ref IR
 let useMed = ref false
 let usePrepending = ref false
 let useNoExport = ref false
@@ -83,10 +84,11 @@ let setParallel s =
     | "off" -> isParallel := false
     | _ -> raise (InvalidArgException ("Invalid parallel value: " + s))
 
-let setFormat s = 
-    match s with 
-    | "IR" -> format := IR 
-    | "Template" -> format := Template
+let setTarget s = 
+    match s with
+    | "off" -> target := Off
+    | "ir" -> target := IR 
+    | "templ" -> target := Template
     | _ -> raise (InvalidArgException ("Invalid format value: " + s))
 
 let setDebugDir s =
@@ -123,10 +125,12 @@ let setStats s =
     | "none" -> stats := false
     | _ -> raise (InvalidArgException (sprintf "Invalid stats value: %s" s))
 
-let setFile s = 
-    let f = currentDir + sep + s
-    if File.Exists f then f
-    else raise (InvalidArgException (sprintf "Invalid file: %s" s))
+let setFile f = 
+    if File.Exists f then f 
+    else
+        let f' = currentDir + sep + f
+        if File.Exists f' then f'
+        else raise (InvalidArgException (sprintf "Invalid file: %s" f))
 
 let usage = "Usage: propane [options]"
 let args = 
@@ -138,12 +142,12 @@ let args =
       ("-prepending:on|off", String setPrepending, "Use AS path prepending (default off)");
       ("-no-export:on|off", String setNoExport, "Use no-export community (default off)");
       ("-parallel:on|off", String setParallel, "Parallelize compilation (default on)");
-      ("-format:IR|Templ", String setFormat, "Output format (IR, Template)");
+      ("-compile:off|ir|templ", String setTarget, "Compilation target");
       ("-stats:csv|none", String setStats, "Display performance statistics to stdout (default none)");
       ("-checkenter:on|off", String (fun s -> setCheckEnter s), "Run experiment for dc or core");
       ("-test", Unit (fun () -> test := true), "Run unit tests");
       ("-debug-dir", String setDebugDir, "Debugging directory (default 'debug')");
-      ("-debug:0|1|2|3", String setDebug, "Debug level (default lowest 0)");
+      ("-debug:0|1|2|3", String setDebug, "Debug level (default lowest - off 0)");
       ("-help", Unit (fun () -> ()), "Display this message");
     |]
 
@@ -208,7 +212,7 @@ let parse (argv: string[]) : unit =
               UsePrepending = !usePrepending; 
               UseNoExport = !useNoExport; 
               Parallel = !isParallel;
-              Format = !format; 
+              Target = !target; 
               Test = !test; 
               CheckEnter = !checkEnter;
               Debug = !debug; 
