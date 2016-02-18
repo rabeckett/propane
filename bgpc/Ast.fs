@@ -229,72 +229,6 @@ module Message =
         lock obj (fun () -> issueAst ast msg p Warning)
 
 
-(* Compiler warnings for a variety of common mistakes. 
-   Unused definitions or parameters not starting with '_',
-
-   TODO: unused aggregates, etc.
-   TODO: using raw asn literal for internal 
-   TODO: *)
-
-let inline getUsed seen e =
-    match e.Node with
-    | Ident(id, []) -> 
-        seen := Set.add id.Name !seen
-    | _ -> ()
-
-let warnUnusedDefs ast e =
-    let used = ref Set.empty
-    iter (getUsed used) e
-    Map.iter (fun _ (_,_,e) -> iter (getUsed used) e) ast.Defs
-    let defs = Map.fold (fun acc k (p,_,_) -> Map.add k p acc) Map.empty ast.Defs
-    Map.iter (fun id p -> 
-        let notMain = (id <> "main")
-        let notUnder = (id.[0] <> '_')
-        let notUsed = (not (Set.contains id !used))
-        let notRouter = (not (ast.TopoInfo.AsnMap.ContainsKey id))
-        if notMain && notUnder && notUsed && notRouter then
-            let msg = sprintf "Unused definition of '%s'" id
-            Message.warningAst ast msg p) defs
-
-let warnUnusedParams (ast: T) = 
-    Map.iter (fun (id:string) (_,ps,e) ->
-        let used = ref (Set.empty) 
-        iter (getUsed used) e
-        for p in ps do
-            let notUnder = (id.[0] <> '_')
-            let notUsed = (not (Set.contains p.Name !used))
-            if notUnder && notUsed then
-                let msg = sprintf "Unused parameter '%s' in definition of '%s'" p.Name id
-                Message.warningAst ast msg p.Pos) ast.Defs
-
-let warnUnused (ast: T) (main: Expr) : unit = 
-    warnUnusedDefs ast main
-    warnUnusedParams ast
-
-let inline getAsns asns e =
-    match e.Node with
-    | Asn i -> asns := Set.add (e,i) !asns
-    | _ -> ()
-
-let warnRawAsn (ast: T) =
-    let rawAsns = ref Set.empty
-    Map.iter (fun def (_,_,e) -> 
-        let isRouter = 
-            (ast.TopoInfo.InternalNames.Contains def) ||
-            (ast.TopoInfo.ExternalNames.Contains def)
-        if not isRouter then
-            iter (getAsns rawAsns) e) ast.Defs
-    for (e,asn) in !rawAsns do
-        let inline isRouter r n = n = asn && ast.TopoInfo.AllNames.Contains r
-        match Map.tryFindKey isRouter ast.TopoInfo.AsnMap with
-        | Some router ->
-            let msg = 
-                sprintf "Raw ASN literal %s used for named topology router. " (string asn) +
-                sprintf "Prefer to use the router name '%s' directly." router
-            Message.warningAst ast msg e.Pos
-        | None -> ()
-
-
 (* Fully expand all definitions in an expression. 
    Keep track of seen expansions to prevent recursive definitions.
    The position of the new, expanded block is set to the old expression. *)
@@ -606,6 +540,101 @@ let buildCConstraint ast (topo: Topology.T) (cc: Ident * Expr list) =
 
 let getControlConstraints ast topo : CConstraint list = 
     List.map (buildCConstraint ast topo) ast.CConstraints
+ 
+(* Compiler warnings for a variety of common mistakes. 
+   Unused definitions or parameters not starting with '_',
+   TODO: unused aggregates, etc. *)
+
+let inline getUsed seen e =
+    match e.Node with
+    | Ident(id, []) -> 
+        seen := Set.add id.Name !seen
+    | _ -> ()
+
+let warnUnusedDefs ast e =
+    let used = ref Set.empty
+    iter (getUsed used) e
+    Map.iter (fun _ (_,_,e) -> iter (getUsed used) e) ast.Defs
+    let defs = Map.fold (fun acc k (p,_,_) -> Map.add k p acc) Map.empty ast.Defs
+    Map.iter (fun id p -> 
+        let notMain = (id <> "main")
+        let notUnder = (id.[0] <> '_')
+        let notUsed = (not (Set.contains id !used))
+        let notRouter = (not (ast.TopoInfo.AsnMap.ContainsKey id))
+        if notMain && notUnder && notUsed && notRouter then
+            let msg = sprintf "Unused definition of '%s'" id
+            Message.warningAst ast msg p) defs
+
+let warnUnusedParams (ast: T) = 
+    Map.iter (fun (id:string) (_,ps,e) ->
+        let used = ref (Set.empty) 
+        iter (getUsed used) e
+        for p in ps do
+            let notUnder = (id.[0] <> '_')
+            let notUsed = (not (Set.contains p.Name !used))
+            if notUnder && notUsed then
+                let msg = sprintf "Unused parameter '%s' in definition of '%s'" p.Name id
+                Message.warningAst ast msg p.Pos) ast.Defs
+
+let warnUnused (ast: T) (main: Expr) : unit = 
+    warnUnusedDefs ast main
+    warnUnusedParams ast
+
+let inline getAsns asns e =
+    match e.Node with
+    | Asn i -> asns := Set.add (e,i) !asns
+    | _ -> ()
+
+let warnRawAsn (ast: T) =
+    let rawAsns = ref Set.empty
+    Map.iter (fun def (_,_,e) -> 
+        let isRouter = 
+            (ast.TopoInfo.InternalNames.Contains def) ||
+            (ast.TopoInfo.ExternalNames.Contains def)
+        if not isRouter then
+            iter (getAsns rawAsns) e) ast.Defs
+    for (e,asn) in !rawAsns do
+        let inline isRouter r n = n = asn && ast.TopoInfo.AllNames.Contains r
+        match Map.tryFindKey isRouter ast.TopoInfo.AsnMap with
+        | Some router ->
+            let msg = 
+                sprintf "Raw ASN literal %s used for named topology router. " (string asn) +
+                sprintf "Prefer to use the router name '%s' directly." router
+            Message.warningAst ast msg e.Pos
+        | None -> ()
+
+let inline buildPrefix ast (a,b,c,d,bits) =
+    let adjBits = adjustBits bits
+    Prefix.prefix (a,b,c,d) adjBits
+
+let inline getPrefixes ast pfxs e =
+    match e.Node with
+    | PrefixLiteral (a,b,c,d,bits) ->
+        wellFormedPrefix ast e.Pos (a,b,c,d,bits)
+        let pfx = buildPrefix ast (a,b,c,d,bits)
+        pfxs := Set.add [pfx] !pfxs
+    | _ -> ()
+
+let warnUnusedAggregates (ast:T) =
+    let prefixes = ref Set.empty 
+    Map.iter (fun def (_,_,e) -> 
+        iter (getPrefixes ast prefixes) e) ast.Defs
+    let prefixes = Set.map Prefix.toPredicate !prefixes
+    for (id, es) in ast.CConstraints do 
+        for e in es do
+            let e = substitute ast e
+            match e.Node with 
+            | PrefixLiteral (a,b,c,d,bits) ->
+                wellFormedPrefix ast e.Pos (a,b,c,d,bits)
+                let pfx = buildPrefix ast (a,b,c,d,bits)
+                let pred = Prefix.toPredicate [pfx]
+                if not (Set.exists (Prefix.implies pred) prefixes) then 
+                    let msg = 
+                        sprintf "The aggregate prefix %s does not summarize any " (string pfx) +
+                        sprintf "specific prefix used in the policy."
+                    Message.warningAst ast msg e.Pos
+            | _ -> ()
+
 
 (* Expand blocks in a regular expression to a
    single top-level block, and check if the 
@@ -686,8 +715,10 @@ let makePolicyPairs (ast: T) (topo: Topology.T) : PolicyPair list =
     let ast = addTopoDefinitions ast
     match Map.tryFind "main" ast.Defs with 
     | Some (_,[],e) ->
+
         warnUnused ast e
         warnRawAsn ast
+
         let e = substitute ast e
         let t = wellFormed ast e
         match t with
@@ -696,6 +727,9 @@ let makePolicyPairs (ast: T) (topo: Topology.T) : PolicyPair list =
         Map.iter (fun id (p,args,e) ->
             let e = substitute ast e
             ignore (wellFormed ast e)) ast.Defs
+
+        warnUnusedAggregates ast
+
         let topLevel = 
             expandBlocks ast e
             |> List.map (fun (p,e) -> (p, pushPrefsToTop ast e))

@@ -1,4 +1,4 @@
-define PG1 = 1.0.0.0/32
+define PG1 = 1.0.0.0/24
 define PG2 = 1.0.1.0/24
 define PL1 = 2.0.0.0/24
 define PL2 = 2.0.1.0/24
@@ -19,8 +19,7 @@ define routing = {
 	true => any
 }
 
-define main = 
-	ownership and routing
+define main = ownership and routing
 
 control {
 	aggregate(1.0.0.0/16, in -> out)
