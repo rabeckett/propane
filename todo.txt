@@ -1,6 +1,4 @@
 
-
-Fix issue with reading in file from working path
 Rewrite Args code to be less repetitive
 Catch likely anycast problems by setting universe to things in end(...)
 Avoid duplicate constraints (which level?)

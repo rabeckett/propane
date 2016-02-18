@@ -60,29 +60,11 @@ let cleanDir dir =
         Directory.Delete(dir, true)
     Directory.CreateDirectory(dir).Create()
 
-let setMED s = 
+let setOnOff var msg s =
     match s with 
-    | "on" -> useMed := true
-    | "off" -> useMed := false
-    | _ -> raise (InvalidArgException ("Invalid MED value: " + s))
-
-let setPrepending s = 
-    match s with 
-    | "on" -> usePrepending := true
-    | "off" -> usePrepending := false
-    | _ -> raise (InvalidArgException ("Invalid AS path prepending value: " + s))
-
-let setNoExport s =
-    match s with 
-    | "on" -> useNoExport := true
-    | "off" -> useNoExport := false
-    | _ -> raise (InvalidArgException ("Invalid No Export value: " + s))
-
-let setParallel s =
-    match s with 
-    | "on" -> isParallel := true
-    | "off" -> isParallel := false
-    | _ -> raise (InvalidArgException ("Invalid parallel value: " + s))
+    | "on" -> var := true
+    | "off" -> var := false
+    | _ -> raise (InvalidArgException (sprintf "Invalid %s value: %s" msg s))
 
 let setTarget s = 
     match s with
@@ -91,18 +73,7 @@ let setTarget s =
     | "templ" -> target := Template
     | _ -> raise (InvalidArgException ("Invalid format value: " + s))
 
-let setDebugDir s =
-    debugDir := currentDir + sep + s + sep
-
-let setDebug s = 
-    let i = 
-        try int s 
-        with _ -> raise (InvalidArgException (sprintf "Invalid number: %s" s))
-    if i < 0 || i > 3 then 
-        raise (InvalidArgException ("Invalid debug level: " + s))
-    debug := i
-
-let setFailures s = 
+let setFailures s =
     match s with 
     | "any" -> failures := Any
     | _ -> 
@@ -113,28 +84,29 @@ let setFailures s =
             raise (InvalidArgException ("Invalid number: " + s))
         failures := Concrete i
 
-let setCheckEnter s = 
-    match s with 
-    | "on" -> checkEnter := true
-    | "off" -> checkEnter := false
-    | _ -> raise (InvalidArgException ("Invalid checkenter argument: " + s))
-
-let setStats s = 
-    match s with 
-    | "csv" -> stats := true
-    | "none" -> stats := false
-    | _ -> raise (InvalidArgException (sprintf "Invalid stats value: %s" s))
-
-let inline adjustPath f = 
+let inline adjustFilePath f = 
     if Path.IsPathRooted(f) then f 
     else currentDir + sep + f
 
 let setFile f = 
-    if File.Exists f then adjustPath f 
+    if File.Exists f then adjustFilePath f 
     else
         let f' = currentDir + sep + f
-        if File.Exists f' then adjustPath f'
+        if File.Exists f' then adjustFilePath f'
         else raise (InvalidArgException (sprintf "Invalid file: %s" f))
+
+let setDebugDir s =
+    if Path.IsPathRooted(s) 
+    then debugDir := s + sep 
+    else debugDir := currentDir + sep + s + sep
+
+let setDebug s = 
+    let i = 
+        try int s 
+        with _ -> raise (InvalidArgException (sprintf "Invalid number: %s" s))
+    if i < 0 || i > 3 then 
+        raise (InvalidArgException ("Invalid debug level: " + s))
+    debug := i
 
 let usage = "Usage: propane [options]"
 let args = 
@@ -142,13 +114,13 @@ let args =
       ("-topo", String (fun s -> topoFile := Some (setFile s)), "Topology file");
       ("-out", String (fun s -> outFile := Some s), "Output file");
       ("-failures:any|n", String setFailures, "Failure safety for aggregation (default any)");
-      ("-med:on|off", String setMED, "Use MED attribute (default off)");
-      ("-prepending:on|off", String setPrepending, "Use AS path prepending (default off)");
-      ("-no-export:on|off", String setNoExport, "Use no-export community (default off)");
-      ("-parallel:on|off", String setParallel, "Parallelize compilation (default on)");
+      ("-med:on|off", String (setOnOff useMed "MED"), "Use MED attribute (default off)");
+      ("-prepending:on|off", String (setOnOff usePrepending "prepending"), "Use AS path prepending (default off)");
+      ("-no-export:on|off", String (setOnOff useNoExport "no-export"), "Use no-export community (default off)");
+      ("-parallel:on|off", String (setOnOff isParallel "parallel"), "Parallelize compilation (default on)");
       ("-target:none|ir|templ", String setTarget, "Compilation target");
-      ("-stats:csv|none", String setStats, "Display performance statistics to stdout (default none)");
-      ("-checkenter:on|off", String (fun s -> setCheckEnter s), "Run experiment for dc or core");
+      ("-stats:on|off", String (setOnOff stats "stats"), "Display performance statistics to stdout (default off)");
+      ("-checkenter:on|off", String (setOnOff checkEnter "check enter"), "Check traffic entry conditions to network");
       ("-test", Unit (fun () -> test := true), "Run unit tests");
       ("-debug-dir", String setDebugDir, "Debugging directory (default 'debug')");
       ("-debug:0|1|2|3", String setDebug, "Debug level (default lowest - off 0)");
