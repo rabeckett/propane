@@ -15,8 +15,8 @@ define ownership = {
 
 define routing = {
 	PL1 or PL2 => always(in),
-	/* true => drop */
-	true => any
+	true => drop
+	/* true => any */
 }
 
 define main = ownership and routing

@@ -759,10 +759,9 @@ module Failure =
                 cg.Graph.RemoveEdgeIf (fun e -> 
                     Seq.exists ((=) e) p) |> ignore
         removed
-
+       
     let disconnectAll (cg: T) srcs dsts =
-        if Seq.isEmpty srcs || Seq.isEmpty dsts then 
-            failwith "empty locations in disconnectAll"
+        if Seq.isEmpty srcs || Seq.isEmpty dsts then None else
         let mutable smallest = System.Int32.MaxValue
         let mutable pair = None
         for src in srcs do 
@@ -773,7 +772,7 @@ module Failure =
                     pair <- Some (src,dst)
         let (x,y) = Option.get pair
         let k = max 0 (smallest - 1)
-        k, x.Node.Loc, y.Node.Loc
+        Some (k, x.Node.Loc, y.Node.Loc)
 
     let disconnectLocs (cg: T) srcs dstLoc =
         let dsts = Seq.filter (fun v -> loc v = dstLoc) cg.Graph.Vertices 

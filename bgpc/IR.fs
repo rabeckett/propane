@@ -486,13 +486,15 @@ let getMinAggregateFailures (cg: CGraph.T) pred (aggInfo: Map<string, DeviceAggr
     for p in prefixes do
         for kv in aggInfo do 
             let aggRouter = kv.Key 
-            let aggs = kv.Value 
+            let aggs = kv.Value
             let relevantAggs = List.filter (fun (prefix, _) -> Prefix.implies (Prefix.toPredicate prefix) p) aggs
             for (rAgg, _) in relevantAggs do
-                let k, x, y = CGraph.Failure.disconnectLocs cg originators aggRouter   
-                if k < smallest then 
-                    smallest <- min smallest k
-                    pairs <- Some (x,y)
+                match CGraph.Failure.disconnectLocs cg originators aggRouter with 
+                | None -> () 
+                | Some (k,x,y) ->
+                    if k < smallest then 
+                        smallest <- min smallest k
+                        pairs <- Some (x,y)
     if smallest = System.Int32.MaxValue then None
     else let x,y = Option.get pairs in Some (smallest, x, y)
 
