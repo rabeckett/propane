@@ -6,35 +6,35 @@ open Common.Error
 
 let maxTests = 10000
 
-let isPeer x m = 
+let isPeer ain x m = 
     match m with 
-    | IR.Peer y -> x = y || y = "*"
-    | IR.State(_,y) -> x = y || y = "*"
+    | IR.Peer y -> x = y || y = "*" || (y = "in" && Set.contains x ain)
+    | IR.State(_,y) -> x = y || y = "*" || (y = "in" && Set.contains x ain)
     | _ -> false
 
-let getPref (x:string) (dc: IR.DeviceConfig) = 
+let getPref ain (x:string) (dc: IR.DeviceConfig) = 
     let lp = List.tryFind (fun f -> 
         match f with 
         | Deny -> false 
-        | Allow ((m,_),_) -> isPeer x m) dc.Filters
+        | Allow ((m,_),_) -> isPeer ain x m) dc.Filters
     match lp with
     | Some (Allow ((_,lp), _)) -> lp
     | _ -> 100
 
-let prefersPeer (_,config) x (a,b) =
+let prefersPeer ain (_,config) x (a,b) =
     try 
         let deviceConfig = Map.find x config 
-        let lp1 = getPref a deviceConfig
-        let lp2 = getPref b deviceConfig
+        let lp1 = getPref ain a deviceConfig
+        let lp2 = getPref ain b deviceConfig
         lp1 > lp2
     with _ -> false
 
-let receiveFrom (_,config) x y = 
+let receiveFrom ain (_,config) x y = 
     let deviceConf = Map.find x config 
     List.exists (fun f -> 
         match f with 
         | Deny -> false 
-        | Allow ((m,_), _) -> isPeer y m) deviceConf.Filters
+        | Allow ((m,_), _) -> isPeer ain y m) deviceConf.Filters
 
 let originates ((_, config): IR.PredConfig) x =
     let deviceConfig = Map.find x config
@@ -568,6 +568,8 @@ let testCompilation() =
         let msg = sprintf "%s%s%s" test.Name spaces test.Explanation
         printfn "%s" msg
         logInfo1(0, "\n" + msg)
+        let (ain, _) = Topology.alphabet test.Topo
+        let ain = ain |> Set.map (fun v -> v.Loc)
         let reb = Regex.REBuilder(test.Topo)
         let built = test.Rf reb
         if not (Topology.isWellFormed test.Topo) then 
@@ -606,7 +608,7 @@ let testCompilation() =
                 else
                     let rs = Option.get test.Receive
                     for (x,y) in rs do 
-                        if not (receiveFrom config x y) then
+                        if not (receiveFrom ain config x y) then
                             let msg = sprintf "\n[Failed]: (%s) - %s should receive from %s but did not\n" test.Name x y
                             printfn "%s" msg
                             logInfo1(0, msg)
@@ -618,7 +620,7 @@ let testCompilation() =
                             logInfo1(0, msg)
                     let ps = Option.get test.Prefs
                     for (x,a,b) in ps do
-                        if not (prefersPeer config x (a,b)) then 
+                        if not (prefersPeer ain config x (a,b)) then 
                             let msg = sprintf "\n[Failed]: (%s) - %s should prefer %s to %s but did not" test.Name x a b
                             printfn "%s" msg
                             logInfo1(0, msg)

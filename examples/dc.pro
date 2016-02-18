@@ -3,7 +3,7 @@ define PG2 = 1.0.1.0/24
 define PL1 = 2.0.0.0/24
 define PL2 = 2.0.1.0/24
 
-define _transit(X) = enter(X) and exit(X)
+define transit(X, YYY) = enter(X) and exit(X)
 
 define ownership = {
 	PG1 => end(A),
