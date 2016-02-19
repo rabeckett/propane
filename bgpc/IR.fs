@@ -590,7 +590,7 @@ module Compilation =
     let private getMinAggregateFailures (cg: CGraph.T) pred (aggInfo: Map<string, DeviceAggregates>) = 
         let originators = CGraph.neighbors cg cg.Start
         let prefixes = Predicate.getPrefixes pred
-        let mutable smallest = System.Int32.MaxValue
+        let smallest = ref System.Int32.MaxValue
         let mutable pairs = None
         for p in prefixes do
             Map.iter (fun aggRouter aggs ->
@@ -600,12 +600,12 @@ module Compilation =
                     match CGraph.Failure.disconnectLocs cg originators aggRouter with 
                     | None -> () 
                     | Some (k,x,y) ->
-                        if k < smallest then 
-                            smallest <- min smallest k
+                        if k < !smallest then 
+                            smallest := min !smallest k
                             let p = (x,y, List.head (Prefix.toPrefixes p), rAgg)
                             pairs <- Some p ) aggInfo
-        if smallest = System.Int32.MaxValue then None
-        else let x,y,p,agg = Option.get pairs in Some (smallest, x, y, p, agg)
+        if !smallest = System.Int32.MaxValue then None
+        else let x,y,p,agg = Option.get pairs in Some (!smallest, x, y, p, agg)
 
     let compileToIR fullName idx pred (polInfo: Ast.PolInfo option) (aggInfo: Map<string,DeviceAggregates>) (reb: Regex.REBuilder) res : CompileResult =
         let settings = Args.getSettings ()
