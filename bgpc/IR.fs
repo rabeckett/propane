@@ -456,16 +456,27 @@ let genConfig (cg: CGraph.T) (pred: Predicate.T) (ord: Consistency.Ordering) (in
         config <- Map.add router deviceConf config
     (pred, config), !szRaw, !szSmart
 
+let inline insideLoc v = 
+    if Topology.isInside v.Node then 
+        Some (CGraph.loc v) 
+    else None
+
+let inline insideOriginatorLoc v =
+    if (Topology.isInside v) && 
+       (Topology.canOriginateTraffic v) then Some v.Loc 
+    else None
+
+let inline insideOriginators cg =
+    CGraph.neighbors cg cg.Start
+    |> Seq.choose insideLoc
+    |> Set.ofSeq
+
 let getLocsThatCantGetPath idx cg (reb: Regex.REBuilder) dfas = 
     let startingLocs = Array.fold (fun acc dfa -> Set.union (reb.StartingLocs dfa) acc) Set.empty dfas
-    let originators = 
-        CGraph.neighbors cg cg.Start
-        |> Seq.map (fun v -> v.Node.Loc)
-        |> Set.ofSeq
+    let originators = insideOriginators cg
     let canOriginate = 
         cg.Topo.Vertices
-        |> Seq.filter (fun v -> Topology.isInside v && Topology.canOriginateTraffic v)
-        |> Seq.map (fun v -> v.Loc)
+        |> Seq.choose insideOriginatorLoc
         |> Set.ofSeq
     let locsThatNeedPath = Set.difference (Set.intersect startingLocs canOriginate) originators
     let locsThatGetPath = CGraph.acceptingLocations cg
@@ -479,7 +490,6 @@ let getUnusedPrefs cg res =
     Set.difference numberedRegexes prefs
     |> Set.filter (fun i -> res.[i-1] <> Regex.empty)
 
-// TODO: only do this once total per prefix
 let getMinAggregateFailures (cg: CGraph.T) pred (aggInfo: Map<string, DeviceAggregates>) = 
     let originators = CGraph.neighbors cg cg.Start
     let prefixes = Predicate.getPrefixes pred
@@ -500,7 +510,16 @@ let getMinAggregateFailures (cg: CGraph.T) pred (aggInfo: Map<string, DeviceAggr
     if smallest = System.Int32.MaxValue then None
     else let x,y,p,agg = Option.get pairs in Some (smallest, x, y, p, agg)
 
-let compileToIR fullName idx pred (aggInfo: Map<string,DeviceAggregates>) (reb: Regex.REBuilder) res : CompileResult =
+let warnAnycasts cg origLocs pred =
+    let orig = insideOriginators cg
+    let bad = Set.difference orig origLocs
+    if not (Set.isEmpty bad) then 
+        let msg = 
+            sprintf "Anycasting from location as%s for predicate %s " bad.MinimumElement (string pred) +
+            sprintf "even though the location is not explicitly mentioned in the policy"
+        warning msg
+
+let compileToIR fullName idx pred (origLocs: Set<string>) (aggInfo: Map<string,DeviceAggregates>) (reb: Regex.REBuilder) res : CompileResult =
     let settings = Args.getSettings ()
     let fullName = fullName + "(" + (string idx) + ")"
     let dfas, dfaTime = Profile.time (List.map (fun r -> reb.MakeDFA (Regex.rev r))) res
@@ -508,6 +527,8 @@ let compileToIR fullName idx pred (aggInfo: Map<string,DeviceAggregates>) (reb: 
     let cg, pgTime = Profile.time (CGraph.buildFromAutomata (reb.Topo())) dfas
     let buildTime = dfaTime + pgTime
     debug1 (fun () -> CGraph.generatePNG cg fullName )
+    if not settings.Test then
+        warnAnycasts cg origLocs pred
     let cg, delTime = Profile.time (CGraph.Minimize.delMissingSuffixPaths) cg
     let cg, minTime = Profile.time (CGraph.Minimize.minimize idx) cg
     let minTime = delTime + minTime
@@ -546,13 +567,14 @@ let compileToIR fullName idx pred (aggInfo: Map<string,DeviceAggregates>) (reb: 
         | UncontrollableEnterException s -> Err(UncontrollableEnter s)
         | UncontrollablePeerPreferenceException s -> Err(UncontrollablePeerPreference s)
 
-let compileForSinglePrefix fullName idx (aggInfo: Map<string, DeviceAggregates>) (pred, reb, res) =
-    match compileToIR fullName idx pred aggInfo reb res with 
+let compileForSinglePrefix fullName idx (polInfo: Ast.PolInfo) (aggInfo: Map<string, DeviceAggregates>) (pred, reb, res) =
+    let origLocs = Map.find pred polInfo.OrigLocs
+    match compileToIR fullName idx pred origLocs aggInfo reb res with 
     | Ok(config) -> config
     | Err(x) ->
         match x with
         | NoPathForRouters rs ->
-            let routers = Common.Set.toString (Set.map (fun r -> "as" + r) rs)
+            let routers = Common.Set.joinBy ", " (Set.map (fun r -> "as" + r) rs)
             error (sprintf "Unable to find a path for routers: %s for predicate %s" routers (string pred))
         | InconsistentPrefs(x,y) ->
             let msg = sprintf "Cannot find preferences for router as%s for predicate %s" x.Node.Loc (string pred)
@@ -637,15 +659,15 @@ let minFails x y =
     | Some (i,_,_,_,_), Some (j,_,_,_,_) -> 
         if i < j then x else y
 
-let compileAllPrefixes fullName topo (pairs: Ast.PolicyPair list) constraints : T * AggregationSafetyResult * Stats =
+let compileAllPrefixes fullName (polInfo: Ast.PolInfo) constraints : T * AggregationSafetyResult * Stats =
     let settings = Args.getSettings () 
     let mapi = if settings.Parallel then Array.Parallel.mapi else Array.mapi
-    let info = splitConstraints topo constraints
+    let info = splitConstraints polInfo.Ast.TopoInfo.Graph constraints
     let (aggInfo, _, _) = info
-    let pairs = Array.ofList pairs
+    let pairs = Array.ofList polInfo.Policy
     let timedConfigs, prefixTime =
         Profile.time (mapi (fun i x -> 
-            Profile.time (compileForSinglePrefix fullName (i+1) aggInfo) x)) pairs
+            Profile.time (compileForSinglePrefix fullName (i+1) polInfo aggInfo) x)) pairs
     let nAggFails = Array.map (fun (res,_) -> res.K) timedConfigs
     let k = Array.fold minFails None nAggFails
     let configs, times = Array.unzip timedConfigs
@@ -1189,7 +1211,7 @@ module Test =
         let pol = reb.End ["A"]
         let aggs = Map.add "X" [(Prefix.prefix (10u, 0u, 0u, 0u) 31u, Seq.ofList ["PEER"])] Map.empty
         let aggs = Map.add "Y" [(Prefix.prefix (10u, 0u, 0u, 0u) 31u, Seq.ofList["PEER"])] aggs
-        let res = compileToIR "" 0 (Predicate.prefix (10u, 0u, 0u, 0u) 32u) aggs reb [reb.Build pol]
+        let res = compileToIR "" 0 (Predicate.prefix (10u, 0u, 0u, 0u) 32u) Set.empty aggs reb [reb.Build pol]
         match res with
         | Err _ -> failed ()
         | Ok(res) -> 
@@ -1221,7 +1243,7 @@ module Test =
                 logInfo1(0, msg)
             else
                 let pred = Predicate.top
-                match compileToIR (settings.DebugDir + test.Name) 0 pred Map.empty reb built with 
+                match compileToIR (settings.DebugDir + test.Name) 0 pred Set.empty Map.empty reb built with 
                 | Err(x) ->
                     if (Option.isSome test.Receive || 
                         Option.isSome test.Originate || 

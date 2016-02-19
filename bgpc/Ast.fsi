@@ -51,8 +51,13 @@ type T =
 type PolicyPair = (Predicate.T * Regex.REBuilder * Regex.T list)
 
 /// Parse control constraint information w.r.t the topology
-val getControlConstraints: T -> Topology.T -> CConstraint list
+val makeControlConstraints: T -> Topology.T -> CConstraint list
+
+type PolInfo =
+    {Ast: T;
+     Policy: PolicyPair list;
+     OrigLocs: Map<Predicate.T, Set<string>>}
 
 /// Build the final predicate, preference pairs by 
 /// merging tasks and evaluating the main policy
-val makePolicyPairs: T -> Topology.T -> PolicyPair list
+val makePolicyPairs: T -> Topology.T -> PolInfo

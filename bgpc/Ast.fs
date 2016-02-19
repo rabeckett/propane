@@ -553,7 +553,7 @@ let buildCConstraint ast (topo: Topology.T) (cc: Ident * Expr list) =
         CLongestPath (i, Option.get locs)
     | _ -> Common.unreachable ()
 
-let getControlConstraints ast topo : CConstraint list = 
+let makeControlConstraints ast topo : CConstraint list = 
     List.map (buildCConstraint ast topo) ast.CConstraints
  
 (* Compiler warnings for a variety of common mistakes. 
@@ -650,6 +650,30 @@ let warnUnusedAggregates (ast:T) e =
                     Message.warningAst ast msg e.Pos
             | _ -> ()
 
+(* Get all the concrete locations that are originated syntactically
+   at some point in the policy. This will be used to catch accidental
+   Misconfigurations that originate from all locations *)
+
+let inline getEndLocs ast locs e = 
+    match e.Node with
+    | Ident(id, [e]) when id.Name = "end" -> 
+        iter (fun e' -> 
+            match e'.Node with 
+            | Asn i -> locs := Set.add (string i) !locs
+            | _ -> () ) e
+    | _ -> ()
+
+let inline originationLocations (ast: T) (e: Expr) : Set<string> =
+    let locs = ref Set.empty 
+    iter (getEndLocs ast locs) e
+    !locs
+
+let inline orginationLocationsList (ast: T) (es: Expr list) : Set<string> =
+    let inline addLocs acc e = 
+        Set.union acc (originationLocations ast e)
+    Common.List.fold addLocs Set.empty es
+
+
 (* Expand blocks in a regular expression to a
    single top-level block, and check if the 
    prefixes cover all cases. *)
@@ -726,7 +750,12 @@ let addTopoDefinitions (ast: T) : T =
 (* Given the AST and the topology, check well-formedness
    and produce the top-level, merged path constraints. *)
 
-let makePolicyPairs (ast: T) (topo: Topology.T) : PolicyPair list =
+type PolInfo =
+    {Ast: T;
+     Policy: PolicyPair list;
+     OrigLocs: Map<Predicate.T, Set<string>>}
+
+let makePolicyPairs (ast: T) (topo: Topology.T) : PolInfo =
     let ast = addTopoDefinitions ast
     match Map.tryFind "main" ast.Defs with 
     | Some (_,[],e) ->
@@ -745,12 +774,18 @@ let makePolicyPairs (ast: T) (topo: Topology.T) : PolicyPair list =
 
         warnUnusedAggregates ast e
 
+        let origLocs = ref Map.empty
+
         let topLevel = 
-            expandBlocks ast e
+            expandBlocks ast e 
             |> List.map (fun (p,e) -> (p, pushPrefsToTop ast e))
-        List.map (fun (p, res) -> 
-            let reb = Regex.REBuilder(topo)
-            let res = List.map (buildRegex ast reb) res
-            let res = List.map reb.Build res
-            (p, reb, res) ) topLevel
+        let polPairs = 
+            List.map (fun (p, res) -> 
+                let locs = orginationLocationsList ast res
+                origLocs := Map.add p locs !origLocs
+                let reb = Regex.REBuilder(topo)
+                let res = List.map (buildRegex ast reb) res
+                let res = List.map reb.Build res
+                (p, reb, res) ) topLevel
+        {Ast = ast; Policy = polPairs; OrigLocs = !origLocs}
     | _ -> error (sprintf "Main policy not defined, use define main = ...")

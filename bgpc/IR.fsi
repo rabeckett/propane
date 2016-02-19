@@ -64,7 +64,7 @@ type AggregationSafetyResult = (int * string * string * Prefix.T * Prefix.T) opt
 
 
 /// Compile a policy
-val compileAllPrefixes: string -> Topology.T -> Ast.PolicyPair list -> Ast.CConstraint list -> T * AggregationSafetyResult * Stats
+val compileAllPrefixes: string -> Ast.PolInfo -> Ast.CConstraint list -> T * AggregationSafetyResult * Stats
 
 
 /// Unit tests

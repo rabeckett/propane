@@ -29,11 +29,11 @@ let main argv =
     | Some p ->
         let (lines, defs, cs) = Input.readFromFile p
         let ast : Ast.T = {Input = lines; TopoInfo = topoInfo; Defs = defs; CConstraints = cs}
-        let aggs = Ast.getControlConstraints ast topoInfo.Graph
-        let pairs = Ast.makePolicyPairs ast topoInfo.Graph
+        let aggs = Ast.makeControlConstraints ast topoInfo.Graph
+        let polInfo = Ast.makePolicyPairs ast topoInfo.Graph
 
         if settings.Target <> Args.Off then
-            let (ir, k, _) = IR.compileAllPrefixes fullName topoInfo.Graph pairs aggs
+            let (ir, k, _) = IR.compileAllPrefixes fullName polInfo aggs
             match k, settings.Failures with
             | Some (i, x, y, p, agg), _ ->
                 let bad = 
