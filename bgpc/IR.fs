@@ -246,15 +246,6 @@ let configureIncomingTraffic cg : IncomingExportMap =
     exportMap
 
 
-(* Order config by preference and then router name. 
-   This makes it easier to minimize the config *)
-let inline comparePrefThenLoc (x,i1) (y,i2) = 
-    let cmp = compare i1 i2
-    if cmp = 0 then
-        compare x.Node.Loc y.Node.Loc
-    else cmp
-
-
 (* Generate a configuration from the product graph *)
 
 type OutPeerMatch = 
@@ -294,14 +285,14 @@ let getMatches (allPeers, inPeers, outPeers) incomingMatches =
     let inline eqStates states = 
         Set.count states = 1
     let peermatches, regexes = List.partition isPeerMatch (List.ofSeq incomingMatches)
-    
+    // get peer topology location information
     let mutable peers = Set.ofList (List.map getPeerMatch peermatches)
     let peerLocs = Set.map CGraph.loc peers
     let peersIn = Set.filter (fun v -> Topology.isInside v.Node) peers
     let peersOut = Set.filter (fun v -> Topology.isOutside v.Node) peers
     let peerLocsIn =  Set.map CGraph.loc peersIn
     let peerLocsOut = Set.map CGraph.loc peersOut
-
+    // get peer state product graph information
     let mutable matches = 
         List.map (fun r -> Match.PathRE (getRegexMatch r)) regexes
     let states = peers |> Set.map (fun v -> v.State)
@@ -395,7 +386,11 @@ let getPeerInfo vs =
     let allOut = vs |> Seq.filter Topology.isOutside |> setLocs
     (all, allIn, allOut)
 
-let genConfig (cg: CGraph.T) (pred: Predicate.T) (ord: Consistency.Ordering) (inExports: IncomingExportMap) : PredConfig * int * int =
+let genConfig (cg: CGraph.T) 
+              (pred: Predicate.T) 
+              (ord: Consistency.Ordering) 
+              (inExports: IncomingExportMap) 
+              : PredConfig * int * int =
     let settings = Args.getSettings ()
     let ain = Topology.alphabet cg.Topo |> fst |> Set.map (fun v -> v.Loc)
     let eCounts = edgeCounts cg
@@ -535,6 +530,7 @@ let warnAnycasts cg (polInfo:Ast.PolInfo) pred =
             sprintf "mentioned in the policy. This is almost always a mistake."
         warning msg
 
+
 let compileToIR fullName idx pred (polInfo: Ast.PolInfo option) (aggInfo: Map<string,DeviceAggregates>) (reb: Regex.REBuilder) res : CompileResult =
     let settings = Args.getSettings ()
     let fullName = fullName + "(" + (string idx) + ")"
@@ -556,7 +552,10 @@ let compileToIR fullName idx pred (polInfo: Ast.PolInfo option) (aggInfo: Map<st
     let unusedPrefs = getUnusedPrefs cg res
     if not (Set.isEmpty unusedPrefs)  then
         for i in unusedPrefs do 
-            warning (sprintf "Unused preference %d for predicate %s for a non-drop policy" i (string pred))
+            let msg = 
+                sprintf "Unused preference %d for predicate " i +
+                sprintf "%s for a non-drop policy" (string pred)
+            warning msg
     try
         // check that BGP can ensure incoming traffic compliance
         let inExports = configureIncomingTraffic cg
@@ -583,7 +582,13 @@ let compileToIR fullName idx pred (polInfo: Ast.PolInfo option) (aggInfo: Map<st
         | UncontrollableEnterException s -> Err(UncontrollableEnter s)
         | UncontrollablePeerPreferenceException s -> Err(UncontrollablePeerPreference s)
 
-let compileForSinglePrefix fullName idx (polInfo: Ast.PolInfo) (aggInfo: Map<string, DeviceAggregates>) (pred, reb, res) =
+
+let compileForSinglePrefix (fullName:string) 
+                           (idx:int) 
+                           (polInfo: Ast.PolInfo) 
+                           (aggInfo: Map<string, DeviceAggregates>) 
+                           ((pred, reb, res): Predicate.T * Regex.REBuilder * Regex.T list)
+                           : PrefixResult =
     match compileToIR fullName idx pred (Some polInfo) aggInfo reb res with 
     | Ok(config) -> config
     | Err(x) ->
@@ -593,37 +598,56 @@ let compileForSinglePrefix fullName idx (polInfo: Ast.PolInfo) (aggInfo: Map<str
             let routers = 
                 Set.map (fun r -> Topology.router r ti) rs
                 |> Common.Set.joinBy ", "
-            error (sprintf "Unable to find a path for routers: %s for predicate %s" routers (string pred))
+            let msg = 
+                sprintf "Unable to find a path for routers: " + 
+                sprintf "%s for predicate %s" routers (string pred)
+            error msg
         | InconsistentPrefs(x,y) ->
             let l = Topology.router (CGraph.loc x) ti
-            let msg = sprintf "Cannot find preferences for router %s for predicate %s" l (string pred)
+            let msg = 
+                sprintf "Cannot find preferences for router " + 
+                sprintf "%s for predicate %s" l (string pred)
             error msg
         | UncontrollableEnter x -> 
             let l = Topology.router x ti
-            let msg = sprintf "Cannot control inbound traffic from peer: as%s for predicate %s" l (string pred)
+            let msg = 
+                sprintf "Cannot control inbound traffic from " + 
+                sprintf "peer: %s for predicate %s" l (string pred)
             error msg
         | UncontrollablePeerPreference x -> 
             let l = Topology.router x ti
             let msg =
                 sprintf "Cannot control inbound preference from peer: %s for " l  +
-                sprintf "predicate %s. Possibly enable prepending: --prepending:on" (string pred)
+                sprintf "predicate %s. Possibly enable prepending: -prepending:on" (string pred)
             error msg
 
 let checkAggregateLocs ins _ prefix links = 
     if Set.contains "out" ins then
-        error (sprintf "Cannot aggregate on external location: out for prefix: %s" (string prefix))
+        let msg = 
+            sprintf "Cannot aggregate on external location: " + 
+            sprintf "out for prefix: %s" (string prefix)
+        error msg
     match List.tryFind (fst >> Topology.isOutside) links with
     | None -> ()
     | Some x -> 
-        error (sprintf "Cannot aggregate on external location: %s for prefix: %s" (fst x).Loc (string prefix))
+        let msg = 
+            sprintf "Cannot aggregate on external location: " +
+            sprintf "%s for prefix: %s" (fst x).Loc (string prefix)
+        error msg
 
 let checkCommunityTagLocs ins _ (c, prefix) links =
     if Set.contains "out" ins then
-        error (sprintf "Cannot tag communities on external location: out for community %s, prefix: %s" c (string prefix))
+        let msg = 
+            sprintf "Cannot tag communities on external location: out " + 
+            sprintf "for community %s, prefix: %s" c (string prefix)
+        error msg
     match List.tryFind (fst >> Topology.isOutside) links with
     | None -> ()
     | Some x -> 
-        error (sprintf "Cannot tag communities on external location: %s for community %s prefix: %s" (fst x).Loc c (string prefix))
+        let msg = 
+            sprintf "Cannot tag communities on external location: " + 
+            sprintf "%s for community %s prefix: %s" (fst x).Loc c (string prefix)
+        error msg
 
 let checkMaxRouteLocs ins outs i links =
     let v = List.exists (fun (a,b) -> Topology.isOutside a && Topology.isOutside b) links
@@ -632,7 +656,10 @@ let checkMaxRouteLocs ins outs i links =
     let y = List.exists (fst >> Topology.isOutside) links
     let z = List.exists (snd >> Topology.isOutside) links
     if v || ((w || y) && (x || z)) then 
-        error (sprintf "Cannot set maxroutes(%d) on links without an edge in the internal topology" i)
+        let msg = 
+            sprintf "Cannot set maxroutes(%d) on links " i +
+            sprintf "without an edge in the internal topology"
+        error msg
 
 let splitByLocation f topo (vs: _ list) = 
     let mutable acc = Map.empty
@@ -682,7 +709,10 @@ let minFails x y =
     | Some (i,_,_,_,_), Some (j,_,_,_,_) -> 
         if i < j then x else y
 
-let compileAllPrefixes fullName (polInfo: Ast.PolInfo) constraints : T * AggregationSafetyResult * Stats =
+let compileAllPrefixes (fullName: string) 
+                       (polInfo: Ast.PolInfo) 
+                       (constraints: Ast.CConstraint list) 
+                       : T * AggregationSafetyResult * Stats =
     let settings = Args.getSettings () 
     let mapi = if settings.Parallel then Array.Parallel.mapi else Array.mapi
     let info = splitConstraints polInfo.Ast.TopoInfo.Graph constraints
@@ -1317,7 +1347,6 @@ module Test =
                         then failed ()
                         else passed ()
         printfn "%s" border
-
 
     let run () =
         testAggregationFailure ()
