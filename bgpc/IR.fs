@@ -511,10 +511,19 @@ let getMinAggregateFailures (cg: CGraph.T) pred (aggInfo: Map<string, DeviceAggr
     else let x,y,p,agg = Option.get pairs in Some (smallest, x, y, p, agg)
 
 let warnAnycasts cg origLocs pred =
+    let settings = Args.getSettings()
     let orig = insideOriginators cg
     let bad = Set.difference orig origLocs
+    if (not settings.Anycast) && (Set.count orig > 1) then 
+        let bad1 = bad.MinimumElement 
+        let bad2 = (Set.remove bad1 bad).MinimumElement
+        let msg =
+            sprintf "Anycasting from multiple locations, e.g., as%s and as%s " bad1 bad2 +
+            sprintf "for predicate %s. If you believe this is not a mistake, you can "  (string pred) +
+            sprintf "enable anycast by using the -anycast:on flag"
+        error msg
     if not (Set.isEmpty bad) then 
-        let msg = 
+        let msg =
             sprintf "Anycasting from location as%s for predicate %s " bad.MinimumElement (string pred) +
             sprintf "even though the location is not explicitly mentioned in the policy"
         warning msg

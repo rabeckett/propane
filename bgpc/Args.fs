@@ -20,6 +20,7 @@ type T =
      TopoFile: string option;
      OutFile: string option;
      Target: Target;
+     Anycast: bool;
      UseMed: bool;
      UsePrepending: bool;
      UseNoExport: bool;
@@ -40,6 +41,7 @@ let polFile = ref None
 let topoFile = ref None
 let outFile = ref None
 let target = ref IR
+let anycast = ref false
 let useMed = ref false
 let usePrepending = ref false
 let useNoExport = ref false
@@ -114,6 +116,7 @@ let args =
       ("-topo", String (fun s -> topoFile := Some (setFile s)), "Topology file");
       ("-out", String (fun s -> outFile := Some s), "Output file");
       ("-failures:any|n", String setFailures, "Failure safety for aggregation (default any)");
+      ("-anycast:on|off", String (setOnOff anycast "anycast"), "Allow anycast (default off)");
       ("-med:on|off", String (setOnOff useMed "MED"), "Use MED attribute (default off)");
       ("-prepending:on|off", String (setOnOff usePrepending "prepending"), "Use AS path prepending (default off)");
       ("-no-export:on|off", String (setOnOff useNoExport "no-export"), "Use no-export community (default off)");
@@ -183,7 +186,8 @@ let parse (argv: string[]) : unit =
     settings := 
         Some {PolFile = !polFile; 
               TopoFile = !topoFile;
-              OutFile = !outFile; 
+              OutFile = !outFile;
+              Anycast = !anycast;
               UseMed = !useMed; 
               UsePrepending = !usePrepending; 
               UseNoExport = !useNoExport; 

@@ -14,6 +14,7 @@ type T =
      TopoFile: string option;
      OutFile: string option;
      Target: Target;
+     Anycast: bool;
      UseMed: bool;
      UsePrepending: bool;
      UseNoExport: bool;
