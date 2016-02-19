@@ -1,6 +1,8 @@
-always display the router name when possible, wrap this in a single function
+what to do about the default catch-all for each block?
+	- difference between allow/any/end(out)
 
-Avoid duplicate constraints (which level?)
+Avoid duplicate constraints (do this at router level after expanding predicates)
+	- need some way of comparing arbitrary expressions otherwise, e.g., canonical form for prefixes
 add syntax for building ranges of ASes (e.g., as[101-500])
 Need better, router-level minimization
 Concrete failure scenario for counterexample

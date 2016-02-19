@@ -86,9 +86,11 @@ type RouterConfig =
     {Actions: (Predicate.T * DeviceConfig) list;
      Control: DeviceControl}
 
-type T = Map<string, RouterConfig>
+type T =
+    {PolInfo: Ast.PolInfo option; 
+     RConfigs: Map<string, RouterConfig>}
 
-let joinConfigs (aggs, comms, maxroutes) (results: PrefixResult list) : T =
+let joinConfigs polInfo (aggs, comms, maxroutes) (results: PrefixResult list) : T =
     let mutable result = Map.empty
     for v in results do
         let (prefix, config) = v.Config 
@@ -99,16 +101,21 @@ let joinConfigs (aggs, comms, maxroutes) (results: PrefixResult list) : T =
             match Map.tryFind router result with
             | None -> result <- Map.add router [value] result
             | Some x -> result <- Map.add router (value :: x) result
-    Map.map (fun router vs ->
-        let a = Common.Map.getOrDefault router [] aggs
-        let b = Common.Map.getOrDefault router [] comms
-        let c = Common.Map.getOrDefault router [] maxroutes
-        {Actions=List.rev vs; Control={Aggregates=a; Tags=b; MaxRoutes=c}}) result
+    let routerConfigs = 
+        Map.map (fun router vs ->
+            let a = Common.Map.getOrDefault router [] aggs
+            let b = Common.Map.getOrDefault router [] comms
+            let c = Common.Map.getOrDefault router [] maxroutes
+            {Actions=List.rev vs; Control={Aggregates=a; Tags=b; MaxRoutes=c}}) result
+    {PolInfo = polInfo; RConfigs = routerConfigs}
 
-let format (config: T) = 
+let format (config: T) =
     let sb = System.Text.StringBuilder ()
-    for kv in config do
-        let routerName = kv.Key 
+    for kv in config.RConfigs do
+        let routerName =
+            match config.PolInfo with 
+            | None -> kv.Key 
+            | Some pi -> Topology.router kv.Key pi.Ast.TopoInfo
         let routerConfig = kv.Value
         sb.Append("\nRouter ") |> ignore
         sb.Append(routerName) |> ignore
@@ -145,8 +152,8 @@ let format (config: T) =
         sb.Append("\n") |> ignore
     sb.ToString()
 
-let formatPrefix pconfig = 
-    format (joinConfigs (Map.empty, Map.empty, Map.empty) [pconfig])
+let formatPrefix polInfo pconfig = 
+    format (joinConfigs polInfo (Map.empty, Map.empty, Map.empty) [pconfig])
 
 (* Ensure well-formedness for controlling 
    traffic entering the network. MED and prepending allow
@@ -344,33 +351,39 @@ let getExports (allPeers, inPeers, outPeers) x inExports (outgoing: seq<CgState>
         else exports @ insideExport
     else  exports @ insideExport
 
-let updateExports (es: Export list) f : Export list = 
-    List.choose f es
 
-let removeRedundantTag exports m = 
-    match m with 
-    | Match.Peer _ | Match.PathRE _ | Match.NoMatch -> exports 
-    | Match.State(is,_) -> 
-        updateExports exports (fun (peer, acts) -> 
-            let acts' = List.filter (fun a -> 
-                match a with 
-                | SetComm c -> c <> is
-                | _ -> true) acts
-            Some (peer, acts') )
+module Minimize = 
 
-let removeCommMatch cg eCounts v m = 
-    let inline unq e = 
-        match Map.tryFind e eCounts with 
-        | Some 1 -> true
-        | _ -> false
-    match m with 
-    | Match.State (c,peers) -> 
-        if peers = "*" then 
-            let ins = CGraph.neighborsIn cg v |> Seq.map CGraph.loc
-            if Seq.forall (fun i -> unq (i, v.Node.Loc)) ins then Match.Peer(peers) else m 
-        else if unq (peers, v.Node.Loc) then Match.Peer(peers)
-        else m
-    | _ -> m
+    // TODO: make an inline version of this
+    let updateExports (es: Export list) f : Export list = 
+        List.choose f es
+
+    // Remove tagging when already matching the same community
+    let removeRedundantTag m exports = 
+        match m with 
+        | Match.Peer _ | Match.PathRE _ | Match.NoMatch -> exports 
+        | Match.State(is,_) -> 
+            updateExports exports (fun (peer, acts) -> 
+                let acts' = List.filter (fun a -> 
+                    match a with 
+                    | SetComm c -> c <> is
+                    | _ -> true) acts
+                Some (peer, acts') )
+    
+    // Remove match along edges that can be uniquely identified
+    let removeCommMatchForUnqEdges cg eCounts v m = 
+        let inline unq e = 
+            match Map.tryFind e eCounts with 
+            | Some 1 -> true
+            | _ -> false
+        match m with 
+        | Match.State (c,peers) -> 
+            if peers = "*" || peers = "in" then 
+                let ins = CGraph.neighborsIn cg v |> Seq.map CGraph.loc
+                if Seq.forall (fun i -> unq (i, v.Node.Loc)) ins then Match.Peer(peers) else m 
+            elif unq (peers, v.Node.Loc) then Match.Peer(peers)
+            else m
+        | _ -> m
 
 let edgeCounts (cg: CGraph.T) =
     cg.Graph.Edges
@@ -433,8 +446,13 @@ let genConfig (cg: CGraph.T)
                 let exports = getExports outPeerInfo cgstate inExports sendTo unqMatchPeer 
                 // perform community minimization while adding the match export filters
                 for m in matches do 
-                    let exports = removeRedundantTag exports m
-                    let m = removeCommMatch cg eCounts cgstate m
+                    let exports = 
+                        exports
+                        |> Minimize.removeRedundantTag m
+                    let m = 
+                        m
+                        |> Minimize.removeCommMatchForUnqEdges cg eCounts cgstate
+                        // |> Minimize.removeCommMatchForUnqNode cg cgstate
                     filters <- Allow ((m,lp), exports) :: filters
                 originates <- origin || originates
                 // update the compression stats
@@ -575,7 +593,8 @@ let compileToIR fullName idx pred (polInfo: Ast.PolInfo option) (aggInfo: Map<st
                   CompressSizeInit=szRaw;
                   CompressSizeFinal=szSmart;
                   Config=config}
-            debug1 (fun () -> System.IO.File.WriteAllText (sprintf "%s.ir" fullName, formatPrefix result) )
+            
+            debug1 (fun () -> System.IO.File.WriteAllText (sprintf "%s.ir" fullName, formatPrefix polInfo result) )
             Ok (result)
         | Err((x,y)) -> Err(InconsistentPrefs(x,y))
     with 
@@ -724,7 +743,7 @@ let compileAllPrefixes (fullName: string)
     let nAggFails = Array.map (fun (res,_) -> res.K) timedConfigs
     let k = Array.fold minFails None nAggFails
     let configs, times = Array.unzip timedConfigs
-    let joined, joinTime = Profile.time (joinConfigs info) (Array.toList configs)    
+    let joined, joinTime = Profile.time (joinConfigs (Some polInfo) info) (Array.toList configs)    
     let buildTimes = Array.map (fun c -> c.BuildTime) configs
     let minTimes = Array.map (fun c -> c.MinimizeTime) configs
     let orderTimes = Array.map (fun c -> c.OrderingTime) configs

@@ -58,7 +58,7 @@ type Value =
 
     override this.ToString() = 
         match this with
-        | PrefixValue -> "Predicate"
+        | PrefixValue -> "Prefix"
         | CommunityValue -> "Community"
         | LinkValue -> "Links"
         | IntValue -> "Int"
@@ -99,7 +99,7 @@ let builtInSingle =
 
 let builtInRes = 
     Set.ofList 
-        ["start"; "end"; "enter"; 
+        ["start"; "end"; "originate"; "enter"; 
          "exit"; "valleyfree"; "always"; 
          "through"; "avoid"; "internal"; 
          "any"; "drop"; "in"; "out"]
@@ -157,7 +157,7 @@ module Message =
 
     let msgOffset = 9
 
-    let maxLineMsg = 8
+    let maxLineMsg = 3
 
     let obj = new Object()
 
@@ -229,7 +229,7 @@ module Message =
             else displayMultiLine ast p ccolor
             displayFooter msg (ccolor, errorTyp)
 
-    let inline validate p = 
+    let validate p = 
         if p = dummyPos then 
             printfn "Internal positioning error"
             exit 0
@@ -436,7 +436,8 @@ let rec buildRegex (ast: T) (reb: Regex.REBuilder) (r: Expr) : Regex.LazyT =
         match id.Name with
         | "valleyfree" -> let locs = checkParams id args.Length args in reb.ValleyFree locs
         | "start" -> let locs = checkParams id 1 args in reb.Start locs.Head
-        | "end" -> let locs = checkParams id 1 args in reb.End locs.Head
+        | "end"
+        | "originate" -> let locs = checkParams id 1 args in reb.End locs.Head
         | "enter" -> let locs = checkParams id 1 args in reb.Enter locs.Head
         | "exit" -> let locs = checkParams id 1 args in reb.Exit locs.Head
         | "always" -> let locs = checkParams id 1 args in reb.Always locs.Head
@@ -656,7 +657,7 @@ let warnUnusedAggregates (ast:T) e =
 
 let inline getEndLocs ast locs e = 
     match e.Node with
-    | Ident(id, [e]) when id.Name = "end" -> 
+    | Ident(id, [e]) when id.Name = "end" || id.Name = "originate" -> 
         iter (fun e' -> 
             match e'.Node with 
             | Asn i -> locs := Set.add (string i) !locs

@@ -39,7 +39,9 @@ type RouterConfig =
      Control: DeviceControl}
 
 /// An final, merged, configuration
-type T = Map<string, RouterConfig>
+type T = 
+    {PolInfo: Ast.PolInfo option; 
+     RConfigs: Map<string, RouterConfig>}
 
 /// Debug config output
 val format: T -> string
