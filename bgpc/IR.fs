@@ -354,6 +354,14 @@ let getExports (allPeers, inPeers, outPeers) x inExports (outgoing: seq<CgState>
 
 module Minimize = 
 
+    let chooseAction f (filt: Filter) =
+        let inline adjActs (peer,acts) =
+            peer, List.choose f acts
+        match filt with 
+        | Deny -> Deny
+        | Allow ((m,lp),es) ->
+            Allow ((m,lp), List.map adjActs es)
+
     let updateExports (es: Export list) f : Export list = 
         List.choose f es
 
@@ -368,11 +376,6 @@ module Minimize =
                     | SetComm c -> c <> is
                     | _ -> true) acts
                 Some (peer, acts') )
-
-    // Remove tagging when nobody cares
-    let removeUnobservedTag () = 
-        failwith ""
-
 
     // Remove match along edges that can be uniquely identified
     let removeCommMatchForUnqEdges cg eCounts v m = 
@@ -389,38 +392,26 @@ module Minimize =
             else m
         | _ -> m
 
-    // TODO: helper functions for reconstructing filers
-    let prefixWide (filters: Filter list) =
-        let seen = ref Set.empty
-        List.iter (fun f -> 
+    let inline allCommMatches filters = 
+        Common.List.fold (fun acc f -> 
             match f with 
             | Allow ((Match.State(c,_),lp), es) ->
-                seen := Set.add c !seen
-            | _ -> ()
-        ) filters
+                Set.add c acc
+            | _ -> acc) Set.empty filters
 
-        printfn "seen: %A" !seen
-
+    // Remove tagging when nobody cares
+    let removeUnobservedTag filters = 
+        let matchedComms = allCommMatches filters
         List.map (fun f -> 
-            match f with 
-            | Deny -> Deny 
-            | Allow ((m,lp), es) -> 
-                let es' = 
-                    List.map (fun (peer, acts) ->
-                        let acts' = 
-                            List.choose (fun a ->  
-                                match a with 
-                                | SetComm(c) -> 
-                                    if Set.contains c !seen then 
-                                        Some a
-                                    else None
-                                | _ -> Some a
-                            ) acts
-                        (peer, acts')
-                    ) es
-                Allow ((m,lp),es')
+            chooseAction (fun a ->
+                match a with
+                | SetComm(c) when not (Set.contains c matchedComms) -> None
+                | _ -> Some a) f
         ) filters
 
+    // Prefix-wide minimization over all filters
+    let prefixWide filters =
+        removeUnobservedTag filters
 
 
 let edgeCounts (cg: CGraph.T) =
