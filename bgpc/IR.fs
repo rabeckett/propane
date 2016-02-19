@@ -591,7 +591,7 @@ module Compilation =
         let originators = CGraph.neighbors cg cg.Start
         let prefixes = Predicate.getPrefixes pred
         let smallest = ref System.Int32.MaxValue
-        let mutable pairs = None
+        let pairs = ref None
         for p in prefixes do
             Map.iter (fun aggRouter aggs ->
                 let relevantAggs = List.filter (fun (prefix, _) -> Prefix.implies (Prefix.toPredicate [prefix]) p) aggs
@@ -603,9 +603,9 @@ module Compilation =
                         if k < !smallest then 
                             smallest := min !smallest k
                             let p = (x,y, List.head (Prefix.toPrefixes p), rAgg)
-                            pairs <- Some p ) aggInfo
+                            pairs := Some p ) aggInfo
         if !smallest = System.Int32.MaxValue then None
-        else let x,y,p,agg = Option.get pairs in Some (!smallest, x, y, p, agg)
+        else let x,y,p,agg = Option.get !pairs in Some (!smallest, x, y, p, agg)
 
     let compileToIR fullName idx pred (polInfo: Ast.PolInfo option) (aggInfo: Map<string,DeviceAggregates>) (reb: Regex.REBuilder) res : CompileResult =
         let settings = Args.getSettings ()
