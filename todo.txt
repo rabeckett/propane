@@ -1,3 +1,5 @@
+use inline list functions when possible
+
 what to do about the default catch-all for each block?
 	- difference between allow/any/end(out)
 

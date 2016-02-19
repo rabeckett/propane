@@ -354,7 +354,6 @@ let getExports (allPeers, inPeers, outPeers) x inExports (outgoing: seq<CgState>
 
 module Minimize = 
 
-    // TODO: make an inline version of this
     let updateExports (es: Export list) f : Export list = 
         List.choose f es
 
@@ -369,7 +368,12 @@ module Minimize =
                     | SetComm c -> c <> is
                     | _ -> true) acts
                 Some (peer, acts') )
-    
+
+    // Remove tagging when nobody cares
+    let removeUnobservedTag () = 
+        failwith ""
+
+
     // Remove match along edges that can be uniquely identified
     let removeCommMatchForUnqEdges cg eCounts v m = 
         let inline unq e = 
@@ -384,6 +388,40 @@ module Minimize =
             elif unq (peers, v.Node.Loc) then Match.Peer(peers)
             else m
         | _ -> m
+
+    // TODO: helper functions for reconstructing filers
+    let prefixWide (filters: Filter list) =
+        let seen = ref Set.empty
+        List.iter (fun f -> 
+            match f with 
+            | Allow ((Match.State(c,_),lp), es) ->
+                seen := Set.add c !seen
+            | _ -> ()
+        ) filters
+
+        printfn "seen: %A" !seen
+
+        List.map (fun f -> 
+            match f with 
+            | Deny -> Deny 
+            | Allow ((m,lp), es) -> 
+                let es' = 
+                    List.map (fun (peer, acts) ->
+                        let acts' = 
+                            List.choose (fun a ->  
+                                match a with 
+                                | SetComm(c) -> 
+                                    if Set.contains c !seen then 
+                                        Some a
+                                    else None
+                                | _ -> Some a
+                            ) acts
+                        (peer, acts')
+                    ) es
+                Allow ((m,lp),es')
+        ) filters
+
+
 
 let edgeCounts (cg: CGraph.T) =
     cg.Graph.Edges
@@ -444,21 +482,22 @@ let genConfig (cg: CGraph.T)
                     | [Match.State(_,x)] -> Some x 
                     | _ -> None
                 let exports = getExports outPeerInfo cgstate inExports sendTo unqMatchPeer 
-                // perform community minimization while adding the match export filters
+
+                // match/export local minimizations
                 for m in matches do 
-                    let exports = 
-                        exports
-                        |> Minimize.removeRedundantTag m
-                    let m = 
-                        m
-                        |> Minimize.removeCommMatchForUnqEdges cg eCounts cgstate
-                        // |> Minimize.removeCommMatchForUnqNode cg cgstate
+                    let exports = Minimize.removeRedundantTag m exports
+                    let m = Minimize.removeCommMatchForUnqEdges cg eCounts cgstate m
                     filters <- Allow ((m,lp), exports) :: filters
+                
                 originates <- origin || originates
                 // update the compression stats
                 szRaw := !szRaw + (Seq.length nsIn) * (Seq.length nsOut)
                 szSmart := !szSmart + (List.length exports)
         szSmart := !szSmart + (List.length filters)
+
+        // prefix-wide minimizations
+        filters <- Minimize.prefixWide filters
+
         // no need for explicit deny if we allow everything
         match filters with 
         | [Allow ((Match.Peer "*",_), _)] -> ()
