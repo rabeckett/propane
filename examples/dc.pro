@@ -9,15 +9,17 @@ define ownership = {
   PG1 => end(A),
   PG2 => end(B),
   PL1 => end(E),
-  PL2 => end(F)
+  PL2 => end(F),
+  true => drop
 }
 
-define _routing = {
+define routing = {
   PL1 or PL2 => always(in),
-  PG1 or PG2 => any
+  PG1 or PG2 => any,
+  true => drop
 }
 
-define main = ownership
+define main = ownership and routing
 
 control {
 	aggregate(PAGG, in -> out)

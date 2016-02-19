@@ -127,6 +127,12 @@ let inline getAsn name asn =
         error (sprintf "Negate AS number '%d' in topology for node '%s'" asn name)
     else uint32 asn
 
+let router (asn:string) (ti:TopoInfo) = 
+    let inline eqAsn _ v = string v = asn
+    match Map.tryFindKey eqAsn ti.AsnMap with
+    | None -> "as" + asn
+    | Some r -> r
+
 let readTopology (file: string) : TopoInfo =
     let g = BidirectionalGraph<State,TaggedEdge<State,unit>>()
     let topo = Topo.Load file

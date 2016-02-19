@@ -29,7 +29,7 @@ let main argv =
     | Some p ->
         let (lines, defs, cs) = Input.readFromFile p
         let ast : Ast.T = {Input = lines; TopoInfo = topoInfo; Defs = defs; CConstraints = cs}
-        let aggs = Ast.makeControlConstraints ast topoInfo.Graph
+        let aggs = Ast.makeControlConstraints ast topoInfo.Graph 
         let polInfo = Ast.makePolicyPairs ast topoInfo.Graph
 
         if settings.Target <> Args.Off then
@@ -39,10 +39,10 @@ let main argv =
                 let bad = 
                     match settings.Failures with 
                     | Args.Any -> true
-                    | Args.Concrete j -> i < j 
+                    | Args.Concrete j -> i < j
                 if bad then
-                    let x = Map.findKey (fun _ v -> string v = x) topoInfo.AsnMap
-                    let y = Map.findKey (fun _ v -> string v = y) topoInfo.AsnMap
+                    let x = Topology.router x topoInfo
+                    let y = Topology.router y topoInfo
                     let msg = 
                         sprintf "Could only prove aggregation black-hole safety for up to %d failures. " i +
                         sprintf "It may be possible to disconnect the prefix %s at location %s from the " (string p) x +

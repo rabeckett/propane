@@ -510,25 +510,32 @@ let getMinAggregateFailures (cg: CGraph.T) pred (aggInfo: Map<string, DeviceAggr
     if smallest = System.Int32.MaxValue then None
     else let x,y,p,agg = Option.get pairs in Some (smallest, x, y, p, agg)
 
-let warnAnycasts cg origLocs pred =
+let warnAnycasts cg (polInfo:Ast.PolInfo) pred =
     let settings = Args.getSettings()
+    let origLocs = polInfo.OrigLocs.[pred]
     let orig = insideOriginators cg
     let bad = Set.difference orig origLocs
+    let ti = polInfo.Ast.TopoInfo
     if (not settings.Anycast) && (Set.count orig > 1) then 
         let bad1 = bad.MinimumElement 
         let bad2 = (Set.remove bad1 bad).MinimumElement
+        let bad1 = Topology.router bad1 ti
+        let bad2 = Topology.router bad2 ti
         let msg =
-            sprintf "Anycasting from multiple locations, e.g., as%s and as%s " bad1 bad2 +
+            sprintf "Anycasting from multiple locations, e.g., %s and %s " bad1 bad2 +
             sprintf "for predicate %s. If you believe this is not a mistake, you can "  (string pred) +
             sprintf "enable anycast by using the -anycast:on flag"
         error msg
-    if not (Set.isEmpty bad) then 
+    if not (Set.isEmpty bad) then
+        let bad1 = Topology.router (bad.MinimumElement) ti
+        let bad2 = Topology.router (orig.MaximumElement) ti
         let msg =
-            sprintf "Anycasting from location as%s for predicate %s " bad.MinimumElement (string pred) +
-            sprintf "even though the location is not explicitly mentioned in the policy"
+            sprintf "Anycasting from multiple locations, e.g., %s and %s for  " bad1 bad2  +
+            sprintf "predicate %s, even though the location is not explicitly " (string pred) +
+            sprintf "mentioned in the policy. This is almost always a mistake."
         warning msg
 
-let compileToIR fullName idx pred (origLocs: Set<string>) (aggInfo: Map<string,DeviceAggregates>) (reb: Regex.REBuilder) res : CompileResult =
+let compileToIR fullName idx pred (polInfo: Ast.PolInfo option) (aggInfo: Map<string,DeviceAggregates>) (reb: Regex.REBuilder) res : CompileResult =
     let settings = Args.getSettings ()
     let fullName = fullName + "(" + (string idx) + ")"
     let dfas, dfaTime = Profile.time (List.map (fun r -> reb.MakeDFA (Regex.rev r))) res
@@ -537,7 +544,7 @@ let compileToIR fullName idx pred (origLocs: Set<string>) (aggInfo: Map<string,D
     let buildTime = dfaTime + pgTime
     debug1 (fun () -> CGraph.generatePNG cg fullName )
     if not settings.Test then
-        warnAnycasts cg origLocs pred
+        warnAnycasts cg polInfo.Value pred
     let cg, delTime = Profile.time (CGraph.Minimize.delMissingSuffixPaths) cg
     let cg, minTime = Profile.time (CGraph.Minimize.minimize idx) cg
     let minTime = delTime + minTime
@@ -577,22 +584,29 @@ let compileToIR fullName idx pred (origLocs: Set<string>) (aggInfo: Map<string,D
         | UncontrollablePeerPreferenceException s -> Err(UncontrollablePeerPreference s)
 
 let compileForSinglePrefix fullName idx (polInfo: Ast.PolInfo) (aggInfo: Map<string, DeviceAggregates>) (pred, reb, res) =
-    let origLocs = Map.find pred polInfo.OrigLocs
-    match compileToIR fullName idx pred origLocs aggInfo reb res with 
+    match compileToIR fullName idx pred (Some polInfo) aggInfo reb res with 
     | Ok(config) -> config
     | Err(x) ->
+        let ti = polInfo.Ast.TopoInfo
         match x with
         | NoPathForRouters rs ->
-            let routers = Common.Set.joinBy ", " (Set.map (fun r -> "as" + r) rs)
+            let routers = 
+                Set.map (fun r -> Topology.router r ti) rs
+                |> Common.Set.joinBy ", "
             error (sprintf "Unable to find a path for routers: %s for predicate %s" routers (string pred))
         | InconsistentPrefs(x,y) ->
-            let msg = sprintf "Cannot find preferences for router as%s for predicate %s" x.Node.Loc (string pred)
+            let l = Topology.router (CGraph.loc x) ti
+            let msg = sprintf "Cannot find preferences for router %s for predicate %s" l (string pred)
             error msg
         | UncontrollableEnter x -> 
-            let msg = sprintf "Cannot control inbound traffic from peer: as%s for predicate %s" x (string pred)
+            let l = Topology.router x ti
+            let msg = sprintf "Cannot control inbound traffic from peer: as%s for predicate %s" l (string pred)
             error msg
         | UncontrollablePeerPreference x -> 
-            let msg = sprintf "Cannot control inbound preference from peer: as%s for predicate %s. Possibly enable prepending: --prepending:on" x (string pred)
+            let l = Topology.router x ti
+            let msg =
+                sprintf "Cannot control inbound preference from peer: %s for " l  +
+                sprintf "predicate %s. Possibly enable prepending: --prepending:on" (string pred)
             error msg
 
 let checkAggregateLocs ins _ prefix links = 
@@ -1220,7 +1234,7 @@ module Test =
         let pol = reb.End ["A"]
         let aggs = Map.add "X" [(Prefix.prefix (10u, 0u, 0u, 0u) 31u, Seq.ofList ["PEER"])] Map.empty
         let aggs = Map.add "Y" [(Prefix.prefix (10u, 0u, 0u, 0u) 31u, Seq.ofList["PEER"])] aggs
-        let res = compileToIR "" 0 (Predicate.prefix (10u, 0u, 0u, 0u) 32u) Set.empty aggs reb [reb.Build pol]
+        let res = compileToIR "" 0 (Predicate.prefix (10u, 0u, 0u, 0u) 32u) None aggs reb [reb.Build pol]
         match res with
         | Err _ -> failed ()
         | Ok(res) -> 
@@ -1252,7 +1266,7 @@ module Test =
                 logInfo1(0, msg)
             else
                 let pred = Predicate.top
-                match compileToIR (settings.DebugDir + test.Name) 0 pred Set.empty Map.empty reb built with 
+                match compileToIR (settings.DebugDir + test.Name) 0 pred None Map.empty reb built with 
                 | Err(x) ->
                     if (Option.isSome test.Receive || 
                         Option.isSome test.Originate || 

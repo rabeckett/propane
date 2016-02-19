@@ -59,6 +59,8 @@ type TopoInfo =
      ExternalNames: Set<string>;
      AllNames: Set<string>}
 
+val router: string -> TopoInfo -> string
+
 /// Read a topology from an XML file
 val readTopology: string -> TopoInfo
 
