@@ -33,7 +33,7 @@ let main argv =
         let polInfo = Ast.makePolicyPairs ast topoInfo.Graph
 
         if settings.Target <> Args.Off then
-            let (ir, k, _) = IR.compileAllPrefixes fullName polInfo aggs
+            let (ir, k, _) = IR.Compilation.compileAllPrefixes fullName polInfo aggs
             match k, settings.Failures with
             | Some (i, x, y, p, agg), _ ->
                 let bad = 
@@ -52,7 +52,7 @@ let main argv =
             | _ -> ()
             match settings.OutFile, settings.Target with
             | None, _ -> ()
-            | Some out, Args.IR -> System.IO.File.WriteAllText(out + ".ir", IR.format ir)
+            | Some out, Args.IR -> System.IO.File.WriteAllText(out + ".ir", IR.Format.format ir)
             | Some _, _ -> ()
 
     0
