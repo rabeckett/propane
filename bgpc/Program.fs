@@ -52,7 +52,7 @@ let main argv =
             | _ -> ()
             match settings.OutFile, settings.Target with
             | None, _ -> ()
-            | Some out, Args.IR -> System.IO.File.WriteAllText(out + ".ir", IR.Format.format ir)
+            | Some out, Args.IR -> System.IO.File.WriteAllText(out + ".ir", IR.Display.format ir)
             | Some _, _ -> ()
 
     0

@@ -79,21 +79,49 @@ module Types =
          Control: DeviceControl}
 
     type T =
-        {PolInfo: Ast.PolInfo option; 
+        {PolInfo: Ast.PolInfo; 
          RConfigs: Map<string, RouterConfig>}
 
 /// Functions that operate over final per-router 
 /// configurations, and display them in a nice, 
 /// human-readable format w/indentation.
-module Format = 
+module Display = 
+
+    let formatFilters (sb: System.Text.StringBuilder) pred (filters: Filters) =
+        let predStr = string pred
+        for f in filters.Filters do
+            match f with 
+            | Deny ->
+                sb.Append("\n  Deny: ") |> ignore
+                sb.Append("[Pred=" + predStr + "]") |> ignore
+            | Allow ((m, lp), es) ->
+                match m with 
+                | NoMatch -> sb.Append ("\n  Originate: [Pred=" + predStr + "]") |> ignore
+                | _ ->
+                    sb.Append("\n  Allow: ") |> ignore
+                    sb.Append("[Pred=" + predStr + ", " + string m + "]") |> ignore
+                    if (not filters.Originates) && lp <> 100 then
+                        sb.Append(" (LP=" + lp.ToString() + ")") |> ignore
+                for (peer, acts) in es do
+                    sb.Append("\n    Export: [Peer<-" + peer) |> ignore
+                    if acts <> [] then
+                        let str = Common.List.joinBy "," (List.map string acts)
+                        sb.Append(", " + str) |> ignore
+                    sb.Append("]") |> ignore
+
+    let formatPred (pred: Predicate.T) (rfilts: Map<string, Filters>) =
+        let sb = System.Text.StringBuilder ()
+        Map.iter (fun (router:string) filters -> 
+            sb.Append("\nRouter") |> ignore
+            sb.Append(router) |> ignore
+            formatFilters sb pred filters) rfilts
+        sb.ToString()
 
     let format (config: T) =
         let sb = System.Text.StringBuilder ()
         for kv in config.RConfigs do
             let routerName =
-                match config.PolInfo with 
-                | None -> kv.Key 
-                | Some pi -> Topology.router kv.Key pi.Ast.TopoInfo
+                Topology.router kv.Key config.PolInfo.Ast.TopoInfo
             let routerConfig = kv.Value
             sb.Append("\nRouter ") |> ignore
             sb.Append(routerName) |> ignore
@@ -106,29 +134,11 @@ module Format =
             for (i, peers)  in routerConfig.Control.MaxRoutes do 
                 for peer in peers do 
                     sb.Append (sprintf "\n  MaxRoutes(%d)" i) |> ignore
-            for (pred, deviceConf) in routerConfig.Actions do
-                let predStr = string pred
-                for f in deviceConf.Filters do
-                    match f with 
-                    | Deny ->
-                        sb.Append("\n  Deny: ") |> ignore
-                        sb.Append("[Pred=" + predStr + "]") |> ignore
-                    | Allow ((m, lp), es) ->
-                        match m with 
-                        | NoMatch -> sb.Append ("\n  Originate: [Pred=" + predStr + "]") |> ignore
-                        | _ ->
-                            sb.Append("\n  Allow: ") |> ignore
-                            sb.Append("[Pred=" + predStr + ", " + string m + "]") |> ignore
-                            if (not deviceConf.Originates) && lp <> 100 then
-                                sb.Append(" (LP=" + lp.ToString() + ")") |> ignore
-                        for (peer, acts) in es do
-                            sb.Append("\n    Export: [Peer<-" + peer) |> ignore
-                            if acts <> [] then
-                                let str = Common.List.joinBy "," (List.map string acts)
-                                sb.Append(", " + str) |> ignore
-                            sb.Append("]") |> ignore
+            for (pred, filters) in routerConfig.Actions do
+                formatFilters sb pred filters
             sb.Append("\n") |> ignore
         sb.ToString()
+
    
 
 /// Minimization helper functions for reducing the size of 
@@ -200,6 +210,8 @@ module Minimize =
             removeUnobservedTag filters
 
     module RouterWide = 
+
+       
 
         let minimize (rconfig: RouterConfig) = 
             failwith "TODO"
@@ -651,7 +663,8 @@ module Compilation =
                       CompressSizeInit=szRaw;
                       CompressSizeFinal=szSmart;
                       Config=config}
-                // debug1 (fun () -> System.IO.File.WriteAllText (sprintf "%s.ir" fullName, formatPrefix polInfo result) )
+                let msg = Display.formatPred pred (snd config)
+                debug1 (fun () -> System.IO.File.WriteAllText (sprintf "%s.ir" fullName, msg))
                 Ok (result)
             | Err((x,y)) -> Err(InconsistentPrefs(x,y))
         with 
@@ -800,7 +813,7 @@ module Compilation =
         let nAggFails = Array.map (fun (res,_) -> res.K) timedConfigs
         let k = Array.fold minFails None nAggFails
         let configs, times = Array.unzip timedConfigs
-        let joined, joinTime = Profile.time (joinConfigs (Some polInfo) info) (Array.toList configs)    
+        let joined, joinTime = Profile.time (joinConfigs polInfo info) (Array.toList configs)    
         let buildTimes = Array.map (fun c -> c.BuildTime) configs
         let minTimes = Array.map (fun c -> c.MinimizeTime) configs
         let orderTimes = Array.map (fun c -> c.OrderingTime) configs

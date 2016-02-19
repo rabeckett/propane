@@ -1,5 +1,6 @@
 ﻿module IR
 
+
 [<AutoOpen>]
 module Types =
 
@@ -40,17 +41,17 @@ module Types =
         {Actions: (Predicate.T * Filters) list;
          Control: DeviceControl}
 
-    /// An final, merged, configuration
     type T = 
-        {PolInfo: Ast.PolInfo option; 
+        {PolInfo: Ast.PolInfo; 
          RConfigs: Map<string, RouterConfig>}
 
-module Format =
-    /// Debug config output
+
+module Display =
     val format: T -> string
 
+
 module Compilation = 
-    /// Performance + size statistics from compilation
+
     type Stats = 
         {NumPrefixes: int;
          SizeRaw: int;
@@ -64,14 +65,10 @@ module Compilation =
          PerPrefixGenTimes: int64 array;
          JoinTime: int64;}
 
-    /// Result of aggregation safety failure analysis
-    /// Returns (number of failures, pfx loc, agg loc, prefix, aggregate) option
     type AggregationSafetyResult = (int * string * string * Prefix.T * Prefix.T) option
 
-    /// Compile a policy
     val compileAllPrefixes: string -> Ast.PolInfo -> Ast.CConstraint list -> T * AggregationSafetyResult * Stats
 
-
-/// Unit tests
+   
 module Test = 
     val run: unit -> unit
