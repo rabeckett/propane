@@ -54,8 +54,7 @@ module Compilation =
 
     type Stats = 
         {NumPrefixes: int;
-         SizeRaw: int;
-         SizeCompressed: int;
+         ConfigSize: int;
          TotalTime: int64;
          PrefixTime: int64;
          PerPrefixTimes: int64 array;

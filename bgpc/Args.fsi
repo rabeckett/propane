@@ -18,6 +18,7 @@ type T =
      UseMed: bool;
      UsePrepending: bool;
      UseNoExport: bool;
+     Minimize: bool;
      Parallel: bool;
      Test: bool;
      CheckEnter: bool;

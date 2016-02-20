@@ -24,6 +24,7 @@ type T =
      UseMed: bool;
      UsePrepending: bool;
      UseNoExport: bool;
+     Minimize: bool;
      Parallel: bool;
      Test: bool;
      CheckEnter: bool;
@@ -45,6 +46,7 @@ let anycast = ref false
 let useMed = ref false
 let usePrepending = ref false
 let useNoExport = ref false
+let minimize = ref true
 let isParallel = ref true
 let test = ref false
 let debug = ref 0
@@ -120,6 +122,7 @@ let args =
       ("-med:on|off", String (setOnOff useMed "MED"), "Use MED attribute (default off)");
       ("-prepending:on|off", String (setOnOff usePrepending "prepending"), "Use AS path prepending (default off)");
       ("-no-export:on|off", String (setOnOff useNoExport "no-export"), "Use no-export community (default off)");
+      ("-minimize:on|off", String (setOnOff minimize "minimize"), "Minimize configuration (default on)");
       ("-parallel:on|off", String (setOnOff isParallel "parallel"), "Parallelize compilation (default on)");
       ("-target:none|ir|templ", String setTarget, "Compilation target");
       ("-stats:on|off", String (setOnOff stats "stats"), "Display performance statistics to stdout (default off)");
@@ -191,6 +194,7 @@ let parse (argv: string[]) : unit =
               UseMed = !useMed; 
               UsePrepending = !usePrepending; 
               UseNoExport = !useNoExport; 
+              Minimize = !minimize;
               Parallel = !isParallel;
               Target = !target; 
               Test = !test; 

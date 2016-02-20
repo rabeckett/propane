@@ -148,6 +148,18 @@ module Display =
 /// 3. Per router - minimize for a router (e.g., fall-through elimination)
 module Minimize = 
 
+    let size (config: T) =
+        let mutable count = 0 
+        for kv in config.RConfigs do 
+            let rconf = kv.Value
+            for (_,fs) in rconf.Actions do
+                for f in fs.Filters do 
+                    match f with
+                    | Deny -> count <- count + 1
+                    | Allow ((m,_),es) -> 
+                        count <- count + (List.length es)
+        count
+
     let private chooseAction f (filt: Filter) =
         let inline adjActs (peer,acts) =
             peer, List.choose f acts
@@ -593,23 +605,23 @@ module Compilation =
                         | [Match.State(_,x)] -> Some x 
                         | _ -> None
                     let exports = getExports outPeerInfo cgstate inExports sendTo unqMatchPeer 
-
                     // match/export local minimizations
                     for m in matches do 
-                        let exports, m = Minimize.NodeWide.minimize cg eCounts cgstate m exports
-                        // let exports = Minimize.NodeWide.removeRedundantTag m exports
-                        // let m = Minimize.NodeWide.removeCommMatchForUnqEdges cg eCounts cgstate m
+                        let exports, m = 
+                            if settings.Minimize
+                            then Minimize.NodeWide.minimize cg eCounts cgstate m exports
+                            else exports, m
                         filters <- Allow ((m,lp), exports) :: filters
-
                     originates <- origin || originates
                     // update the compression stats
                     szRaw := !szRaw + (Seq.length nsIn) * (Seq.length nsOut)
                     szSmart := !szSmart + (List.length exports)
             szSmart := !szSmart + (List.length filters)
-
             // prefix-wide minimizations
-            filters <- Minimize.PrefixWide.minimize filters
-
+            filters <- 
+                if settings.Minimize
+                then Minimize.PrefixWide.minimize filters
+                else filters
             // no need for explicit deny if we allow everything
             match filters with 
             | [Allow ((Match.Peer "*",_), _)] -> ()
@@ -860,8 +872,7 @@ module Compilation =
     
     type Stats = 
         {NumPrefixes: int;
-         SizeRaw: int;
-         SizeCompressed: int;
+         ConfigSize: int;
          TotalTime: int64; 
          PrefixTime: int64;
          PerPrefixTimes: int64 array;
@@ -895,7 +906,10 @@ module Compilation =
         let k = Array.fold minFails None nAggFails
         let configs, times = Array.unzip timedConfigs
         let joined, joinTime = Profile.time (joinConfigs polInfo info) (Array.toList configs)
-        let minJoined, minimizeTime = Profile.time Minimize.RouterWide.minimize joined
+        let minJoined, minTime = 
+            if settings.Minimize
+            then Profile.time Minimize.RouterWide.minimize joined
+            else joined, int64 0
         let buildTimes = Array.map (fun c -> c.BuildTime) configs
         let minTimes = Array.map (fun c -> c.MinimizeTime) configs
         let orderTimes = Array.map (fun c -> c.OrderingTime) configs
@@ -904,9 +918,8 @@ module Compilation =
         let szFinal = Array.fold (fun acc c -> c.CompressSizeFinal + acc) 0 configs
         let stats = 
             {NumPrefixes=Array.length configs;
-             SizeRaw = szInit;
-             SizeCompressed = szFinal;
-             TotalTime = prefixTime + joinTime;
+             ConfigSize = Minimize.size minJoined;
+             TotalTime = prefixTime + joinTime + minTime;
              PrefixTime = prefixTime;
              PerPrefixTimes = times
              PerPrefixBuildTimes = buildTimes;
@@ -914,7 +927,7 @@ module Compilation =
              PerPrefixOrderTimes = orderTimes;
              PerPrefixGenTimes = genTimes;
              JoinTime = joinTime;
-             MinTime = minimizeTime}
+             MinTime = minTime}
         minJoined, k, stats
 
 
