@@ -206,8 +206,22 @@ module Minimize =
                     | _ -> Some a) f
             ) filters
 
+        let private combineInOut filters = 
+            match filters with
+            | (Allow ((Peer s1,lp1),es1) as hd1) :: 
+              (Allow ((Peer s2,lp2),es2) as hd2) :: 
+              tl -> 
+                if ((s1 = "in" && s2 = "out") || (s1 = "out" && s2 = "in")) && 
+                   (lp1 = lp2) && 
+                   (es1 = es2) 
+                then Allow ((Match.Peer "*",lp1),es1) :: tl
+                else filters
+            | _ -> filters
+
         let minimize filters =
-            removeUnobservedTag filters
+            filters 
+            |> removeUnobservedTag
+            |> combineInOut 
 
     module RouterWide = 
 
@@ -223,10 +237,17 @@ module Minimize =
 
         let inline appliesTo (f1: Filter) (f2: Filter) =
             match f1, f2 with
-            | Deny, Deny -> true
+            | Deny, _ -> true
+            | _, Deny -> true
             | Allow ((m1,_),es1), Allow ((m2,_),es2) -> 
-                (matchApplies m1 m2) && (es1 = es2)
-            | _, _ -> false
+                matchApplies m1 m2
+
+        let inline eqExports (f1: Filter) (f2: Filter) = 
+            match f1, f2 with
+            | Deny, Deny -> true
+            | Deny, _ -> false
+            | _, Deny -> false
+            | Allow (_,es1), Allow (_,es2) -> es1 = es2
 
         let makePairs (pairs: (Predicate.T * Filters) list) = 
             let mutable res = [] 
@@ -247,7 +268,9 @@ module Minimize =
                 | ((p1,f1) as pair)::tl ->
                     match List.tryFind (fun (p2,f2) -> (appliesTo f1 f2) && Predicate.implies p1 p2 ) tl with
                     | None -> pair :: (aux tl)
-                    | Some _ -> aux tl
+                    | Some (p2,f2) ->
+                        if eqExports f1 f2 then aux tl
+                        else pair :: (aux tl)
             let origMap = 
                 Common.List.fold (fun acc (pred,filters) -> 
                     Map.add pred filters.Originates acc) Map.empty rconfig.Actions
@@ -577,13 +600,16 @@ module Compilation =
                         // let exports = Minimize.NodeWide.removeRedundantTag m exports
                         // let m = Minimize.NodeWide.removeCommMatchForUnqEdges cg eCounts cgstate m
                         filters <- Allow ((m,lp), exports) :: filters
+
                     originates <- origin || originates
                     // update the compression stats
                     szRaw := !szRaw + (Seq.length nsIn) * (Seq.length nsOut)
                     szSmart := !szSmart + (List.length exports)
             szSmart := !szSmart + (List.length filters)
+
             // prefix-wide minimizations
             filters <- Minimize.PrefixWide.minimize filters
+
             // no need for explicit deny if we allow everything
             match filters with 
             | [Allow ((Match.Peer "*",_), _)] -> ()
@@ -836,7 +862,7 @@ module Compilation =
         {NumPrefixes: int;
          SizeRaw: int;
          SizeCompressed: int;
-         TotalTime: int64;
+         TotalTime: int64; 
          PrefixTime: int64;
          PerPrefixTimes: int64 array;
          PerPrefixBuildTimes: int64 array;
