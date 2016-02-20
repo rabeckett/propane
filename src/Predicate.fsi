@@ -34,8 +34,11 @@ val conj: T -> T -> T
 /// Negation of a predicate
 val negate: T -> T
 
-/// implication of predicates
+/// Implication of predicates
 val implies: T -> T -> bool
+
+/// Test if two predicates are disjoint
+val disjoint: T -> T -> bool
 
 /// All prefixes that appear in the predicate
 val getPrefixes: T -> seq<Prefix.Pred>

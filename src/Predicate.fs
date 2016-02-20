@@ -120,6 +120,9 @@ let negate x  =
 let implies x y = 
     disj (negate x) y = top
 
+let disjoint x y = 
+    conj x y = bot
+
 let getPrefixes (Pred x:T) = 
     Seq.map (fun pair -> pair.Prefix) x
 

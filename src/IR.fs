@@ -241,8 +241,7 @@ module Minimize =
             match m1, m2 with
             | Peer(x), Peer(y) 
             | State(_,x), Peer(y) ->
-                if y = "*" then true 
-                else x = y
+                x = "*" || x = "in" || y = "*" || y = "in" || x = y
             | NoMatch, _ 
             | _, NoMatch -> false
             | _, _ -> false
@@ -278,10 +277,11 @@ module Minimize =
                 match pairs with 
                 | [] -> []
                 | ((p1,f1) as pair)::tl ->
-                    match List.tryFind (fun (p2,f2) -> (appliesTo f1 f2) && Predicate.implies p1 p2 ) tl with
+                    match List.tryFind (fun (p2,f2) -> (appliesTo f1 f2) && not (Predicate.disjoint p1 p2)) tl with
                     | None -> pair :: (aux tl)
                     | Some (p2,f2) ->
-                        if eqExports f1 f2 then aux tl
+                        if (eqExports f1 f2) && (Predicate.implies p1 p2) 
+                        then aux tl
                         else pair :: (aux tl)
             let origMap = 
                 Common.List.fold (fun acc (pred,filters) -> 
