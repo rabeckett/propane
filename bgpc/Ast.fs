@@ -359,7 +359,13 @@ let wellFormed ast (e: Expr) : Type =
             match t with
             | LocType -> LocType
             | RegexType -> RegexType
-            | PredicateType -> PredicateType
+            | PredicateType ->
+                let msg = 
+                    sprintf "Using explicit negation with predicates is discouraged " + 
+                    sprintf "and may lead to the creation of unexpected filters. " + 
+                    sprintf "Implicit negation through ordering is preferred."
+                Message.warningAst ast msg e.Pos
+                PredicateType
             | _ -> Message.errorAst ast (typeMsg [RegexType; PredicateType] t) e.Pos
         | PrefixLiteral (a,b,c,d,bits) -> wellFormedPrefix ast e.Pos (a,b,c,d,bits); PredicateType
         | True _ | False _ | CommunityLiteral _ -> PredicateType
@@ -757,29 +763,30 @@ type PolInfo =
      OrigLocs: Map<Predicate.T, Set<string>>}
 
 let makePolicyPairs (ast: T) (topo: Topology.T) : PolInfo =
+    // Map topology names to as numbers
     let ast = addTopoDefinitions ast
+    // Ensure main is defined
     match Map.tryFind "main" ast.Defs with 
     | Some (_,[],e) ->
-
+        // Find unused definitions
         warnUnused ast e
         warnRawAsn ast
-
+        // Expand all definitions to get a concrete expr
         let e = substitute ast e
+        // Ensure the expr type checks
         let t = wellFormed ast e
         match t with
         | BlockType -> ()
         | _ -> Message.errorAst ast (typeMsg [BlockType] t) e.Pos
-        Map.iter (fun id (p,args,e) ->
-            let e = substitute ast e
-            ignore (wellFormed ast e)) ast.Defs
-
+        // Check for unused aggregates given the final expr e
         warnUnusedAggregates ast e
-
-        let origLocs = ref Map.empty
-
+        // Expand all blocks, pushing preferences to the top of the expr
         let topLevel = 
             expandBlocks ast e 
             |> List.map (fun (p,e) -> (p, pushPrefsToTop ast e))
+        // Get all syntactically specified origination points
+        let origLocs = ref Map.empty
+        // Build concrete regexes from top-level block expr
         let polPairs = 
             List.map (fun (p, res) -> 
                 let locs = orginationLocationsList ast res
