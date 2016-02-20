@@ -1,12 +1,15 @@
 ﻿module Prefix
 
 /// A 32-bit prefix
-type T =
-    {X1: uint32; 
-     X2: uint32; 
-     X3: uint32; 
-     X4: uint32; 
-     Slash: uint32}
+[<Struct>]
+type T = struct
+    val X1: uint32
+    val X2: uint32
+    val X3: uint32
+    val X4: uint32
+    val Slash: uint32
+    new: uint32 * uint32 * uint32 * uint32 * uint32 -> T
+end
 
 /// Range-based representation of a prefix
 /// Ranges are kept sorted and overlapping

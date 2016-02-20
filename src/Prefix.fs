@@ -2,21 +2,27 @@
 
 (* TODO: 64 bit case *)
 
-[<StructuralEquality; StructuralComparison>]
-type T =
-    {X1: uint32; X2: uint32; X3: uint32; X4: uint32; Slash: uint32}
+[<Struct>]
+type T = struct
+    val X1: uint32
+    val X2: uint32
+    val X3: uint32
+    val X4: uint32
+    val Slash: uint32
+    new(a,b,c,d,bits) = {X1 = a; X2 = b; X3 = c; X4 = d; Slash = bits}
     override this.ToString() =
         (string this.X1) + "." + 
         (string this.X2) + "." + 
         (string this.X3) + "." + 
-        (string this.X4) + "/" + 
+        (string this.X4) + "/" +
         (string this.Slash) 
+end
 
 type Pred = 
     Pred of (uint32 * uint32) list
 
-let prefix (a,b,c,d) slash = 
-    {X1=a; X2=b; X3=c; X4=d; Slash=slash}
+let prefix (a,b,c,d) slash =
+    T(a,b,c,d,slash)
 
 let fromRange (x,y) = Pred [(x,y)]
 

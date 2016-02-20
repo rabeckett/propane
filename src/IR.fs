@@ -87,33 +87,34 @@ module Types =
 /// human-readable format w/indentation.
 module Display = 
 
+    open Core.Printf
+
     let formatFilters (sb: System.Text.StringBuilder) pred (filters: Filters) =
         let predStr = string pred
         for f in filters.Filters do
             match f with 
             | Deny ->
-                sb.Append("\n  Deny: ") |> ignore
-                sb.Append("[Pred=" + predStr + "]") |> ignore
+                bprintf sb "\n  Deny: "
+                bprintf sb "[Pred=%s]" predStr
             | Allow ((m, lp), es) ->
                 match m with 
-                | NoMatch -> sb.Append ("\n  Originate: [Pred=" + predStr + "]") |> ignore
+                | NoMatch -> 
+                    bprintf sb "\n  Originate: [Pred=%s]" predStr
                 | _ ->
-                    sb.Append("\n  Allow: ") |> ignore
-                    sb.Append("[Pred=" + predStr + ", " + string m + "]") |> ignore
+                    bprintf sb "\n  Allow: [Pred=%s, %s]" predStr (string m)
                     if (not filters.Originates) && lp <> 100 then
-                        sb.Append(" (LP=" + lp.ToString() + ")") |> ignore
+                        bprintf sb " (LP=%d)" lp
                 for (peer, acts) in es do
-                    sb.Append("\n    Export: [Peer<-" + peer) |> ignore
+                    bprintf sb "\n    Export: [Peer<-%s" peer
                     if acts <> [] then
                         let str = Common.List.joinBy "," (List.map string acts)
                         sb.Append(", " + str) |> ignore
-                    sb.Append("]") |> ignore
+                    bprintf sb "]"
 
     let formatPred (pred: Predicate.T) (rfilts: Map<string, Filters>) =
         let sb = System.Text.StringBuilder ()
         Map.iter (fun (router:string) filters -> 
-            sb.Append("\nRouter") |> ignore
-            sb.Append(router) |> ignore
+            bprintf sb "\nRouter %s" router
             formatFilters sb pred filters) rfilts
         sb.ToString()
 
@@ -123,20 +124,19 @@ module Display =
             let routerName =
                 Topology.router kv.Key config.PolInfo.Ast.TopoInfo
             let routerConfig = kv.Value
-            sb.Append("\nRouter ") |> ignore
-            sb.Append(routerName) |> ignore
+            bprintf sb "\nRouter %s" routerName
             for (prefix, peers) in routerConfig.Control.Aggregates do
                 for peer in peers do
-                    sb.Append (sprintf "\n  Aggregate(%s, %s)" (string prefix) peer) |> ignore
+                    bprintf sb "\n  Aggregate(%s, %s)" (string prefix) peer
             for ((c, prefix), peers) in routerConfig.Control.Tags do 
                 for peer in peers do 
-                    sb.Append (sprintf "\n  Tag(%s, %s, %s)" c (string prefix) peer) |> ignore
+                    bprintf sb "\n  Tag(%s, %s, %s)" c (string prefix) peer
             for (i, peers)  in routerConfig.Control.MaxRoutes do 
                 for peer in peers do 
-                    sb.Append (sprintf "\n  MaxRoutes(%d)" i) |> ignore
+                    bprintf sb "\n  MaxRoutes(%d)" i
             for (pred, filters) in routerConfig.Actions do
                 formatFilters sb pred filters
-            sb.Append("\n") |> ignore
+            bprintf sb "\n" 
         sb.ToString()
 
    
@@ -146,6 +146,7 @@ module Display =
 /// 1. Per product graph node - used during generation for memory efficiency
 /// 2. Per prefix - allows us to minimize based on an equivalence class
 /// 3. Per router - minimize for a router (e.g., fall-through elimination)
+
 module Minimize = 
 
     let size (config: T) =
@@ -231,7 +232,7 @@ module Minimize =
             | _ -> filters
 
         let minimize filters =
-            filters 
+            filters
             |> removeUnobservedTag
             |> combineInOut 
 
@@ -300,11 +301,8 @@ module Minimize =
                     match List.tryFind (disjoint pair) tl with
                     | None -> pair :: (aux tl)
                     | Some (p2,f2) ->
-                        printfn "(%A, %A) --- (%A, %A)" (string p1) f1 (string p2) f2
                         if (coveredFilter f1 f2) && (Predicate.implies p1 p2) 
-                        then 
-                            printfn "  removing "; 
-                            aux tl
+                        then aux tl
                         else pair :: (aux tl)
             let origMap = 
                 Common.List.fold (fun acc (pred,filters) -> 
@@ -334,6 +332,7 @@ module Minimize =
 /// Compiles for each prefix in parallel and then merges the results
 /// together, sequentially, to get a per-router configuration.
 /// Minimization per-router the occurs in parallel.
+
 module Compilation = 
 
     type AggregationSafetyResult = (int * string * string * Prefix.T * Prefix.T) option
@@ -374,6 +373,7 @@ module Compilation =
     /// Ensure well-formedness for controlling 
     /// traffic entering the network. MED and prepending allow
     /// certain patterns of control to immediate neighbors only
+
     module Incoming =
 
         type IncomingPattern = 
@@ -420,9 +420,12 @@ module Compilation =
                 | Nothing x ->
                     if settings.UseNoExport then 
                         actions <- (SetComm "no-export") :: actions
-                    else raise (UncontrollableEnterException ("enable no-export to limit incoming traffic to peer: " + x))
+                    else 
+                        let msg = sprintf "enable no-export to limit incoming traffic to peer %s" x
+                        raise (UncontrollableEnterException msg)
                 | Specific re -> 
-                    raise (UncontrollableEnterException (sprintf "(%s) incoming traffic cannot conform to: %s" p.Node.Loc (string re)))
+                    let msg = sprintf "(%s) incoming traffic cannot conform to: %s" p.Node.Loc (string re)
+                    raise (UncontrollableEnterException msg)
                 exportMap <- Map.add p actions exportMap
             exportMap
 
@@ -471,7 +474,8 @@ module Compilation =
 
     /// Ensure well-formedness for outgoing 
     /// traffic leaving the network. Use regex filters 
-    /// to control advertisements and rewrite as peers when possible
+    /// to control advertisements and rewrite as peers when possible.
+
     module Outgoing = 
 
         type OutPeerMatch = 
@@ -734,7 +738,14 @@ module Compilation =
         if !smallest = System.Int32.MaxValue then None
         else let x,y,p,agg = Option.get !pairs in Some (!smallest, x, y, p, agg)
 
-    let compileToIR fullName idx pred (polInfo: Ast.PolInfo option) (aggInfo: Map<string,DeviceAggregates>) (reb: Regex.REBuilder) res : CompileResult =
+    let compileToIR (fullName: string) 
+                    (idx: int) 
+                    (pred: Predicate.T) 
+                    (polInfo: Ast.PolInfo option) 
+                    (aggInfo: Map<string,DeviceAggregates>) 
+                    (reb: Regex.REBuilder) 
+                    (res: Regex.T list) 
+                    : CompileResult =
         let settings = Args.getSettings ()
         let fullName = fullName + "(" + (string idx) + ")"
         let dfas, dfaTime = Profile.time (List.map (fun r -> reb.MakeDFA (Regex.rev r))) res
@@ -881,7 +892,7 @@ module Compilation =
 
     let private splitConstraints topo (constraints: _ list) =
         let aggs, comms, maxroutes = 
-            List.fold (fun ((x,y,z) as acc) c -> 
+            Common.List.fold (fun ((x,y,z) as acc) c -> 
                 match c with
                 | Ast.CAggregate (p,ins,outs) -> ((p,ins,outs)::x, y, z)
                 | Ast.CCommunity (s,p,ins,outs) -> (x, ((s,p),ins,outs)::y, z)
