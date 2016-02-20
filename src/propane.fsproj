@@ -6,12 +6,12 @@
     <Platform Condition=" '$(Platform)' == '' ">AnyCPU</Platform>
     <ProjectGuid>{B651F986-F9FA-4168-9FF7-727032C0CFE4}</ProjectGuid>
     <OutputType>Exe</OutputType>
-    <RootNamespace>bgpc</RootNamespace>
-    <AssemblyName>bgpc</AssemblyName>
+    <RootNamespace>propane</RootNamespace>
+    <AssemblyName>propane</AssemblyName>
     <TargetFrameworkVersion>v4.5</TargetFrameworkVersion>
     <AutoGenerateBindingRedirects>true</AutoGenerateBindingRedirects>
     <TargetFSharpCoreVersion>4.3.1.0</TargetFSharpCoreVersion>
-    <Name>bgpc</Name>
+    <Name>propane</Name>
     <NuGetPackageImportStamp>a6a8f69c</NuGetPackageImportStamp>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
@@ -22,9 +22,9 @@
     <DefineConstants>DEBUG;TRACE</DefineConstants>
     <WarningLevel>3</WarningLevel>
     <PlatformTarget>AnyCPU</PlatformTarget>
-    <DocumentationFile>bin\Debug\bgpc.XML</DocumentationFile>
+    <DocumentationFile>bin\Debug\propane.XML</DocumentationFile>
     <Prefer32Bit>true</Prefer32Bit>
-    <Commandlineparameters>--test</Commandlineparameters>
+    <Commandlineparameters>-test</Commandlineparameters>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|AnyCPU' ">
     <DebugType>pdbonly</DebugType>
@@ -34,9 +34,9 @@
     <DefineConstants>TRACE</DefineConstants>
     <WarningLevel>3</WarningLevel>
     <PlatformTarget>AnyCPU</PlatformTarget>
-    <DocumentationFile>bin\Release\bgpc.XML</DocumentationFile>
+    <DocumentationFile>bin\Release\propane.XML</DocumentationFile>
     <Prefer32Bit>true</Prefer32Bit>
-    <StartArguments>--experiment:core --checkenter:off</StartArguments>
+    <StartArguments></StartArguments>
     <DebugSymbols>true</DebugSymbols>
   </PropertyGroup>
   <ItemGroup>
