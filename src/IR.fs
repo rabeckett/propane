@@ -237,21 +237,24 @@ module Minimize =
 
     module RouterWide = 
 
-        let inline matchApplies m1 m2 =
+        let inline disjointMatch m1 m2 =
             match m1, m2 with
-            | Peer(x), Peer(y) 
+            | Peer(x), Peer(y)
             | State(_,x), Peer(y) ->
-                x = "*" || x = "in" || y = "*" || y = "in" || x = y
-            | NoMatch, _ 
-            | _, NoMatch -> false
-            | _, _ -> false
+                match x,y with 
+                | "*", _ -> false
+                | _, "*" -> false
+                | "in", "out" 
+                | "out", "in" -> true
+                | _, _ -> false
+            | _, _ -> true
 
-        let inline appliesTo (f1: Filter) (f2: Filter) =
+        let inline disjointFilter (f1: Filter) (f2: Filter) =
             match f1, f2 with
-            | Deny, _ -> true
-            | _, Deny -> true
+            | Deny, _ -> false
+            | _, Deny -> false
             | Allow ((m1,_),es1), Allow ((m2,_),es2) -> 
-                matchApplies m1 m2
+                disjointMatch m1 m2
 
         let inline eqExports (f1: Filter) (f2: Filter) = 
             match f1, f2 with
@@ -259,6 +262,21 @@ module Minimize =
             | Deny, _ -> false
             | _, Deny -> false
             | Allow (_,es1), Allow (_,es2) -> es1 = es2
+
+        let inline coveredMatch m1 m2 =
+            match m1, m2 with
+            | Peer(x), Peer(y)
+            | State(_,x), Peer(y) ->
+                y = "*" || x = y
+            | _, _ -> true
+
+        let inline coveredFilter (f1: Filter) (f2: Filter) = 
+            match f1, f2 with
+            | Deny, Allow _ -> false
+            | Allow _, Deny -> false
+            | Deny, Deny -> true
+            | Allow ((m1,_),es1), Allow ((m2,_),es2) -> 
+                (coveredMatch m1 m2) && (es1 = es2)
 
         let makePairs (pairs: (Predicate.T * Filters) list) = 
             let mutable res = [] 
@@ -273,15 +291,20 @@ module Minimize =
             |> List.ofSeq
 
         let fallThroughElimination (rconfig: RouterConfig) : RouterConfig =
+            let inline disjoint (p1,f1) (p2,f2) =
+                not (disjointFilter f1 f2) && not (Predicate.disjoint p1 p2)
             let rec aux pairs =
                 match pairs with 
                 | [] -> []
                 | ((p1,f1) as pair)::tl ->
-                    match List.tryFind (fun (p2,f2) -> (appliesTo f1 f2) && not (Predicate.disjoint p1 p2)) tl with
+                    match List.tryFind (disjoint pair) tl with
                     | None -> pair :: (aux tl)
                     | Some (p2,f2) ->
-                        if (eqExports f1 f2) && (Predicate.implies p1 p2) 
-                        then aux tl
+                        printfn "(%A, %A) --- (%A, %A)" (string p1) f1 (string p2) f2
+                        if (coveredFilter f1 f2) && (Predicate.implies p1 p2) 
+                        then 
+                            printfn "  removing "; 
+                            aux tl
                         else pair :: (aux tl)
             let origMap = 
                 Common.List.fold (fun acc (pred,filters) -> 

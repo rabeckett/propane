@@ -2,6 +2,10 @@ use inline list functions when possible
 
 what to do about the default catch-all for each block?
 	- difference between allow/any/end(out)
+	
+fall-through elimination can potentially be very slow?
+It also is not as precise as it could be, and is only run once.
+dealing with predicates in general has this issue.
 
 Avoid duplicate constraints (do this at router level after expanding predicates)
 add syntax for building ranges of ASes (e.g., as[101-500])
