@@ -63,7 +63,8 @@ module Compilation =
          PerPrefixMinTimes: int64 array;
          PerPrefixOrderTimes: int64 array;
          PerPrefixGenTimes: int64 array;
-         JoinTime: int64;}
+         JoinTime: int64;
+         MinTime: int64}
 
     type AggregationSafetyResult = (int * string * string * Prefix.T * Prefix.T) option
 

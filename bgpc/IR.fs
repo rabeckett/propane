@@ -211,10 +211,65 @@ module Minimize =
 
     module RouterWide = 
 
-       
+        let inline matchApplies m1 m2 =
+            match m1, m2 with
+            | Peer(x), Peer(y) 
+            | State(_,x), Peer(y) ->
+                if y = "*" then true 
+                else x = y
+            | NoMatch, _ 
+            | _, NoMatch -> false
+            | _, _ -> false
 
-        let minimize (rconfig: RouterConfig) = 
-            failwith "TODO"
+        let inline appliesTo (f1: Filter) (f2: Filter) =
+            match f1, f2 with
+            | Deny, Deny -> true
+            | Allow ((m1,_),es1), Allow ((m2,_),es2) -> 
+                (matchApplies m1 m2) && (es1 = es2)
+            | _, _ -> false
+
+        let makePairs (pairs: (Predicate.T * Filters) list) = 
+            let mutable res = [] 
+            for (pred, fs) in pairs do 
+                for f in fs.Filters do 
+                    res <- (pred,f) :: res
+            List.rev res
+
+        let inline unMakePairs pairs = 
+            Seq.groupBy fst pairs
+            |> Seq.map (fun (x,ys) -> (x, Seq.map snd ys |> List.ofSeq)) 
+            |> List.ofSeq
+
+        let fallThroughElimination (rconfig: RouterConfig) : RouterConfig =
+            let rec aux pairs =
+                match pairs with 
+                | [] -> []
+                | ((p1,f1) as pair)::tl ->
+                    match List.tryFind (fun (p2,f2) -> (appliesTo f1 f2) && Predicate.implies p1 p2 ) tl with
+                    | None -> pair :: (aux tl)
+                    | Some _ -> aux tl
+            let origMap = 
+                Common.List.fold (fun acc (pred,filters) -> 
+                    Map.add pred filters.Originates acc) Map.empty rconfig.Actions
+            let pairs = aux (makePairs rconfig.Actions)
+            let filters = 
+                unMakePairs pairs
+                |> List.map (fun (x,y) -> x, {Originates = origMap.[x]; Filters = y})
+            {Control = rconfig.Control; Actions = filters}
+
+        let minimize (config: T) = 
+            let settings = Args.getSettings () 
+            let map = 
+                if settings.Parallel 
+                then Array.Parallel.map 
+                else Array.map
+            let rconfs = config.RConfigs
+            let rconfs = 
+                rconfs
+                |> Map.toArray 
+                |> map (fun (r,rconf) -> r, fallThroughElimination rconf)
+                |> Map.ofArray
+            {PolInfo = config.PolInfo; RConfigs = rconfs}
 
 
 /// Compilation from CGraph (product graph) to a complete IR config.
@@ -427,7 +482,6 @@ module Compilation =
                         Match.State(string v.State, v.Node.Loc)
                     else Match.Peer(v.Node.Loc)
                 matches <- m :: matches
-
         matches
 
     let inline private getExport specialCase inExports x v = 
@@ -789,7 +843,8 @@ module Compilation =
          PerPrefixMinTimes: int64 array;
          PerPrefixOrderTimes: int64 array;
          PerPrefixGenTimes: int64 array;
-         JoinTime: int64;}
+         JoinTime: int64;
+         MinTime: int64}
 
     let private minFails x y = 
         match x, y with 
@@ -813,7 +868,8 @@ module Compilation =
         let nAggFails = Array.map (fun (res,_) -> res.K) timedConfigs
         let k = Array.fold minFails None nAggFails
         let configs, times = Array.unzip timedConfigs
-        let joined, joinTime = Profile.time (joinConfigs polInfo info) (Array.toList configs)    
+        let joined, joinTime = Profile.time (joinConfigs polInfo info) (Array.toList configs)
+        let minJoined, minimizeTime = Profile.time Minimize.RouterWide.minimize joined
         let buildTimes = Array.map (fun c -> c.BuildTime) configs
         let minTimes = Array.map (fun c -> c.MinimizeTime) configs
         let orderTimes = Array.map (fun c -> c.OrderingTime) configs
@@ -822,17 +878,18 @@ module Compilation =
         let szFinal = Array.fold (fun acc c -> c.CompressSizeFinal + acc) 0 configs
         let stats = 
             {NumPrefixes=Array.length configs;
-             SizeRaw=szInit;
-             SizeCompressed=szFinal;
-             TotalTime=prefixTime + joinTime;
-             PrefixTime=prefixTime;
-             PerPrefixTimes=times
-             PerPrefixBuildTimes=buildTimes;
-             PerPrefixMinTimes=minTimes;
-             PerPrefixOrderTimes=orderTimes;
-             PerPrefixGenTimes=genTimes;
-             JoinTime=joinTime}
-        joined, k, stats
+             SizeRaw = szInit;
+             SizeCompressed = szFinal;
+             TotalTime = prefixTime + joinTime;
+             PrefixTime = prefixTime;
+             PerPrefixTimes = times
+             PerPrefixBuildTimes = buildTimes;
+             PerPrefixMinTimes = minTimes;
+             PerPrefixOrderTimes = orderTimes;
+             PerPrefixGenTimes = genTimes;
+             JoinTime = joinTime;
+             MinTime = minimizeTime}
+        minJoined, k, stats
 
 
 /// Unit tests for compilation.
