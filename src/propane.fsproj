@@ -100,8 +100,8 @@
     <Compile Include="Input.fs" />
     <Compile Include="CGraph.fsi" />
     <Compile Include="CGraph.fs" />
-    <Compile Include="IR.fsi" />
-    <Compile Include="IR.fs" />
+    <Compile Include="Abgp.fsi" />
+    <Compile Include="Abgp.fs" />
     <Compile Include="Program.fs" />
     <None Include="App.config" />
     <None Include="packages.config" />

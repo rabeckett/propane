@@ -7,13 +7,13 @@ open System
    
 let runUnitTests () = 
     writeFormatted (header "Running unit tests ")
-    // Topology.Test.run () 
-    // Regex.Test.run () 
-    // Predicate.Test.run ()
-    IR.Test.run ()
+    Topology.Test.run () 
+    Regex.Test.run () 
+    Predicate.Test.run ()
+    Abgp.Test.run ()
     exit 0
 
-[<EntryPoint>]
+[<EntryPoint>] 
 let main argv =
     ignore (Args.parse argv)
     let settings = Args.getSettings ()
@@ -31,9 +31,9 @@ let main argv =
         let ast : Ast.T = {Input = lines; TopoInfo = topoInfo; Defs = defs; CConstraints = cs}
         let polInfo = Ast.build ast
         if settings.Target <> Args.Off then
-            let res = IR.compileAllPrefixes fullName polInfo
+            let res = Abgp.compileAllPrefixes fullName polInfo
             match res.AggSafety, settings.Failures with
-            | Some safetyInfo, _ ->
+            | Some safetyInfo, _ -> 
                 let i = safetyInfo.NumFailures
                 let bad = 
                     match settings.Failures with 
@@ -53,7 +53,7 @@ let main argv =
             | _ -> ()
             match settings.OutFile, settings.Target with
             | None, _ -> ()
-            | Some out, Args.IR -> System.IO.File.WriteAllText(out + ".ir", IR.format res.Abgp)
+            | Some out, Args.IR -> System.IO.File.WriteAllText(out + ".ir", Abgp.format res.Abgp)
             | Some _, _ -> ()
 
     0
