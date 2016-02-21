@@ -28,7 +28,7 @@ type T =
      Parallel: bool;
      Test: bool;
      CheckEnter: bool;
-     Debug: int; 
+     Debug: bool; 
      DebugDir: string;
      Failures: Failures;
      Stats: bool}
@@ -49,7 +49,7 @@ let useNoExport = ref false
 let minimize = ref true
 let isParallel = ref true
 let test = ref false
-let debug = ref 0
+let debug = ref false
 let debugDir = ref (currentDir + sep + "debug" + sep)
 let compression = ref true
 let experiment = ref None
@@ -104,14 +104,6 @@ let setDebugDir s =
     then debugDir := s + sep 
     else debugDir := currentDir + sep + s + sep
 
-let setDebug s = 
-    let i = 
-        try int s 
-        with _ -> raise (InvalidArgException (sprintf "Invalid number: %s" s))
-    if i < 0 || i > 3 then 
-        raise (InvalidArgException ("Invalid debug level: " + s))
-    debug := i
-
 let usage = "Usage: propane [options]"
 let args = 
     [|("-pol", String (fun s -> polFile := Some (setFile s)), "Policy file");
@@ -127,9 +119,9 @@ let args =
       ("-target:none|ir|templ", String setTarget, "Compilation target");
       ("-stats:on|off", String (setOnOff stats "stats"), "Display performance statistics to stdout (default off)");
       ("-checkenter:on|off", String (setOnOff checkEnter "check enter"), "Check traffic entry conditions to network");
-      ("-test", Unit (fun () -> test := true), "Run unit tests");
+      ("-debug:on:off", String (setOnOff debug "debug"), "Log/Save Debugging information (default off)");
       ("-debug-dir", String setDebugDir, "Debugging directory (default 'debug')");
-      ("-debug:0|1|2|3", String setDebug, "Debug level (default lowest - off 0)");
+      ("-test", Unit (fun () -> test := true), "Run unit tests");
       ("-help", Unit (fun () -> ()), "Display this message");
     |]
 

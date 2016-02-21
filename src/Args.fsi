@@ -22,7 +22,7 @@ type T =
      Parallel: bool;
      Test: bool;
      CheckEnter: bool;
-     Debug: int; 
+     Debug: bool; 
      DebugDir: string;
      Failures: Failures;
      Stats: bool}

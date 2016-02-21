@@ -8,25 +8,16 @@ let unreachable () =
 
 module Debug =
 
-    let debug n f =
+    let debug f =
         let settings = Args.getSettings ()
-        if settings.Debug >= n then
+        if settings.Debug then
             f ()
 
-    let debug1 f = debug 1 f
-    let debug2 f = debug 2 f
-    let debug3 f = debug 3 f
-
-    let logInfo n idx str =
+    let logInfo(idx, str) =
         let settings = Args.getSettings ()
         let logFile = settings.DebugDir + "debug(" + string idx + ").log"
-        let indent = String.replicate (n-1) "\t"
-        if settings.Debug >= n then
-            System.IO.File.AppendAllText(logFile, indent + str + "\n")
-
-    let logInfo1(idx, f) = logInfo 1 idx f
-    let logInfo2(idx, f) = logInfo 2 idx f
-    let logInfo3(idx, f) = logInfo 3 idx f
+        if settings.Debug then
+            System.IO.File.AppendAllText(logFile, str + "\n")
 
 
 module Profile =

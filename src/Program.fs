@@ -13,6 +13,20 @@ let runUnitTests () =
     Abgp.Test.run ()
     exit 0
 
+let avg xs = 
+    xs 
+    |> Array.map float 
+    |> Array.average
+
+let displayStats (stats: Abgp.Stats) = 
+    printfn ""
+    printfn "Avg.  PG construction time (sec):  %f" (avg stats.PerPrefixBuildTimes / 1000.0)
+    printfn "Avg.  PG Minimization time (sec):  %f" (avg stats.PerPrefixMinTimes / 1000.0)
+    printfn "Avg.  Find Ordering time (sec):    %f" (avg stats.PerPrefixOrderTimes / 1000.0)
+    printfn "Avg.  Generate Config time (sec):  %f" (avg stats.PerPrefixGenTimes / 1000.0)
+    printfn "Total Config Min time (sec):       %f" (float stats.MinTime / 1000.0)
+    printfn ""
+
 [<EntryPoint>] 
 let main argv =
     ignore (Args.parse argv)
@@ -51,6 +65,10 @@ let main argv =
                         sprintf "Consider using the -failures:n flag to specify a tolerable failure level."
                     warning msg
             | _ -> ()
+            // show statistics
+            if settings.Stats then 
+                displayStats res.Stats 
+            // generate ir file
             match settings.OutFile, settings.Target with
             | None, _ -> ()
             | Some out, Args.IR -> System.IO.File.WriteAllText(out + ".ir", Abgp.format res.Abgp)

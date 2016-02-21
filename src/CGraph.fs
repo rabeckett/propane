@@ -114,7 +114,7 @@ let getGarbageStates (auto: Regex.Automaton) =
     let selfLoops = 
         Map.fold (fun acc (x,_) y  ->
             let existing = Common.Map.getOrDefault x Set.empty acc
-            Map.add x (Set.add y existing) acc) Map.empty auto.trans
+            Map.add x (Set.add y existing) acc ) Map.empty auto.trans
             |> Map.filter (fun x ys -> Set.count ys = 1 && Set.minElement ys = x)
             |> Map.toList 
             |> List.map fst 
@@ -450,27 +450,27 @@ module Minimize =
         cg 
           
     let minimize (idx: int) (cg: T) =
-        logInfo1(idx, sprintf "Node count: %d" cg.Graph.VertexCount)
+        logInfo(idx, sprintf "Node count: %d" cg.Graph.VertexCount)
         let inline count cg = 
             cg.Graph.VertexCount + cg.Graph.EdgeCount
         let cg = ref cg
         let inline prune () = 
             cg := removeNodesThatCantReachEnd !cg
-            logInfo1(idx, sprintf "Node count (cant reach end): %d" (!cg).Graph.VertexCount)
+            logInfo(idx, sprintf "Node count (cant reach end): %d" (!cg).Graph.VertexCount)
             cg := removeDominated !cg
-            logInfo1(idx, sprintf "Node count (remove dominated): %d" (!cg).Graph.VertexCount)
+            logInfo(idx, sprintf "Node count (remove dominated): %d" (!cg).Graph.VertexCount)
             cg := removeRedundantExternalNodes !cg
-            logInfo1(idx, sprintf "Node count (redundant external nodes): %d" (!cg).Graph.VertexCount)
+            logInfo(idx, sprintf "Node count (redundant external nodes): %d" (!cg).Graph.VertexCount)
             cg := removeConnectionsToOutStar !cg
-            logInfo1(idx, sprintf "Node count (connections to out*): %d" (!cg).Graph.VertexCount)
+            logInfo(idx, sprintf "Node count (connections to out*): %d" (!cg).Graph.VertexCount)
             cg := removeNodesThatStartCantReach !cg
-            logInfo1(idx, sprintf "Node count (start cant reach): %d" (!cg).Graph.VertexCount)
+            logInfo(idx, sprintf "Node count (start cant reach): %d" (!cg).Graph.VertexCount)
         let mutable sum = count !cg
         prune() 
         while count !cg <> sum do
             sum <- count !cg
             prune ()
-        logInfo1(idx, sprintf "Node count - after O3: %d" (!cg).Graph.VertexCount)
+        logInfo(idx, sprintf "Node count - after O3: %d" (!cg).Graph.VertexCount)
         !cg
 
 
@@ -613,7 +613,7 @@ module Consistency =
                 let reachX = Map.find x reachMap
                 let reachY = Map.find y reachMap
                 if x <> y && (isPreferred idx cg cache doms r (x,y) (reachX,reachY)) then
-                    logInfo1 (idx, sprintf "%s is preferred to %s" (string x) (string y))
+                    logInfo (idx, sprintf "  %s is preferred to %s" (string x) (string y))
                     edges <- Set.add (x,y) edges
                     g.AddEdge (TaggedEdge(x, y, ())) |> ignore
                 else if x <> y then
@@ -622,7 +622,7 @@ module Consistency =
                     | Some ns ->
                         if Seq.contains y ns then 
                             raise (SimplePathException (x,y))
-                    logInfo1 (idx, sprintf "%s is NOT preferred to %s" (string x) (string y))
+                    logInfo (idx, sprintf "  %s is NOT preferred to %s" (string x) (string y))
         g, edges
 
     let encodeConstraints idx cache doms (cg, reachMap) mustPrefer r nodes =
@@ -662,7 +662,7 @@ module Consistency =
             let ain = Set.map (fun (v: Topology.State) -> v.Loc) ain
             let doms = Domination.dominators cg cg.Start Down
             let cache = ref Set.empty
-            debug2 (fun () -> Map.iter (fun i g -> generatePNG g (outName + "-min-restricted" + string i)) rs)
+            debug (fun () -> Map.iter (fun i g -> generatePNG g (outName + "-min-restricted" + string i)) rs)
             let labels =
                 cg.Graph.Vertices
                 |> Seq.filter (fun v -> Topology.isTopoNode v.Node)
