@@ -20,7 +20,7 @@ type T =
         let addParens s = "(" + s + ")"
         match this with 
         | Empty -> "{}"
-        | Epsilon -> "<epsilon>"
+        | Epsilon -> "<eps>"
         | Locs S -> "[" + (Set.toList S |> List.joinBy ",") + "]"
         | Concat rs -> List.map (fun r -> r.ToString()) rs |> List.joinBy ";" |> addParens
         | Inter rs -> List.map (fun r -> r.ToString()) rs |> List.joinBy " and " |> addParens
@@ -44,13 +44,7 @@ type Automaton =
                 let t = sprintf "  State: %d, chars: %s ---> %d\n" q (Common.Set.toString S) v 
                 acc + t) "" this.trans
         let trans = sprintf "Transitions:\n%s" trans
-        header + states + init + final + trans + header
-
-let isLoc r = 
-    match r with
-    | Locs xs when xs.Count = 1 -> 
-        Some (xs.MinimumElement)
-    | _ -> None
+        sprintf "%s%s%s%s%s%s" header states init final trans header
 
 let rec rev re = 
     match re with 
@@ -389,7 +383,10 @@ type REBuilder(topo: Topology.T) =
         match this.WellFormed re with
         | None -> convert re
         | Some cs ->
-            error (sprintf "Invalid path shape: %s, paths must go through the internal network exactly once" (string cs))
+            let msg = 
+                sprintf "Invalid path shape: %s, paths must " (string cs) + 
+                sprintf "go through the internal network exactly once"
+            error msg
 
     member __.Empty = LEmpty
     member __.Epsilon = LEpsilon
@@ -415,7 +412,9 @@ type REBuilder(topo: Topology.T) =
 
     member this.Locs (xs: string list) = 
         List.fold (fun acc x -> this.Union [acc; this.Loc x]) this.Empty xs
-        
+
+    member this.SingleLocations(r) = singleLocations (this.Topo()) r
+
     member __.MakeDFA r =
         assert (finalAlphabet)
         makeDFA alphabet r

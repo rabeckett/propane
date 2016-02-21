@@ -430,7 +430,7 @@ let rec buildRegex (ast: T) (reb: Regex.REBuilder) (r: Expr) : Regex.LazyT =
             let msg = sprintf "Expected %d arguments for %s, but received %d" n id.Name m 
             Message.errorAst ast msg id.Pos
         let args = List.map (buildRegex ast reb) args
-        let wf = List.map (Regex.singleLocations (reb.Topo())) args
+        let wf = List.map reb.SingleLocations args
         List.map (Option.get >> Set.toList) wf
     match r.Node with
     | AndExpr(x,y) -> reb.Inter [(buildRegex ast reb x); (buildRegex ast reb y)]
@@ -523,8 +523,8 @@ let rec wellFormedCCs ast id args argsOrig =
                 let msg = sprintf "Expected parameter %d of %s to be a %s value" i id.Name (string y)
                 Message.errorAst ast msg origE.Pos
 
-let buildCConstraint ast (topo: Topology.T) (cc: Ident * Expr list) =
-    let reb = Regex.REBuilder(topo) 
+let buildCConstraint ast (cc: Ident * Expr list) =
+    let reb = Regex.REBuilder(ast.TopoInfo.Graph) 
     let (id, argsOrig) = cc
     let args = List.map (fun e -> substitute ast e) argsOrig
     wellFormedCCs ast id args argsOrig
@@ -532,8 +532,8 @@ let buildCConstraint ast (topo: Topology.T) (cc: Ident * Expr list) =
         let (a,b,c,d,bits) as p = getPrefix x
         Prefix.prefix (a,b,c,d) (adjustBits bits)
     let inline getLinkLocations (x,y) =
-        let xs = Regex.singleLocations (reb.Topo()) (buildRegex ast reb x) |> Option.get
-        let ys = Regex.singleLocations (reb.Topo()) (buildRegex ast reb y) |> Option.get
+        let xs = reb.SingleLocations (buildRegex ast reb x) |> Option.get
+        let ys = reb.SingleLocations (buildRegex ast reb y) |> Option.get
         (xs,ys)
     match id.Name with
     | "aggregate" ->
@@ -556,12 +556,12 @@ let buildCConstraint ast (topo: Topology.T) (cc: Ident * Expr list) =
     | "longest_path" -> 
         let i = getInt (List.head args).Node
         let r = buildRegex ast reb (List.item 1 args)
-        let locs = Regex.singleLocations (reb.Topo()) r 
+        let locs = reb.SingleLocations r 
         CLongestPath (i, Option.get locs)
     | _ -> Common.unreachable ()
 
-let makeControlConstraints ast topo : CConstraint list = 
-    List.map (buildCConstraint ast topo) ast.CConstraints
+let makeControlConstraints ast : CConstraint list = 
+    List.map (buildCConstraint ast) ast.CConstraints
  
 (* Compiler warnings for a variety of common mistakes. 
    Unused definitions or parameters not starting with '_',
@@ -711,6 +711,7 @@ let checkBlock ast e pcs =
         let msg = sprintf "Incomplete prefixes in block. An example of a prefix that is not matched: %s" s
         Message.warningAst ast msg e.Pos
         let e = pcs |> List.head |> snd |> List.head
+        // TODO: what is the right thing here?
         pcs @ [(Predicate.top, [ {Pos=e.Pos; Node=Ident ({Pos=e.Pos;Name="any"}, [])} ])]
     else pcs
 
@@ -760,9 +761,10 @@ let addTopoDefinitions (ast: T) : T =
 type PolInfo =
     {Ast: T;
      Policy: PolicyPair list;
+     CConstraints: CConstraint list;
      OrigLocs: Map<Predicate.T, Set<string>>}
 
-let makePolicyPairs (ast: T) (topo: Topology.T) : PolInfo =
+let makePolicyPairs (ast: T) =
     // Map topology names to as numbers
     let ast = addTopoDefinitions ast
     // Ensure main is defined
@@ -791,9 +793,14 @@ let makePolicyPairs (ast: T) (topo: Topology.T) : PolInfo =
             List.map (fun (p, res) -> 
                 let locs = orginationLocationsList ast res
                 origLocs := Map.add p locs !origLocs
-                let reb = Regex.REBuilder(topo)
+                let reb = Regex.REBuilder(ast.TopoInfo.Graph)
                 let res = List.map (buildRegex ast reb) res
                 let res = List.map reb.Build res
                 (p, reb, res) ) topLevel
-        {Ast = ast; Policy = polPairs; OrigLocs = !origLocs}
+        (ast, polPairs, !origLocs)
     | _ -> error (sprintf "Main policy not defined, use define main = ...")
+
+let build ast = 
+    let ast, polPairs, origLocs = makePolicyPairs ast
+    let ccs = makeControlConstraints ast
+    {Ast = ast; Policy = polPairs; OrigLocs = origLocs; CConstraints = ccs}

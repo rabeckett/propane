@@ -1,6 +1,5 @@
 ﻿module Ast
 
-/// AST file position information
 type Position = 
     {SLine: int;
      SCol: int;
@@ -30,34 +29,27 @@ and Node =
     | True
     | False
 
-/// Individual control constraint 
-type CConstraint = 
-    | CAggregate of Prefix.T * Set<string> * Set<string>
-    | CCommunity of string * Prefix.T list * Set<string> * Set<string>
-    | CMaxRoutes of uint32 * Set<string> * Set<string>
-    | CLongestPath of uint32 * Set<string>
-
 type ControlConstraints = (Ident * Expr list) list
 type Definitions = Map<string, Position * Ident list * Expr>
 
-/// Ast type with final definitions, control contraint, task definitions, and the final policy
 type T = 
     {Input: string [];
      TopoInfo: Topology.TopoInfo;
      Defs: Definitions;
      CConstraints: ControlConstraints}
 
-/// Final pairs of predicate, regular preferences after merging tasks
-type PolicyPair = (Predicate.T * Regex.REBuilder * Regex.T list)
+type PolicyPair = Predicate.T * Regex.REBuilder * Regex.T list
 
-/// Parse control constraint information w.r.t the topology
-val makeControlConstraints: T -> Topology.T -> CConstraint list
+type CConstraint = 
+    | CAggregate of Prefix.T * Set<string> * Set<string>
+    | CCommunity of string * Prefix.T list * Set<string> * Set<string>
+    | CMaxRoutes of uint32 * Set<string> * Set<string>
+    | CLongestPath of uint32 * Set<string>
 
 type PolInfo =
     {Ast: T;
      Policy: PolicyPair list;
+     CConstraints: CConstraint list;
      OrigLocs: Map<Predicate.T, Set<string>>}
 
-/// Build the final predicate, preference pairs by 
-/// merging tasks and evaluating the main policy
-val makePolicyPairs: T -> Topology.T -> PolInfo
+val build: T -> PolInfo

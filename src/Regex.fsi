@@ -13,9 +13,6 @@ type Automaton =
      F: Set<int>;
      trans: Map<int*Set<string>, int>}
 
-/// Check if a regular expression denotes a single character
-val isLoc: T -> string option
-
 /// Reverse a regular expression
 val rev: T -> T
 
@@ -45,11 +42,6 @@ val emptiness: Automaton -> (string list) option
 /// the construction until the Build method is called in the builder object below.
 type LazyT
 
-/// Check if a regular expression denotes only single characters and 
-/// if so, returns the set of characters it denotes
-val singleLocations: Topology.T -> LazyT -> Set<string> option
-
-
 /// Parameterize regular expression by an alphabet. Since f# does
 /// not support ML-style functors, different objects can use different
 /// alphabets. Client code must ensure a single object is used.
@@ -69,6 +61,8 @@ type REBuilder  =
     member Union: LazyT list -> LazyT
     member Negate: LazyT -> LazyT
     member Star: LazyT -> LazyT
+    (* *)
+    member SingleLocations: LazyT -> Set<string> option
     member MakeDFA: T -> Automaton
     member StartingLocs: Automaton -> Set<string>
     (* Constraint-based builders *)

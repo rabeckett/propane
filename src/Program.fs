@@ -7,9 +7,9 @@ open System
    
 let runUnitTests () = 
     writeFormatted (header "Running unit tests ")
-    Topology.Test.run () 
-    Regex.Test.run () 
-    Predicate.Test.run ()
+    // Topology.Test.run () 
+    // Regex.Test.run () 
+    // Predicate.Test.run ()
     IR.Test.run ()
     exit 0
 
@@ -26,23 +26,24 @@ let main argv =
         | Some f -> Topology.readTopology f
     match settings.PolFile with 
     | None -> error "No policy file specified, use -pol:file compiler flag"
-    | Some p ->
-        let (lines, defs, cs) = Input.readFromFile p
+    | Some polFile ->
+        let (lines, defs, cs) = Input.readFromFile polFile
         let ast : Ast.T = {Input = lines; TopoInfo = topoInfo; Defs = defs; CConstraints = cs}
-        let aggs = Ast.makeControlConstraints ast topoInfo.Graph 
-        let polInfo = Ast.makePolicyPairs ast topoInfo.Graph
-
+        let polInfo = Ast.build ast
         if settings.Target <> Args.Off then
-            let (ir, k, _) = IR.Compilation.compileAllPrefixes fullName polInfo aggs
-            match k, settings.Failures with
-            | Some (i, x, y, p, agg), _ ->
+            let res = IR.compileAllPrefixes fullName polInfo
+            match res.AggSafety, settings.Failures with
+            | Some safetyInfo, _ ->
+                let i = safetyInfo.NumFailures
                 let bad = 
                     match settings.Failures with 
                     | Args.Any -> true
                     | Args.Concrete j -> i < j
                 if bad then
-                    let x = Topology.router x topoInfo
-                    let y = Topology.router y topoInfo
+                    let x = Topology.router safetyInfo.PrefixLoc topoInfo
+                    let y = Topology.router safetyInfo.AggregateLoc topoInfo
+                    let p = safetyInfo.Prefix
+                    let agg = safetyInfo.Aggregate
                     let msg = 
                         sprintf "Could only prove aggregation black-hole safety for up to %d failures. " i +
                         sprintf "It may be possible to disconnect the prefix %s at location %s from the " (string p) x +
@@ -52,7 +53,7 @@ let main argv =
             | _ -> ()
             match settings.OutFile, settings.Target with
             | None, _ -> ()
-            | Some out, Args.IR -> System.IO.File.WriteAllText(out + ".ir", IR.Display.format ir)
+            | Some out, Args.IR -> System.IO.File.WriteAllText(out + ".ir", IR.format res.Abgp)
             | Some _, _ -> ()
 
     0

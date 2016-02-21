@@ -2,20 +2,17 @@
 
 (* TODO: 64 bit case *)
 
+// TODO: these don't need to be 32 bits
+
 [<Struct>]
-type T = struct
+type T = struct 
     val X1: uint32
-    val X2: uint32
+    val X2: uint32 
     val X3: uint32
     val X4: uint32
     val Slash: uint32
-    new(a,b,c,d,bits) = {X1 = a; X2 = b; X3 = c; X4 = d; Slash = bits}
-    override this.ToString() =
-        (string this.X1) + "." + 
-        (string this.X2) + "." + 
-        (string this.X3) + "." + 
-        (string this.X4) + "/" +
-        (string this.Slash) 
+    new(a,b,c,d,e) = {X1=a; X2=b; X3=c; X4=d; Slash=e}
+    override v.ToString() = sprintf "%d.%d.%d.%d/%d" v.X1 v.X2 v.X3 v.X4 v.Slash 
 end
 
 type Pred = 

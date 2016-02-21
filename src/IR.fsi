@@ -1,74 +1,34 @@
 ﻿module IR
 
+type T
 
-[<AutoOpen>]
-module Types =
+type Stats = 
+    {NumPrefixes: int;
+     ConfigSize: int;
+     PrefixTime: int64;
+     PerPrefixTimes: int64 array;
+     PerPrefixBuildTimes: int64 array;
+     PerPrefixMinTimes: int64 array;
+     PerPrefixOrderTimes: int64 array;
+     PerPrefixGenTimes: int64 array;
+     JoinTime: int64;
+     MinTime: int64}
 
-    type Match = 
-        | Peer of string 
-        | State of string * string
-        | PathRE of Regex.T
-        | NoMatch
+type AggregationSafety = 
+    {NumFailures: int; 
+     PrefixLoc: string; 
+     AggregateLoc: string; 
+     Prefix: Prefix.T;
+     Aggregate: Prefix.T}
+    
+type CompilationResult =
+    {Abgp: T;
+     AggSafety: AggregationSafety option;
+     Stats: Stats}
 
-    type Action = 
-        | SetComm of string
-        | SetMed of int
-        | PrependPath of int
+val format: T -> string
 
-    type LocalPref = int
-    type Peer = string
-    type Import = Match * LocalPref
-    type Export = Peer * Action list
+val compileAllPrefixes: string -> Ast.PolInfo -> CompilationResult
 
-    type Filter = 
-        | Deny
-        | Allow of Import * (Export list)
-
-    type Filters =
-        {Originates: bool;
-         Filters: Filter list}
-
-    type DeviceAggregates = (Prefix.T * seq<string>) list
-    type DeviceTags = ((string * Prefix.T list) * seq<string>) list
-    type DeviceMaxRoutes = (uint32 * seq<string>) list
-
-    type DeviceControl = 
-        {Aggregates: DeviceAggregates;
-         Tags: DeviceTags;
-         MaxRoutes: DeviceMaxRoutes}
-
-    type RouterConfig = 
-        {Actions: (Predicate.T * Filters) list;
-         Control: DeviceControl}
-
-    type T = 
-        {PolInfo: Ast.PolInfo; 
-         RConfigs: Map<string, RouterConfig>}
-
-
-module Display =
-    val format: T -> string
-
-
-module Compilation = 
-
-    type Stats = 
-        {NumPrefixes: int;
-         ConfigSize: int;
-         TotalTime: int64;
-         PrefixTime: int64;
-         PerPrefixTimes: int64 array;
-         PerPrefixBuildTimes: int64 array;
-         PerPrefixMinTimes: int64 array;
-         PerPrefixOrderTimes: int64 array;
-         PerPrefixGenTimes: int64 array;
-         JoinTime: int64;
-         MinTime: int64}
-
-    type AggregationSafetyResult = (int * string * string * Prefix.T * Prefix.T) option
-
-    val compileAllPrefixes: string -> Ast.PolInfo -> Ast.CConstraint list -> T * AggregationSafetyResult * Stats
-
-   
 module Test = 
     val run: unit -> unit
