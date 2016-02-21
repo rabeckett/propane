@@ -19,22 +19,35 @@ exception UncontrollablePeerPreferenceException of string
 ///    - The preference of the match (local-pref)
 ///    - A collection of exports for the match (updated local-pref, community, peer)
 
-type CounterExample = 
-    | NoPathForRouters of Set<string>
-    | InconsistentPrefs of CgState * CgState
-    | UncontrollableEnter of string
-    | UncontrollablePeerPreference of string
+
+type LocalPref = int
+type Community = string
+
+type Peer = 
+    | Any
+    | In
+    | Out
+    | Router of string
+
+    override x.ToString() =
+        match x with
+        | Any -> "*"
+        | In -> "in"
+        | Out -> "out"
+        | Router y -> y
+
 
 type Match = 
-    | Peer of string 
-    | State of string * string
+    | Peer of Peer 
+    | State of Community * Peer
     | PathRE of Regex.T
 
-    override this.ToString () = 
-        match this with 
-        | Peer s -> "Peer=" + s
-        | State(is,s) -> "Community=" + is + ", Peer=" + s
+    override x.ToString () = 
+        match x with 
+        | Peer p -> "Peer=" + (string p)
+        | State(is,p) -> "Community=" + is + ", Peer=" + (string p)
         | PathRE r -> "Regex=" + string r
+
 
 type Modification = 
     | SetComm of string
@@ -47,8 +60,6 @@ type Modification =
         | SetMed i -> "MED<-" + string i
         | PrependPath i -> "Prepend " + string i
 
-type LocalPref = int
-type Peer = string
 type Import = Match * LocalPref
 type Export = Peer * Modification list
 
@@ -77,6 +88,12 @@ type T =
     {PolInfo: Ast.PolInfo; 
      RConfigs: Map<string, RouterConfig>}
 
+type CounterExample = 
+    | NoPathForRouters of Set<string>
+    | InconsistentPrefs of CgState * CgState
+    | UncontrollableEnter of string
+    | UncontrollablePeerPreference of string
+
 /// Functions that operate over final per-router 
 /// configurations, and display them in a nice, 
 /// human-readable format w/indentation.
@@ -98,7 +115,7 @@ let formatActions (sb: System.Text.StringBuilder) pred (actions: Actions) =
                 if lp <> 100 then
                     bprintf sb " (LP=%d)" lp
                 for (peer, acts) in es do
-                    bprintf sb "\n    Export: [Peer<-%s" peer
+                    bprintf sb "\n    Export: [Peer<-%s" (string peer)
                     if acts <> [] then
                         let str = Common.List.joinBy "," (List.map string acts)
                         sb.Append(", " + str) |> ignore
@@ -163,7 +180,7 @@ let private chooseAction f (filt: Filter) =
 
 module NodeWide =
 
-    let private removeRedundantTag m exports = 
+    let removeRedundantTag m exports = 
         match m with 
         | Match.Peer _ | Match.PathRE _ -> exports 
         | Match.State(is,_) -> 
@@ -174,18 +191,21 @@ module NodeWide =
                     | _ -> true) acts
                 Some (peer, acts') ) exports
 
-    let private removeCommMatchForUnqEdges cg eCounts v m = 
+    let removeCommMatchForUnqEdges cg eCounts v m = 
         let inline unq e = 
             match Map.tryFind e eCounts with 
             | Some 1 -> true
             | _ -> false
         match m with 
         | Match.State (c,peers) -> 
-            if peers = "*" || peers = "in" then 
+            match peers with 
+            | Any | In ->
                 let ins = CGraph.neighborsIn cg v |> Seq.map CGraph.loc
                 if Seq.forall (fun i -> unq (i, v.Node.Loc)) ins then Match.Peer(peers) else m 
-            elif unq (peers, v.Node.Loc) then Match.Peer(peers)
-            else m
+            | Router peer -> 
+                if unq (peer, v.Node.Loc) then Match.Peer(Router peer)
+                else m
+            | Out -> Match.Peer(Out)
         | _ -> m
 
     let minimize cg eCounts v m exports =
@@ -214,13 +234,13 @@ module PrefixWide =
     let private combineInOut filters = 
         match filters with
         | (Allow ((Peer s1,lp1),es1) as hd1) :: 
-          (Allow ((Peer s2,lp2),es2) as hd2) :: 
-          tl -> 
-            if ((s1 = "in" && s2 = "out") || (s1 = "out" && s2 = "in")) && 
-               (lp1 = lp2) && 
-               (es1 = es2) 
-            then Allow ((Match.Peer "*",lp1),es1) :: tl
-            else filters
+          (Allow ((Peer s2,lp2),es2) as hd2) :: tl -> 
+            match s1, s2 with 
+            | In, Out | Out, In -> 
+                if (lp1 = lp2) && (es1 = es2) then 
+                    Allow ((Match.Peer Any, lp1),es1) :: tl
+                else filters
+            | _, _ -> filters
         | _ -> filters
 
     let minimize filters =
@@ -235,10 +255,10 @@ module RouterWide =
         | Peer(x), Peer(y)
         | State(_,x), Peer(y) ->
             match x,y with 
-            | "*", _ -> false
-            | _, "*" -> false
-            | "in", "out" 
-            | "out", "in" -> true
+            | Any, _ -> false
+            | _, Any -> false
+            | In, Out 
+            | Out, In -> true
             | _, _ -> false
         | _, _ -> true
 
@@ -260,7 +280,7 @@ module RouterWide =
         match m1, m2 with
         | Peer(x), Peer(y)
         | State(_,x), Peer(y) ->
-            y = "*" || x = y
+            y = Any || x = y
         | _, _ -> true
 
     let inline coveredFilter (f1: Filter) (f2: Filter) = 
@@ -539,32 +559,31 @@ let getMatches (allPeers, inPeers, outPeers) outgoingMatches =
     let peermatches, regexes = List.partition Outgoing.isPeerMatch (List.ofSeq outgoingMatches)
     // get peer topology location information
     let mutable peers = Set.ofList (List.map Outgoing.getPeerMatch peermatches)
-    let peerLocs = Set.map CGraph.loc peers
+    let peerLocs = Set.map (fun v -> Router (CGraph.loc v)) peers
     let peersIn = Set.filter (fun v -> Topology.isInside v.Node) peers
     let peersOut = Set.filter (fun v -> Topology.isOutside v.Node) peers
-    let peerLocsIn =  Set.map CGraph.loc peersIn
-    let peerLocsOut = Set.map CGraph.loc peersOut
+    let peerLocsIn =  Set.map (fun v -> Router (CGraph.loc v)) peersIn
+    let peerLocsOut = Set.map (fun v -> Router (CGraph.loc v)) peersOut
     // get peer state product graph information
-    let mutable matches = 
-        List.map (fun r -> Match.PathRE (Outgoing.getRegexMatch r)) regexes
+    let mutable matches = List.map (fun r -> Match.PathRE (Outgoing.getRegexMatch r)) regexes
     let states = peers |> Set.map (fun v -> v.State)
     let statesIn = peers |> Set.filter (fun v -> Topology.isInside v.Node) |> Set.map (fun v -> v.State)
     let statesOut = peers |> Set.filter (fun v -> Topology.isOutside v.Node) |> Set.map (fun v -> v.State)
     if peerLocs = allPeers && (eqStates states) then 
-        matches <- Match.State(string (Set.minElement states),"*") :: matches
+        matches <- Match.State(string (Set.minElement states), Any) :: matches
         peers <- Set.empty
     else 
         if peerLocsIn = inPeers && (eqStates statesIn) && not peerLocsIn.IsEmpty then 
-            matches <- Match.State(string (Set.minElement statesIn),"in") :: matches
+            matches <- Match.State(string (Set.minElement statesIn), In) :: matches
             peers <- Set.difference peers peersIn
         if peerLocsOut = outPeers && (eqStates statesOut) && not peerLocsOut.IsEmpty then 
-            matches <- Match.Peer("out") :: matches
+            matches <- Match.Peer(Out) :: matches
             peers <- Set.difference peers peersOut
         for v in peers do
             let m = 
                 if Topology.isInside v.Node then  
-                    Match.State(string v.State, v.Node.Loc)
-                else Match.Peer(v.Node.Loc)
+                    Match.State(string v.State, Router v.Node.Loc)
+                else Match.Peer(Router v.Node.Loc)
             matches <- m :: matches
     matches
 
@@ -581,17 +600,17 @@ let getExports (allPeers, inPeers, outPeers) x inExports (outgoing: seq<CgState>
     let toInside, toOutside = 
         List.ofSeq outgoing 
         |> List.partition (fun v -> Topology.isInside v.Node)
-    let insideExport = [("in", [SetComm (string x.State)])]
+    let insideExport = [(In, [SetComm (string x.State)])]
     let specialCase = ref false
-    let exports = List.ofSeq toOutside |> List.map (fun v -> (v.Node.Loc, getExport specialCase inExports x v)) 
+    let exports = List.ofSeq toOutside |> List.map (fun v -> (Router v.Node.Loc, getExport specialCase inExports x v)) 
     if not !specialCase then
-        let sendToLocs = Seq.map (fun v -> v.Node.Loc) outgoing |> Set.ofSeq
+        let sendToLocs = Seq.map (fun v -> Router v.Node.Loc) outgoing |> Set.ofSeq
         let sendToLocs = 
             match unqMatchPeer with
             | Some x -> Set.add x sendToLocs
             | None -> sendToLocs
         if sendToLocs.IsSupersetOf outPeers then
-            [("*", [SetComm(string x.State)])]
+            [(Any, [SetComm(string x.State)])]
         else exports @ insideExport
     else  exports @ insideExport
 
@@ -603,7 +622,7 @@ let inline edgeCounts (cg: CGraph.T) =
 
 let getPeerInfo vs =
     let inline setLocs x = 
-        Set.ofSeq (Seq.map (fun (v: Topology.State) -> v.Loc) x) 
+        Set.ofSeq (Seq.map (fun (v: Topology.State) -> Router v.Loc) x) 
     let all = vs |> setLocs
     let allIn = vs |> Seq.filter Topology.isInside |> setLocs
     let allOut = vs |> Seq.filter Topology.isOutside |> setLocs
@@ -667,7 +686,7 @@ let genConfig (cg: CGraph.T)
             else filters
         // no need for explicit deny if we allow everything
         match filters with 
-        | [Allow ((Match.Peer "*",_), _)] -> ()
+        | [Allow ((Match.Peer Any,_), _)] -> ()
         | _ -> filters <- List.rev (Deny :: filters)
         // build the final configuration
         let deviceConf = 
@@ -857,7 +876,7 @@ let compileForSinglePrefix (fullName:string)
                 sprintf "predicate %s. Possibly enable prepending: -prepending:on" (string pred)
             error msg
 
-let private checkAggregateLocs ins _ prefix links = 
+let checkAggregateLocs ins _ prefix links = 
     if Set.contains "out" ins then
         let msg = 
             sprintf "Cannot aggregate on external location: " + 
@@ -871,7 +890,7 @@ let private checkAggregateLocs ins _ prefix links =
             sprintf "%s for prefix: %s" (fst x).Loc (string prefix)
         error msg
 
-let private checkCommunityTagLocs ins _ (c, prefix) links =
+let checkCommunityTagLocs ins _ (c, prefix) links =
     if Set.contains "out" ins then
         let msg = 
             sprintf "Cannot tag communities on external location: out " + 
@@ -885,7 +904,7 @@ let private checkCommunityTagLocs ins _ (c, prefix) links =
             sprintf "%s for community %s prefix: %s" (fst x).Loc c (string prefix)
         error msg
 
-let private checkMaxRouteLocs ins outs i links =
+let checkMaxRouteLocs ins outs i links =
     let v = List.exists (fun (a,b) -> Topology.isOutside a && Topology.isOutside b) links
     let w = Set.contains "out" ins
     let x = Set.contains "out" outs
@@ -897,7 +916,7 @@ let private checkMaxRouteLocs ins outs i links =
             sprintf "without an edge in the internal topology"
         error msg
 
-let private splitByLocation f topo (vs: _ list) = 
+let splitByLocation f topo (vs: _ list) = 
     let mutable acc = Map.empty
     for (k, ins, outs) in vs do 
         let links = Topology.findLinks topo (ins,outs)
@@ -911,7 +930,7 @@ let private splitByLocation f topo (vs: _ list) =
         acc <- Common.Map.merge acc pairs (fun _ (xs,ys) -> xs @ ys)
     acc
 
-let private splitConstraints (pi: Ast.PolInfo) =
+let splitConstraints (pi: Ast.PolInfo) =
     let aggs, comms, maxroutes = 
         Common.List.fold (fun ((x,y,z) as acc) c -> 
             match c with
@@ -926,7 +945,7 @@ let private splitConstraints (pi: Ast.PolInfo) =
     let maxRouteInfo = splitByLocation checkMaxRouteLocs topo maxroutes
     (aggInfo, commInfo, maxRouteInfo)
 
-let private minFails x y = 
+let minFails x y = 
     match x, y with 
     | None, _ -> y 
     | _, None -> x 
@@ -977,14 +996,21 @@ let compileAllPrefixes (fullName: string)
 module Test = 
 
     let isPeer ain x m = 
+        let check y = 
+            match y with 
+            | Any -> true
+            | In -> Set.contains x ain
+            | Router y -> x = y
+            | Out -> failwith "TODO: unhandled case"
+
         match m with 
-        | Peer y -> x = y || y = "*" || (y = "in" && Set.contains x ain)
-        | State(_,y) -> x = y || y = "*" || (y = "in" && Set.contains x ain)
+        | Peer y -> check y
+        | State(_,y) -> check y
         | _ -> false
 
     let getPref ain (x:string) dc = 
         match dc with 
-        | Originate -> 100 // TODO
+        | Originate -> 100  // TODO
         | Filters fs ->
             let lp = List.tryFind (fun f -> 
                 match f with 
