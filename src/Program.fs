@@ -23,7 +23,7 @@ let displayStats (stats: Abgp.Stats) =
     printfn "Total PG Minimization time (sec):  %f" (total stats.PerPrefixMinTimes / 1000.0)
     printfn "Total Find Ordering time (sec):    %f" (total stats.PerPrefixOrderTimes / 1000.0)
     printfn "Total Generate Config time (sec):  %f" (total stats.PerPrefixGenTimes / 1000.0)
-    printfn "TotalConfig Min time (sec):       %f" (float stats.MinTime / 1000.0)
+    printfn "Total Config Min time (sec):       %f" (float stats.MinTime / 1000.0)
     printfn ""
 
 [<EntryPoint>] 

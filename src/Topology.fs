@@ -20,11 +20,11 @@ type State =
     {Loc: string; 
      Typ: NodeType}
 
-type T = BidirectionalGraph<State,TaggedEdge<State,unit>>
+type T = BidirectionalGraph<State,Edge<State>>
 
 
 let copyTopology (topo: T) : T = 
-    let newTopo = BidirectionalGraph<State,TaggedEdge<State,unit>>()
+    let newTopo = BidirectionalGraph<State,Edge<State>>()
     for v in topo.Vertices do newTopo.AddVertex v |> ignore
     for e in topo.Edges do newTopo.AddEdge e |> ignore 
     newTopo
@@ -82,8 +82,8 @@ let rec addEdgesUndirected (topo: T) (es: (State * State) list) =
     match es with 
     | [] -> () 
     | (x,y)::es -> 
-        let e1 = TaggedEdge(x,y,())
-        let e2 = TaggedEdge(y,x,())
+        let e1 = Edge(x,y)
+        let e2 = Edge(y,x)
         ignore (topo.AddEdge e1)
         ignore (topo.AddEdge e2)
         addEdgesUndirected topo es
@@ -92,7 +92,7 @@ let rec addEdgesDirected (topo: T) (es: (State * State) list) =
     match es with 
     | [] -> () 
     | (x,y)::es -> 
-        let e = TaggedEdge(x,y,())
+        let e = Edge(x,y)
         ignore (topo.AddEdge e)
         addEdgesDirected topo es
 
@@ -109,7 +109,7 @@ let findLinks (topo: T) (froms, tos) =
             | Some a, Some b -> 
                 let ns = 
                     topo.OutEdges a
-                    |> Seq.map (fun (e: TaggedEdge<State,unit>) -> e.Target)
+                    |> Seq.map (fun (e: Edge<State>) -> e.Target)
                     |> Set.ofSeq
                 if Set.contains b ns then 
                     pairs <- (a, b) :: pairs
@@ -137,13 +137,13 @@ let router (asn:string) (ti:TopoInfo) =
     | Some r -> r
 
 let readTopology (file: string) : TopoInfo =
-    let g = BidirectionalGraph<State,TaggedEdge<State,unit>>()
+    let g = BidirectionalGraph<State,Edge<State>>()
     // avoid adding edges twice
     let seen = HashSet()
     let inline addEdge x y = 
         if not (seen.Contains (x,y)) then
             seen.Add (x,y) |> ignore
-            let e = TaggedEdge(x,y,())
+            let e = Edge(x,y)
             ignore (g.AddEdge e)
     let topo = Topo.Load file
     let mutable nodeMap = Map.empty
@@ -193,7 +193,7 @@ let readTopology (file: string) : TopoInfo =
 module Examples = 
 
     let topoDisconnected () = 
-        let g = BidirectionalGraph<State ,TaggedEdge<State,unit>>()
+        let g = BidirectionalGraph<State ,Edge<State>>()
         let vA = {Loc="A"; Typ=Inside}
         let vB = {Loc="B"; Typ=Inside}
         let vC = {Loc="C"; Typ=Inside}
@@ -203,7 +203,7 @@ module Examples =
         g
 
     let topoDiamond () = 
-        let g = BidirectionalGraph<State ,TaggedEdge<State,unit>>()
+        let g = BidirectionalGraph<State ,Edge<State>>()
         let vA = {Loc="A"; Typ=InsideOriginates}
         let vX = {Loc="X"; Typ=Inside}
         let vM = {Loc="M"; Typ=Inside}
@@ -216,7 +216,7 @@ module Examples =
         g
 
     let topoDatacenterSmall () = 
-        let g = BidirectionalGraph<State, TaggedEdge<State,unit>>()
+        let g = BidirectionalGraph<State ,Edge<State>>()
         let vA = {Loc="A"; Typ=InsideOriginates}
         let vB = {Loc="B"; Typ=InsideOriginates}
         let vC = {Loc="C"; Typ=InsideOriginates}
@@ -230,7 +230,7 @@ module Examples =
         g
 
     let topoDatacenterMedium () = 
-        let g = BidirectionalGraph<State, TaggedEdge<State,unit>>()
+        let g = BidirectionalGraph<State ,Edge<State>>()
         let vA = {Loc="A"; Typ=InsideOriginates}
         let vB = {Loc="B"; Typ=InsideOriginates}
         let vC = {Loc="C"; Typ=Inside}
@@ -248,7 +248,7 @@ module Examples =
         g
 
     let topoDatacenterMediumAggregation () = 
-        let g = BidirectionalGraph<State, TaggedEdge<State,unit>>()
+        let g = BidirectionalGraph<State ,Edge<State>>()
         let vA = {Loc="A"; Typ=InsideOriginates}
         let vB = {Loc="B"; Typ=InsideOriginates}
         let vC = {Loc="C"; Typ=Inside}
@@ -268,7 +268,7 @@ module Examples =
         g
 
     let topoDatacenterLarge () = 
-        let g = BidirectionalGraph<State, TaggedEdge<State,unit>>()
+        let g = BidirectionalGraph<State ,Edge<State>>()
         let vA = {Loc="A"; Typ=InsideOriginates}
         let vB = {Loc="B"; Typ=InsideOriginates}
         let vC = {Loc="C"; Typ=InsideOriginates}
@@ -289,7 +289,7 @@ module Examples =
         g
 
     let topoBadGadget () = 
-        let g = BidirectionalGraph<State, TaggedEdge<State,unit>>()
+        let g = BidirectionalGraph<State ,Edge<State>>()
         let vA = {Loc="A"; Typ=InsideOriginates}
         let vB = {Loc="B"; Typ=InsideOriginates}
         let vC = {Loc="C"; Typ=InsideOriginates}
@@ -299,7 +299,7 @@ module Examples =
         g
 
     let topoBrokenTriangle () = 
-        let g = BidirectionalGraph<State, TaggedEdge<State,unit>>()
+        let g = BidirectionalGraph<State ,Edge<State>>()
         let vA = {Loc="A"; Typ=InsideOriginates}
         let vB = {Loc="B"; Typ=Inside}
         let vC = {Loc="C"; Typ=InsideOriginates}
@@ -310,7 +310,7 @@ module Examples =
         g
 
     let topoBigDipper () = 
-        let g = BidirectionalGraph<State, TaggedEdge<State,unit>>()
+        let g = BidirectionalGraph<State ,Edge<State>>()
         let vA = {Loc="A"; Typ=InsideOriginates}
         let vC = {Loc="C"; Typ=InsideOriginates}
         let vD = {Loc="D"; Typ=InsideOriginates}
@@ -320,7 +320,7 @@ module Examples =
         g
 
     let topoSeesaw () = 
-        let g = BidirectionalGraph<State, TaggedEdge<State,unit>>()
+        let g = BidirectionalGraph<State ,Edge<State>>()
         let vM = {Loc="M"; Typ=InsideOriginates}
         let vN = {Loc="N"; Typ=Inside}
         let vO = {Loc="O"; Typ=Inside}
@@ -332,7 +332,7 @@ module Examples =
         g
 
     let topoStretchingManWAN () = 
-        let g = BidirectionalGraph<State, TaggedEdge<State,unit>>()
+        let g = BidirectionalGraph<State ,Edge<State>>()
         let vA = {Loc="A"; Typ=Inside}
         let vB = {Loc="B"; Typ=Inside}
         let vC = {Loc="C"; Typ=Inside}
@@ -345,7 +345,7 @@ module Examples =
         g
 
     let topoStretchingManWAN2 () = 
-        let g = BidirectionalGraph<State, TaggedEdge<State,unit>>()
+        let g = BidirectionalGraph<State ,Edge<State>>()
         let vA = {Loc="A"; Typ=Inside}
         let vB = {Loc="B"; Typ=Inside}
         let vC = {Loc="C"; Typ=Inside}
@@ -362,7 +362,7 @@ module Examples =
         g
 
     let topoPinCushionWAN () = 
-        let g = BidirectionalGraph<State, TaggedEdge<State,unit>>()
+        let g = BidirectionalGraph<State ,Edge<State>>()
         let vA = {Loc="A"; Typ=Inside}
         let vB = {Loc="B"; Typ=Inside}
         let vC = {Loc="C"; Typ=Inside}
@@ -377,7 +377,7 @@ module Examples =
         g
 
     let topoBackboneWAN () = 
-        let g = BidirectionalGraph<State, TaggedEdge<State,unit>>()
+        let g = BidirectionalGraph<State ,Edge<State>>()
         let vA = {Loc="A"; Typ=InsideOriginates}
         let vSEA = {Loc="SEA"; Typ=InsideOriginates}
         let vNY = {Loc="NY"; Typ=InsideOriginates}
@@ -402,7 +402,7 @@ module Examples =
         let iT0 = (k * k) / 2
         let iT1 = (k * k) / 2
         let iT2 = (k * k) / 4
-        let g = BidirectionalGraph<State, TaggedEdge<State,unit>>()
+        let g = BidirectionalGraph<State ,Edge<State>>()
         let prefixes = Dictionary()
         let tiers = Dictionary()
         let routersT0 = Array.init iT0 (fun i ->
@@ -447,7 +447,7 @@ module Examples =
         (g, prefixes, tiers)
 
     let complete n  = 
-        let g = BidirectionalGraph<State, TaggedEdge<State,unit>>()
+        let g = BidirectionalGraph<State ,Edge<State>>()
          // setup external peers
         let externalPeers = Dictionary()
         let internalPeers =  Dictionary()
@@ -460,7 +460,7 @@ module Examples =
         for v1 in g.Vertices do 
             for v2 in g.Vertices do 
                 if isInside v1 && isInside v2 && v1 <> v2 then
-                    let e = TaggedEdge(v1,v2,())
+                    let e = Edge(v1,v2)
                     ignore (g.AddEdge e)
         // add connections to external peers
         for kv in internalPeers do
@@ -471,8 +471,8 @@ module Examples =
                 let eName = "Cust" + string i + name
                 let ePeer = {Loc=eName; Typ=Outside} 
                 ignore (g.AddVertex ePeer)
-                let e1 = TaggedEdge (router, ePeer, ()) 
-                let e2 = TaggedEdge (ePeer, router, ()) 
+                let e1 = Edge (router, ePeer) 
+                let e2 = Edge (ePeer, router) 
                 ignore (g.AddEdge e1)
                 ignore (g.AddEdge e2)
             // add peers
@@ -480,8 +480,8 @@ module Examples =
                 let eName = "Peer" + string i + name
                 let ePeer = {Loc=eName; Typ=Outside} 
                 ignore (g.AddVertex ePeer)
-                let e1 = TaggedEdge (router, ePeer, ()) 
-                let e2 = TaggedEdge (ePeer, router, ())
+                let e1 = Edge (router, ePeer) 
+                let e2 = Edge (ePeer, router) 
                 ignore (g.AddEdge e1)
                 ignore (g.AddEdge e2)
             // add paid on net
@@ -489,8 +489,8 @@ module Examples =
                 let eName = "OnPaid" + string i + name
                 let ePeer = {Loc=eName; Typ=Outside} 
                 ignore (g.AddVertex ePeer)
-                let e1 = TaggedEdge (router, ePeer, ()) 
-                let e2 = TaggedEdge (ePeer, router, ())
+                let e1 = Edge (router, ePeer) 
+                let e2 = Edge (ePeer, router) 
                 ignore (g.AddEdge e1)
                 ignore (g.AddEdge e2)
             // add paid off net
@@ -498,8 +498,8 @@ module Examples =
                 let eName = "OffPaid" + string i + name
                 let ePeer = {Loc=eName; Typ=Outside} 
                 ignore (g.AddVertex ePeer)
-                let e1 = TaggedEdge (router, ePeer, ()) 
-                let e2 = TaggedEdge (ePeer, router, ())
+                let e1 = Edge (router, ePeer) 
+                let e2 = Edge (ePeer, router) 
                 ignore (g.AddEdge e1)
                 ignore (g.AddEdge e2)
         g

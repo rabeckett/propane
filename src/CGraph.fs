@@ -36,17 +36,18 @@ type CgStateTmp =
      TNode: Topology.State; 
      TAccept: Set<int>}
 
+(*
 [<Struct>]
 type Edge = struct
     val X: int
     val Y: int
     new(x,y) = {X=x; Y=y}
-end
+end *)
 
 type T = 
     {Start: CgState;
      End: CgState;
-     Graph: BidirectionalGraph<CgState, TaggedEdge<CgState, unit>>
+     Graph: BidirectionalGraph<CgState, Edge<CgState>>
      Topo: Topology.T}
 
 type Direction = Up | Down
@@ -63,7 +64,7 @@ let copyReverseGraph (cg: T) : T =
     let newCG = QuickGraph.BidirectionalGraph() 
     for v in cg.Graph.Vertices do newCG.AddVertex v |> ignore
     for e in cg.Graph.Edges do
-        let e' = TaggedEdge(e.Target, e.Source, ())
+        let e' = Edge(e.Target, e.Source)
         newCG.AddEdge e' |> ignore
     {Start=cg.Start; Graph=newCG; End=cg.End; Topo=cg.Topo}
 
@@ -78,7 +79,7 @@ let stateMapper () =
             !counter
         | Some i -> i)
 
-let index ((graph, topo, startNode, endNode): BidirectionalGraph<CgStateTmp, TaggedEdge<CgStateTmp,unit>> * _ * _ * _) =
+let index ((graph, topo, startNode, endNode): BidirectionalGraph<CgStateTmp, Edge<CgStateTmp>> * _ * _ * _) =
     let newCG = QuickGraph.BidirectionalGraph()
     let mapper = stateMapper ()
     let nstart = {Id=0; Node=startNode.TNode; State=(mapper startNode.TStates); Accept=startNode.TAccept}
@@ -99,7 +100,7 @@ let index ((graph, topo, startNode, endNode): BidirectionalGraph<CgStateTmp, Tag
         let u = e.Target
         let x = idxMap.[(v.TNode.Loc, mapper v.TStates)]
         let y = idxMap.[(u.TNode.Loc, mapper u.TStates)]
-        newCG.AddEdge (TaggedEdge(x,y,())) |> ignore
+        newCG.AddEdge (Edge(x,y)) |> ignore
     {Start=nstart; Graph=newCG; End=nend; Topo=topo}
 
 [<Struct>]
@@ -138,7 +139,7 @@ let buildFromAutomata (topo: Topology.T) (autos : Regex.Automaton array) : T =
     let unqTopo = Set.ofSeq topo.Vertices
     let transitions = getTransitions autos
     let garbage = Array.map getGarbageStates autos
-    let graph = BidirectionalGraph<CgStateTmp, TaggedEdge<CgStateTmp,unit>>()
+    let graph = BidirectionalGraph<CgStateTmp, Edge<CgStateTmp>>()
     let starting = Array.map (fun (x: Regex.Automaton) -> x.q0) autos
     let newStart = {TStates = starting; TAccept = Set.empty; TNode = {Loc="start"; Typ = Topology.Start} }
     ignore (graph.AddVertex newStart)
@@ -173,13 +174,13 @@ let buildFromAutomata (topo: Topology.T) (autos : Regex.Automaton array) : T =
                     ignore (marked.Add state)
                     ignore (graph.AddVertex state)
                     todo.Enqueue state 
-                let edge = TaggedEdge(currState, state, ())
+                let edge = Edge(currState, state)
                 ignore (graph.AddEdge edge)
     let newEnd = {TStates = [||]; TAccept = Set.empty; TNode = {Loc="end"; Typ = Topology.End}}
     graph.AddVertex newEnd |> ignore
     for v in graph.Vertices do
         if not (Set.isEmpty v.TAccept) then
-            let e = TaggedEdge(v, newEnd, ())
+            let e = Edge(v, newEnd)
             ignore (graph.AddEdge(e))
     index (graph, topo, newStart, newEnd)
 
@@ -236,7 +237,7 @@ let restrict (cg: T) (i: int) =
     else cg
 
 let toDot (cg: T) : string = 
-    let onFormatEdge(e: Graphviz.FormatEdgeEventArgs<CgState, TaggedEdge<CgState,unit>>) = ()
+    let onFormatEdge(e: Graphviz.FormatEdgeEventArgs<CgState, Edge<CgState>>) = ()
     let onFormatVertex(v: Graphviz.FormatVertexEventArgs<CgState>) = 
         let states = string v.Vertex.State
         let location = loc v.Vertex
@@ -251,7 +252,7 @@ let toDot (cg: T) : string =
                 v.VertexFormatter.Shape <- Graphviz.Dot.GraphvizVertexShape.DoubleCircle
                 v.VertexFormatter.Style <- Graphviz.Dot.GraphvizVertexStyle.Filled
                 v.VertexFormatter.FillColor <- Graphviz.Dot.GraphvizColor.LightYellow
-    let graphviz = Graphviz.GraphvizAlgorithm<CgState, TaggedEdge<CgState,unit>>(cg.Graph)
+    let graphviz = Graphviz.GraphvizAlgorithm<CgState, Edge<CgState>>(cg.Graph)
     graphviz.FormatEdge.Add(onFormatEdge)
     graphviz.FormatVertex.Add(onFormatVertex)
     graphviz.Generate()
@@ -380,9 +381,9 @@ module Minimize =
         cg.Graph.RemoveVertexIf (fun v ->
             (not (isRepeatedOut cg v)) &&
             Set.union dom.[v] domRev.[v] |> Set.exists (shadows v)) |> ignore
-        cg.Graph.RemoveEdgeIf (fun (e: TaggedEdge<CgState,unit>) -> 
+        cg.Graph.RemoveEdgeIf (fun e -> 
             let ies = cg.Graph.OutEdges e.Target
-            match Seq.tryFind (fun (ie: TaggedEdge<CgState,unit>) -> ie.Target = e.Source) ies with 
+            match Seq.tryFind (fun (ie: Edge<CgState>) -> ie.Target = e.Source) ies with 
             | None -> false 
             | Some ie ->
                 assert (ie.Source = e.Target)
@@ -496,7 +497,7 @@ module Consistency =
     type CounterExample =  CgState * CgState
     type Preferences = seq<CgState>
     type Ordering = Map<string, Preferences>
-    type Constraints = BidirectionalGraph<CgState ,TaggedEdge<CgState,unit>>
+    type Constraints = BidirectionalGraph<CgState ,Edge<CgState>>
 
     type Node = struct 
         val More: CgState
@@ -629,7 +630,7 @@ module Consistency =
                 if x <> y && (isPreferred idx cg cache doms r (x,y) (reachX,reachY)) then
                     logInfo (idx, sprintf "  %s is preferred to %s" (string x) (string y))
                     edges <- Set.add (x,y) edges
-                    g.AddEdge (TaggedEdge(x, y, ())) |> ignore
+                    g.AddEdge (Edge(x, y)) |> ignore
                 else if x <> y then
                     match Map.tryFind x mustPrefer with 
                     | None -> ()
@@ -640,7 +641,7 @@ module Consistency =
         g, edges
 
     let encodeConstraints idx cache doms (cg, reachMap) mustPrefer r nodes =
-        let g = BidirectionalGraph<CgState ,TaggedEdge<CgState,unit>>()
+        let g = BidirectionalGraph<CgState ,Edge<CgState>>()
         for n in nodes do 
             g.AddVertex n |> ignore
         addPrefConstraints idx cg cache doms g r mustPrefer nodes reachMap
@@ -697,7 +698,7 @@ module ToRegex =
         let inline add k v = reMap := Map.add k v !reMap
         let reachable = Reachable.src cg state Down
         cg.Graph.RemoveVertexIf (fun v -> not (reachable.Contains v) && Topology.isTopoNode v.Node) |> ignore
-        cg.Graph.AddEdge (TaggedEdge(cg.End, state, ())) |> ignore
+        cg.Graph.AddEdge (Edge(cg.End, state)) |> ignore
         add (cg.End, state) Regex.epsilon
         for e in cg.Graph.Edges do
             if e.Source <> cg.End then
@@ -705,7 +706,7 @@ module ToRegex =
         let queue = Queue()
         for v in cg.Graph.Vertices do
             if isRealNode v then
-                queue.Enqueue v
+                queue.Enqueue v 
         while queue.Count > 0 do 
             let q = queue.Dequeue()
             for q1 in cg.Graph.Vertices do 
@@ -725,10 +726,10 @@ module Failure =
 
     type FailType =
         | NodeFailure of Topology.State
-        | LinkFailure of TaggedEdge<Topology.State,unit>
+        | LinkFailure of Edge<Topology.State>
 
-        override this.ToString() = 
-            match this with 
+        override x.ToString() = 
+            match x with 
             | NodeFailure n -> "Node(" + n.Loc + ")"
             | LinkFailure e -> "Link(" + e.Source.Loc + "," + e.Target.Loc + ")"
   
@@ -737,7 +738,7 @@ module Failure =
         let fes =
             topo.Edges
             |> Seq.filter (fun e -> Topology.isInside e.Source || Topology.isInside e.Target) 
-            |> Seq.map LinkFailure 
+            |> Seq.map LinkFailure
         Seq.append fes fvs 
         |> Seq.toList
         |> Common.List.combinations n

@@ -14,7 +14,7 @@ type CgState =
 type T = 
     {Start: CgState;
      End: CgState;
-     Graph: BidirectionalGraph<CgState, TaggedEdge<CgState, unit>>;
+     Graph: BidirectionalGraph<CgState, Edge<CgState>>;
      Topo: Topology.T}
 
 /// Direction of search. We often need to search in the reverse graph,
@@ -122,7 +122,7 @@ module Failure =
     /// A single node or link falure
     type FailType =
         | NodeFailure of Topology.State
-        | LinkFailure of TaggedEdge<Topology.State,unit>
+        | LinkFailure of Edge<Topology.State>
 
     /// Enumerate all failures up to a given size
     val allFailures: int -> Topology.T -> seq<FailType list>

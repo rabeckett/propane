@@ -15,7 +15,7 @@ type State =
     {Loc: string; 
      Typ: NodeType}
 
-type T = BidirectionalGraph<State,TaggedEdge<State,unit>>
+type T = BidirectionalGraph<State,Edge<State>>
 
 
 /// Make a defensive copy of the topology
