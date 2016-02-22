@@ -345,7 +345,8 @@ module Domination =
         let reach = Reachable.dfs cg root direction
         let postorder = Seq.mapi (fun i n -> (n,i)) reach
         let postorderMap = Dictionary()
-        Seq.iter (fun (n,i) -> postorderMap.[n] <- i) postorder
+        for (n,i) in postorder do
+            postorderMap.[n] <- i
         let allNodes = cg.Graph.Vertices |> Set.ofSeq
         for b in allNodes do 
             dom.[b] <- None

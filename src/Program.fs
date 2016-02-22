@@ -11,20 +11,19 @@ let runUnitTests () =
     Regex.Test.run () 
     Predicate.Test.run ()
     Abgp.Test.run ()
-    exit 0
 
-let avg xs = 
+let total xs = 
     xs 
     |> Array.map float 
-    |> Array.average
+    |> Array.sum
 
 let displayStats (stats: Abgp.Stats) = 
     printfn ""
-    printfn "Avg.  PG construction time (sec):  %f" (avg stats.PerPrefixBuildTimes / 1000.0)
-    printfn "Avg.  PG Minimization time (sec):  %f" (avg stats.PerPrefixMinTimes / 1000.0)
-    printfn "Avg.  Find Ordering time (sec):    %f" (avg stats.PerPrefixOrderTimes / 1000.0)
-    printfn "Avg.  Generate Config time (sec):  %f" (avg stats.PerPrefixGenTimes / 1000.0)
-    printfn "Total Config Min time (sec):       %f" (float stats.MinTime / 1000.0)
+    printfn "Total PG construction time (sec):  %f" (total stats.PerPrefixBuildTimes / 1000.0)
+    printfn "Total PG Minimization time (sec):  %f" (total stats.PerPrefixMinTimes / 1000.0)
+    printfn "Total Find Ordering time (sec):    %f" (total stats.PerPrefixOrderTimes / 1000.0)
+    printfn "Total Generate Config time (sec):  %f" (total stats.PerPrefixGenTimes / 1000.0)
+    printfn "TotalConfig Min time (sec):       %f" (float stats.MinTime / 1000.0)
     printfn ""
 
 [<EntryPoint>] 
@@ -33,6 +32,10 @@ let main argv =
     let settings = Args.getSettings ()
     if settings.Test then
         runUnitTests ()
+        exit 0
+    if settings.Bench then 
+        Benchmark.generate () 
+        exit 0
     let fullName = settings.DebugDir + (Common.Option.getOrDefault "output" settings.OutFile)
     let topoInfo = 
         match settings.TopoFile with 

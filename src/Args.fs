@@ -27,6 +27,7 @@ type T =
      Minimize: bool;
      Parallel: bool;
      Test: bool;
+     Bench: bool;
      CheckEnter: bool;
      Debug: bool; 
      DebugDir: string;
@@ -49,6 +50,7 @@ let useNoExport = ref false
 let minimize = ref true
 let isParallel = ref true
 let test = ref false
+let bench = ref false
 let debug = ref false
 let debugDir = ref (currentDir + sep + "debug" + sep)
 let compression = ref true
@@ -122,6 +124,7 @@ let args =
       ("-debug:on:off", String (setOnOff debug "debug"), "Log/Save Debugging information (default off)");
       ("-debug-dir", String setDebugDir, "Debugging directory (default 'debug')");
       ("-test", Unit (fun () -> test := true), "Run unit tests");
+      ("-bench", Unit (fun () -> bench := true), "Generate benchmark files");
       ("-help", Unit (fun () -> ()), "Display this message");
     |]
 
@@ -190,6 +193,7 @@ let parse (argv: string[]) : unit =
               Parallel = !isParallel;
               Target = !target; 
               Test = !test; 
+              Bench = !bench;
               CheckEnter = !checkEnter;
               Debug = !debug; 
               DebugDir = !debugDir;

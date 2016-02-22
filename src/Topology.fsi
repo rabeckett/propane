@@ -84,6 +84,8 @@ module Examples =
     type Tiers = Dictionary<State,int>
     type Prefixes = Dictionary<State,Prefix.T>
     val fatTree: int -> T * Prefixes * Tiers
+    // Full mesh topology
+    val complete: int -> T
 
 /// Module with unit tests
 module Test = 

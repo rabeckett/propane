@@ -78,19 +78,22 @@ let rec addVertices (topo: T) (vs: State list) =
         topo.AddVertex v |> ignore
         addVertices topo vs
 
-let rec addEdgesUndirected (topo: T) (es: (State * State) list) = 
+let rec addEdgesUndirected (topo: T) (es: (State * State) list) =
     match es with 
     | [] -> () 
     | (x,y)::es -> 
-        topo.AddEdge (TaggedEdge(x,y,())) |> ignore
-        topo.AddEdge (TaggedEdge(y,x,())) |> ignore
+        let e1 = TaggedEdge(x,y,())
+        let e2 = TaggedEdge(y,x,())
+        ignore (topo.AddEdge e1)
+        ignore (topo.AddEdge e2)
         addEdgesUndirected topo es
 
 let rec addEdgesDirected (topo: T) (es: (State * State) list) = 
     match es with 
     | [] -> () 
     | (x,y)::es -> 
-        topo.AddEdge (TaggedEdge(x,y,())) |> ignore
+        let e = TaggedEdge(x,y,())
+        ignore (topo.AddEdge e)
         addEdgesDirected topo es
 
 let getStateByLoc (topo: T) loc = 
@@ -135,6 +138,13 @@ let router (asn:string) (ti:TopoInfo) =
 
 let readTopology (file: string) : TopoInfo =
     let g = BidirectionalGraph<State,TaggedEdge<State,unit>>()
+    // avoid adding edges twice
+    let seen = HashSet()
+    let inline addEdge x y = 
+        if not (seen.Contains (x,y)) then
+            seen.Add (x,y) |> ignore
+            let e = TaggedEdge(x,y,())
+            ignore (g.AddEdge e)
     let topo = Topo.Load file
     let mutable nodeMap = Map.empty
     let mutable asnMap = Map.empty
@@ -169,9 +179,10 @@ let readTopology (file: string) : TopoInfo =
             let x = nodeMap.[e.Source]
             let y = nodeMap.[e.Target]
             if e.Directed then
-                addEdgesDirected g [(x,y)]
+                addEdge x y
             else 
-                addEdgesUndirected g [(x,y)]
+                addEdge x y 
+                addEdge y x
     {Graph = g; 
      AsnMap = asnMap; 
      InternalNames = internalNames; 
@@ -426,7 +437,72 @@ module Examples =
                 let x = routersT1.[i]
                 let y = routersT2.[rem*perPod + j]
                 addEdgesUndirected g [(x,y)]
+        let back1 = {Loc="BACK1"; Typ=Outside}
+        let back2 = {Loc="BACK2"; Typ=Outside}
+        ignore (g.AddVertex back1)
+        ignore (g.AddVertex back2)
+        for i = 0 to iT2-1 do 
+            let x = routersT2.[i]
+            addEdgesUndirected g [(x,back1); (x,back2)]
         (g, prefixes, tiers)
+
+    let complete n  = 
+        let g = BidirectionalGraph<State, TaggedEdge<State,unit>>()
+         // setup external peers
+        let externalPeers = Dictionary()
+        let internalPeers =  Dictionary()
+        // setup internal full mesh
+        for i = 0 to n-1 do
+            let name = "R" + string i
+            let v = {Loc=name; Typ=Inside}
+            ignore (g.AddVertex v)
+            internalPeers.[name] <- v
+        for v1 in g.Vertices do 
+            for v2 in g.Vertices do 
+                if isInside v1 && isInside v2 && v1 <> v2 then
+                    let e = TaggedEdge(v1,v2,())
+                    ignore (g.AddEdge e)
+        // add connections to external peers
+        for kv in internalPeers do
+            let name = kv.Key 
+            let router = kv.Value
+            // add dcs
+            for i = 0 to 9 do
+                let eName = "Cust" + string i + name
+                let ePeer = {Loc=eName; Typ=Outside} 
+                ignore (g.AddVertex ePeer)
+                let e1 = TaggedEdge (router, ePeer, ()) 
+                let e2 = TaggedEdge (ePeer, router, ()) 
+                ignore (g.AddEdge e1)
+                ignore (g.AddEdge e2)
+            // add peers
+            for i = 0 to 19 do 
+                let eName = "Peer" + string i + name
+                let ePeer = {Loc=eName; Typ=Outside} 
+                ignore (g.AddVertex ePeer)
+                let e1 = TaggedEdge (router, ePeer, ()) 
+                let e2 = TaggedEdge (ePeer, router, ())
+                ignore (g.AddEdge e1)
+                ignore (g.AddEdge e2)
+            // add paid on net
+            for i = 0 to 19 do 
+                let eName = "OnPaid" + string i + name
+                let ePeer = {Loc=eName; Typ=Outside} 
+                ignore (g.AddVertex ePeer)
+                let e1 = TaggedEdge (router, ePeer, ()) 
+                let e2 = TaggedEdge (ePeer, router, ())
+                ignore (g.AddEdge e1)
+                ignore (g.AddEdge e2)
+            // add paid off net
+            for i = 0 to 19 do 
+                let eName = "OffPaid" + string i + name
+                let ePeer = {Loc=eName; Typ=Outside} 
+                ignore (g.AddVertex ePeer)
+                let e1 = TaggedEdge (router, ePeer, ()) 
+                let e2 = TaggedEdge (ePeer, router, ())
+                ignore (g.AddEdge e1)
+                ignore (g.AddEdge e2)
+        g
 
 
 module Test = 

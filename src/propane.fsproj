@@ -36,7 +36,7 @@
     <PlatformTarget>AnyCPU</PlatformTarget>
     <DocumentationFile>bin\Release\propane.XML</DocumentationFile>
     <Prefer32Bit>true</Prefer32Bit>
-    <StartArguments></StartArguments>
+    <StartArguments>-pol:benchmarks/fat10.pro -topo:benchmarks/fat10.xml -out:fat10 -parallel:off</StartArguments>
     <DebugSymbols>true</DebugSymbols>
   </PropertyGroup>
   <ItemGroup>
@@ -102,6 +102,7 @@
     <Compile Include="CGraph.fs" />
     <Compile Include="Abgp.fsi" />
     <Compile Include="Abgp.fs" />
+    <Compile Include="Benchmark.fs" />
     <Compile Include="Program.fs" />
     <None Include="App.config" />
     <None Include="packages.config" />

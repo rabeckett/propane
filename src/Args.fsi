@@ -21,6 +21,7 @@ type T =
      Minimize: bool;
      Parallel: bool;
      Test: bool;
+     Bench: bool;
      CheckEnter: bool;
      Debug: bool; 
      DebugDir: string;
