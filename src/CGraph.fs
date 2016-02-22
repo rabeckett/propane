@@ -102,6 +102,13 @@ let index ((graph, topo, startNode, endNode): BidirectionalGraph<CgStateTmp, Tag
         newCG.AddEdge (TaggedEdge(x,y,())) |> ignore
     {Start=nstart; Graph=newCG; End=nend; Topo=topo}
 
+[<Struct>]
+type KeyPair = struct
+    val Q: int
+    val C: string
+    new(q,c) = {Q = q; C = c}
+end
+
 let getTransitions autos =
     let aux (auto: Regex.Automaton) = 
         Map.fold (fun acc (q1,S) q2 ->
@@ -110,15 +117,19 @@ let getTransitions autos =
         ) Map.empty auto.trans
     Array.map aux autos
 
-let getGarbageStates (auto: Regex.Automaton) =     
+let getGarbageStates (auto: Regex.Automaton) = 
+    let inline aux (kv: KeyValuePair<_,_>) = 
+        let k = kv.Key
+        let v = kv.Value 
+        let c = Set.count v
+        if c = 1 && Set.minElement v = k then Some k 
+        else None 
     let selfLoops = 
         Map.fold (fun acc (x,_) y  ->
             let existing = Common.Map.getOrDefault x Set.empty acc
             Map.add x (Set.add y existing) acc ) Map.empty auto.trans
-            |> Map.filter (fun x ys -> Set.count ys = 1 && Set.minElement ys = x)
-            |> Map.toList 
-            |> List.map fst 
-            |> Set.ofList
+            |> Seq.choose aux
+            |> Set.ofSeq
     Set.difference selfLoops auto.F
 
 let buildFromAutomata (topo: Topology.T) (autos : Regex.Automaton array) : T =
@@ -136,7 +147,7 @@ let buildFromAutomata (topo: Topology.T) (autos : Regex.Automaton array) : T =
     todo.Enqueue newStart
     while todo.Count > 0 do
         let currState = todo.Dequeue()
-        let {TStates=ss; TNode=t} = currState
+        let t = currState.TNode
         let adj = 
             if t.Typ = Topology.Start 
             then Seq.filter Topology.canOriginateTraffic unqTopo 
@@ -145,7 +156,7 @@ let buildFromAutomata (topo: Topology.T) (autos : Regex.Automaton array) : T =
         for c in adj do
             let dead = ref true
             let nextInfo = Array.init autos.Length (fun i ->
-                let g, v = autos.[i], ss.[i]
+                let g, v = autos.[i], currState.TStates.[i]
                 let newState = transitions.[i].[(v,c.Loc)]
                 if not (garbage.[i].Contains newState) then 
                     dead := false
@@ -166,8 +177,10 @@ let buildFromAutomata (topo: Topology.T) (autos : Regex.Automaton array) : T =
                 ignore (graph.AddEdge edge)
     let newEnd = {TStates = [||]; TAccept = Set.empty; TNode = {Loc="end"; Typ = Topology.End}}
     graph.AddVertex newEnd |> ignore
-    let accepting = Seq.filter (fun v -> not (Set.isEmpty v.TAccept)) graph.Vertices
-    Seq.iter (fun v -> graph.AddEdge(TaggedEdge(v, newEnd, ())) |> ignore) accepting
+    for v in graph.Vertices do
+        if not (Set.isEmpty v.TAccept) then
+            let e = TaggedEdge(v, newEnd, ())
+            ignore (graph.AddEdge(e))
     index (graph, topo, newStart, newEnd)
 
 let inline loc x = x.Node.Loc

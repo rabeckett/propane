@@ -81,6 +81,7 @@ type T =
      Defs: Definitions;
      CConstraints: ControlConstraints}
 
+
 (* Built-in control constraints and path constraints.
    May add a way for the user to define new constraints. *)
 
@@ -219,15 +220,11 @@ module Message =
     let issueAst (ast: T) (msg: string) (p: Position) (kind: Kind) =
         let settings = Args.getSettings ()
         let ccolor, errorTyp = colorInfo kind
-        if settings.Target = Args.Off then 
-            printfn "%s(%d,%d,%d,%d) %s" 
-                (errorTyp.Trim()) p.SLine p.SCol p.ELine p.ECol msg
-        else
-            writeHeader ()
-            if p.SLine = p.ELine 
-            then displaySingleLine ast p ccolor
-            else displayMultiLine ast p ccolor
-            displayFooter msg (ccolor, errorTyp)
+        writeHeader ()
+        if p.SLine = p.ELine 
+        then displaySingleLine ast p ccolor
+        else displayMultiLine ast p ccolor
+        displayFooter msg (ccolor, errorTyp)
 
     let validate p = 
         if p = dummyPos then 
@@ -293,19 +290,21 @@ let wellFormedPrefix ast pos (a,b,c,d,bits) =
     let bits = adjustBits bits
     let p = Prefix.prefix (a,b,c,d) bits
     if (a > 255u || b > 255u || c > 255u || d > 255u || (bits > 32u)) then
-        let msg = sprintf "Found an invalid prefix %s, must be [0-255].[0-255].[0-255].[0-255]/[0-32] " (string p)
+        let msg = 
+            sprintf "Found an invalid prefix %s, " (string p) +
+            sprintf "must match [0-255].[0-255].[0-255].[0-255]/[0-32]"
         Message.errorAst ast msg pos
 
 let typeMsg (expected: Type list) (t1: Type) = 
     let t = Common.List.joinBy " or " (List.map string expected)
     sprintf "Invalid type, expected %s, but got %s" 
-        (string t) 
+        (string t)
         (string t1)
 
 let typeMsg2 (expected: Type list) (t1: Type) (t2: Type) = 
     let t = Common.List.joinBy " or " (List.map string expected)
-    sprintf "Invalid type, expected %s, but got %s and %s" 
-        (string t) 
+    sprintf "Invalid type, expected 2 of (%s), but got %s and %s" 
+        (string t)
         (string t1)
         (string t2)
 

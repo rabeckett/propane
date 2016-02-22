@@ -44,31 +44,31 @@ let main argv =
         let (lines, defs, cs) = Input.readFromFile polFile
         let ast : Ast.T = {Input = lines; TopoInfo = topoInfo; Defs = defs; CConstraints = cs}
         let polInfo = Ast.build ast
-        if settings.Target <> Args.Off then
-            let res = Abgp.compileAllPrefixes fullName polInfo
-            match res.AggSafety, settings.Failures with
-            | Some safetyInfo, _ -> 
-                let i = safetyInfo.NumFailures
-                let bad = 
-                    match settings.Failures with 
-                    | Args.Any -> true
-                    | Args.Concrete j -> i < j
-                if bad then
-                    let x = Topology.router safetyInfo.PrefixLoc topoInfo
-                    let y = Topology.router safetyInfo.AggregateLoc topoInfo
-                    let p = safetyInfo.Prefix
-                    let agg = safetyInfo.Aggregate
-                    let msg = 
-                        sprintf "Could only prove aggregation black-hole safety for up to %d failures. " i +
-                        sprintf "It may be possible to disconnect the prefix %s at location %s from the " (string p) x +
-                        sprintf "aggregate prefix %s at %s after %d failures. " (string agg) y (i+1) +
-                        sprintf "Consider using the -failures:n flag to specify a tolerable failure level."
-                    warning msg
-            | _ -> ()
-            // show statistics
-            if settings.Stats then 
-                displayStats res.Stats 
-            // generate ir file
+        let res = Abgp.compileAllPrefixes fullName polInfo
+        match res.AggSafety, settings.Failures with
+        | Some safetyInfo, _ -> 
+            let i = safetyInfo.NumFailures
+            let bad, warn = 
+                match settings.Failures with 
+                | Args.Any -> true, true
+                | Args.Concrete j -> i < j, false
+            if bad then
+                let x = Topology.router safetyInfo.PrefixLoc topoInfo
+                let y = Topology.router safetyInfo.AggregateLoc topoInfo
+                let p = safetyInfo.Prefix
+                let agg = safetyInfo.Aggregate
+                let msg = 
+                    sprintf "Could only prove aggregation black-hole safety for up to %d failures. " i +
+                    sprintf "It may be possible to disconnect the prefix %s at location %s from the " (string p) x +
+                    sprintf "aggregate prefix %s at %s after %d failures. " (string agg) y (i+1) +
+                    sprintf "Consider using the -failures:n flag to specify a tolerable failure level."
+                if warn then 
+                    warning msg 
+                else error msg
+        | _ -> ()
+        if settings.Stats then 
+            displayStats res.Stats
+        if settings.Target <> Args.Off then          
             match settings.OutFile, settings.Target with
             | None, _ -> ()
             | Some out, Args.IR -> System.IO.File.WriteAllText(out + ".ir", Abgp.format res.Abgp)
