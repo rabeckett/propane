@@ -1,4 +1,3 @@
-<?xml version="1.0" encoding="UTF-8"?>
 <topology>
   <node internal="true" can-originate="true" asn="100" name="A"></node>
   <node internal="true" can-originate="true" asn="101" name="B"></node>
@@ -10,7 +9,8 @@
   <node internal="true" can-originate="false" asn="107" name="H"></node>
   <node internal="true" can-originate="false" asn="108" name="X"></node>
   <node internal="true" can-originate="false" asn="109" name="Y"></node>
-  <node internal="false" can-originate="true" asn="110" name="CORE"></node>
+  <node internal="false" can-originate="true" asn="110" name="Back1"></node>
+  <node internal="false" can-originate="true" asn="111" name="Back2"></node>
 
   <edge source="A" target="C" directed="false"></edge>
   <edge source="A" target="D" directed="false"></edge>
@@ -28,6 +28,8 @@
   <edge source="G" target="Y" directed="false"></edge>
   <edge source="H" target="X" directed="false"></edge>
   <edge source="H" target="Y" directed="false"></edge>
-  <edge source="X" target="CORE" directed="false"></edge>
-  <edge source="Y" target="CORE" directed="false"></edge>
+  <edge source="X" target="Back1" directed="false"></edge>
+  <edge source="X" target="Back2" directed="false"></edge>
+  <edge source="Y" target="Back1" directed="false"></edge>
+  <edge source="Y" target="Back2" directed="false"></edge>
 </topology>

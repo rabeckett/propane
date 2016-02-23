@@ -416,7 +416,7 @@ and mergeSingle ast e x op =
     if xs.Length > 1 then
         let msg = sprintf "Invalid use of preferences with %s" op
         Message.errorAst ast msg e.Pos
-    else xs 
+    else [e]
 
 (* Construct an actual regular expression from an 
    expression with regex type. Expands built-in 
@@ -454,6 +454,8 @@ let rec buildRegex (ast: T) (reb: Regex.REBuilder) (r: Expr) : Regex.LazyT =
         | "in" -> ignore (checkParams id 0 args); reb.Inside 
         | "out" -> ignore (checkParams id 0 args);  reb.Outside
         | _ -> Common.unreachable ()
+    | ShrExpr(e1,e2) -> 
+        error (sprintf "Preferences in built-in constraint currently not handled")
     | _ -> Common.unreachable ()
 
 (* Build a concrete predicate from an expression
@@ -568,7 +570,7 @@ let makeControlConstraints ast : CConstraint list =
 
 let inline getUsed seen e =
     match e.Node with
-    | Ident(id, []) -> 
+    | Ident(id, _) -> 
         seen := Set.add id.Name !seen
     | _ -> ()
 
@@ -771,6 +773,7 @@ let makePolicyPairs (ast: T) =
     | Some (_,[],e) ->
         // Find unused definitions
         warnUnused ast e
+        // Warn when using raw asn for a named router
         warnRawAsn ast
         // Expand all definitions to get a concrete expr
         let e = substitute ast e
