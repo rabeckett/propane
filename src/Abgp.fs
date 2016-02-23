@@ -430,9 +430,10 @@ module Incoming =
     let collectForPeer cg acc peer = 
         let reachable = 
             Reachable.src cg peer Down
-            |> Set.filter (fun x -> x <> peer && Topology.isTopoNode x.Node)
-        let hasRepeatedOut = Set.exists (CGraph.isRepeatedOut cg) reachable
-        let hasOther = (reachable.Count > 1) || (not hasRepeatedOut && reachable.Count > 0)
+            |> Seq.filter (fun x -> x <> peer && Topology.isTopoNode x.Node)
+        let hasRepeatedOut = Seq.exists (CGraph.isRepeatedOut cg) reachable
+        let len = Seq.length reachable
+        let hasOther = (len > 1) || (not hasRepeatedOut && len > 0)
         match hasRepeatedOut, hasOther with
         | false, false -> Map.add peer (Nothing peer.Node.Loc) acc
         | true, false -> Map.add peer Anything acc

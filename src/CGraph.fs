@@ -13,7 +13,8 @@ type CgState =
     {Id: int;
      State: int;
      Accept: Set<int>; 
-     Node: Topology.State}
+     Node: Topology.State;
+     mutable Mark: uint32}
 
     override this.ToString() = 
        "(Id=" + string this.Id + ", State=" + string this.State + ", Loc=" + this.Node.Loc + ")"
@@ -48,7 +49,8 @@ type T =
     {Start: CgState;
      End: CgState;
      Graph: BidirectionalGraph<CgState, Edge<CgState>>
-     Topo: Topology.T}
+     Topo: Topology.T
+     mutable Mark: uint32}
 
 type Direction = Up | Down
 
@@ -58,7 +60,7 @@ let copyGraph (cg: T) : T =
         newCG.AddVertex v |> ignore
     for e in cg.Graph.Edges do
         newCG.AddEdge e |> ignore
-    {Start=cg.Start; Graph=newCG; End=cg.End; Topo=cg.Topo}
+    {Start=cg.Start; Graph=newCG; Mark=cg.Mark; End=cg.End; Topo=cg.Topo}
 
 let copyReverseGraph (cg: T) : T = 
     let newCG = QuickGraph.BidirectionalGraph() 
@@ -66,7 +68,7 @@ let copyReverseGraph (cg: T) : T =
     for e in cg.Graph.Edges do
         let e' = Edge(e.Target, e.Source)
         newCG.AddEdge e' |> ignore
-    {Start=cg.Start; Graph=newCG; End=cg.End; Topo=cg.Topo}
+    {Start=cg.Start; Graph=newCG; Mark=cg.Mark; End=cg.End; Topo=cg.Topo}
 
 let stateMapper () = 
     let stateMap = Dictionary(HashIdentity.Structural)
@@ -79,8 +81,8 @@ let stateMapper () =
 let index ((graph, topo, startNode, endNode): BidirectionalGraph<CgStateTmp, Edge<CgStateTmp>> * _ * _ * _) =
     let newCG = QuickGraph.BidirectionalGraph()
     let mapper = stateMapper ()
-    let nstart = {Id=0; Node=startNode.TNode; State=(mapper startNode.TStates); Accept=startNode.TAccept}
-    let nend = {Id=1; Node=endNode.TNode; State=(mapper endNode.TStates); Accept=endNode.TAccept}
+    let nstart = {Id=0; Node=startNode.TNode; Mark=0u; State=(mapper startNode.TStates); Accept=startNode.TAccept}
+    let nend = {Id=1; Node=endNode.TNode; Mark=0u; State=(mapper endNode.TStates); Accept=endNode.TAccept}
     ignore (newCG.AddVertex nstart)
     ignore (newCG.AddVertex nend)
     let mutable i = 2
@@ -89,7 +91,7 @@ let index ((graph, topo, startNode, endNode): BidirectionalGraph<CgStateTmp, Edg
     idxMap.[(nend.Node.Loc, nend.State)] <- nend
     for v in graph.Vertices do
         if Topology.isTopoNode v.TNode then
-            let newv = {Id=i; Node=v.TNode; State = (mapper v.TStates); Accept=v.TAccept}
+            let newv = {Id=i; Node=v.TNode; Mark=0u; State = (mapper v.TStates); Accept=v.TAccept}
             i <- i + 1
             idxMap.Add( (v.TNode.Loc, mapper v.TStates), newv)
             newCG.AddVertex newv |> ignore
@@ -99,7 +101,7 @@ let index ((graph, topo, startNode, endNode): BidirectionalGraph<CgStateTmp, Edg
         let x = idxMap.[(v.TNode.Loc, mapper v.TStates)]
         let y = idxMap.[(u.TNode.Loc, mapper u.TStates)]
         newCG.AddEdge (Edge(x,y)) |> ignore
-    {Start=nstart; Graph=newCG; End=nend; Topo=topo}
+    {Start=nstart; Graph=newCG; Mark=1u; End=nend; Topo=topo}
 
 [<Struct>]
 type KeyPair = struct
@@ -271,45 +273,60 @@ let generatePNG (cg: T) (file: string) : unit =
 
 module Reachable =
 
-    let dfs (cg: T) (source: CgState) direction : seq<CgState> = seq { 
-        let f = if direction = Up then neighborsIn else neighbors
-        let s = Stack()
-        let marked = HashSet()
-        s.Push source
-        while s.Count > 0 do 
-            let v = s.Pop()
-            if not (marked.Contains v) then 
-                ignore (marked.Add v)
-                yield v
-                for w in f cg v do 
-                    s.Push w }
+    let inline isMarked (cg:T) (v:CgState) =
+        v.Mark = cg.Mark
+
+    let inline mark (cg:T) (v: CgState) = 
+        v.Mark <- cg.Mark
+
+    let inline resetMarks (cg:T) =
+        cg.Mark <- cg.Mark + 1u    
+
+    let dfs (cg: T) (source: CgState) direction : seq<CgState> = 
+        seq { 
+            resetMarks cg
+            let f = if direction = Up then neighborsIn else neighbors
+            let s = Stack()
+            s.Push source
+            while s.Count > 0 do 
+                let v = s.Pop()
+                if not (isMarked cg v) then 
+                    mark cg v
+                    yield v
+                    for w in f cg v do 
+                        s.Push w}
 
     let srcWithout (cg: T) source without direction =
         let f = if direction = Up then neighborsIn else neighbors
         let s = Stack()
-        let mutable marked = Set.empty
+        let marked = HashSet(HashIdentity.Structural)
         s.Push source
         while s.Count > 0 do 
             let v = s.Pop()
             if not (marked.Contains v) && not (without v) then 
-                marked <- marked.Add v
+                ignore (marked.Add v)
                 for w in f cg v do 
                     s.Push w
         marked
 
     let inline srcDstWithout (cg: T) source sink without direction = 
         if without sink || without source then false
-        else Set.contains sink (srcWithout cg source without direction)
+        else 
+            let marked = srcWithout cg source without direction
+            marked.Contains(sink)
 
-    let inline src (cg: T) (source: CgState) direction : Set<CgState> =
+    let inline src (cg: T) (source: CgState) direction : HashSet<CgState> =
         srcWithout cg source (fun _ -> false) direction
 
     let inline srcDst (cg: T) source sink direction = 
         srcDstWithout cg source sink (fun _ -> false) direction
 
     let inline srcAcceptingWithout cg src without direction = 
-        srcWithout cg src without direction 
-        |> Set.fold (fun acc cg -> Set.union cg.Accept acc) Set.empty
+        let marked = srcWithout cg src without direction 
+        let mutable all = Set.empty 
+        for cg in marked do 
+            all <- Set.union cg.Accept all
+        all
 
     let inline srcAccepting cg src direction = 
         srcAcceptingWithout cg src (fun _ -> false) direction
@@ -408,13 +425,13 @@ module Minimize =
     let removeNodesThatCantReachEnd (cg: T) = 
         let canReach = Reachable.src cg cg.End Up
         cg.Graph.RemoveVertexIf(fun v -> 
-            Topology.isTopoNode v.Node && not (Set.contains v canReach)) |> ignore
+            Topology.isTopoNode v.Node && not (canReach.Contains(v))) |> ignore
         cg
         
     let removeNodesThatStartCantReach (cg: T) = 
         let canReach = Reachable.src cg cg.Start Down
         cg.Graph.RemoveVertexIf(fun v -> 
-            Topology.isTopoNode v.Node && not (Set.contains v canReach)) |> ignore
+            Topology.isTopoNode v.Node && not (canReach.Contains(v))) |> ignore
         cg
 
     let delMissingSuffixPaths cg = 
@@ -621,10 +638,10 @@ module Consistency =
             copy.Graph.RemoveEdgeIf (fun e ->
                 e.Target = copy.End && not (e.Source.Accept.Contains i)) |> ignore
             let reach = Reachable.src copy copy.End Up
-            Set.fold (fun acc v ->
+            Seq.fold (fun acc v ->
                 let existing = Common.Map.getOrDefault v Set.empty acc 
                 let updated = Map.add v (Set.add i existing) acc
-                updated) acc reach
+                updated) acc reach //baddddd
         Set.fold getNodesWithPref Map.empty prefs    
 
     let addPrefConstraints idx cg cache doms (g: Constraints) r mustPrefer nodes reachMap =

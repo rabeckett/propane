@@ -1,13 +1,17 @@
 ﻿module CGraph
+
 open QuickGraph
 open Common.Error
+open System.Collections.Generic
+
 
 [<CustomEquality; CustomComparison>]
 type CgState = 
-    {Id: int; 
+    {Id: int;
      State: int; 
      Accept: Set<int>; 
-     Node: Topology.State}
+     Node: Topology.State;
+     mutable Mark: uint32}
 
      interface System.IComparable
 
@@ -15,7 +19,8 @@ type T =
     {Start: CgState;
      End: CgState;
      Graph: BidirectionalGraph<CgState, Edge<CgState>>;
-     Topo: Topology.T}
+     Topo: Topology.T;
+     mutable Mark: uint32;}
 
 /// Direction of search. We often need to search in the reverse graph,
 /// yet do not want to make a copy of the graph every time
@@ -73,16 +78,16 @@ val generatePNG: T -> string -> unit
 
 module Reachable =
     /// Find all destinations reachable from src while avoiding certain nodes
-    val srcWithout: T -> CgState -> (CgState -> bool) -> Direction -> Set<CgState>
+    val srcWithout: T -> CgState -> (CgState -> bool) -> Direction -> HashSet<CgState>
 
     /// Check if src can reach dst while avoiding certain nodes
     val inline srcDstWithout: T -> CgState -> CgState -> (CgState -> bool) -> Direction -> bool
 
     /// Check if src can reach dst
-    val inline srcDst: T -> CgState -> CgState -> Direction -> bool
+    //val inline srcDst: T -> CgState -> CgState -> Direction -> bool
 
     /// Find all destinations reachable from src
-    val inline src: T -> CgState -> Direction -> Set<CgState>
+    val inline src: T -> CgState -> Direction -> HashSet<CgState>
 
     /// Final all reachable preference levels
     val inline srcAccepting: T -> CgState -> Direction -> Set<int>
