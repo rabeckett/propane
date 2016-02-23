@@ -10,8 +10,7 @@ type CgState =
     {Id: int;
      State: int; 
      Accept: Set<int>; 
-     Node: Topology.State;
-     mutable Mark: int}
+     Node: Topology.State}
 
      interface System.IComparable
 
@@ -86,7 +85,7 @@ module Reachable =
     //val inline srcDst: T -> CgState -> CgState -> Direction -> bool
 
     /// Find all destinations reachable from src
-    val dfs: T -> CgState -> Direction -> List<CgState>
+    val dfs: T -> CgState -> Direction -> HashSet<CgState>
 
     /// Final all reachable preference levels
     val inline srcAccepting: T -> CgState -> Direction -> Set<int>

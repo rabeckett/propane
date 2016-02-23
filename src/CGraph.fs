@@ -14,8 +14,7 @@ type CgState =
     {Id: int;
      State: int;
      Accept: Set<int>; 
-     Node: Topology.State;
-     mutable Mark: int}
+     Node: Topology.State}
 
     override this.ToString() = 
        "(Id=" + string this.Id + ", State=" + string this.State + ", Loc=" + this.Node.Loc + ")"
@@ -55,13 +54,6 @@ type T =
 type Direction = Up | Down
 
 
-
-/// A global epoch number that allows for constant 
-/// time reset of mark bits in graph nodes
-
-let globalEpoch = ref 1
-
-
 let copyGraph (cg: T) : T = 
     let newCG = QuickGraph.BidirectionalGraph()
     for v in cg.Graph.Vertices do 
@@ -89,8 +81,8 @@ let stateMapper () =
 let index ((graph, topo, startNode, endNode): BidirectionalGraph<CgStateTmp, Edge<CgStateTmp>> * _ * _ * _) =
     let newCG = QuickGraph.BidirectionalGraph()
     let mapper = stateMapper ()
-    let nstart = {Id=0; Node=startNode.TNode; Mark=0; State=(mapper startNode.TStates); Accept=startNode.TAccept}
-    let nend = {Id=1; Node=endNode.TNode; Mark=0; State=(mapper endNode.TStates); Accept=endNode.TAccept}
+    let nstart = {Id=0; Node=startNode.TNode; State=(mapper startNode.TStates); Accept=startNode.TAccept}
+    let nend = {Id=1; Node=endNode.TNode; State=(mapper endNode.TStates); Accept=endNode.TAccept}
     ignore (newCG.AddVertex nstart)
     ignore (newCG.AddVertex nend)
     let mutable i = 2
@@ -99,7 +91,7 @@ let index ((graph, topo, startNode, endNode): BidirectionalGraph<CgStateTmp, Edg
     idxMap.[(nend.Node.Loc, nend.State)] <- nend
     for v in graph.Vertices do
         if Topology.isTopoNode v.TNode then
-            let newv = {Id=i; Node=v.TNode; Mark=0; State = (mapper v.TStates); Accept=v.TAccept}
+            let newv = {Id=i; Node=v.TNode; State = (mapper v.TStates); Accept=v.TAccept}
             i <- i + 1
             idxMap.Add( (v.TNode.Loc, mapper v.TStates), newv)
             newCG.AddVertex newv |> ignore
@@ -281,33 +273,33 @@ let generatePNG (cg: T) (file: string) : unit =
 
 module Reachable =
 
-    let inline isMarked (v:CgState) =
-        v.Mark = 1
-        //v.Mark = !globalEpoch
-
-    let inline mark (v: CgState) = 
-        v.Mark <- 1
-        //v.Mark <- !globalEpoch
-
-    let inline resetMarks (cg:T) =
-        for v in cg.Graph.Vertices do 
-            v.Mark <- 0
-        // Threading.Interlocked.Increment(globalEpoch) |> ignore
-
-    let dfs (cg: T) (source: CgState) direction : List<CgState> = 
-        resetMarks cg
+    let postOrder (cg: T) (source: CgState) direction : List<CgState> = 
         let f = if direction = Up then neighborsIn else neighbors
+        let marked = HashSet()
         let ret = ResizeArray()
         let s = Stack()
         s.Push(source)
         while s.Count > 0 do 
             let v = s.Pop()
-            if not (isMarked v) then 
-                mark v
+            if not (marked.Contains v) then 
+                ignore (marked.Add v)
                 ret.Add(v)
                 for w in f cg v do 
                     s.Push(w)
         ret
+
+    let dfs (cg: T) (source: CgState) direction : HashSet<CgState> = 
+        let f = if direction = Up then neighborsIn else neighbors
+        let marked = HashSet()
+        let s = Stack()
+        s.Push(source)
+        while s.Count > 0 do 
+            let v = s.Pop()
+            if not (marked.Contains v) then 
+                ignore (marked.Add v)
+                for w in f cg v do 
+                    s.Push(w)
+        marked
 
     let inline srcAccepting cg src direction = 
         let reach = dfs cg src direction
@@ -352,7 +344,7 @@ module Domination =
     let dominators (cg: T) root direction : DominationSet =
         let adj = if direction = Up then neighbors cg else neighborsIn cg
         let dom = Dictionary()
-        let reach = Reachable.dfs cg root direction
+        let reach = Reachable.postOrder cg root direction
         let postorder = Seq.mapi (fun i n -> (n,i)) reach
         let postorderMap = Dictionary()
         for (n,i) in postorder do
@@ -408,15 +400,15 @@ module Minimize =
         cg
 
     let removeNodesThatCantReachEnd (cg: T) = 
-        let _ = Reachable.dfs cg cg.End Up
+        let canReach = Reachable.dfs cg cg.End Up
         cg.Graph.RemoveVertexIf(fun v -> 
-            Topology.isTopoNode v.Node && not (Reachable.isMarked v)) |> ignore
+            Topology.isTopoNode v.Node && not (canReach.Contains v)) |> ignore
         cg
         
     let removeNodesThatStartCantReach (cg: T) = 
-        let _ = Reachable.dfs cg cg.Start Down
+        let canReach = Reachable.dfs cg cg.Start Down
         cg.Graph.RemoveVertexIf(fun v -> 
-            Topology.isTopoNode v.Node && not (Reachable.isMarked v)) |> ignore
+            Topology.isTopoNode v.Node && not (canReach.Contains v)) |> ignore
         cg
 
     let delMissingSuffixPaths cg = 
@@ -703,8 +695,8 @@ module ToRegex =
         let reMap = ref Map.empty
         let inline get v = Common.Map.getOrDefault v Regex.empty !reMap
         let inline add k v = reMap := Map.add k v !reMap
-        let _ = Reachable.dfs cg state Down
-        cg.Graph.RemoveVertexIf (fun v -> not (Reachable.isMarked v) && Topology.isTopoNode v.Node) |> ignore
+        let canReach = Reachable.dfs cg state Down
+        cg.Graph.RemoveVertexIf (fun v -> not (canReach.Contains v) && Topology.isTopoNode v.Node) |> ignore
         cg.Graph.AddEdge (Edge(cg.End, state)) |> ignore
         add (cg.End, state) Regex.epsilon
         for e in cg.Graph.Edges do
