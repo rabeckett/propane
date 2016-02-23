@@ -3,6 +3,7 @@
 open Common.Error
 open Common.Debug
 open Common.Format
+open System
 open System.Collections.Generic
 open System.Diagnostics
 open QuickGraph
@@ -14,7 +15,7 @@ type CgState =
      State: int;
      Accept: Set<int>; 
      Node: Topology.State;
-     mutable Mark: uint32}
+     mutable Mark: int}
 
     override this.ToString() = 
        "(Id=" + string this.Id + ", State=" + string this.State + ", Loc=" + this.Node.Loc + ")"
@@ -49,10 +50,17 @@ type T =
     {Start: CgState;
      End: CgState;
      Graph: BidirectionalGraph<CgState, Edge<CgState>>
-     Topo: Topology.T
-     mutable Mark: uint32}
+     Topo: Topology.T}
 
 type Direction = Up | Down
+
+
+
+/// A global epoch number that allows for constant 
+/// time reset of mark bits in graph nodes
+
+let globalEpoch = ref 1
+
 
 let copyGraph (cg: T) : T = 
     let newCG = QuickGraph.BidirectionalGraph()
@@ -60,7 +68,7 @@ let copyGraph (cg: T) : T =
         newCG.AddVertex v |> ignore
     for e in cg.Graph.Edges do
         newCG.AddEdge e |> ignore
-    {Start=cg.Start; Graph=newCG; Mark=cg.Mark; End=cg.End; Topo=cg.Topo}
+    {Start=cg.Start; Graph=newCG; End=cg.End; Topo=cg.Topo}
 
 let copyReverseGraph (cg: T) : T = 
     let newCG = QuickGraph.BidirectionalGraph() 
@@ -68,7 +76,7 @@ let copyReverseGraph (cg: T) : T =
     for e in cg.Graph.Edges do
         let e' = Edge(e.Target, e.Source)
         newCG.AddEdge e' |> ignore
-    {Start=cg.Start; Graph=newCG; Mark=cg.Mark; End=cg.End; Topo=cg.Topo}
+    {Start=cg.Start; Graph=newCG; End=cg.End; Topo=cg.Topo}
 
 let stateMapper () = 
     let stateMap = Dictionary(HashIdentity.Structural)
@@ -81,8 +89,8 @@ let stateMapper () =
 let index ((graph, topo, startNode, endNode): BidirectionalGraph<CgStateTmp, Edge<CgStateTmp>> * _ * _ * _) =
     let newCG = QuickGraph.BidirectionalGraph()
     let mapper = stateMapper ()
-    let nstart = {Id=0; Node=startNode.TNode; Mark=0u; State=(mapper startNode.TStates); Accept=startNode.TAccept}
-    let nend = {Id=1; Node=endNode.TNode; Mark=0u; State=(mapper endNode.TStates); Accept=endNode.TAccept}
+    let nstart = {Id=0; Node=startNode.TNode; Mark=0; State=(mapper startNode.TStates); Accept=startNode.TAccept}
+    let nend = {Id=1; Node=endNode.TNode; Mark=0; State=(mapper endNode.TStates); Accept=endNode.TAccept}
     ignore (newCG.AddVertex nstart)
     ignore (newCG.AddVertex nend)
     let mutable i = 2
@@ -91,7 +99,7 @@ let index ((graph, topo, startNode, endNode): BidirectionalGraph<CgStateTmp, Edg
     idxMap.[(nend.Node.Loc, nend.State)] <- nend
     for v in graph.Vertices do
         if Topology.isTopoNode v.TNode then
-            let newv = {Id=i; Node=v.TNode; Mark=0u; State = (mapper v.TStates); Accept=v.TAccept}
+            let newv = {Id=i; Node=v.TNode; Mark=0; State = (mapper v.TStates); Accept=v.TAccept}
             i <- i + 1
             idxMap.Add( (v.TNode.Loc, mapper v.TStates), newv)
             newCG.AddVertex newv |> ignore
@@ -101,7 +109,7 @@ let index ((graph, topo, startNode, endNode): BidirectionalGraph<CgStateTmp, Edg
         let x = idxMap.[(v.TNode.Loc, mapper v.TStates)]
         let y = idxMap.[(u.TNode.Loc, mapper u.TStates)]
         newCG.AddEdge (Edge(x,y)) |> ignore
-    {Start=nstart; Graph=newCG; Mark=1u; End=nend; Topo=topo}
+    {Start=nstart; Graph=newCG; End=nend; Topo=topo}
 
 [<Struct>]
 type KeyPair = struct
@@ -273,82 +281,40 @@ let generatePNG (cg: T) (file: string) : unit =
 
 module Reachable =
 
-    let inline isMarked (cg:T) (v:CgState) =
-        v.Mark = cg.Mark
+    let inline isMarked (v:CgState) =
+        v.Mark = 1
+        //v.Mark = !globalEpoch
 
-    let inline mark (cg:T) (v: CgState) = 
-        v.Mark <- cg.Mark
+    let inline mark (v: CgState) = 
+        v.Mark <- 1
+        //v.Mark <- !globalEpoch
 
     let inline resetMarks (cg:T) =
-        cg.Mark <- cg.Mark + 1u    
+        for v in cg.Graph.Vertices do 
+            v.Mark <- 0
+        // Threading.Interlocked.Increment(globalEpoch) |> ignore
 
-    let dfs (cg: T) (source: CgState) direction : seq<CgState> = 
-        seq { 
-            resetMarks cg
-            let f = if direction = Up then neighborsIn else neighbors
-            let s = Stack()
-            s.Push source
-            while s.Count > 0 do 
-                let v = s.Pop()
-                if not (isMarked cg v) then 
-                    mark cg v
-                    yield v
-                    for w in f cg v do 
-                        s.Push w}
-
-    let srcWithout (cg: T) source without direction =
-        let f = if direction = Up then neighborsIn else neighbors
-        let s = Stack()
-        let marked = HashSet(HashIdentity.Structural)
-        s.Push source
-        while s.Count > 0 do 
-            let v = s.Pop()
-            if not (marked.Contains v) && not (without v) then 
-                ignore (marked.Add v)
-                for w in f cg v do 
-                    s.Push w
-        marked
-
-    let srcWithoutMarked (cg: T) source without direction =
+    let dfs (cg: T) (source: CgState) direction : List<CgState> = 
         resetMarks cg
         let f = if direction = Up then neighborsIn else neighbors
+        let ret = ResizeArray()
         let s = Stack()
-        s.Push source
+        s.Push(source)
         while s.Count > 0 do 
             let v = s.Pop()
-            if not (isMarked cg v) && not (without v) then 
-                mark cg v
+            if not (isMarked v) then 
+                mark v
+                ret.Add(v)
                 for w in f cg v do 
-                    s.Push w
-
-    let inline srcMarked (cg: T) (source: CgState) direction =
-        srcWithoutMarked cg source (fun _ -> false) direction
-
-(*
-    let inline srcDstWithout (cg: T) source sink without direction = 
-        if without sink || without source then false
-        else 
-            let marked = srcWithout cg source without direction
-            marked.Contains(sink)
-*)
-
-    let inline src (cg: T) (source: CgState) direction : HashSet<CgState> =
-        srcWithout cg source (fun _ -> false) direction
-
-(*
-    let inline srcDst (cg: T) source sink direction = 
-        srcDstWithout cg source sink (fun _ -> false) direction
-*)
-
-    let inline srcAcceptingWithout cg src without direction = 
-        let marked = srcWithout cg src without direction 
-        let mutable all = Set.empty 
-        for cg in marked do 
-            all <- Set.union cg.Accept all
-        all
+                    s.Push(w)
+        ret
 
     let inline srcAccepting cg src direction = 
-        srcAcceptingWithout cg src (fun _ -> false) direction
+        let reach = dfs cg src direction
+        let mutable acc = Set.empty
+        for v in reach do 
+            acc <- Set.union v.Accept acc
+        acc
 
 
 module Domination = 
@@ -442,15 +408,15 @@ module Minimize =
         cg
 
     let removeNodesThatCantReachEnd (cg: T) = 
-        let canReach = Reachable.src cg cg.End Up
+        let _ = Reachable.dfs cg cg.End Up
         cg.Graph.RemoveVertexIf(fun v -> 
-            Topology.isTopoNode v.Node && not (canReach.Contains(v))) |> ignore
+            Topology.isTopoNode v.Node && not (Reachable.isMarked v)) |> ignore
         cg
         
     let removeNodesThatStartCantReach (cg: T) = 
-        let canReach = Reachable.src cg cg.Start Down
+        let _ = Reachable.dfs cg cg.Start Down
         cg.Graph.RemoveVertexIf(fun v -> 
-            Topology.isTopoNode v.Node && not (canReach.Contains(v))) |> ignore
+            Topology.isTopoNode v.Node && not (Reachable.isMarked v)) |> ignore
         cg
 
     let delMissingSuffixPaths cg = 
@@ -609,7 +575,7 @@ module Consistency =
             let dups = Map.fold (fun acc _ v -> Set.union acc v) Set.empty dups
             let mutable mustPrefer = Map.empty
             for d in dups do 
-                let reach = Reachable.src cg d Down
+                let reach = Reachable.dfs cg d Down
                 let below = Seq.filter (shadows d) reach
                 if not (Seq.isEmpty below) then
                     mustPrefer <- Map.add d below mustPrefer
@@ -656,7 +622,7 @@ module Consistency =
             let copy = copyGraph cg
             copy.Graph.RemoveEdgeIf (fun e ->
                 e.Target = copy.End && not (e.Source.Accept.Contains i)) |> ignore
-            let reach = Reachable.src copy copy.End Up
+            let reach = Reachable.dfs copy copy.End Up
             Seq.fold (fun acc v ->
                 let existing = Common.Map.getOrDefault v Set.empty acc 
                 let updated = Map.add v (Set.add i existing) acc
@@ -737,8 +703,8 @@ module ToRegex =
         let reMap = ref Map.empty
         let inline get v = Common.Map.getOrDefault v Regex.empty !reMap
         let inline add k v = reMap := Map.add k v !reMap
-        let reachable = Reachable.src cg state Down
-        cg.Graph.RemoveVertexIf (fun v -> not (reachable.Contains v) && Topology.isTopoNode v.Node) |> ignore
+        let _ = Reachable.dfs cg state Down
+        cg.Graph.RemoveVertexIf (fun v -> not (Reachable.isMarked v) && Topology.isTopoNode v.Node) |> ignore
         cg.Graph.AddEdge (Edge(cg.End, state)) |> ignore
         add (cg.End, state) Regex.epsilon
         for e in cg.Graph.Edges do

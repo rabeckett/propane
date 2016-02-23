@@ -11,7 +11,7 @@ type CgState =
      State: int; 
      Accept: Set<int>; 
      Node: Topology.State;
-     mutable Mark: uint32}
+     mutable Mark: int}
 
      interface System.IComparable
 
@@ -19,8 +19,7 @@ type T =
     {Start: CgState;
      End: CgState;
      Graph: BidirectionalGraph<CgState, Edge<CgState>>;
-     Topo: Topology.T;
-     mutable Mark: uint32;}
+     Topo: Topology.T}
 
 /// Direction of search. We often need to search in the reverse graph,
 /// yet do not want to make a copy of the graph every time
@@ -78,7 +77,7 @@ val generatePNG: T -> string -> unit
 
 module Reachable =
     /// Find all destinations reachable from src while avoiding certain nodes
-    val srcWithout: T -> CgState -> (CgState -> bool) -> Direction -> HashSet<CgState>
+    // val srcWithout: T -> CgState -> (CgState -> bool) -> Direction -> HashSet<CgState>
 
     /// Check if src can reach dst while avoiding certain nodes
     //val inline srcDstWithout: T -> CgState -> CgState -> (CgState -> bool) -> Direction -> bool
@@ -87,7 +86,7 @@ module Reachable =
     //val inline srcDst: T -> CgState -> CgState -> Direction -> bool
 
     /// Find all destinations reachable from src
-    val inline src: T -> CgState -> Direction -> HashSet<CgState>
+    val dfs: T -> CgState -> Direction -> List<CgState>
 
     /// Final all reachable preference levels
     val inline srcAccepting: T -> CgState -> Direction -> Set<int>

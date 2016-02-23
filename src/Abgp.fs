@@ -428,12 +428,15 @@ module Incoming =
     type IncomingExportMap = Map<CgState, Modification list>
 
     let collectForPeer cg acc peer = 
-        let reachable = 
-            Reachable.src cg peer Down
-            |> Seq.filter (fun x -> x <> peer && Topology.isTopoNode x.Node)
-        let hasRepeatedOut = Seq.exists (CGraph.isRepeatedOut cg) reachable
-        let len = Seq.length reachable
-        let hasOther = (len > 1) || (not hasRepeatedOut && len > 0)
+        let reachable = Reachable.dfs cg peer Down
+        let reach = ResizeArray()
+        let mutable hasRepeatedOut = false 
+        for v in reachable do 
+            if v <> peer && Topology.isTopoNode v.Node then
+                reach.Add(v)
+                if CGraph.isRepeatedOut cg v then 
+                    hasRepeatedOut <- true
+        let hasOther = (reach.Count > 1) || (not hasRepeatedOut && reach.Count > 0)
         match hasRepeatedOut, hasOther with
         | false, false -> Map.add peer (Nothing peer.Node.Loc) acc
         | true, false -> Map.add peer Anything acc
