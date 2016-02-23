@@ -81,7 +81,7 @@ module Reachable =
     val srcWithout: T -> CgState -> (CgState -> bool) -> Direction -> HashSet<CgState>
 
     /// Check if src can reach dst while avoiding certain nodes
-    val inline srcDstWithout: T -> CgState -> CgState -> (CgState -> bool) -> Direction -> bool
+    //val inline srcDstWithout: T -> CgState -> CgState -> (CgState -> bool) -> Direction -> bool
 
     /// Check if src can reach dst
     //val inline srcDst: T -> CgState -> CgState -> Direction -> bool

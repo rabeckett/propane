@@ -309,17 +309,36 @@ module Reachable =
                     s.Push w
         marked
 
+    let srcWithoutMarked (cg: T) source without direction =
+        resetMarks cg
+        let f = if direction = Up then neighborsIn else neighbors
+        let s = Stack()
+        s.Push source
+        while s.Count > 0 do 
+            let v = s.Pop()
+            if not (isMarked cg v) && not (without v) then 
+                mark cg v
+                for w in f cg v do 
+                    s.Push w
+
+    let inline srcMarked (cg: T) (source: CgState) direction =
+        srcWithoutMarked cg source (fun _ -> false) direction
+
+(*
     let inline srcDstWithout (cg: T) source sink without direction = 
         if without sink || without source then false
         else 
             let marked = srcWithout cg source without direction
             marked.Contains(sink)
+*)
 
     let inline src (cg: T) (source: CgState) direction : HashSet<CgState> =
         srcWithout cg source (fun _ -> false) direction
 
+(*
     let inline srcDst (cg: T) source sink direction = 
         srcDstWithout cg source sink (fun _ -> false) direction
+*)
 
     let inline srcAcceptingWithout cg src without direction = 
         let marked = srcWithout cg src without direction 
