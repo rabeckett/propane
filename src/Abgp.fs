@@ -627,11 +627,16 @@ let inline edgeCounts (cg: CGraph.T) =
             counts.Add(key,1)
     counts
 
-let getPeerInfo vs =
-    let inline setLocs x = 
-        Set.ofSeq (Seq.map (fun (v: Topology.State) -> Router v.Loc) x) 
-    let allIn = vs |> Seq.filter Topology.isInside |> setLocs
-    let allOut = vs |> Seq.filter Topology.isOutside |> setLocs
+let getPeerInfo (vs: seq<Topology.State>) =
+    let mutable allIn = Set.empty
+    let mutable allOut = Set.empty
+    for v in vs do
+        if Topology.isInside v then
+            let r = Router v.Loc
+            allIn <- Set.add r allIn
+        else if Topology.isOutside v then 
+            let r = Router v.Loc 
+            allOut <- Set.add r allOut 
     let all = Set.union allIn allOut
     (all, allIn, allOut)
 

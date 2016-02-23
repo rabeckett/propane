@@ -383,7 +383,7 @@ module Minimize =
             Set.union dom.[v] domRev.[v] |> Set.exists (shadows v)) |> ignore
         cg.Graph.RemoveEdgeIf (fun e -> 
             let ies = cg.Graph.OutEdges e.Target
-            match Seq.tryFind (fun (ie: Edge<CgState>) -> ie.Target = e.Source) ies with 
+            match ies |> Seq.tryFind (fun ie -> ie.Target = e.Source) with 
             | None -> false 
             | Some ie ->
                 assert (ie.Source = e.Target)

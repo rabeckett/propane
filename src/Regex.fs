@@ -152,9 +152,9 @@ let rec nullable r =
     | Locs _ -> empty
     | Empty -> empty
     | Concat rs | Inter rs -> 
-        List.fold (fun acc r -> inter acc (nullable r)) epsilon rs
+        Common.List.fold (fun acc r -> inter acc (nullable r)) epsilon rs
     | Union rs -> 
-        List.fold (fun acc r -> union acc (nullable r)) empty rs
+        Common.List.fold (fun acc r -> union acc (nullable r)) empty rs
     | Star r -> epsilon
     | Negate r ->
         match nullable r with 
@@ -162,8 +162,8 @@ let rec nullable r =
         | _ -> empty 
 
 let conserv r s =
-    seq {for x in Set.toSeq r do
-            for y in Set.toSeq s do 
+    seq {for x in r do
+            for y in s do 
                 yield Set.intersect x y} |> Set.ofSeq
 
 let rec dclasses alphabet r =
