@@ -36,7 +36,7 @@
     <PlatformTarget>AnyCPU</PlatformTarget>
     <DocumentationFile>bin\Release\propane.XML</DocumentationFile>
     <Prefer32Bit>true</Prefer32Bit>
-    <StartArguments>-pol:benchmarks/fat12.pro -topo:benchmarks/fat12.xml -out:fat12 -parallel:off</StartArguments>
+    <StartArguments>-pol:benchmarks/fat14.pro -topo:benchmarks/fat14.xml -out:fat14 -parallel:off</StartArguments>
     <DebugSymbols>true</DebugSymbols>
   </PropertyGroup>
   <ItemGroup>

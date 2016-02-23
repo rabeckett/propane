@@ -69,15 +69,12 @@ let copyReverseGraph (cg: T) : T =
     {Start=cg.Start; Graph=newCG; End=cg.End; Topo=cg.Topo}
 
 let stateMapper () = 
-    let stateMap = ref Map.empty 
+    let stateMap = Dictionary(HashIdentity.Structural)
     let counter = ref 0
     (fun ss -> 
-        match Map.tryFind ss !stateMap with 
-        | None -> 
-            counter := !counter + 1
-            stateMap := Map.add ss !counter !stateMap
-            !counter
-        | Some i -> i)
+        let mutable value = 0
+        if stateMap.TryGetValue(ss, &value) then value
+        else incr counter; stateMap.[ss] <- !counter; !counter)
 
 let index ((graph, topo, startNode, endNode): BidirectionalGraph<CgStateTmp, Edge<CgStateTmp>> * _ * _ * _) =
     let newCG = QuickGraph.BidirectionalGraph()
@@ -87,13 +84,14 @@ let index ((graph, topo, startNode, endNode): BidirectionalGraph<CgStateTmp, Edg
     ignore (newCG.AddVertex nstart)
     ignore (newCG.AddVertex nend)
     let mutable i = 2
-    let mutable idxMap = 
-        Map.ofList [((nstart.Node.Loc, nstart.State), nstart); ((nend.Node.Loc, nend.State), nend)]
+    let idxMap = Dictionary(HashIdentity.Structural)
+    idxMap.[(nstart.Node.Loc, nstart.State)] <- nstart
+    idxMap.[(nend.Node.Loc, nend.State)] <- nend
     for v in graph.Vertices do
         if Topology.isTopoNode v.TNode then
             let newv = {Id=i; Node=v.TNode; State = (mapper v.TStates); Accept=v.TAccept}
             i <- i + 1
-            idxMap <- Map.add (v.TNode.Loc, mapper v.TStates) newv idxMap
+            idxMap.Add( (v.TNode.Loc, mapper v.TStates), newv)
             newCG.AddVertex newv |> ignore
     for e in graph.Edges do
         let v = e.Source 
@@ -112,10 +110,13 @@ end
 
 let getTransitions autos =
     let aux (auto: Regex.Automaton) = 
-        Map.fold (fun acc (q1,S) q2 ->
-            Set.fold (fun acc s ->
-                Map.add (q1,s) q2 acc) acc S
-        ) Map.empty auto.trans
+        let trans = Dictionary(HashIdentity.Structural)
+        for kv in auto.trans do 
+            let (q1,S) = kv.Key 
+            let q2 = kv.Value 
+            for s in S do 
+                trans.[(q1,s)] <- q2
+        trans
     Array.map aux autos
 
 let getGarbageStates (auto: Regex.Automaton) = 
