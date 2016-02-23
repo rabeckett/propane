@@ -118,8 +118,8 @@ let generate () =
     let dir = "benchmarks"
     System.IO.Directory.CreateDirectory(dir).Create()
     // displayHeader ()
-    for k in 4..2..10 do
-        singleDatacenter "benchmarks" k
+    for k in 4..2..20 do
+        singleDatacenter dir k
 
 (*
 

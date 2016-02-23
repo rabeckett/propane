@@ -190,11 +190,10 @@ module NodeWide =
                     | _ -> true) acts
                 Some (peer, acts') ) exports
 
-    let removeCommMatchForUnqEdges cg eCounts v m = 
-        let inline unq e = 
-            match Map.tryFind e eCounts with 
-            | Some 1 -> true
-            | _ -> false
+    let removeCommMatchForUnqEdges cg (eCounts : Dictionary<_,_> ) v m = 
+        let inline unq e =
+            let mutable res = 0
+            eCounts.TryGetValue(e,&res) && res = 1
         match m with 
         | Match.State (c,peers) -> 
             match peers with 
@@ -614,17 +613,22 @@ let getExports (allPeers, inPeers, outPeers) x inExports (outgoing: seq<CgState>
     else  exports @ insideExport
 
 let inline edgeCounts (cg: CGraph.T) =
-    cg.Graph.Edges
-    |> Seq.fold (fun acc e -> 
-            let key = (e.Source.Node.Loc, e.Target.Node.Loc)
-            Common.Map.adjust key 0 ((+) 1) acc ) Map.empty
+    let counts = Dictionary()
+    for e in cg.Graph.Edges do 
+        let key = (e.Source.Node.Loc, e.Target.Node.Loc)
+        let mutable value = 0
+        if counts.TryGetValue(key, &value) then 
+            counts.[key] <- value + 1
+        else
+            counts.Add(key,1)
+    counts
 
 let getPeerInfo vs =
     let inline setLocs x = 
         Set.ofSeq (Seq.map (fun (v: Topology.State) -> Router v.Loc) x) 
-    let all = vs |> setLocs
     let allIn = vs |> Seq.filter Topology.isInside |> setLocs
     let allOut = vs |> Seq.filter Topology.isOutside |> setLocs
+    let all = Set.union allIn allOut
     (all, allIn, allOut)
 
 let genConfig (cg: CGraph.T) 

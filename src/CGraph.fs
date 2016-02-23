@@ -354,8 +354,7 @@ module Domination =
         let postorderMap = Dictionary()
         for (n,i) in postorder do
             postorderMap.[n] <- i
-        let allNodes = cg.Graph.Vertices |> Set.ofSeq
-        for b in allNodes do 
+        for b in cg.Graph.Vertices do 
             dom.[b] <- None
         dom.[root] <- Some root
         let mutable changed = true
