@@ -95,6 +95,11 @@ module Option =
         | None -> d
         | Some x -> x
 
+    let inline get o = 
+        match o with 
+        | None -> failwith "Option.get"
+        | Some v -> v
+
 
 module Map = 
 

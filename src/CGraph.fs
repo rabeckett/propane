@@ -320,26 +320,32 @@ module Domination =
     type DominationTree = Dictionary<CgState, CgState option>
 
     let dominatorSet (dom: DominationTree) x = 
-        let mutable ds = Set.add x Set.empty
-        if Option.isNone dom.[x] then 
-            ds
-        else
+        let mutable ds = Set.singleton x
+        match dom.[x] with 
+        | None -> ds
+        | Some v -> 
             let mutable runner = x
-            while runner <> Option.get dom.[runner] do 
+            let mutable current = v
+            while runner <> current do 
                 ds <- Set.add runner ds
-                runner <- Option.get dom.[runner]
+                runner <- current
+                current <- Common.Option.get dom.[runner]
             ds
 
     let inter (po: Dictionary<CgState,int>) (dom: DominationTree) b1 b2 =
         let mutable finger1 = b1
         let mutable finger2 = b2
-        while (po.[finger1] <> po.[finger2]) do 
-            while (po.[finger1] > po.[finger2]) do 
+        let mutable x = po.[finger1]
+        let mutable y = po.[finger2] 
+        while x <> y do 
+            while x > y do 
                 finger1 <- Option.get dom.[finger1]
-            while (po.[finger2] > po.[finger1]) do
+                x <- po.[finger1]
+            while y > x do 
                 finger2 <- Option.get dom.[finger2]
+                y <- po.[finger2]
         finger1
-
+        
     let dominators (cg: T) root direction : DominationSet =
         let adj = if direction = Up then neighbors cg else neighborsIn cg
         let dom = Dictionary()
@@ -680,8 +686,7 @@ module Consistency =
             debug (fun () -> Map.iter (fun i g -> generatePNG g (outName + "-min-restricted" + string i)) rs)
             let labels =
                 cg.Graph.Vertices
-                |> Seq.filter (fun v -> Topology.isTopoNode v.Node)
-                |> Seq.map loc
+                |> Seq.choose (fun v -> if Topology.isTopoNode v.Node then Some (loc v) else None)
                 |> Set.ofSeq
             try Ok(Set.fold (addForLabel idx cache doms ain rs (cg, reachMap) mustPrefer) Map.empty labels)
             with ConsistencyException(x,y) -> Err((x,y) )
