@@ -739,10 +739,12 @@ let getLocsThatCantGetPath idx cg (reb: Regex.REBuilder) dfas =
     Set.difference locsThatNeedPath locsThatGetPath
 
 let getUnusedPrefs cg res = 
-    let numberedRegexes = seq {for i in 1.. List.length res do yield i}  |> Set.ofSeq
+    let mutable nRegexes = Bitset32.empty 
+    for i in 1..List.length res do 
+        nRegexes <- Bitset32.set nRegexes i
     let prefs = CGraph.preferences cg
-    Set.difference numberedRegexes (prefs |> Bitset32.toSet)
-    |> Set.filter (fun i -> res.[i-1] <> Regex.empty)
+    Bitset32.difference nRegexes prefs // don't use difference here
+    |> Bitset32.filter (fun i -> res.[i-1] <> Regex.empty)
 
 let warnAnycasts cg (polInfo:Ast.PolInfo) pred =
     let settings = Args.getSettings()
@@ -821,12 +823,12 @@ let compileToIR (fullName: string)
     if not (Set.isEmpty lost) then Err(NoPathForRouters(lost)) else
     // Find unused preferences for policies that were not drop
     let unusedPrefs = getUnusedPrefs cg res
-    if not (Set.isEmpty unusedPrefs)  then
-        for i in unusedPrefs do 
+    if not (Bitset32.isEmpty unusedPrefs)  then
+        Bitset32.iter (fun i -> 
             let msg = 
                 sprintf "Unused preference %d for predicate " i +
                 sprintf "%s for a non-drop policy" (string pred)
-            warning msg
+            warning msg) unusedPrefs
     try
         // check that BGP can ensure incoming traffic compliance
         let inExports = Incoming.configureIncomingTraffic cg

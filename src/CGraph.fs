@@ -615,7 +615,7 @@ module Consistency =
     
     let getReachabilityMap (cg:T) =
         let prefs = preferences cg
-        let getNodesWithPref acc i = 
+        let getNodesWithPref acc i =
             let copy = copyGraph cg
             copy.Graph.RemoveEdgeIf (fun e ->
                 e.Target = copy.End && not (Bitset32.get e.Source.Accept i)) |> ignore
@@ -624,7 +624,7 @@ module Consistency =
                 let existing = Common.Map.getOrDefault v Set.empty acc 
                 let updated = Map.add v (Set.add i existing) acc
                 updated) acc reach //baddddd
-        Set.fold getNodesWithPref Map.empty (prefs |> Bitset32.toSet)    
+        Bitset32.fold getNodesWithPref Map.empty prefs    
 
     let addPrefConstraints idx cg cache doms (g: Constraints) r mustPrefer nodes reachMap =
         let mutable edges = Set.empty
@@ -664,19 +664,19 @@ module Consistency =
         else Map.add l Seq.empty map
 
     let restrictedGraphs cg prefs =
-        let aux acc i =
+        let inline aux acc i =
             let r = restrict cg i 
             let r = Minimize.removeNodesThatCantReachEnd r
             r.Graph.RemoveEdgeIf (fun e -> isOutside e.Source && isOutside e.Target) |> ignore
             r.Graph.RemoveEdgeIf (fun e -> not (isRealNode e.Source) || not (isRealNode e.Target) ) |> ignore
             Map.add i r acc
-        Set.fold aux Map.empty prefs
+        Bitset32.fold aux Map.empty prefs
 
     let findOrdering idx cg outName : Result<Ordering, CounterExample> =
         try 
             let mustPrefer = getHardPreferences cg
             let prefs = preferences cg 
-            let rs = restrictedGraphs cg (prefs |> Bitset32.toSet)
+            let rs = restrictedGraphs cg prefs
             let reachMap = getReachabilityMap cg
             let (ain, _) = Topology.alphabet cg.Topo
             let ain = Set.map (fun (v: Topology.Node) -> v.Loc) ain

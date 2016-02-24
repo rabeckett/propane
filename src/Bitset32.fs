@@ -2,24 +2,24 @@
 
 type T = int
 
-let inline checkIndex i = 
-    if i >= 32 then failwith "Invalid index"
+let validIndex i = 
+    (i >= 0 && i < 32)
 
 let inline get (x:T) i : bool = 
-    checkIndex i
+    assert (validIndex i)
     ((1 <<< i) &&& x) <> 0
 
 let inline set (x:T) i : T = 
-    checkIndex i
+    assert (validIndex i)
     (1 <<< i) ||| x
 
 let inline clear (x:T) i : T = 
-    checkIndex i
+    assert (validIndex i)
     (~~~(1 <<< i)) &&& x
 
 let empty : T = 0
 
-let singleton i : T =
+let inline singleton i : T =
     set empty i
 
 let inline union (x:T) (y:T) : T = 
@@ -28,11 +28,11 @@ let inline union (x:T) (y:T) : T =
 let inline intersect (x:T) (y:T) : T = 
     x &&& y
 
-let inline not (x:T) : T = 
+let inline negate (x:T) : T = 
     ~~~ x
 
 let inline difference (x:T) (y:T) : T = 
-    intersect x (not y)
+    intersect x (negate y)
 
 let inline isEmpty (x:T) : bool = 
     (x = 0)
@@ -44,15 +44,33 @@ let inline count (x:T) =
     ((x + (x >>> 4) &&& 0xF0F0F0F) * 0x1010101) >>> 24
 
 let minimum (x:T) =
-    let rec aux i =
+    let rec aux i v =
         if i >= 32 then None 
-        elif get x i then Some i
-        else aux (i+1)
-    aux 0
+        elif (v &&& 1) = 1 then Some i
+        else aux (i+1) (v >>> 1)
+    aux 0 x
 
-let toSet (x:T) = 
-    let mutable ret = Set.empty 
+let inline iter f (x:T) = 
+    let mutable v = x
+    for i = 0 to 31 do
+        if (v &&& 1) = 1 then 
+            f i 
+        v <- (v >>> 1)
+
+let inline fold f b (x:T) =
+    let mutable v = x 
+    let mutable acc = b
     for i = 0 to 31 do 
-        if get x i then 
-            ret <- Set.add i ret
-    ret
+        if (v &&& 1) = 1 then
+            acc <- f acc i 
+        v <- (v >>> 1)
+    acc
+
+let inline filter f (x:T) =
+    let mutable v = x
+    let mutable acc = x
+    for i = 0 to 31 do
+        if (v &&& 1) = 1 && not (f i) then
+            acc <- clear acc i
+        v <- (v >>> 1)
+    acc
