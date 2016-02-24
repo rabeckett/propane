@@ -741,7 +741,7 @@ let getLocsThatCantGetPath idx cg (reb: Regex.REBuilder) dfas =
 let getUnusedPrefs cg res = 
     let mutable nRegexes = Bitset32.empty 
     for i in 1..List.length res do 
-        nRegexes <- Bitset32.set nRegexes i
+        nRegexes <- Bitset32.add i nRegexes
     let prefs = CGraph.preferences cg
     Bitset32.difference nRegexes prefs // don't use difference here
     |> Bitset32.filter (fun i -> res.[i-1] <> Regex.empty)

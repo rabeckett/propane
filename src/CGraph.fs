@@ -11,7 +11,7 @@ open QuickGraph.Algorithms
 
 [<CustomEquality; CustomComparison>]
 type CgState =
-    {Id: int;
+    {Id: int; 
      State: int;
      Accept: Bitset32.T; 
      Node: Topology.Node}
@@ -25,7 +25,7 @@ type CgState =
         | _ -> false
  
     override x.GetHashCode() = x.Id
-
+     
     interface System.IComparable with
         member x.CompareTo other =
           match other with
@@ -233,7 +233,7 @@ let inline isEmpty (cg: T) =
     cg.Graph.VertexCount = 2
 
 let restrict (cg: T) (i: int) = 
-    if Bitset32.get (preferences cg) i then 
+    if Bitset32.contains i (preferences cg) then 
         let copy = copyGraph cg
         copy.Graph.RemoveVertexIf (fun v -> 
             if not (Bitset32.isEmpty v.Accept) then 
@@ -595,8 +595,8 @@ module Consistency =
     let isPreferred idx cg cache doms restrict (x,y) (reachX, reachY) =
         let subsumes i j =
             simulate idx cg cache doms restrict (x,y) (i,j)
-        Set.forall (fun j -> 
-            (Set.exists (fun i' -> i' <= j && subsumes i' j) reachX) ) reachY
+        Bitset32.forall (fun j -> 
+            (Bitset32.exists (fun i' -> i' <= j && subsumes i' j) reachX) ) reachY
 
     let checkIncomparableNodes (g: Constraints) edges = 
         for x in g.Vertices do
@@ -614,24 +614,27 @@ module Consistency =
         g.TopologicalSort ()
     
     let getReachabilityMap (cg:T) =
+        let map = Dictionary()
         let prefs = preferences cg
-        let getNodesWithPref acc i =
+        let getNodesWithPref i =
             let copy = copyGraph cg
-            copy.Graph.RemoveEdgeIf (fun e ->
-                e.Target = copy.End && not (Bitset32.get e.Source.Accept i)) |> ignore
+            copy.Graph.RemoveEdgeIf (fun e -> 
+                e.Target = copy.End && not (Bitset32.contains i e.Source.Accept)) |> ignore
             let reach = Reachable.dfs copy copy.End Up
-            Seq.fold (fun acc v ->
-                let existing = Common.Map.getOrDefault v Set.empty acc 
-                let updated = Map.add v (Set.add i existing) acc
-                updated) acc reach //baddddd
-        Bitset32.fold getNodesWithPref Map.empty prefs    
+            for v in reach do 
+                let mutable value = Bitset32.empty
+                if map.TryGetValue(v, &value) then 
+                    map.[v] <- Bitset32.add i value
+                else map.[v] <- Bitset32.empty
+        Bitset32.iter getNodesWithPref prefs  
+        map  
 
-    let addPrefConstraints idx cg cache doms (g: Constraints) r mustPrefer nodes reachMap =
+    let addPrefConstraints idx cg cache doms (g: Constraints) r mustPrefer nodes (reachMap: Dictionary<_,_>) =
         let mutable edges = Set.empty
         for x in nodes do
             for y in nodes do
-                let reachX = Map.find x reachMap
-                let reachY = Map.find y reachMap
+                let reachX = reachMap.[x]
+                let reachY = reachMap.[y]
                 if x <> y && (isPreferred idx cg cache doms r (x,y) (reachX,reachY)) then
                     logInfo (idx, sprintf "  %s is preferred to %s" (string x) (string y))
                     edges <- Set.add (x,y) edges
