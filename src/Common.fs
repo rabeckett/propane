@@ -1,6 +1,7 @@
 ﻿module Common
 
 open System
+open System.Collections.Generic
 
 
 let unreachable () = 
@@ -86,6 +87,48 @@ module Set =
         else 
             let s = joinBy "," (Set.map string ss)
             sprintf "{%s}" s
+
+module Dictionary = 
+
+    let inline fold f b (d: Dictionary<_,_>) = 
+        let mutable acc = b 
+        for kv in d do 
+            acc <- f acc kv.Key kv.Value
+        acc
+
+    let inline map f (d: Dictionary<_,_>) =
+        let acc = Dictionary(d.Count)
+        for kv in d do 
+            acc.[kv.Key] <- f kv.Value
+        acc
+
+    let inline filter f (d: Dictionary<_,_>) =
+        let acc = Dictionary() 
+        for kv in d do 
+            if f kv.Key kv.Value then 
+                acc.[kv.Key] <- kv.Value
+        acc
+
+module HashSet = 
+
+    let inline fold f b (h: HashSet<_>) = 
+        let mutable acc = b 
+        for v in h do 
+            acc <- f acc v
+        acc
+
+    let inline map f (h: HashSet<_>) =
+        let acc = HashSet()
+        for v in h do 
+            acc.Add (f v) |> ignore
+        acc
+
+    let inline filter f (h: HashSet<_>) = 
+        let acc = HashSet()
+        for v in h do 
+            if f v then 
+                acc.Add v |> ignore
+        acc
 
 
 module Option =

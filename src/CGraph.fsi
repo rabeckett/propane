@@ -108,7 +108,7 @@ module Consistency =
     type Preferences = seq<CgState>
 
     /// Preferences for each internal router
-    type Ordering = Map<string, Preferences>
+    type Ordering = Dictionary<string, Preferences>
 
     /// Conservative check if the BGP routers can make local decisions not knowing about failures
     /// Takes an optional file name for debugging intermediate information

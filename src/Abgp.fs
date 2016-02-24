@@ -656,9 +656,8 @@ let genConfig (cg: CGraph.T)
         let mutable filters = []
         let mutable originates = false
         // look at the nodes according to preference
-        match Map.tryFind router ord with 
-        | None -> ()
-        | Some prefs ->
+        let mutable prefs = Seq.empty 
+        if ord.TryGetValue(router, &prefs) then
             let mutable rules = []
             let mutable lp = 101
             for cgstate in prefs do
