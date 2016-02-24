@@ -16,8 +16,8 @@ module Debug =
 
     let logInfo(idx, str) =
         let settings = Args.getSettings ()
-        let logFile = settings.DebugDir + "debug(" + string idx + ").log"
         if settings.Debug then
+            let logFile = settings.DebugDir + "debug(" + string idx + ").log"
             System.IO.File.AppendAllText(logFile, str + "\n")
 
 

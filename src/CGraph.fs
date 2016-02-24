@@ -623,17 +623,11 @@ module Consistency =
             copy.Graph.RemoveEdgeIf (fun e -> 
                 e.Target = copy.End && not (Bitset32.contains i e.Source.Accept)) |> ignore
             let reach = Reachable.dfs copy copy.End Up
-
             for v in reach do 
                 let mutable value = Set.empty 
                 if ret.TryGetValue(v, &value) then 
                     ret.[v] <- Set.add i value 
                 else ret.[v] <- Set.singleton i
-
-            (* Seq.fold (fun acc v ->
-                let existing = Common.Map.getOrDefault v Set.empty acc 
-                let updated = Map.add v (Set.add i existing) acc
-                updated) acc reach //baddddd *)
         Bitset32.iter getNodesWithPref prefs    
         ret
 
