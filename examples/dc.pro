@@ -1,28 +1,32 @@
+define PL1 = 1.0.0.0/24
+define PL2 = 1.0.1.0/24
+define PG1 = 2.0.0.0/24
+define PG2 = 2.0.1.0/24
 
-define PG1 = 1.0.0.0/24
-define PG2 = 1.0.1.0/24
-define PL1 = 2.0.0.0/24
-define PL2 = 2.0.1.0/24
+define transit(X) =  enter(X) and exit(X)
 
 
-define transit(X) = 
-	enter(X) and exit(X)
 
-define NoTransit = {
+define no_transit = {
 	true => not transit(Back1 or Back2)
 }
 
-define Ownership = {
-	PL1 => end(A),
-	PL2 => end(B),
-	PG1 => end(E),
-	PG2 => end(F)
+define ownership = {
+	PG1 => end(A),
+	PG2 => end(B),
+	PL1 => end(E),
+	PL2 => end(F)
 }
 
-define Routing = {
-	PL1 or PL2 => always(in),
+define routing = {
 	PG1 or PG2 => any,
+	PL1 or PL2 => always(in),
 	true => exit(Back1) >> exit(Back2)
 }
 
-define main = no_transit and routing and ownership
+define main = no_transit and ownership and routing
+
+
+control {
+	aggregate(1.0.0.0/16, in -> out)
+}

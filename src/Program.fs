@@ -76,5 +76,4 @@ let main argv =
             | None, _ -> ()
             | Some out, Args.IR -> System.IO.File.WriteAllText(out + ".ir", Abgp.format res.Abgp)
             | Some _, _ -> ()
-
     0
