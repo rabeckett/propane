@@ -485,7 +485,7 @@ module Incoming =
         else
         let byPreference =
             info.Peers 
-            |> Seq.map (fun p -> (Set.minElement (Reachable.srcAccepting cg p Down), p))
+            |> Seq.map (fun p -> (Bitset32.minimum (Reachable.srcAccepting cg p Down), p))
             |> Seq.groupBy fst
             |> Seq.map (fun (x,y) -> (x, Seq.map snd y))
             |> Seq.sortBy fst
@@ -627,7 +627,7 @@ let inline edgeCounts (cg: CGraph.T) =
             counts.Add(key,1)
     counts
 
-let getPeerInfo (vs: seq<Topology.State>) =
+let getPeerInfo (vs: seq<Topology.Node>) =
     let mutable allIn = Set.empty
     let mutable allOut = Set.empty
     for v in vs do
@@ -741,7 +741,7 @@ let getLocsThatCantGetPath idx cg (reb: Regex.REBuilder) dfas =
 let getUnusedPrefs cg res = 
     let numberedRegexes = seq {for i in 1.. List.length res do yield i}  |> Set.ofSeq
     let prefs = CGraph.preferences cg
-    Set.difference numberedRegexes prefs
+    Set.difference numberedRegexes (prefs |> Bitset32.toSet)
     |> Set.filter (fun i -> res.[i-1] <> Regex.empty)
 
 let warnAnycasts cg (polInfo:Ast.PolInfo) pred =

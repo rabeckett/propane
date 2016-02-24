@@ -11,46 +11,48 @@ type NodeType =
     | InsideOriginates
     | Unknown
 
-type State = 
-    {Loc: string; 
-     Typ: NodeType}
+[<Struct>]
+type Node =
+    val Loc: string 
+    val Typ: NodeType
+    new: string * NodeType -> Node
 
-type T = BidirectionalGraph<State,Edge<State>>
+type T = BidirectionalGraph<Node,Edge<Node>>
 
 
 /// Make a defensive copy of the topology
 val copyTopology: T -> T
 
 /// Build the internal and external alphabet from a topology
-val alphabet: T -> Set<State> * Set<State> 
+val alphabet: T -> Set<Node> * Set<Node> 
 
 /// Check if a node is a valid topology node
-val isTopoNode: State -> bool
+val isTopoNode: Node -> bool
 
 /// Check if a node represents an external location (external AS)
-val isOutside: State -> bool
+val isOutside: Node -> bool
 
 /// Check if a node represents an internal location (under AS control)
-val isInside: State -> bool
+val isInside: Node -> bool
 
 /// Check if a node can originate traffice (e.g., TOR in DC)
-val canOriginateTraffic: State -> bool
+val canOriginateTraffic: Node -> bool
 
 /// Checks if a topology is well-formed. This involves checking 
 /// for duplicate names, as well as checking that the inside is fully connected
 val isWellFormed: T -> bool
 
 /// Helper function for building topology
-val addVertices: T -> State list -> unit 
+val addVertices: T -> Node list -> unit 
 
 /// Helper function for building topology
-val addEdgesDirected: T -> (State*State) list -> unit
+val addEdgesDirected: T -> (Node*Node) list -> unit
 
 /// Helper function for building topology
-val addEdgesUndirected: T -> (State*State) list -> unit
+val addEdgesUndirected: T -> (Node*Node) list -> unit
 
 /// Find all the valid topology links corresponding to pairs of locations
-val findLinks: T -> Set<string> * Set<string> -> (State * State) list
+val findLinks: T -> Set<string> * Set<string> -> (Node * Node) list
 
 type TopoInfo =
     {Graph: T; 
@@ -81,8 +83,8 @@ module Examples =
     val topoPinCushionWAN: unit -> T
     val topoBackboneWAN: unit -> T
     /// Fattree topology 
-    type Tiers = Dictionary<State,int>
-    type Prefixes = Dictionary<State,Prefix.T>
+    type Tiers = Dictionary<Node,int>
+    type Prefixes = Dictionary<Node,Prefix.T>
     val fatTree: int -> T * Prefixes * Tiers
     // Full mesh topology
     val complete: int -> T

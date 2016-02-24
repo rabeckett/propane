@@ -258,8 +258,8 @@ let singleLocations (topo: Topology.T) r =
             | _, None -> None 
             | Some s1, Some s2 -> Some (f s1 s2)
         match r with
-        | LIn -> Some (Set.map (fun v -> v.Loc) ain)
-        | LOut -> Some (Set.map (fun v -> v.Loc) aout)
+        | LIn -> Some (Set.map (fun (v: Topology.Node) -> v.Loc) ain)
+        | LOut -> Some (Set.map (fun (v: Topology.Node) -> v.Loc) aout)
         | LLocs s -> Some s
         | LInter rs ->
             List.map inner rs |> 
@@ -272,8 +272,8 @@ let singleLocations (topo: Topology.T) r =
 
 let getAlphabet (topo: Topology.T) = 
     let (inStates, outStates) = Topology.alphabet topo
-    let inside = Set.map (fun (s: Topology.State) -> s.Loc) inStates
-    let outside = Set.map (fun (s: Topology.State) -> s.Loc) outStates
+    let inside = Set.map (fun (s: Topology.Node) -> s.Loc) inStates
+    let outside = Set.map (fun (s: Topology.Node) -> s.Loc) outStates
     let alphabet = Set.union inside outside
     (inside, outside, alphabet)
 
@@ -345,7 +345,7 @@ type REBuilder(topo: Topology.T) =
     let mutable outside = Set.add unknownName outs
     let mutable alphabet = Set.add unknownName alph
     let mutable finalAlphabet = false
-    let unknown: Topology.State = {Loc=unknownName; Typ = Topology.Unknown}
+    let unknown: Topology.Node = Node(unknownName, Topology.Unknown)
     let topo =
         let t = Topology.copyTopology topo
         ignore (t.AddVertex unknown)
@@ -402,7 +402,7 @@ type REBuilder(topo: Topology.T) =
         if not (alphabet.Contains x) then 
             outside <- Set.add x outside
             alphabet <- Set.add x alphabet
-            let v = {Loc=x; Typ=Topology.Outside}
+            let v = Node(x, Topology.Outside)
             ignore (topo.AddVertex v)
             let allOutside = topo.Vertices |> Seq.filter Topology.isOutside
             for u in allOutside do

@@ -13,8 +13,8 @@ open QuickGraph.Algorithms
 type CgState =
     {Id: int;
      State: int;
-     Accept: Set<int>; 
-     Node: Topology.State}
+     Accept: Bitset32.T; 
+     Node: Topology.Node}
 
     override this.ToString() = 
        "(Id=" + string this.Id + ", State=" + string this.State + ", Loc=" + this.Node.Loc + ")"
@@ -34,8 +34,8 @@ type CgState =
 
 type CgStateTmp =
     {TStates: int array;
-     TNode: Topology.State; 
-     TAccept: Set<int>}
+     TNode: Topology.Node; 
+     TAccept: Bitset32.T}
 
 (*
 [<Struct>]
@@ -50,7 +50,7 @@ type T =
      End: CgState;
      Graph: BidirectionalGraph<CgState, Edge<CgState>>
      Topo: Topology.T}
-
+   
 type Direction = Up | Down
 
 
@@ -137,6 +137,8 @@ let getGarbageStates (auto: Regex.Automaton) =
     Set.difference selfLoops auto.F
 
 let buildFromAutomata (topo: Topology.T) (autos : Regex.Automaton array) : T =
+    if autos.Length > 31 then 
+        error (sprintf "Propane does not currently support more than 32 preferences")
     if not (Topology.isWellFormed topo) then
         error (sprintf "Invalid topology. Topology must be weakly connected.")
     let unqTopo = Set.ofSeq topo.Vertices
@@ -144,7 +146,7 @@ let buildFromAutomata (topo: Topology.T) (autos : Regex.Automaton array) : T =
     let garbage = Array.map getGarbageStates autos
     let graph = BidirectionalGraph<CgStateTmp, Edge<CgStateTmp>>()
     let starting = Array.map (fun (x: Regex.Automaton) -> x.q0) autos
-    let newStart = {TStates = starting; TAccept = Set.empty; TNode = {Loc="start"; Typ = Topology.Start} }
+    let newStart = {TStates = starting; TAccept = Bitset32.empty; TNode = Topology.Node("start", Topology.Start) }
     ignore (graph.AddVertex newStart)
     let marked = HashSet(HashIdentity.Structural)
     let todo = Queue()
@@ -166,11 +168,11 @@ let buildFromAutomata (topo: Topology.T) (autos : Regex.Automaton array) : T =
                     dead := false
                 let accept =
                     if (Topology.canOriginateTraffic c) && (Set.contains newState g.F) 
-                    then Set.singleton (i+1)
-                    else Set.empty
+                    then Bitset32.singleton (i+1)
+                    else Bitset32.empty
                 newState, accept)
             let nextStates, nextAccept = Array.unzip nextInfo
-            let accept = Array.fold Set.union Set.empty nextAccept
+            let accept = Array.fold Bitset32.union Bitset32.empty nextAccept
             let state = {TStates=nextStates; TAccept=accept; TNode=c}
             if not !dead then
                 if not (marked.Contains state) then
@@ -179,10 +181,10 @@ let buildFromAutomata (topo: Topology.T) (autos : Regex.Automaton array) : T =
                     todo.Enqueue state 
                 let edge = Edge(currState, state)
                 ignore (graph.AddEdge edge)
-    let newEnd = {TStates = [||]; TAccept = Set.empty; TNode = {Loc="end"; Typ = Topology.End}}
+    let newEnd = {TStates = [||]; TAccept = Bitset32.empty; TNode = Topology.Node("end", Topology.End)}
     graph.AddVertex newEnd |> ignore
     for v in graph.Vertices do
-        if not (Set.isEmpty v.TAccept) then
+        if not (Bitset32.isEmpty v.TAccept) then
             let e = Edge(v, newEnd)
             ignore (graph.AddEdge(e))
     index (graph, topo, newStart, newEnd)
@@ -192,15 +194,15 @@ let inline loc x = x.Node.Loc
 let inline shadows x y = 
     (x <> y) && (loc x = loc y)
 
-let inline preferences (cg: T) : Set<int> = 
-    let mutable all = Set.empty
+let inline preferences (cg: T) : Bitset32.T = 
+    let mutable all = Bitset32.empty
     for v in cg.Graph.Vertices do 
-        all <- Set.union all v.Accept
+        all <- Bitset32.union all v.Accept
     all
 
 let inline acceptingStates (cg: T) : Set<CgState> =
     cg.Graph.Vertices
-    |> Seq.filter (fun (v: CgState) -> not v.Accept.IsEmpty)
+    |> Seq.filter (fun (v: CgState) -> not (Bitset32.isEmpty v.Accept))
     |> Set.ofSeq
 
 let inline acceptingLocations (cg: T) : Set<string> = 
@@ -231,11 +233,14 @@ let inline isEmpty (cg: T) =
     cg.Graph.VertexCount = 2
 
 let restrict (cg: T) (i: int) = 
-    if Set.contains i (preferences cg) then 
+    if Bitset32.get (preferences cg) i then 
         let copy = copyGraph cg
         copy.Graph.RemoveVertexIf (fun v -> 
-            not (v.Accept.IsEmpty) && 
-            not (Set.exists (fun i' -> i' <= i) v.Accept)) |> ignore
+            if not (Bitset32.isEmpty v.Accept) then 
+                match Bitset32.minimum v.Accept with 
+                | None -> true
+                | Some j -> j > i
+            else false) |> ignore
         copy
     else cg
 
@@ -248,10 +253,10 @@ let toDot (cg: T) : string =
         | Topology.Start -> v.VertexFormatter.Label <- "Start"
         | Topology.End -> v.VertexFormatter.Label <- "End"
         | _ ->
-            if Set.isEmpty v.Vertex.Accept then 
+            if Bitset32.isEmpty v.Vertex.Accept then 
                 v.VertexFormatter.Label <- states + ", " + location
             else
-                v.VertexFormatter.Label <- states + ", " + location + "\nAccept=" + (Common.Set.toString v.Vertex.Accept)
+                v.VertexFormatter.Label <- states + ", " + location + "\nAccept=" + "TODO" // TODO : (Common.Set.toString v.Vertex.Accept)
                 v.VertexFormatter.Shape <- Graphviz.Dot.GraphvizVertexShape.DoubleCircle
                 v.VertexFormatter.Style <- Graphviz.Dot.GraphvizVertexStyle.Filled
                 v.VertexFormatter.FillColor <- Graphviz.Dot.GraphvizColor.LightYellow
@@ -303,9 +308,9 @@ module Reachable =
 
     let inline srcAccepting cg src direction = 
         let reach = dfs cg src direction
-        let mutable acc = Set.empty
+        let mutable acc = Bitset32.empty
         for v in reach do 
-            acc <- Set.union v.Accept acc
+            acc <- Bitset32.union v.Accept acc
         acc
 
 
@@ -415,7 +420,7 @@ module Minimize =
         let starting = neighbors cg cg.Start |> Seq.filter isRealNode |> Set.ofSeq
         cg.Graph.RemoveVertexIf (fun v -> 
             v.Node.Typ = Topology.InsideOriginates && 
-            v.Accept.IsEmpty && 
+            Bitset32.isEmpty v.Accept && 
             not (Set.contains v starting) ) |> ignore
         cg
 
@@ -613,13 +618,13 @@ module Consistency =
         let getNodesWithPref acc i = 
             let copy = copyGraph cg
             copy.Graph.RemoveEdgeIf (fun e ->
-                e.Target = copy.End && not (e.Source.Accept.Contains i)) |> ignore
+                e.Target = copy.End && not (Bitset32.get e.Source.Accept i)) |> ignore
             let reach = Reachable.dfs copy copy.End Up
             Seq.fold (fun acc v ->
                 let existing = Common.Map.getOrDefault v Set.empty acc 
                 let updated = Map.add v (Set.add i existing) acc
                 updated) acc reach //baddddd
-        Set.fold getNodesWithPref Map.empty prefs    
+        Set.fold getNodesWithPref Map.empty (prefs |> Bitset32.toSet)    
 
     let addPrefConstraints idx cg cache doms (g: Constraints) r mustPrefer nodes reachMap =
         let mutable edges = Set.empty
@@ -671,10 +676,10 @@ module Consistency =
         try 
             let mustPrefer = getHardPreferences cg
             let prefs = preferences cg 
-            let rs = restrictedGraphs cg prefs
+            let rs = restrictedGraphs cg (prefs |> Bitset32.toSet)
             let reachMap = getReachabilityMap cg
             let (ain, _) = Topology.alphabet cg.Topo
-            let ain = Set.map (fun (v: Topology.State) -> v.Loc) ain
+            let ain = Set.map (fun (v: Topology.Node) -> v.Loc) ain
             let doms = Domination.dominators cg cg.Start Down
             let cache = ref Set.empty
             debug (fun () -> Map.iter (fun i g -> generatePNG g (outName + "-min-restricted" + string i)) rs)
@@ -724,8 +729,8 @@ module ToRegex =
 module Failure =
 
     type FailType =
-        | NodeFailure of Topology.State
-        | LinkFailure of Edge<Topology.State>
+        | NodeFailure of Topology.Node
+        | LinkFailure of Edge<Topology.Node>
 
         override x.ToString() = 
             match x with 

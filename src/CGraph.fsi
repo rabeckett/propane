@@ -2,6 +2,7 @@
 
 open QuickGraph
 open Common.Error
+open System.Collections
 open System.Collections.Generic
 
 
@@ -9,8 +10,8 @@ open System.Collections.Generic
 type CgState = 
     {Id: int;
      State: int; 
-     Accept: Set<int>; 
-     Node: Topology.State}
+     Accept: Bitset32.T; 
+     Node: Topology.Node}
 
      interface System.IComparable
 
@@ -41,7 +42,7 @@ val inline loc: CgState -> string
 val inline shadows: CgState -> CgState -> bool
 
 /// Returns the set of reachable preferences
-val inline preferences: T -> Set<int>
+val inline preferences: T -> Bitset32.T
 
 /// Returns the set of states that are attached to the end node
 val inline acceptingStates: T -> Set<CgState>
@@ -88,7 +89,7 @@ module Reachable =
     val dfs: T -> CgState -> Direction -> HashSet<CgState>
 
     /// Final all reachable preference levels
-    val inline srcAccepting: T -> CgState -> Direction -> Set<int>
+    val inline srcAccepting: T -> CgState -> Direction -> Bitset32.T
 
 
 module Minimize =
@@ -124,8 +125,8 @@ module ToRegex =
 module Failure =
     /// A single node or link falure
     type FailType =
-        | NodeFailure of Topology.State
-        | LinkFailure of Edge<Topology.State>
+        | NodeFailure of Topology.Node
+        | LinkFailure of Edge<Topology.Node>
 
     /// Enumerate all failures up to a given size
     val allFailures: int -> Topology.T -> seq<FailType list>
