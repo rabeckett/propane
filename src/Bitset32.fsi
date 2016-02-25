@@ -43,3 +43,5 @@ val inline filter: (int -> bool) -> T -> T
 val inline exists: (int -> bool) -> T -> bool
 
 val inline forall: (int -> bool) -> T -> bool
+
+val inline toSet: T -> Set<int>

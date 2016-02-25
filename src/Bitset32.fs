@@ -106,3 +106,11 @@ let inline forall f (x:T) =
             else false
         else aux (i+1) (v >>> 1)
     aux 0 (int x)
+
+let inline toSet (x:T) =
+    let rec aux i v set =
+        if i >= 32 then set 
+        elif (v &&& 1) = 1 
+            then aux (i+1) (v >>> 1) (Set.add i set)
+            else aux (i+1) (v >>> 1) set
+    aux 0 (int x) Set.empty

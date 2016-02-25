@@ -37,14 +37,6 @@ type CgStateTmp =
      TNode: Topology.Node; 
      TAccept: Bitset32.T}
 
-(*
-[<Struct>]
-type Edge = struct
-    val X: int
-    val Y: int
-    new(x,y) = {X=x; Y=y}
-end *)
-
 type T = 
     {Start: CgState;
      End: CgState;
@@ -81,7 +73,7 @@ let stateMapper () =
             stateMap.[ss] <- !counter
             !counter)
 
-let index ((graph, topo, startNode, endNode): BidirectionalGraph<CgStateTmp, Edge<CgStateTmp>> * _ * _ * _) =
+let index ((graph, topo, startNode, endNode): BidirectionalGraph<_, _> * _ * _ * _) =
     let newCG = QuickGraph.BidirectionalGraph()
     let mapper = stateMapper ()
     let nstart = {Id=0; Node=startNode.TNode; State=(mapper startNode.TStates); Accept=startNode.TAccept}
@@ -105,13 +97,6 @@ let index ((graph, topo, startNode, endNode): BidirectionalGraph<CgStateTmp, Edg
         let y = idxMap.[(u.TNode.Loc, mapper u.TStates)]
         newCG.AddEdge (Edge(x,y)) |> ignore
     {Start=nstart; Graph=newCG; End=nend; Topo=topo}
-
-[<Struct>]
-type KeyPair = struct
-    val Q: int
-    val C: string
-    new(q,c) = {Q = q; C = c}
-end
 
 let getTransitions autos =
     let aux (auto: Regex.Automaton) = 
@@ -195,7 +180,7 @@ let buildFromAutomata (topo: Topology.T) (autos : Regex.Automaton array) : T =
 let inline loc x = x.Node.Loc
 
 let inline shadows x y = 
-    (x <> y) && (loc x = loc y)
+    (loc x = loc y) && (x <> y)
 
 let inline preferences (cg: T) : Bitset32.T = 
     let mutable all = Bitset32.empty
@@ -222,9 +207,8 @@ let inline neighborsIn (cg: T) (state: CgState) =
     seq {for e in cg.Graph.InEdges state do yield e.Source}
 
 let inline isRepeatedOut (cg: T) (state: CgState) =
-    let ns = neighbors cg state
     (state.Node.Typ = Topology.Unknown) &&
-    (Seq.exists ((=) state) ns)
+    (Seq.contains state (neighbors cg state))
 
 let inline isInside x = 
     Topology.isInside x.Node
@@ -250,16 +234,19 @@ let restrict (cg: T) (i: int) =
 let toDot (cg: T) : string = 
     let onFormatEdge(e: Graphviz.FormatEdgeEventArgs<CgState, Edge<CgState>>) = ()
     let onFormatVertex(v: Graphviz.FormatVertexEventArgs<CgState>) = 
-        let states = string v.Vertex.State
+        let state = string v.Vertex.State
         let location = loc v.Vertex
         match v.Vertex.Node.Typ with 
         | Topology.Start -> v.VertexFormatter.Label <- "Start"
         | Topology.End -> v.VertexFormatter.Label <- "End"
         | _ ->
             if Bitset32.isEmpty v.Vertex.Accept then 
-                v.VertexFormatter.Label <- states + ", " + location
+                let label = sprintf "%s, %s" state location
+                v.VertexFormatter.Label <- label
             else
-                v.VertexFormatter.Label <- states + ", " + location + "\nAccept=" + "TODO" // TODO : (Common.Set.toString v.Vertex.Accept)
+                let accept = (Bitset32.toSet v.Vertex.Accept |> Common.Set.toString)
+                let label = sprintf "%s, %s\nAccept=%s" state location accept
+                v.VertexFormatter.Label <- label
                 v.VertexFormatter.Shape <- Graphviz.Dot.GraphvizVertexShape.DoubleCircle
                 v.VertexFormatter.Style <- Graphviz.Dot.GraphvizVertexStyle.Filled
                 v.VertexFormatter.FillColor <- Graphviz.Dot.GraphvizColor.LightYellow
@@ -321,9 +308,23 @@ module Domination =
 
     type DomTreeMapping = Dictionary<CgState, CgState option>
 
-    type DominationTree(tree: DomTreeMapping) = 
+    type DominationTree(tree: DomTreeMapping) = struct 
 
-        member this.IsDominatedBy(x,f) = 
+        member this.IsDominatedBy(x,y) = 
+            match tree.[x] with 
+            | None -> false
+            | Some v -> 
+                let mutable runner = x
+                let mutable current = v
+                let mutable found = false
+                while not found && runner <> current do 
+                    if runner = y then 
+                        found <- true
+                    runner <- current
+                    current <- Common.Option.get tree.[runner]
+                found
+
+        member this.IsDominatedByFun(x,f) = 
             match tree.[x] with 
             | None -> false
             | Some v -> 
@@ -350,6 +351,7 @@ module Domination =
                     runner <- current
                     current <- Common.Option.get tree.[runner]
                 found
+    end
 
     let inter (po: Dictionary<CgState,int>) (dom: DomTreeMapping) b1 b2 =
         let mutable finger1 = b1
@@ -396,42 +398,51 @@ module Domination =
 
 module Minimize =
 
-    let removeDominated (cg: T) = 
+    type Edge = struct 
+        val X: int
+        val Y: int
+        new(x,y) = {X=x; Y=y}
+    end
+
+    let edgeSet (cg: T) = 
+        let acc = HashSet()
+        for e in cg.Graph.Edges do 
+            let e = Edge(e.Source.Id, e.Target.Id)
+            ignore (acc.Add e)
+        acc
+
+    let removeDominated (cg: T) =
         let dom = Domination.dominators cg cg.Start Down
         let domRev = Domination.dominators cg cg.End Up
         cg.Graph.RemoveVertexIf (fun v ->
             (not (isRepeatedOut cg v)) &&
-             dom.IsDominatedBy(v, shadows v) || 
-             domRev.IsDominatedBy(v, shadows v)) |> ignore
+            (dom.IsDominatedByFun(v, shadows v) || 
+             domRev.IsDominatedByFun(v, shadows v))) |> ignore
+        let edges = edgeSet cg
         cg.Graph.RemoveEdgeIf (fun e -> 
-            let ies = cg.Graph.OutEdges e.Target
-            match ies |> Seq.tryFind (fun ie -> ie.Target = e.Source) with 
-            | None -> false 
-            | Some ie ->
-                assert (ie.Source = e.Target)
-                assert (ie.Target = e.Source)
-                (not (isRepeatedOut cg e.Source || isRepeatedOut cg e.Target)) &&
-                (dom.IsDominatedBy(e.Source, (=) e.Target) || domRev.IsDominatedBy(e.Target, (=) e.Source) ) &&
-                (e.Target <> e.Source) ) |> ignore
+            let x = e.Source 
+            let y = e.Target
+            let e = Edge(y.Id,x.Id)
+            (edges.Contains e) &&
+            (not (isRepeatedOut cg x || isRepeatedOut cg y)) &&
+            (dom.IsDominatedBy(x, y) || domRev.IsDominatedBy(y, x) ) &&
+            (x <> y) ) |> ignore
         cg.Graph.RemoveEdgeIf (fun e ->
             let x = e.Source
             let y = e.Target
             (not (isRepeatedOut cg e.Source || isRepeatedOut cg e.Target)) &&
-            (domRev.IsDominatedBy(y, shadows x) || 
-             dom.IsDominatedBy(x, shadows y) )) |> ignore
-        cg
+            (domRev.IsDominatedByFun(y, shadows x) // || 
+             (* dom.IsDominatedByFun(x, shadows y) *) )) |> ignore
 
     let removeNodesThatCantReachEnd (cg: T) = 
         let canReach = Reachable.dfs cg cg.End Up
         cg.Graph.RemoveVertexIf(fun v -> 
             Topology.isTopoNode v.Node && not (canReach.Contains v)) |> ignore
-        cg
         
     let removeNodesThatStartCantReach (cg: T) = 
         let canReach = Reachable.dfs cg cg.Start Down
         cg.Graph.RemoveVertexIf(fun v -> 
             Topology.isTopoNode v.Node && not (canReach.Contains v)) |> ignore
-        cg
 
     let delMissingSuffixPaths cg = 
         let starting = neighbors cg cg.Start |> Seq.filter isRealNode |> Set.ofSeq
@@ -461,7 +472,6 @@ module Minimize =
                      Seq.forall ((<>) cg.Start) (neighborsIn cg x))
                 else false
             else false) |> ignore
-        cg
 
     let removeRedundantExternalNodes (cg: T) =
         let toDelNodes = HashSet(HashIdentity.Structural)
@@ -484,31 +494,29 @@ module Minimize =
                     if Set.isSuperset nos nin then 
                         ignore (toDelNodes.Add n)
         cg.Graph.RemoveVertexIf (fun v -> toDelNodes.Contains v) |> ignore
-        cg 
           
     let minimize (idx: int) (cg: T) =
         logInfo(idx, sprintf "Node count: %d" cg.Graph.VertexCount)
         let inline count cg = 
             cg.Graph.VertexCount + cg.Graph.EdgeCount
-        let cg = ref cg
         let inline prune () = 
-            cg := removeNodesThatCantReachEnd !cg
-            logInfo(idx, sprintf "Node count (cant reach end): %d" (!cg).Graph.VertexCount)
-            cg := removeDominated !cg
-            logInfo(idx, sprintf "Node count (remove dominated): %d" (!cg).Graph.VertexCount)
-            cg := removeRedundantExternalNodes !cg
-            logInfo(idx, sprintf "Node count (redundant external nodes): %d" (!cg).Graph.VertexCount)
-            cg := removeConnectionsToOutStar !cg
-            logInfo(idx, sprintf "Node count (connections to out*): %d" (!cg).Graph.VertexCount)
-            cg := removeNodesThatStartCantReach !cg
-            logInfo(idx, sprintf "Node count (start cant reach): %d" (!cg).Graph.VertexCount)
-        let mutable sum = count !cg
+            removeNodesThatCantReachEnd cg
+            logInfo(idx, sprintf "Node count (cant reach end): %d" cg.Graph.VertexCount)
+            removeRedundantExternalNodes cg
+            logInfo(idx, sprintf "Node count (redundant external nodes): %d" cg.Graph.VertexCount)
+            removeConnectionsToOutStar cg
+            logInfo(idx, sprintf "Node count (connections to out*): %d" cg.Graph.VertexCount)
+            removeDominated cg
+            logInfo(idx, sprintf "Node count (remove dominated): %d" cg.Graph.VertexCount)
+            removeNodesThatStartCantReach cg
+            logInfo(idx, sprintf "Node count (start cant reach): %d" cg.Graph.VertexCount)
+        let mutable sum = count cg
         prune() 
-        while count !cg <> sum do
-            sum <- count !cg
+        while count cg <> sum do
+            sum <- count cg
             prune ()
-        logInfo(idx, sprintf "Node count - after O3: %d" (!cg).Graph.VertexCount)
-        !cg
+        logInfo(idx, sprintf "Node count - after O3: %d" cg.Graph.VertexCount)
+        cg
 
 
 module Consistency = 
@@ -520,6 +528,14 @@ module Consistency =
     type Preferences = seq<CgState>
     type Ordering = Dictionary<string, Preferences>
     type Constraints = BidirectionalGraph<CgState ,Edge<CgState>>
+
+    type CacheEntry = struct 
+        val X: int 
+        val Y: int
+        val I: int
+        val J: int
+        new(x,y,i,j) = {X=x; Y=y; I=i; J=j}
+    end
 
     type Node = struct 
         val More: CgState
@@ -598,8 +614,9 @@ module Consistency =
                     mustPrefer.[d] <- below
             mustPrefer
 
-    let simulate idx cg cache (doms: Domination.DominationTree) restrict (x,y) (i,j) =
-        if Set.contains (x,y,i,j) !cache then true else
+    let simulate idx cg (cache: HashSet<_>) (doms: Domination.DominationTree) restrict (x,y) (i,j) =
+        let ce = CacheEntry(x.Id,y.Id,i,j)
+        if cache.Contains ce then true else
         let restrict_i = Map.find i restrict
         let restrict_j = Map.find j restrict
         if not (restrict_i.Graph.ContainsVertex x) then false
@@ -609,7 +626,8 @@ module Consistency =
             | No -> false
             | Yes related -> 
                 for n in related do 
-                    cache := Set.add (n.More, n.Less, i, j) !cache
+                    let ce = CacheEntry(n.More.Id, n.Less.Id, i, j)
+                    ignore (cache.Add ce)
                 true
 
     let isPreferred idx cg cache doms restrict (x,y) (reachX, reachY) =
@@ -688,14 +706,14 @@ module Consistency =
     let restrictedGraphs cg prefs =
         let inline aux acc i =
             let r = restrict cg i 
-            let r = Minimize.removeNodesThatCantReachEnd r
+            Minimize.removeNodesThatCantReachEnd r
             r.Graph.RemoveEdgeIf (fun e -> isOutside e.Source && isOutside e.Target) |> ignore
             r.Graph.RemoveEdgeIf (fun e -> not (isRealNode e.Source) || not (isRealNode e.Target) ) |> ignore
             Map.add i r acc
         Bitset32.fold aux Map.empty prefs
 
     let findOrdering idx cg outName : Result<Ordering, CounterExample> =
-        try 
+        try
             let mustPrefer = getHardPreferences cg
             let prefs = preferences cg 
             let rs = restrictedGraphs cg prefs
@@ -703,7 +721,7 @@ module Consistency =
             let (ain, _) = Topology.alphabet cg.Topo
             let ain = Set.map (fun (v: Topology.Node) -> v.Loc) ain
             let doms = Domination.dominators cg cg.Start Down
-            let cache = ref Set.empty
+            let cache = HashSet()
             debug (fun () -> Map.iter (fun i g -> generatePNG g (outName + "-min-restricted" + string i)) rs)
             let labels =
                 cg.Graph.Vertices

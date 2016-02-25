@@ -5,8 +5,6 @@ define PG2 = 2.0.1.0/24
 
 define transit(X) =  enter(X) and exit(X)
 
-
-
 define no_transit = {
 	true => not transit(Back1 or Back2)
 }
@@ -24,7 +22,9 @@ define routing = {
 	true => exit(Back1) >> exit(Back2)
 }
 
-define main = no_transit and ownership and routing
+define main = { 
+	true => exit(Back1) >> exit(Back2)
+} /* no_transit and ownership and routing */
 
 
 control {
