@@ -319,23 +319,39 @@ module Reachable =
 
 module Domination = 
 
-    type DominationSet = Dictionary<CgState, Set<CgState>>
-    type DominationTree = Dictionary<CgState, CgState option>
+    type DomTreeMapping = Dictionary<CgState, CgState option>
 
-    let dominatorSet (dom: DominationTree) x = 
-        let mutable ds = Set.singleton x
-        match dom.[x] with 
-        | None -> ds
-        | Some v -> 
-            let mutable runner = x
-            let mutable current = v
-            while runner <> current do 
-                ds <- Set.add runner ds
-                runner <- current
-                current <- Common.Option.get dom.[runner]
-            ds
+    type DominationTree(tree: DomTreeMapping) = 
 
-    let inter (po: Dictionary<CgState,int>) (dom: DominationTree) b1 b2 =
+        member this.IsDominatedBy(x,f) = 
+            match tree.[x] with 
+            | None -> false
+            | Some v -> 
+                let mutable runner = x
+                let mutable current = v
+                let mutable found = false
+                while not found && runner <> current do 
+                    if f runner then 
+                        found <- true
+                    runner <- current
+                    current <- Common.Option.get tree.[runner]
+                found
+
+        member this.TryIsDominatedBy(x,f) = 
+            match tree.[x] with 
+            | None -> None
+            | Some v -> 
+                let mutable runner = x
+                let mutable current = v
+                let mutable found = None
+                while Option.isNone found && runner <> current do 
+                    if f runner then 
+                        found <- Some runner
+                    runner <- current
+                    current <- Common.Option.get tree.[runner]
+                found
+
+    let inter (po: Dictionary<CgState,int>) (dom: DomTreeMapping) b1 b2 =
         let mutable finger1 = b1
         let mutable finger2 = b2
         let mutable x = po.[finger1]
@@ -349,7 +365,7 @@ module Domination =
                 y <- po.[finger2]
         finger1
         
-    let dominators (cg: T) root direction : DominationSet =
+    let dominators (cg: T) root direction : DominationTree =
         let adj = if direction = Up then neighbors cg else neighborsIn cg
         let dom = Dictionary()
         let reach = Reachable.postOrder cg root direction
@@ -372,13 +388,10 @@ module Domination =
                             if dom.[p] <> None then 
                                 newIDom <- inter postorderMap dom p newIDom
                     let x = dom.[b]
-                    if Option.isNone x || Option.get x <> newIDom then
+                    if Option.isNone x || Common.Option.get x <> newIDom then
                         dom.[b] <- Some newIDom
                         changed <- true
-        let res = Dictionary()
-        for v in cg.Graph.Vertices do 
-            res.[v] <- dominatorSet dom v
-        res
+        DominationTree(dom)
 
 
 module Minimize =
@@ -388,7 +401,8 @@ module Minimize =
         let domRev = Domination.dominators cg cg.End Up
         cg.Graph.RemoveVertexIf (fun v ->
             (not (isRepeatedOut cg v)) &&
-            Set.union dom.[v] domRev.[v] |> Set.exists (shadows v)) |> ignore
+             dom.IsDominatedBy(v, shadows v) || 
+             domRev.IsDominatedBy(v, shadows v)) |> ignore
         cg.Graph.RemoveEdgeIf (fun e -> 
             let ies = cg.Graph.OutEdges e.Target
             match ies |> Seq.tryFind (fun ie -> ie.Target = e.Source) with 
@@ -397,14 +411,14 @@ module Minimize =
                 assert (ie.Source = e.Target)
                 assert (ie.Target = e.Source)
                 (not (isRepeatedOut cg e.Source || isRepeatedOut cg e.Target)) &&
-                (Set.contains e.Target (dom.[e.Source]) || Set.contains e.Source (domRev.[e.Target])) &&
+                (dom.IsDominatedBy(e.Source, (=) e.Target) || domRev.IsDominatedBy(e.Target, (=) e.Source) ) &&
                 (e.Target <> e.Source) ) |> ignore
         cg.Graph.RemoveEdgeIf (fun e ->
             let x = e.Source
             let y = e.Target
             (not (isRepeatedOut cg e.Source || isRepeatedOut cg e.Target)) &&
-            (Set.exists (shadows x) domRev.[y] || 
-             Set.exists (shadows y) dom.[x])) |> ignore
+            (domRev.IsDominatedBy(y, shadows x) || 
+             dom.IsDominatedBy(x, shadows y) )) |> ignore
         cg
 
     let removeNodesThatCantReachEnd (cg: T) = 
@@ -517,7 +531,7 @@ module Consistency =
         | Yes of HashSet<Node>
         | No
 
-    let protect (idx: int) (doms: Domination.DominationSet) (cg1,n1) (cg2,n2) : ProtectResult = 
+    let protect (idx: int) (doms: Domination.DominationTree) (cg1,n1) (cg2,n2) : ProtectResult = 
         if loc n1 <> loc n2 then No else
         let q = Queue()
         let seen = HashSet()
@@ -541,7 +555,8 @@ module Consistency =
             for y' in nsy do 
                 match Map.tryFind (loc y') nsx with
                 | None ->
-                    match Seq.tryFind (fun x' -> loc x' = loc y' && cg1.Graph.ContainsVertex x') doms.[x] with
+                    let f = fun x' -> loc x' = loc y' && cg1.Graph.ContainsVertex x'
+                    match doms.TryIsDominatedBy(x, f) with
                     | None -> counterEx <- Some (x,y)
                     | Some x' ->  add x' y'
                 | Some x' -> add x' y'
@@ -583,7 +598,7 @@ module Consistency =
                     mustPrefer.[d] <- below
             mustPrefer
 
-    let simulate idx cg cache (doms: Domination.DominationSet) restrict (x,y) (i,j) =
+    let simulate idx cg cache (doms: Domination.DominationTree) restrict (x,y) (i,j) =
         if Set.contains (x,y,i,j) !cache then true else
         let restrict_i = Map.find i restrict
         let restrict_j = Map.find j restrict
