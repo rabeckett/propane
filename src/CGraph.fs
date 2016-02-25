@@ -74,9 +74,12 @@ let stateMapper () =
     let stateMap = Dictionary(HashIdentity.Structural)
     let counter = ref 0
     (fun ss -> 
-        let mutable value = 0
-        if stateMap.TryGetValue(ss, &value) then value
-        else incr counter; stateMap.[ss] <- !counter; !counter)
+        let b, value = stateMap.TryGetValue(ss)
+        if b then value
+        else 
+            incr counter
+            stateMap.[ss] <- !counter
+            !counter)
 
 let index ((graph, topo, startNode, endNode): BidirectionalGraph<CgStateTmp, Edge<CgStateTmp>> * _ * _ * _) =
     let newCG = QuickGraph.BidirectionalGraph()
@@ -642,11 +645,9 @@ module Consistency =
                     edges <- Set.add (x,y) edges
                     g.AddEdge (Edge(x, y)) |> ignore
                 else if x <> y then
-                    let mutable ns = null
-                    if mustPrefer.TryGetValue(x, &ns) then 
-                        if ns.Contains(y) then 
-                            raise (SimplePathException (x,y))
-                    else ()
+                    let b, ns = mustPrefer.TryGetValue(x)
+                    if b && ns.Contains(y) then 
+                        raise (SimplePathException (x,y))
                     logInfo (idx, sprintf "  %s is NOT preferred to %s" (string x) (string y))
         g, edges
 

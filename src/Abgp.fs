@@ -556,29 +556,40 @@ module Outgoing =
         else PeerMatch x
 
 let getMatches (allPeers, inPeers, outPeers) outgoingMatches =
-    let inline eqStates states = 
-        Set.count states = 1
-    let peermatches, regexes = List.partition Outgoing.isPeerMatch (List.ofSeq outgoingMatches)
     // get peer topology location information
-    let mutable peers = Set.ofList (List.map Outgoing.getPeerMatch peermatches)
-    let peerLocs = Set.map (fun v -> Router (CGraph.loc v)) peers
-    let peersIn = Set.filter (fun v -> Topology.isInside v.Node) peers
-    let peersOut = Set.filter (fun v -> Topology.isOutside v.Node) peers
-    let peerLocsIn =  Set.map (fun v -> Router (CGraph.loc v)) peersIn
-    let peerLocsOut = Set.map (fun v -> Router (CGraph.loc v)) peersOut
+    let peermatches, regexes = List.partition Outgoing.isPeerMatch (List.ofSeq outgoingMatches)
+    let peermatches = List.map Outgoing.getPeerMatch peermatches
+    let mutable peersIn = Set.empty 
+    let mutable peerLocsIn = Set.empty
+    let mutable peersOut = Set.empty
+    let mutable peerLocsOut = Set.empty
+    for v in peermatches do
+        if Topology.isInside v.Node then
+            peersIn <- Set.add v peersIn
+            peerLocsIn <- Set.add v.Node.Loc peerLocsIn
+        else
+            peersOut <- Set.add v peersOut
+            peerLocsOut <- Set.add v.Node.Loc peerLocsOut
+    let mutable peers = Set.union peersIn peersOut
+    let mutable peerLocs = Set.union peerLocsIn peerLocsOut
     // get peer state product graph information
     let mutable matches = List.map (fun r -> Match.PathRE (Outgoing.getRegexMatch r)) regexes
-    let states = peers |> Set.map (fun v -> v.State)
-    let statesIn = peers |> Set.filter (fun v -> Topology.isInside v.Node) |> Set.map (fun v -> v.State)
-    let statesOut = peers |> Set.filter (fun v -> Topology.isOutside v.Node) |> Set.map (fun v -> v.State)
-    if peerLocs = allPeers && (eqStates states) then 
+    let mutable statesIn = Set.empty
+    let mutable statesOut = Set.empty
+    for v in peers do
+        if Topology.isInside v.Node
+        then statesIn <- Set.add v.State statesIn
+        else statesOut <- Set.add v.State statesOut
+    let states = Set.union statesIn statesOut
+    // check if possible to compress matches
+    if peerLocs = allPeers && (states.Count = 1) then
         matches <- Match.State(string (Set.minElement states), Any) :: matches
         peers <- Set.empty
     else 
-        if peerLocsIn = inPeers && (eqStates statesIn) && not peerLocsIn.IsEmpty then 
+        if peerLocsIn = inPeers && (statesIn.Count = 1) && not peerLocsIn.IsEmpty then 
             matches <- Match.State(string (Set.minElement statesIn), In) :: matches
             peers <- Set.difference peers peersIn
-        if peerLocsOut = outPeers && (eqStates statesOut) && not peerLocsOut.IsEmpty then 
+        if peerLocsOut = outPeers && (statesOut.Count = 1) && not peerLocsOut.IsEmpty then 
             matches <- Match.Peer(Out) :: matches
             peers <- Set.difference peers peersOut
         for v in peers do
@@ -606,7 +617,7 @@ let getExports (allPeers, inPeers, outPeers) x inExports (outgoing: seq<CgState>
     let specialCase = ref false
     let exports = List.ofSeq toOutside |> List.map (fun v -> (Router v.Node.Loc, getExport specialCase inExports x v)) 
     if not !specialCase then
-        let sendToLocs = Seq.map (fun v -> Router v.Node.Loc) outgoing |> Set.ofSeq
+        let sendToLocs = Seq.map (fun v -> v.Node.Loc) outgoing |> Set.ofSeq
         let sendToLocs = 
             match unqMatchPeer with
             | Some x -> Set.add x sendToLocs
@@ -632,10 +643,10 @@ let getPeerInfo (vs: seq<Topology.Node>) =
     let mutable allOut = Set.empty
     for v in vs do
         if Topology.isInside v then
-            let r = Router v.Loc
+            let r = v.Loc
             allIn <- Set.add r allIn
         else if Topology.isOutside v then 
-            let r = Router v.Loc 
+            let r = v.Loc 
             allOut <- Set.add r allOut 
     let all = Set.union allIn allOut
     (all, allIn, allOut)
@@ -680,8 +691,8 @@ let genConfig (cg: CGraph.T)
                 // get the compressed set of exports taking into account if there is a unique receive peer
                 let unqMatchPeer = 
                     match matches with 
-                    | [Match.Peer x] -> Some x
-                    | [Match.State(_,x)] -> Some x 
+                    | [Match.Peer (Router x)] -> Some x
+                    | [Match.State(_,(Router x))] -> Some x 
                     | _ -> None
                 let exports = getExports outPeerInfo cgstate inExports sendTo unqMatchPeer 
                 // match/export local minimizations
