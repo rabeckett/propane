@@ -2,8 +2,8 @@
 
 open Topology
 open QuickGraph
-open Common
-open Common.Format
+open Util
+open Util.Format
 open System.Collections.Generic
 
 type T = 
@@ -36,12 +36,12 @@ type Automaton =
 
      override this.ToString() =
         let header = "=======================\n"
-        let states = sprintf "States: %s\n" (Common.Set.toString this.Q)
+        let states = sprintf "States: %s\n" (Util.Set.toString this.Q)
         let init = sprintf "Initial: %d\n" this.q0
-        let final = sprintf "Final: %s\n" (Common.Set.toString this.F)
+        let final = sprintf "Final: %s\n" (Util.Set.toString this.F)
         let trans = 
             Map.fold (fun acc (q,S) v ->
-                let t = sprintf "  State: %d, chars: %s ---> %d\n" q (Common.Set.toString S) v 
+                let t = sprintf "  State: %d, chars: %s ---> %d\n" q (Util.Set.toString S) v 
                 acc + t) "" this.trans
         let trans = sprintf "Transitions:\n%s" trans
         sprintf "%s%s%s%s%s%s" header states init final trans header
@@ -108,7 +108,7 @@ let rec concat r1 r2 =
 let concatAll res =
     match res with 
     | [] -> Empty
-    | _ -> Common.List.fold1 concat res
+    | _ -> Util.List.fold1 concat res
 
 (* TODO: negate empty == alphabet check for locs *)
 let rec inter r1 r2 = 
@@ -126,7 +126,7 @@ let rec inter r1 r2 =
 let interAll res = 
     match res with 
     | [] -> Empty
-    | _ -> Common.List.fold1 inter res
+    | _ -> Util.List.fold1 inter res
 
 let rec union r1 r2 =
     if r1 = r2 then r1 else
@@ -144,7 +144,7 @@ let rec union r1 r2 =
 let unionAll res = 
     match res with 
     | [] -> Empty
-    | _ -> Common.List.fold1 union res
+    | _ -> Util.List.fold1 union res
 
 let rec nullable r = 
     match r with 
@@ -152,9 +152,9 @@ let rec nullable r =
     | Locs _ -> empty
     | Empty -> empty
     | Concat rs | Inter rs -> 
-        Common.List.fold (fun acc r -> inter acc (nullable r)) epsilon rs
+        Util.List.fold (fun acc r -> inter acc (nullable r)) epsilon rs
     | Union rs -> 
-        Common.List.fold (fun acc r -> union acc (nullable r)) empty rs
+        Util.List.fold (fun acc r -> union acc (nullable r)) empty rs
     | Star r -> epsilon
     | Negate r ->
         match nullable r with 
@@ -263,10 +263,10 @@ let singleLocations (topo: Topology.T) r =
         | LLocs s -> Some s
         | LInter rs ->
             List.map inner rs |> 
-            Common.List.fold1 (aux Set.intersect)
+            Util.List.fold1 (aux Set.intersect)
         | LUnion rs -> 
             List.map inner rs |>
-            Common.List.fold1 (aux Set.union)
+            Util.List.fold1 (aux Set.union)
         | _ -> None
     inner r
 

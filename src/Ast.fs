@@ -1,7 +1,7 @@
 ﻿module Ast
 
 open Topology
-open Common.Format
+open Util.Format
 
 type Position = 
     {SLine: int;
@@ -296,13 +296,13 @@ let wellFormedPrefix ast pos (a,b,c,d,bits) =
         Message.errorAst ast msg pos
 
 let typeMsg (expected: Type list) (t1: Type) = 
-    let t = Common.List.joinBy " or " (List.map string expected)
+    let t = Util.List.joinBy " or " (List.map string expected)
     sprintf "Invalid type, expected %s, but got %s" 
         (string t)
         (string t1)
 
 let typeMsg2 (expected: Type list) (t1: Type) (t2: Type) = 
-    let t = Common.List.joinBy " or " (List.map string expected)
+    let t = Util.List.joinBy " or " (List.map string expected)
     sprintf "Invalid type, expected 2 of (%s), but got %s and %s" 
         (string t)
         (string t1)
@@ -397,7 +397,7 @@ let rec pushPrefsToTop ast (e: Expr) : Expr list =
     | NotExpr x -> mergeSingle ast e x "negation"
     | ShrExpr (x,y) -> (pushPrefsToTop ast x) @ (pushPrefsToTop ast y)
     | Ident _ -> [e]
-    | _ -> Common.unreachable ()
+    | _ -> Util.unreachable ()
 and merge ast e (x,y) f =
     let xs = pushPrefsToTop ast x 
     let ys = pushPrefsToTop ast y
@@ -410,7 +410,7 @@ and merge ast e (x,y) f =
             sprintf "This can lead to ambiguous preferences unless clarified."
         Message.errorAst ast msg e.Pos
         error msg
-    | _, _ -> Common.unreachable ()
+    | _, _ -> Util.unreachable ()
 and mergeSingle ast e x op =
     let xs = pushPrefsToTop ast x
     if xs.Length > 1 then
@@ -453,10 +453,10 @@ let rec buildRegex (ast: T) (reb: Regex.REBuilder) (r: Expr) : Regex.LazyT =
         | "drop" -> ignore (checkParams id 0 args); reb.Empty
         | "in" -> ignore (checkParams id 0 args); reb.Inside 
         | "out" -> ignore (checkParams id 0 args);  reb.Outside
-        | _ -> Common.unreachable ()
+        | _ -> Util.unreachable ()
     | ShrExpr(e1,e2) -> 
         error (sprintf "Preferences in built-in constraint currently not handled")
-    | _ -> Common.unreachable ()
+    | _ -> Util.unreachable ()
 
 (* Build a concrete predicate from an expression
    that is known the have predicate type *)
@@ -472,7 +472,7 @@ let rec buildPredicate (e: Expr) : Predicate.T =
         let adjBits = adjustBits bits
         Predicate.prefix (a,b,c,d) adjBits
     | CommunityLiteral (x,y) ->  Predicate.community (string x + ":" + string y)
-    | _ -> Common.unreachable ()
+    | _ -> Util.unreachable ()
 
 (* Helper getter functions for expressions
    where the kind of value is known *)
@@ -480,22 +480,22 @@ let rec buildPredicate (e: Expr) : Predicate.T =
 let inline getPrefix x = 
     match x with 
     | PrefixLiteral (a,b,c,d,bits) -> (a,b,c,d,bits)
-    | _ -> Common.unreachable ()
+    | _ -> Util.unreachable ()
 
 let inline getLinks x = 
     match x with 
     | LinkExpr(x,y) -> (x,y)
-    | _ -> Common.unreachable ()
+    | _ -> Util.unreachable ()
 
 let inline getInt x = 
     match x with 
     | IntLiteral i -> i 
-    | _ -> Common.unreachable ()
+    | _ -> Util.unreachable ()
 
 let inline getComm x = 
     match x with 
     | CommunityLiteral (a,b) -> (a,b)
-    | _ -> Common.unreachable ()
+    | _ -> Util.unreachable ()
 
 (* Build the control constraints
    and extract concrete parameter values *)
@@ -559,7 +559,7 @@ let buildCConstraint ast (cc: Ident * Expr list) =
         let r = buildRegex ast reb (List.item 1 args)
         let locs = reb.SingleLocations r 
         CLongestPath (i, Option.get locs)
-    | _ -> Common.unreachable ()
+    | _ -> Util.unreachable ()
 
 let makeControlConstraints ast : CConstraint list = 
     List.map (buildCConstraint ast) ast.CConstraints
@@ -679,7 +679,7 @@ let inline originationLocations (ast: T) (e: Expr) : Set<string> =
 let inline orginationLocationsList (ast: T) (es: Expr list) : Set<string> =
     let inline addLocs acc e = 
         Set.union acc (originationLocations ast e)
-    Common.List.fold addLocs Set.empty es
+    Util.List.fold addLocs Set.empty es
 
 
 (* Expand blocks in a regular expression to a
@@ -709,8 +709,8 @@ let checkBlock ast e pcs =
         matched <- p'
     if remaining <> Predicate.bot then
         let s = Predicate.example remaining
-        let msg = sprintf "Incomplete prefixes in block. An example of a prefix that is not matched: %s" s
-        Message.warningAst ast msg e.Pos
+        // let msg = sprintf "Incomplete prefixes in block. An example of a prefix that is not matched: %s" s
+        // Message.warningAst ast msg e.Pos
         let e = pcs |> List.head |> snd |> List.head
         // TODO: what is the right thing here?
         pcs @ [(Predicate.top, [ {Pos=e.Pos; Node=Ident ({Pos=e.Pos;Name="any"}, [])} ])]
@@ -731,7 +731,7 @@ let combineBlocks pos pcs1 pcs2 (op: BinOp) =
     |> List.map (fun (pred,n) -> pred, {Pos=pos; Node=n})
 
 let inline collapsePrefs pos (es: Expr list) : Expr =
-    Common.List.fold1 (fun e1 e2 -> {Pos=pos; Node=ShrExpr (e1,e2)}) es
+    Util.List.fold1 (fun e1 e2 -> {Pos=pos; Node=ShrExpr (e1,e2)}) es
 
 let rec expandBlocks ast (e: Expr) = 
     match e.Node with
@@ -742,7 +742,7 @@ let rec expandBlocks ast (e: Expr) =
         List.map (fun (x,y) -> (buildPredicate x, pushPrefsToTop ast y)) es
         |> checkBlock ast e
         |> List.map (fun (p,es) -> (p, collapsePrefs e.Pos es))
-    | _ -> Common.unreachable ()
+    | _ -> Util.unreachable ()
 
 let addTopoDefinitions (ast: T) : T =
     let asnDefs = 
@@ -751,7 +751,7 @@ let addTopoDefinitions (ast: T) : T =
             let node = Asn asn
             pos, [], {Pos = pos; Node = node}) ast.TopoInfo.AsnMap
     let defs = 
-        Common.Map.merge ast.Defs asnDefs (fun name ((p,_,_),_) -> 
+        Util.Map.merge ast.Defs asnDefs (fun name ((p,_,_),_) -> 
             let msg = sprintf "Definition of '%s' clashes with router name in topology" name
             Message.errorAst ast msg p)
     {ast with Defs = defs}

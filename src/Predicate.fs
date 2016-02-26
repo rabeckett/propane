@@ -28,7 +28,7 @@ type T =
         match Set.count pairs with 
         | 0 -> "false"
         | 1 -> aux false (Set.minElement pairs)
-        | _ -> Common.Set.joinBy " or " (Set.map (aux true) pairs)
+        | _ -> Util.Set.joinBy " or " (Set.map (aux true) pairs)
 
 let bot = Pred (Set.empty)
 
@@ -93,9 +93,14 @@ let simplify xs =
     else Set.remove botPair xs
 
 let disj x y = 
-    let (Pred xs) = x
-    let (Pred ys) = y
-    Pred (simplify (Set.union xs ys))
+    if x = top then top 
+    elif y = top then top 
+    elif x = bot then y 
+    elif y = bot then x 
+    else
+        let (Pred xs) = x
+        let (Pred ys) = y
+        Pred (simplify (Set.union xs ys))
 
 let conj x y =
     let (Pred xs) = x
@@ -115,10 +120,10 @@ let negate x  =
         let a = {Prefix = Prefix.negation x.Prefix; Comm = Community.top}
         let b = {Prefix = Prefix.top; Comm = Community.negate x.Comm}
         Pred (simplify (Set.ofList [a; b])) ) xs
-    |> Common.Set.fold1 conj
+    |> Util.Set.fold1 conj
 
 let implies x y = 
-    disj (negate x) y = top
+    disj y (negate x) = top
 
 let disjoint x y = 
     conj x y = bot
@@ -153,7 +158,7 @@ let example x =
 
 module Test = 
 
-    open Common.Format
+    open Util.Format
 
     let maxTests = 1000
 

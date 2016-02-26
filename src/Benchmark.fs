@@ -21,7 +21,7 @@ let displayHeader () =
          "Time Per Prefix Find Ordering (mean)"; "Time Per Prefix Find Ordering (med)"; "Time Per Prefix Find Ordering (max)";
          "Time Per Prefix Gen Config (mean)"; "Time Per Prefix Gen Config (med)"; "Time Per Prefix Gen Config (max)";
          "Time Per Prefix Compress (mean)"; "Time Per Prefix Compress (median)"; "Time Per Prefix Compress (max)"]
-    printfn "%s" (Common.List.joinBy "," headers)
+    printfn "%s" (Util.List.joinBy "," headers)
 
 let inline toSec v = (float v) / 1000.0
 let inline times vs = Array.map toSec vs

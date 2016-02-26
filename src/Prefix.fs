@@ -229,5 +229,5 @@ let str x =
     let strs = List.map string pfxs
     match List.length strs with 
     | 0 -> "false"
-    | 1 -> Common.List.joinBy " or " strs 
-    | _ -> Common.List.joinBy " or " strs |> sprintf "(%s)"
+    | 1 -> Util.List.joinBy " or " strs 
+    | _ -> Util.List.joinBy " or " strs |> sprintf "(%s)"

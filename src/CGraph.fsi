@@ -1,7 +1,7 @@
 ﻿module CGraph
 
 open QuickGraph
-open Common.Error
+open Util.Error 
 open System.Collections
 open System.Collections.Generic
 

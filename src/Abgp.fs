@@ -1,10 +1,10 @@
 ﻿module Abgp
 
 open CGraph 
-open Common
-open Common.Debug
-open Common.Error
-open Common.Format
+open Util
+open Util.Debug
+open Util.Error
+open Util.Format
 open System.Collections.Generic
 
 exception UncontrollableEnterException of string
@@ -116,7 +116,7 @@ let formatActions (sb: System.Text.StringBuilder) pred (actions: Actions) =
                 for (peer, acts) in es do
                     bprintf sb "\n    Export: [Peer<-%s" (string peer)
                     if acts <> [] then
-                        let str = Common.List.joinBy "," (List.map string acts)
+                        let str = Util.List.joinBy "," (List.map string acts)
                         sb.Append(", " + str) |> ignore
                     bprintf sb "]"
 
@@ -130,16 +130,17 @@ let formatPred (pred: Predicate.T) (racts: Map<string, Actions>) =
 let format (config: T) =
     let sb = System.Text.StringBuilder ()
     for kv in config.RConfigs do
+        let ti = config.PolInfo.Ast.TopoInfo
         let routerName =
-            Topology.router kv.Key config.PolInfo.Ast.TopoInfo
+            Topology.router kv.Key ti
         let routerConfig = kv.Value
         bprintf sb "\nRouter %s" routerName
         for (prefix, peers) in routerConfig.Control.Aggregates do
             for peer in peers do
-                bprintf sb "\n  Aggregate(%s, %s)" (string prefix) peer
+                bprintf sb "\n  Aggregate(%s, %s)" (string prefix) (Topology.router peer ti)
         for ((c, prefix), peers) in routerConfig.Control.Tags do 
             for peer in peers do 
-                bprintf sb "\n  Tag(%s, %s, %s)" c (string prefix) peer
+                bprintf sb "\n  Tag(%s, %s, %s)" c (string prefix) (Topology.router peer ti)
         for (i, peers)  in routerConfig.Control.MaxRoutes do 
             for peer in peers do 
                 bprintf sb "\n  MaxRoutes(%d)" i
@@ -214,7 +215,7 @@ module NodeWide =
 module PrefixWide = 
 
     let inline private allCommMatches filters = 
-        Common.List.fold (fun acc f -> 
+        Util.List.fold (fun acc f -> 
             match f with 
             | Allow ((Match.State(c,_),lp), es) ->
                 Set.add c acc
@@ -326,14 +327,14 @@ module RouterWide =
             match List.tryFind (overlap pair) tl with
             | None -> pair :: tl
             | Some (p2,f2) ->
-                if (coveredFilter f1 f2) && (Predicate.implies p1 p2) 
+                if (coveredFilter f1 f2) && (Predicate.implies p1 p2)
                 then tl
                 else pair :: tl
 
     let fallThroughElimination (rconfig: RouterConfig) : RouterConfig =
-        let origins = Common.List.fold addOriginator Set.empty rconfig.Actions
+        let origins = Util.List.fold addOriginator Set.empty rconfig.Actions
         let pairs = fteAux (makePairs rconfig.Actions) |> unMakePairs |> Map.ofList
-        let actions = Common.List.fold (addBackPair origins pairs) [] rconfig.Actions
+        let actions = Util.List.fold (addBackPair origins pairs) [] rconfig.Actions
         {Control = rconfig.Control; Actions = List.rev actions}
 
     let minimize (config: T) = 
@@ -404,9 +405,9 @@ let joinConfigs polInfo (aggs, comms, maxroutes) (results: PrefixResult list) : 
             | Some x -> result <- Map.add router (value :: x) result
     let routerConfigs = 
         Map.map (fun router vs ->
-            let a = Common.Map.getOrDefault router [] aggs
-            let b = Common.Map.getOrDefault router [] comms
-            let c = Common.Map.getOrDefault router [] maxroutes
+            let a = Util.Map.getOrDefault router [] aggs
+            let b = Util.Map.getOrDefault router [] comms
+            let c = Util.Map.getOrDefault router [] maxroutes
             {Actions=List.rev vs; Control={Aggregates=a; Tags=b; MaxRoutes=c}}) result
     {PolInfo = polInfo; RConfigs = routerConfigs}
 
@@ -820,7 +821,7 @@ let compileToIR (fullName: string)
     let dfas = Array.ofList dfas
     let cg, pgTime = Profile.time (CGraph.buildFromAutomata (reb.Topo())) dfas
     let buildTime = dfaTime + pgTime
-    debug (fun () -> CGraph.generatePNG cg fullName )
+    debug (fun () -> CGraph.generatePNG cg fullName)
     let cg, delTime = Profile.time (CGraph.Minimize.delMissingSuffixPaths) cg
     let cg, minTime = Profile.time (CGraph.Minimize.minimize idx) cg
     let minTime = delTime + minTime
@@ -879,7 +880,7 @@ let compileForSinglePrefix (fullName:string)
         | NoPathForRouters rs ->
             let routers = 
                 Set.map (fun r -> Topology.router r ti) rs
-                |> Common.Set.joinBy ", "
+                |> Util.Set.joinBy ", "
             let msg = 
                 sprintf "Unable to find a path for routers: " + 
                 sprintf "%s for predicate %s" routers (string pred)
@@ -954,12 +955,12 @@ let splitByLocation f topo (vs: _ list) =
             |> Seq.groupBy fst
             |> Seq.map (fun (x,y) -> (x, [(k, Seq.map snd y)]))
             |> Map.ofSeq
-        acc <- Common.Map.merge acc pairs (fun _ (xs,ys) -> xs @ ys)
+        acc <- Util.Map.merge acc pairs (fun _ (xs,ys) -> xs @ ys)
     acc
 
 let splitConstraints (pi: Ast.PolInfo) =
     let aggs, comms, maxroutes = 
-        Common.List.fold (fun ((x,y,z) as acc) c -> 
+        Util.List.fold (fun ((x,y,z) as acc) c -> 
             match c with
             | Ast.CAggregate (p,ins,outs) -> ((p,ins,outs)::x, y, z)
             | Ast.CCommunity (s,p,ins,outs) -> (x, ((s,p),ins,outs)::y, z)
@@ -978,6 +979,68 @@ let minFails x y =
     | _, None -> x 
     | Some a, Some b ->
         if a.NumFailures < b.NumFailures then x else y
+
+
+module Update = 
+
+    let updateConfig f (config:T) =
+        let rconfigs = Map.map f config.RConfigs
+        {PolInfo = config.PolInfo; RConfigs = rconfigs}
+
+    let updateActions f (config:T) = 
+        updateConfig (fun router rconf ->
+            let actions = List.choose f rconf.Actions
+            {Actions = actions; Control = rconf.Control}
+        ) config
+
+    let updateFilter f (config:T) =
+        updateActions (fun (pred, acts) -> 
+            match acts with 
+            | Originate -> Some (pred, Originate)
+            | Filters fs -> Some (pred, (Filters (List.choose f fs)))
+        ) config
+
+    let updateAllow f (config:T) = 
+        updateFilter (fun filt -> 
+            match filt with 
+            | Deny -> Some Deny
+            | Allow ((m,lp),es) as v -> 
+                match f m lp es with 
+                | None -> None 
+                | Some (m',lp',es') -> Some (Allow ((m',lp'),es'))
+        ) config
+
+    let updateMods f (config:T) = 
+        updateAllow (fun m lp es -> 
+            let es' = List.choose (f m lp) es 
+            Some (m,lp,es')
+        ) config
+
+    let updateMod f (config:T) = 
+        updateMods (fun m lp (peer,mods) -> 
+            Some (peer, List.choose (f m lp peer) mods)
+        ) config
+
+// TODO: don't reindex the no-export community
+let reindexCommunities (config:T) : T = 
+    let reindex = Util.Reindexer(HashIdentity.Structural)
+    // reindex all communities used in modification
+    let changeModComms _ _ _ modif = 
+        match modif with 
+        | SetComm(c) ->
+            let c' = string (reindex.Index c)
+            Some (SetComm c')
+        | _ -> Some modif
+    // reindex all communities matched against
+    let changeMatchComms m lp es = 
+        match m with 
+        | State(c,p) -> 
+            let c' = string (reindex.Index c) 
+            Some (Match.State(c',p), lp, es)
+        | _ -> Some (m, lp, es)
+    config
+    |> Update.updateMod changeModComms
+    |> Update.updateAllow changeMatchComms
 
 let compileAllPrefixes (fullName: string) 
                        (polInfo: Ast.PolInfo) 
@@ -998,6 +1061,7 @@ let compileAllPrefixes (fullName: string)
         if settings.Minimize
         then Profile.time RouterWide.minimize joined
         else joined, int64 0
+    let minJoined = reindexCommunities minJoined
     let buildTimes = Array.map (fun c -> c.BuildTime) configs
     let minTimes = Array.map (fun c -> c.MinimizeTime) configs
     let orderTimes = Array.map (fun c -> c.OrderingTime) configs
@@ -1014,6 +1078,7 @@ let compileAllPrefixes (fullName: string)
          JoinTime = joinTime;
          MinTime = minTime} in
     {Abgp = minJoined; AggSafety = k; Stats = stats}
+
 
 /// Unit tests for compilation.
 /// Hooks into the compileToIR function to test

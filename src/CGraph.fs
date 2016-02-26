@@ -1,8 +1,8 @@
 ﻿module CGraph
 
-open Common.Error
-open Common.Debug
-open Common.Format
+open Util.Error
+open Util.Debug
+open Util.Format
 open System
 open System.Collections.Generic
 open System.Diagnostics
@@ -62,22 +62,11 @@ let copyReverseGraph (cg: T) : T =
         newCG.AddEdge e' |> ignore
     {Start=cg.Start; Graph=newCG; End=cg.End; Topo=cg.Topo}
 
-let stateMapper () = 
-    let stateMap = Dictionary(HashIdentity.Structural)
-    let counter = ref 0
-    (fun ss -> 
-        let b, value = stateMap.TryGetValue(ss)
-        if b then value
-        else 
-            incr counter
-            stateMap.[ss] <- !counter
-            !counter)
-
 let index ((graph, topo, startNode, endNode): BidirectionalGraph<_, _> * _ * _ * _) =
     let newCG = QuickGraph.BidirectionalGraph()
-    let mapper = stateMapper ()
-    let nstart = {Id=0; Node=startNode.TNode; State=(mapper startNode.TStates); Accept=startNode.TAccept}
-    let nend = {Id=1; Node=endNode.TNode; State=(mapper endNode.TStates); Accept=endNode.TAccept}
+    let reindex = Util.Reindexer(HashIdentity.Structural)
+    let nstart = {Id=0; Node=startNode.TNode; State=(reindex.Index startNode.TStates); Accept=startNode.TAccept}
+    let nend = {Id=1; Node=endNode.TNode; State=(reindex.Index endNode.TStates); Accept=endNode.TAccept}
     ignore (newCG.AddVertex nstart)
     ignore (newCG.AddVertex nend)
     let mutable i = 2
@@ -86,15 +75,15 @@ let index ((graph, topo, startNode, endNode): BidirectionalGraph<_, _> * _ * _ *
     idxMap.[(nend.Node.Loc, nend.State)] <- nend
     for v in graph.Vertices do
         if Topology.isTopoNode v.TNode then
-            let newv = {Id=i; Node=v.TNode; State = (mapper v.TStates); Accept=v.TAccept}
+            let newv = {Id=i; Node=v.TNode; State = (reindex.Index v.TStates); Accept=v.TAccept}
             i <- i + 1
-            idxMap.Add( (v.TNode.Loc, mapper v.TStates), newv)
+            idxMap.Add( (v.TNode.Loc, reindex.Index v.TStates), newv)
             newCG.AddVertex newv |> ignore
     for e in graph.Edges do
         let v = e.Source 
         let u = e.Target
-        let x = idxMap.[(v.TNode.Loc, mapper v.TStates)]
-        let y = idxMap.[(u.TNode.Loc, mapper u.TStates)]
+        let x = idxMap.[(v.TNode.Loc, reindex.Index v.TStates)]
+        let y = idxMap.[(u.TNode.Loc, reindex.Index u.TStates)]
         newCG.AddEdge (Edge(x,y)) |> ignore
     {Start=nstart; Graph=newCG; End=nend; Topo=topo}
 
@@ -118,7 +107,7 @@ let getGarbageStates (auto: Regex.Automaton) =
         else None 
     let selfLoops = 
         Map.fold (fun acc (x,_) y  ->
-            let existing = Common.Map.getOrDefault x Set.empty acc
+            let existing = Util.Map.getOrDefault x Set.empty acc
             Map.add x (Set.add y existing) acc ) Map.empty auto.trans
             |> Seq.choose aux
             |> Set.ofSeq
@@ -126,7 +115,7 @@ let getGarbageStates (auto: Regex.Automaton) =
 
 let buildFromAutomata (topo: Topology.T) (autos : Regex.Automaton array) : T =
     if autos.Length > 31 then 
-        error (sprintf "Propane does not currently support more than 32 preferences")
+        error (sprintf "Propane does not currently support more than 31 preferences")
     if not (Topology.isWellFormed topo) then
         error (sprintf "Invalid topology. Topology must be weakly connected.")
     let unqTopo = Set.ofSeq topo.Vertices
@@ -165,7 +154,7 @@ let buildFromAutomata (topo: Topology.T) (autos : Regex.Automaton array) : T =
             if not !dead then
                 if not (marked.Contains state) then
                     ignore (marked.Add state)
-                    ignore (graph.AddVertex state)
+                    ignore (graph.AddVertex state) 
                     todo.Enqueue state 
                 let edge = Edge(currState, state)
                 ignore (graph.AddEdge edge)
@@ -244,7 +233,7 @@ let toDot (cg: T) : string =
                 let label = sprintf "%s, %s" state location
                 v.VertexFormatter.Label <- label
             else
-                let accept = (Bitset32.toSet v.Vertex.Accept |> Common.Set.toString)
+                let accept = (Bitset32.toSet v.Vertex.Accept |> Util.Set.toString)
                 let label = sprintf "%s, %s\nAccept=%s" state location accept
                 v.VertexFormatter.Label <- label
                 v.VertexFormatter.Shape <- Graphviz.Dot.GraphvizVertexShape.DoubleCircle
@@ -321,7 +310,7 @@ module Domination =
                     if runner = y then 
                         found <- true
                     runner <- current
-                    current <- Common.Option.get tree.[runner]
+                    current <- Util.Option.get tree.[runner]
                 found
 
         member this.IsDominatedByFun(x,f) = 
@@ -335,7 +324,7 @@ module Domination =
                     if f runner then 
                         found <- true
                     runner <- current
-                    current <- Common.Option.get tree.[runner]
+                    current <- Util.Option.get tree.[runner]
                 found
 
         member this.TryIsDominatedBy(x,f) = 
@@ -349,7 +338,7 @@ module Domination =
                     if f runner then 
                         found <- Some runner
                     runner <- current
-                    current <- Common.Option.get tree.[runner]
+                    current <- Util.Option.get tree.[runner]
                 found
     end
 
@@ -390,7 +379,7 @@ module Domination =
                             if dom.[p] <> None then 
                                 newIDom <- inter postorderMap dom p newIDom
                     let x = dom.[b]
-                    if Option.isNone x || Common.Option.get x <> newIDom then
+                    if Option.isNone x || Util.Option.get x <> newIDom then
                         dom.[b] <- Some newIDom
                         changed <- true
         DominationTree(dom)
@@ -431,8 +420,7 @@ module Minimize =
             let x = e.Source
             let y = e.Target
             (not (isRepeatedOut cg e.Source || isRepeatedOut cg e.Target)) &&
-            (domRev.IsDominatedByFun(y, shadows x) // || 
-             (* dom.IsDominatedByFun(x, shadows y) *) )) |> ignore
+            (domRev.IsDominatedByFun(y, shadows x)) ) |> ignore
 
     let removeNodesThatCantReachEnd (cg: T) = 
         let canReach = Reachable.dfs cg cg.End Up
@@ -588,7 +576,7 @@ module Consistency =
             if ret.TryGetValue(l, &value) then 
                 ret.[l] <- Set.add v value 
             else ret.[l] <- Set.singleton v
-        Common.Dictionary.filter (fun _ v -> Set.count v > 1) ret
+        Util.Dictionary.filter (fun _ v -> Set.count v > 1) ret
 
     let allDisjoint (cg: T) (dups: Dictionary<_,_>) = 
         let components = Dictionary() :> IDictionary<CgState,int>
@@ -605,11 +593,11 @@ module Consistency =
         if dups.Count = 0 || allDisjoint cg dups then
             Dictionary()
         else 
-            let dups = Common.Dictionary.fold (fun acc _ v -> Set.union acc v) Set.empty dups
+            let dups = Util.Dictionary.fold (fun acc _ v -> Set.union acc v) Set.empty dups
             let mustPrefer = Dictionary()
             for d in dups do 
                 let reach = Reachable.dfs cg d Down
-                let below = Common.HashSet.filter (shadows d) reach
+                let below = Util.HashSet.filter (shadows d) reach
                 if below.Count > 0 then
                     mustPrefer.[d] <- below
             mustPrefer
@@ -667,18 +655,18 @@ module Consistency =
         Bitset32.iter getNodesWithPref prefs    
         ret
 
-    let addPrefConstraints idx cg cache doms (g: Constraints) r (mustPrefer: Dictionary<_,HashSet<_>>) nodes (reachMap: Dictionary<_,_>) =
+    let addPrefConstraints idx cg cache doms (g: Constraints) r mustPrefer nodes reachMap =
         let mutable edges = Set.empty
         for x in nodes do
             for y in nodes do
-                let reachX = reachMap.[x]
-                let reachY = reachMap.[y]
+                let reachX = (reachMap: Dictionary<_,_>).[x]
+                let reachY = (reachMap: Dictionary<_,_>).[y]
                 if x <> y && (isPreferred idx cg cache doms r (x,y) (reachX,reachY)) then
                     logInfo (idx, sprintf "  %s is preferred to %s" (string x) (string y))
                     edges <- Set.add (x,y) edges
                     g.AddEdge (Edge(x, y)) |> ignore
                 else if x <> y then
-                    let b, ns = mustPrefer.TryGetValue(x)
+                    let b, ns = (mustPrefer: Dictionary<_,HashSet<_>>).TryGetValue(x)
                     if b && ns.Contains(y) then 
                         raise (SimplePathException (x,y))
                     logInfo (idx, sprintf "  %s is NOT preferred to %s" (string x) (string y))
@@ -738,7 +726,7 @@ module ToRegex =
 
     let constructRegex (cg: T) (state: CgState) : Regex.T =
         let reMap = ref Map.empty
-        let inline get v = Common.Map.getOrDefault v Regex.empty !reMap
+        let inline get v = Util.Map.getOrDefault v Regex.empty !reMap
         let inline add k v = reMap := Map.add k v !reMap
         let canReach = Reachable.dfs cg state Down
         cg.Graph.RemoveVertexIf (fun v -> not (canReach.Contains v) && Topology.isTopoNode v.Node) |> ignore
@@ -785,7 +773,7 @@ module Failure =
             |> Seq.map LinkFailure
         Seq.append fes fvs 
         |> Seq.toList
-        |> Common.List.combinations n
+        |> Util.List.combinations n
 
     let failedGraph (cg: T) (failures: FailType list) : T =
         let failed = copyGraph cg

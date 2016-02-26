@@ -1,13 +1,13 @@
 ﻿module Community
 
 type Pred = 
-    | Bot
+    | Bot 
     | Val of Set<Set<string> * Set<string>>
     
     override this.ToString() =
         let aux (p,n) =
-            let x = if Set.isEmpty p then "" else Common.Set.joinBy " and " p
-            let y = if Set.isEmpty n then "" else Common.Set.joinBy " and " (Set.map (fun s -> "not " + s) n)
+            let x = if Set.isEmpty p then "" else Util.Set.joinBy " and " p
+            let y = if Set.isEmpty n then "" else Util.Set.joinBy " and " (Set.map (fun s -> "not " + s) n)
             let str = 
                 match x, y with
                 | "", "" -> "true"
@@ -23,7 +23,7 @@ type Pred =
             | 1 -> aux (Set.minElement cs)
             | _ ->
                 let strs = Set.map aux cs
-                let all = Common.Set.joinBy " or " strs
+                let all = Util.Set.joinBy " or " strs
                 "(" + all + ")"
 
 let bot = Bot 

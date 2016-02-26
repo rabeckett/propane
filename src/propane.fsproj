@@ -75,7 +75,7 @@
     <Compile Include="Args.fs" />
     <Compile Include="Bitset32.fsi" />
     <Compile Include="Bitset32.fs" />
-    <Compile Include="Common.fs" />
+    <Compile Include="Util.fs" />
     <Compile Include="Prefix.fsi" />
     <Compile Include="Prefix.fs" />
     <Compile Include="Community.fsi" />

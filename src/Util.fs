@@ -1,11 +1,35 @@
-﻿module Common
+﻿module Util
 
 open System
 open System.Collections.Generic
 
 
 let unreachable () = 
-    failwith "unreachable"
+    failwith "unreachable" 
+
+
+[<Sealed>]
+type Reindexer<'a when 'a: equality> = 
+    val mutable private Count: int
+    val private IdToValue: Dictionary<int,'a>
+    val private ValueToId: Dictionary<'a,int>
+
+    new(iec: IEqualityComparer<'a>) = 
+        {Count = 0; 
+         IdToValue = Dictionary(); 
+         ValueToId = Dictionary(iec)}
+
+    member x.Index(v) =
+        let b, i = x.ValueToId.TryGetValue(v)
+        if b then i 
+        else 
+            x.Count <- x.Count + 1
+            x.IdToValue.[x.Count] <- v 
+            x.ValueToId.[v] <- x.Count
+            x.Count
+
+    member x.Value(i) = x.IdToValue.[i]
+
 
 module Debug =
 

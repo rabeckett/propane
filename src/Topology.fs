@@ -1,7 +1,7 @@
 ﻿module Topology
 
-open Common.Error
-open Common.Format
+open Util.Error
+open Util.Format
 open QuickGraph
 open QuickGraph.Algorithms
 open System.Xml

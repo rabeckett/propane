@@ -1,7 +1,7 @@
 ﻿module Input
 
-open Common.Error
-open Common.Format
+open Util.Error
+open Util.Format
 open System.IO
 open Microsoft.FSharp.Text.Lexing
 

@@ -1,8 +1,8 @@
 ﻿module Program
 
-open Common
-open Common.Debug
-open Common.Format
+open Util
+open Util.Debug
+open Util.Format
 open System
    
 let runUnitTests () = 
@@ -36,7 +36,7 @@ let main argv =
     if settings.Bench then 
         Benchmark.generate () 
         exit 0
-    let fullName = settings.DebugDir + (Common.Option.getOrDefault "output" settings.OutFile)
+    let fullName = settings.DebugDir + (Util.Option.getOrDefault "output" settings.OutFile)
     let topoInfo = 
         match settings.TopoFile with 
         | None -> error "No topology file specified, use -topo:file compiler flag"
