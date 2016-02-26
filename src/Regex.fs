@@ -378,14 +378,15 @@ type REBuilder(topo: Topology.T) =
         let dfa = this.MakeDFA (convert r)
         emptiness dfa
 
-    member this.Build re =
+    member this.Build (pred: Predicate.T) (pref:int) re =
         finalAlphabet <- true
         match this.WellFormed re with
         | None -> convert re
         | Some cs ->
             let msg = 
-                sprintf "Invalid path shape: %s, paths must " (string cs) + 
-                sprintf "go through the internal network exactly once"
+                sprintf "Invalid path shape for prefix %s, preference %d. " (string pred) pref + 
+                sprintf "Paths must go through the internal network exactly once, " + 
+                sprintf "but an example of a path that is allowed specified: %s" (string cs)
             error msg
 
     member __.Empty = LEmpty
@@ -517,7 +518,7 @@ module Test =
         let mutable fail = false
         for p in [pref1; pref2; pref3] do
             try 
-                ignore (reb.Build p)
+                ignore (reb.Build Predicate.top 1 p)
                 fail <- true
             with _ -> ()
         if fail then failed () else passed ()

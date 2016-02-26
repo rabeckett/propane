@@ -842,11 +842,11 @@ let compileToIR (fullName: string)
     let dfas = Array.ofList dfas
     let cg, pgTime = Profile.time (CGraph.buildFromAutomata (reb.Topo())) dfas
     let buildTime = dfaTime + pgTime
-    debug (fun () -> CGraph.generatePNG cg fullName)
+    debug (fun () -> CGraph.generatePNG cg polInfo fullName)
     let cg, delTime = Profile.time (CGraph.Minimize.delMissingSuffixPaths) cg
     let cg, minTime = Profile.time (CGraph.Minimize.minimize idx) cg
     let minTime = delTime + minTime
-    debug (fun () -> CGraph.generatePNG cg (fullName + "-min")) 
+    debug (fun () -> CGraph.generatePNG cg polInfo (fullName + "-min")) 
     // warn for anycasts 
     if not settings.Test then
         warnAnycasts cg polInfo.Value pred
@@ -867,8 +867,8 @@ let compileToIR (fullName: string)
         // check aggregation failure consistency
         let k = getMinAggregateFailures cg pred aggInfo
         // check  that BGP preferences can be set properly
-        let (ordering, orderTime) = Profile.time (Consistency.findOrderingConservative idx cg) fullName
-        match ordering with 
+        let (ordering, orderTime) = Profile.time (Consistency.findOrderingConservative idx cg polInfo) fullName
+        match ordering with
         | Ok ord ->
             let config, configTime = Profile.time (genConfig cg pred ord) inExports
             let result = 
@@ -1187,94 +1187,94 @@ module Test =
 
     let rDiamond1 (reb: Regex.REBuilder) = 
         let pref1 = reb.Concat (List.map reb.Loc ["A"; "X"; "N"; "Y"; "B"])
-        [reb.Build pref1]
+        [reb.Build Predicate.top 1 pref1]
 
     let rDiamond2 (reb: Regex.REBuilder) = 
         let pref1 = reb.Concat (List.map reb.Loc ["A"; "X"; "N"; "Y"; "B"])
         let pref2 = reb.Concat [reb.Loc "A"; reb.Star reb.Inside; reb.Loc "N"; reb.Loc "Z"; reb.Loc "B"]
-        [reb.Build pref1; reb.Build pref2]
+        [reb.Build Predicate.top 1 pref1; reb.Build Predicate.top 2 pref2]
 
     let rDatacenterSmall1 (reb: Regex.REBuilder) = 
         let pref1 = reb.Internal()
-        [reb.Build pref1]
+        [reb.Build Predicate.top 1 pref1]
 
     let rDatacenterSmall2 (reb: Regex.REBuilder) = 
         let pref1 = reb.Inter [reb.Through ["M"]; reb.End ["A"]]
-        [reb.Build pref1]
+        [reb.Build Predicate.top 1 pref1]
 
     let rDatacenterSmall3 (reb: Regex.REBuilder) =
         let pref1 = reb.Inter [reb.Through ["M"]; reb.End ["A"]]
         let pref2 = reb.Inter [reb.Internal(); reb.End ["A"]]
-        [reb.Build pref1; reb.Build pref2]
+        [reb.Build Predicate.top 1 pref1; reb.Build Predicate.top 2 pref2]
 
     let rDatacenterSmall4 (reb: Regex.REBuilder) =
         let pref1 = reb.End(["A"])
-        [reb.Build pref1]
+        [reb.Build Predicate.top 1 pref1]
 
     let rDatacenterSmall5 (reb: Regex.REBuilder) =
         let pref1 = reb.Inter [reb.Through ["M"]; reb.End ["A"]]
         let pref2 = reb.Inter [reb.Through ["N"]; reb.End ["A"]]
         let pref3 = reb.Inter [reb.End ["A"]]
-        [reb.Build pref1; reb.Build pref2; reb.Build pref3]
+        [reb.Build Predicate.top 1 pref1; reb.Build Predicate.top 2 pref2; reb.Build Predicate.top 3 pref3]
 
     let rDatacenterMedium1 (reb: Regex.REBuilder) =
         let pref1 = reb.Internal()
-        [reb.Build pref1]
+        [reb.Build Predicate.top 1 pref1]
 
     let rDatacenterMedium2 (reb: Regex.REBuilder) =
         let pref1 = reb.Inter [reb.Start ["A"]; reb.Through ["X"]; reb.End ["F"]]
-        [reb.Build pref1]
+        [reb.Build Predicate.top 1 pref1]
 
     let rDatacenterMedium3 (reb: Regex.REBuilder) =
         let vf = reb.ValleyFree([["A";"B";"E";"F"]; ["C";"D";"G";"H"]; ["X";"Y"]])
         let pref1 = reb.Inter [reb.Through ["X"]; reb.End ["F"]; vf]
-        [reb.Build pref1]
+        [reb.Build Predicate.top 1 pref1]
 
     let rDatacenterMedium4 (reb: Regex.REBuilder) =
         let vf = reb.ValleyFree([["A";"B";"E";"F"]; ["C";"D";"G";"H"]; ["X";"Y"]])
         let start = reb.Start(["A"; "B"])
         let pref1 = reb.Inter [start; reb.Through ["X"]; reb.End ["F"]; vf]
         let pref2 = reb.Inter [reb.End ["F"]; vf]
-        [reb.Build pref1; reb.Build pref2]
+        [reb.Build Predicate.top 1 pref1; reb.Build Predicate.top 2 pref2]
 
     let rDatacenterMedium5 (reb: Regex.REBuilder) =
         let vf = reb.ValleyFree([["A";"B";"E";"F"]; ["C";"D";"G";"H"]; ["X";"Y"]])
         let pref1 = reb.Inter [reb.Through ["X"]; reb.End ["F"]; vf]
         let pref2 = reb.Inter [reb.Through ["Y"]; reb.End ["F"]; vf]
-        [reb.Build pref1; reb.Build pref2]
+        [reb.Build Predicate.top 1 pref1; reb.Build Predicate.top 2 pref2]
 
     let rDatacenterMedium6 (reb: Regex.REBuilder) =
         let vf = reb.ValleyFree([["A";"B";"E";"F"]; ["C";"D";"G";"H"]; ["X";"Y"]])
         let pref1 = reb.Inter [reb.Through ["X"]; reb.End ["F"]; vf]
         let pref2 = reb.Inter [reb.Through ["Y"]; reb.End ["F"]; vf]
         let pref3 = reb.Inter [reb.End ["F"]; vf]
-        [reb.Build pref1; reb.Build pref2; reb.Build pref3]
+        [reb.Build Predicate.top 1 pref1; reb.Build Predicate.top 2 pref2; reb.Build Predicate.top 3 pref3]
 
     let rDatacenterLarge1 (reb: Regex.REBuilder) =
         let pref1 = reb.Inter [reb.Through ["M"]; reb.End ["A"]]
-        [reb.Build pref1]
+        [reb.Build Predicate.top 1 pref1]
 
     let rDatacenterLarge2 (reb: Regex.REBuilder) =
         let pref1 = reb.Inter [reb.Through ["M"]; reb.End ["A"]]
         let pref2 = reb.End ["A"]
-        [reb.Build pref1; reb.Build pref2]
+        [reb.Build Predicate.top 1 pref1; reb.Build Predicate.top 2 pref2]
 
     let rDatacenterLarge3 (reb: Regex.REBuilder) =
         let pref1 = reb.Inter [reb.Through ["M"]; reb.End ["A"]]
         let pref2 = reb.Inter [reb.Through ["N"]; reb.End ["A"]]
         let pref3 = reb.End ["A"]
-        [reb.Build pref1; reb.Build pref2; reb.Build pref3]
+        [reb.Build Predicate.top 1 pref1; reb.Build Predicate.top 2 pref2; reb.Build Predicate.top 3 pref3]
 
     let rBrokenTriangle1 (reb: Regex.REBuilder) =
         let pref1 = reb.Union [reb.Path ["C"; "A"; "E"; "D"]; reb.Path ["A"; "B"; "D"]]
-        [reb.Build pref1]
+        [reb.Build Predicate.top 1 pref1]
 
     let rBigDipper1 (reb: Regex.REBuilder) =
         let op1 = reb.Path ["C"; "A"; "E"; "D"]
         let op2 = reb.Path ["A"; "E"; "D"]
         let op3 = reb.Path ["A"; "D"]
         let pref1 = reb.Union [op1; op2; op3]
-        [reb.Build pref1]
+        [reb.Build Predicate.top 1 pref1]
 
     let rBadGadget1 (reb: Regex.REBuilder) =
         let op1 = reb.Path ["A"; "C"; "D"]
@@ -1285,7 +1285,7 @@ module Test =
         let op5 = reb.Path ["B"; "D"]
         let op6 = reb.Path ["C"; "D"]
         let pref2 = reb.Union [op4; op5; op6]
-        [reb.Build pref1; reb.Build pref2]
+        [reb.Build Predicate.top 1 pref1; reb.Build Predicate.top 2 pref2]
 
     let rBadGadget2 (reb: Regex.REBuilder) =
         let op1 = reb.Path ["A"; "C"; "D"]
@@ -1295,7 +1295,7 @@ module Test =
         let op5 = reb.Path ["B"; "D"]
         let op6 = reb.Path ["C"; "D"]
         let pref1 = reb.Union [op1; op2; op3; op4; op5; op6]
-        [reb.Build pref1]
+        [reb.Build Predicate.top 1 pref1]
 
     let rSeesaw1 (reb: Regex.REBuilder) = 
         let op1 = reb.Path ["A"; "X"; "N"; "M"]
@@ -1304,17 +1304,17 @@ module Test =
         let op4 = reb.Path ["X"; "O"; "M"]
         let pref1 = reb.Union [op1; op2; op3; op4]
         let pref2 = reb.Path ["X"; "N"; "M"]
-        [reb.Build pref1; reb.Build pref2]
+        [reb.Build Predicate.top 1 pref1; reb.Build Predicate.top 2 pref2]
 
     let rStretchingManWAN1 (reb: Regex.REBuilder) = 
         let pref1 = reb.Concat [reb.Star reb.Outside; reb.Loc "A"; reb.Star reb.Inside; reb.Loc "Y"]
         let pref2 = reb.Concat [reb.Star reb.Outside; reb.Loc "B"; reb.Star reb.Inside; reb.Outside]
-        [reb.Build pref1; reb.Build pref2]
+        [reb.Build Predicate.top 1 pref1; reb.Build Predicate.top 2 pref2]
 
     let rStretchingManWAN2 (reb: Regex.REBuilder) = 
         let pref1 = reb.Concat [reb.Outside; reb.Loc "A"; reb.Star reb.Inside; reb.Loc "Y"]
         let pref2 = reb.Concat [reb.Outside; reb.Loc "B"; reb.Star reb.Inside; reb.Outside]
-        [reb.Build pref1; reb.Build pref2]
+        [reb.Build Predicate.top 1 pref1; reb.Build Predicate.top 2 pref2]
 
     let rStretchingManWAN3 (reb: Regex.REBuilder) = 
         let pref1 = 
@@ -1323,21 +1323,21 @@ module Test =
                 reb.Loc "A"; reb.Star reb.Inside; 
                 reb.Loc "Y"; reb.Star reb.Outside; 
                 reb.Loc "ASChina" ]
-        [reb.Build pref1]
+        [reb.Build Predicate.top 1 pref1]
 
     let rStretchingManWAN4 (reb: Regex.REBuilder) = 
         let pref1 = reb.Concat [reb.Loc "W"; reb.Loc "A"; reb.Loc "C"; reb.Loc "D"; reb.Outside]
         let pref2 = reb.Concat [reb.Loc "W"; reb.Loc "B"; reb.Internal(); reb.Outside]
-        [reb.Build pref1; reb.Build pref2]
+        [reb.Build Predicate.top 1 pref1; reb.Build Predicate.top 2 pref2]
 
     let rPinCushionWAN1 (reb: Regex.REBuilder) =
         let pref1 = reb.Concat [reb.Loc "W"; reb.Internal(); reb.Loc "Y"]
         let pref2 = reb.Concat [reb.Loc "X"; reb.Internal(); reb.Loc "Z"]
-        [reb.Build pref1; reb.Build pref2]
+        [reb.Build Predicate.top 1 pref1; reb.Build Predicate.top 2 pref2]
 
     let rBackboneWAN1 (reb: Regex.REBuilder) =
         let pref1 = reb.End(["A"])
-        [reb.Build pref1]
+        [reb.Build Predicate.top 1 pref1]
 
     let tests (settings: Args.T) = 
         let controlIn = settings.UseMed || settings.UsePrepending
@@ -1638,7 +1638,7 @@ module Test =
         let pol = reb.End ["A"]
         let aggs = Map.add "X" [(Prefix.prefix (10u, 0u, 0u, 0u) 31u, Seq.ofList ["PEER"])] Map.empty
         let aggs = Map.add "Y" [(Prefix.prefix (10u, 0u, 0u, 0u) 31u, Seq.ofList["PEER"])] aggs
-        let res = compileToIR "" 0 (Predicate.prefix (10u, 0u, 0u, 0u) 32u) None aggs reb [reb.Build pol]
+        let res = compileToIR "" 0 (Predicate.prefix (10u, 0u, 0u, 0u) 32u) None aggs reb [reb.Build Predicate.top 1 pol]
         match res with
         | Err _ -> failed ()
         | Ok(res) -> 

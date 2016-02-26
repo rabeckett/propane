@@ -136,7 +136,7 @@ let inline getAsn name asn =
 let router (asn:string) (ti:TopoInfo) = 
     let inline eqAsn _ v = string v = asn
     match Map.tryFindKey eqAsn ti.AsnMap with
-    | None -> "as" + asn
+    | None -> if asn = "out" then asn else "AS" + asn
     | Some r -> r
 
 let readTopology (file: string) : TopoInfo =

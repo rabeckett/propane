@@ -69,10 +69,10 @@ val inline isEmpty: T -> bool
 val restrict: T -> int -> T
 
 /// Convert the constraint graph to the DOT format for visualization
-val toDot: T -> string
+val toDot: T -> Ast.PolInfo option -> string
 
 /// Generate a png file for the constraint graph (requires graphviz dot utility)
-val generatePNG: T -> string -> unit
+val generatePNG: T -> Ast.PolInfo option -> string -> unit
 
 
 module Reachable =
@@ -112,9 +112,9 @@ module Consistency =
 
     /// Conservative check if the BGP routers can make local decisions not knowing about failures
     /// Takes an optional file name for debugging intermediate information
-    val findOrderingConservative: (int -> T -> string -> Result<Ordering, CounterExample>)
+    val findOrderingConservative: (int -> T -> Ast.PolInfo option -> string -> Result<Ordering, CounterExample>)
 
-
+ 
 module ToRegex = 
 
     /// Construct a compact regular expression describing the paths

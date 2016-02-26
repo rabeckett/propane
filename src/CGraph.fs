@@ -220,11 +220,16 @@ let restrict (cg: T) (i: int) =
         copy
     else cg
 
-let toDot (cg: T) : string = 
+let toDot (cg: T) (pi: Ast.PolInfo option) : string = 
     let onFormatEdge(e: Graphviz.FormatEdgeEventArgs<CgState, Edge<CgState>>) = ()
     let onFormatVertex(v: Graphviz.FormatVertexEventArgs<CgState>) = 
         let state = string v.Vertex.State
-        let location = loc v.Vertex
+        let location = 
+            match pi with 
+            | None -> loc v.Vertex 
+            | Some pi -> 
+                let ti = pi.Ast.TopoInfo
+                Topology.router (loc v.Vertex) ti
         match v.Vertex.Node.Typ with 
         | Topology.Start -> v.VertexFormatter.Label <- "Start"
         | Topology.End -> v.VertexFormatter.Label <- "End"
@@ -244,8 +249,8 @@ let toDot (cg: T) : string =
     graphviz.FormatVertex.Add(onFormatVertex)
     graphviz.Generate()
 
-let generatePNG (cg: T) (file: string) : unit =
-    System.IO.File.WriteAllText(file + ".dot", toDot cg)
+let generatePNG (cg: T) pi (file: string) : unit =
+    System.IO.File.WriteAllText(file + ".dot", toDot cg pi)
     let p = new Process()
     p.StartInfo.FileName <- "dot"
     p.StartInfo.UseShellExecute <- false
@@ -700,7 +705,7 @@ module Consistency =
             Map.add i r acc
         Bitset32.fold aux Map.empty prefs
 
-    let findOrdering idx cg outName : Result<Ordering, CounterExample> =
+    let findOrdering idx cg pi outName : Result<Ordering, CounterExample> =
         try
             let mustPrefer = getHardPreferences cg
             let prefs = preferences cg 
@@ -710,7 +715,7 @@ module Consistency =
             let ain = Set.map (fun (v: Topology.Node) -> v.Loc) ain
             let doms = Domination.dominators cg cg.Start Down
             let cache = HashSet()
-            debug (fun () -> Map.iter (fun i g -> generatePNG g (outName + "-min-restricted" + string i)) rs)
+            debug (fun () -> Map.iter (fun i g -> generatePNG g pi (outName + "-min-restricted" + string i)) rs)
             let labels =
                 cg.Graph.Vertices
                 |> Seq.choose (fun v -> if Topology.isTopoNode v.Node then Some (loc v) else None)
@@ -719,7 +724,8 @@ module Consistency =
             with ConsistencyException(x,y) -> Err((x,y) )
         with SimplePathException(x,y) -> Err(x,y)
 
-    let findOrderingConservative (idx: int) = findOrdering idx
+    let findOrderingConservative (idx: int) =
+        findOrdering idx
 
 
 module ToRegex =

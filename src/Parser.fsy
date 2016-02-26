@@ -1,6 +1,7 @@
 %{
 open System
 open Ast
+open Util
 open Util.Format
 open Microsoft.FSharp.Collections
 open Microsoft.FSharp.Text.Lexing
@@ -13,15 +14,24 @@ let pos ((p1, p2): LineInfo) : Ast.Position =
      ELine = p2.Line;
      ECol = p2.Column}
 
-let ident x : Ast.Ident = 
-    {Pos = pos (fst x);
-     Name = snd x}
-
 let range (p1: Ast.Position) (p2: Ast.Position) : Ast.Position =
     {SLine = p1.SLine; 
      SCol = p1.SCol;
      ELine = p2.ELine;
      ECol = p2.ECol}
+
+let ident x : Ast.Ident = 
+    {Pos = pos (fst x);
+     Name = snd x}
+
+let idToExpr (id: Ast.Ident) : Ast.Expr = 
+    {Pos = id.Pos; Node = Ast.Ident (id, [])}
+
+let idsToExpr (ids: Ast.Ident list) : Ast.Node =
+    let e = 
+        List.map idToExpr ids
+        |> List.fold1 (fun e1 e2 -> {Pos = range e1.Pos e2.Pos; Node = Ast.OrExpr(e1,e2)})
+    e.Node
 
 let buildDefinitions defs : Ast.Definitions = 
     List.fold (fun acc (name, x) -> 
@@ -125,6 +135,7 @@ expr:
     | FALSE                                      { {Pos = pos $1; Node = Ast.False} }
 	| LBRACE RBRACE	                             { {Pos = range (pos $1) (pos $2); Node = Ast.BlockExpr []} }
 	| LBRACE pconstrs RBRACE                     { {Pos = range (pos $1) (pos $3); Node = Ast.BlockExpr $2} }
+	| LBRACE ids RBRACE                          { {Pos = range (pos $1) (pos $3); Node = idsToExpr $2 } }
 
 ids:
 	| ID                                         { [ident $1] }

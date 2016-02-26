@@ -792,12 +792,12 @@ let makePolicyPairs (ast: T) =
         let origLocs = ref Map.empty
         // Build concrete regexes from top-level block expr
         let polPairs = 
-            List.map (fun (p, res) -> 
+            List.map (fun (p, res) ->
                 let locs = orginationLocationsList ast res
                 origLocs := Map.add p locs !origLocs
                 let reb = Regex.REBuilder(ast.TopoInfo.Graph)
                 let res = List.map (buildRegex ast reb) res
-                let res = List.map reb.Build res
+                let res = List.mapi (fun i re -> reb.Build p (i+1) re) res
                 (p, reb, res) ) topLevel
         (ast, polPairs, !origLocs)
     | _ -> error (sprintf "Main policy not defined, use define main = ...")

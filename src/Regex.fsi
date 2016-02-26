@@ -49,7 +49,7 @@ type REBuilder  =
     new: Topology.T -> REBuilder
     member Alphabet: unit -> Set<string>
     member Topo: unit -> Topology.T
-    member Build: LazyT -> T
+    member Build: Predicate.T -> int -> LazyT -> T
     member Inside: LazyT
     member Outside: LazyT
     member Empty: LazyT
