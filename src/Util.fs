@@ -9,7 +9,7 @@ let unreachable () =
 
 
 [<Sealed>]
-type Reindexer<'a when 'a: equality> = 
+type Reindexer<'a when 'a: equality> = class
     val mutable private Count: int
     val private IdToValue: Dictionary<int,'a>
     val private ValueToId: Dictionary<'a,int>
@@ -29,6 +29,7 @@ type Reindexer<'a when 'a: equality> =
             x.Count
 
     member x.Value(i) = x.IdToValue.[i]
+end
 
 
 module Debug =

@@ -99,7 +99,26 @@ type CounterExample =
 
 open Core.Printf
 
-let formatActions (sb: System.Text.StringBuilder) pred (actions: Actions) =
+let lookupRouter (pi: Ast.PolInfo option) s = 
+    match pi with 
+    | None -> s 
+    | Some pi -> 
+        let ti = pi.Ast.TopoInfo 
+        Topology.router s ti
+
+let lookupPeer pi p = 
+    match p with 
+    | Router s -> 
+        Router (lookupRouter pi s)
+    | _ -> p
+
+let lookupMatch pi m = 
+    match m with 
+    | Peer(p) -> Peer (lookupPeer pi p)
+    | State(c,p) -> State(c,lookupPeer pi p)
+    | PathRE _ -> m
+
+let formatActions (sb: System.Text.StringBuilder) (pi: Ast.PolInfo option) pred (actions: Actions) =              
     let predStr = string pred
     match actions with 
     | Originate -> bprintf sb "\n  Originate: [Pred=%s]" predStr 
@@ -110,21 +129,23 @@ let formatActions (sb: System.Text.StringBuilder) pred (actions: Actions) =
                 bprintf sb "\n  Deny: "
                 bprintf sb "[Pred=%s]" predStr
             | Allow ((m, lp), es) ->
-                bprintf sb "\n  Allow: [Pred=%s, %s]" predStr (string m)
+                let allow = m |> lookupMatch pi |> string
+                bprintf sb "\n  Allow: [Pred=%s, %s]" predStr allow
                 if lp <> 100 then
                     bprintf sb " (LP=%d)" lp
                 for (peer, acts) in es do
-                    bprintf sb "\n    Export: [Peer<-%s" (string peer)
+                    let export = peer |> lookupPeer pi |> string
+                    bprintf sb "\n    Export: [Peer<-%s" export
                     if acts <> [] then
                         let str = Util.List.joinBy "," (List.map string acts)
                         sb.Append(", " + str) |> ignore
                     bprintf sb "]"
 
-let formatPred (pred: Predicate.T) (racts: Map<string, Actions>) =
+let formatPred (polInfo: Ast.PolInfo option) (pred: Predicate.T) (racts: Map<string, Actions>) =
     let sb = System.Text.StringBuilder ()
     Map.iter (fun (router:string) act -> 
         bprintf sb "\nRouter %s" router
-        formatActions sb pred act) racts
+        formatActions sb polInfo pred act) racts
     sb.ToString()
 
 let format (config: T) =
@@ -134,7 +155,7 @@ let format (config: T) =
         let routerName =
             Topology.router kv.Key ti
         let routerConfig = kv.Value
-        bprintf sb "\nRouter %s" routerName
+        bprintf sb "Router %s" routerName
         for (prefix, peers) in routerConfig.Control.Aggregates do
             for peer in peers do
                 bprintf sb "\n  Aggregate(%s, %s)" (string prefix) (Topology.router peer ti)
@@ -145,8 +166,8 @@ let format (config: T) =
             for peer in peers do 
                 bprintf sb "\n  MaxRoutes(%d)" i
         for (pred, actions) in routerConfig.Actions do
-            formatActions sb pred actions
-        bprintf sb "\n" 
+            formatActions sb (Some config.PolInfo) pred actions
+        bprintf sb "\n\n" 
     sb.ToString()
 
 /// Minimization helper functions for reducing the size of 
@@ -857,7 +878,7 @@ let compileToIR (fullName: string)
                  OrderingTime=orderTime;
                  ConfigTime=configTime; 
                  Config=config}
-            let msg = formatPred pred (snd config)
+            let msg = formatPred polInfo pred (snd config)
             debug (fun () -> System.IO.File.WriteAllText (sprintf "%s.ir" fullName, msg))
             Ok (result)
         | Err((x,y)) -> Err(InconsistentPrefs(x,y))
