@@ -4,7 +4,9 @@ open Util
 open Util.Debug
 open Util.Format
 open System
-   
+open FastPredicate
+
+
 let runUnitTests () = 
     writeFormatted (header "Running unit tests ")
     Topology.Test.run () 
@@ -28,6 +30,14 @@ let displayStats (stats: Abgp.Stats) =
 
 [<EntryPoint>] 
 let main argv =
+    (* let pb = PredicateBuilder(Set.ofList ["A"; "B"])
+    let pred = pb.Prefix (Prefix(255u,255u,1u,1u,16u))
+    let pred = pb.Or(pred, pb.Community "A")
+    printfn "Result: %O" (pb.ToString(pred))
+    pb.DoCrazy(pred)
+
+    exit 0 *)
+
     ignore (Args.parse argv)
     let settings = Args.getSettings ()
     if settings.Test then

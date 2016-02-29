@@ -557,15 +557,13 @@ module Consistency =
             let n = q.Dequeue()
             let x = n.More 
             let y = n.Less 
-            let nsx = 
-                neighbors cg1 x 
-                |> Seq.fold (fun acc x -> Map.add (loc x) x acc) Map.empty
+            let nsx = neighbors cg1 x |> Seq.fold (fun acc x -> Map.add (loc x) x acc) Map.empty
             let nsy = neighbors cg2 y
             for y' in nsy do 
                 match Map.tryFind (loc y') nsx with
                 | None ->
-                    let f = fun x' -> loc x' = loc y' && cg1.Graph.ContainsVertex x'
-                    match doms.TryIsDominatedBy(x, f) with
+                    let inline relevantDom x' = loc x' = loc y' && cg1.Graph.ContainsVertex x'
+                    match doms.TryIsDominatedBy(x, relevantDom) with
                     | None -> counterEx <- Some (x,y)
                     | Some x' ->  add x' y'
                 | Some x' -> add x' y'

@@ -105,6 +105,7 @@
     <Compile Include="Abgp.fsi" />
     <Compile Include="Abgp.fs" />
     <Compile Include="Benchmark.fs" />
+    <Compile Include="FastPredicate.fs" />
     <Compile Include="Program.fs" />
     <None Include="App.config" />
     <None Include="packages.config" />
