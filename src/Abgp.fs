@@ -262,9 +262,7 @@ module PrefixWide =
             List.map (fun f -> 
                 chooseAction (fun a ->
                     match a with
-                    | SetComm(c) when not (Set.contains c usedMatches) -> 
-                        printfn "  Removing comm: %s" c
-                        None
+                    | SetComm(c) when not (Set.contains c usedMatches) ->  None
                     | _ -> Some a) f
             ) fs 
             |> Filters
@@ -296,7 +294,6 @@ module PrefixWide =
                 | Originate -> acc
                 | Filters fs -> acc @ fs) []
         let usedTags = allCommTags allFilters
-        printfn "Used tags: %A" usedTags
         Map.map (updateMatches usedTags) config
 
     (* let private combineInOut filters = 
@@ -314,7 +311,7 @@ module PrefixWide =
     let minimize (config: Map<string,Actions>) =
         config
         |> removeUnobservedTags
-        // |> removeUnobservedMatches
+        |> removeUnobservedMatches
         //|> removeUnobservedMatch
         //|> combineInOut 
 
