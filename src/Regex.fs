@@ -454,7 +454,7 @@ type REBuilder(topo: Topology.T) =
         let (ins,outs) = List.partition isInternal xs
         this.Union 
             [this.Concat [this.MaybeOutside(); this.MaybeInside(); this.Locs ins; this.MaybeInside(); this.MaybeOutside()];
-             this.Concat [this.MaybeOutside(); this.Internal(); this.MaybeInside(); this.Locs outs; this.MaybeOutside()]]
+             this.Concat [this.MaybeOutside(); this.Internal(); this.MaybeInside(); this.MaybeOutside(); this.Locs outs; this.MaybeOutside()]]
 
     member this.Avoid(xs) =
         let (ins,outs) = List.partition isInternal xs

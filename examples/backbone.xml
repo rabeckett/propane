@@ -1,13 +1,24 @@
 <topology>
+  <!-- Internal routers -->
   <node internal="true" can-originate="true" asn="100" name="R1"></node>
-  <node internal="true" can-originate="true" asn="100" name="R2"></node>
-  <node internal="true" can-originate="true" asn="100" name="R4"></node>
-  <node internal="true" can-originate="true" asn="100" name="R5"></node>
-
+  <node internal="true" can-originate="true" asn="101" name="R2"></node>
+  <node internal="true" can-originate="true" asn="102" name="R4"></node>
+  <node internal="true" can-originate="true" asn="103" name="R5"></node>
+  
+  <!-- External Peers -->
   <node internal="false" can-originate="true" asn="110" name="Cust"></node>
   <node internal="false" can-originate="true" asn="120" name="Prov"></node>
   <node internal="false" can-originate="true" asn="130" name="Peer"></node>
 
+  <!-- Full mesh connectivity -->
+  <edge source="R1" target="R2" directed="false"></edge>
+  <edge source="R1" target="R4" directed="false"></edge>
+  <edge source="R1" target="R5" directed="false"></edge>
+  <edge source="R2" target="R4" directed="false"></edge>
+  <edge source="R2" target="R5" directed="false"></edge>
+  <edge source="R4" target="R5" directed="false"></edge>
+
+  <!-- Connections to neighbors -->
   <edge source="R1" target="Cust" directed="false"></edge>
   <edge source="R2" target="Cust" directed="false"></edge>
   <edge source="R4" target="Prov" directed="false"></edge>

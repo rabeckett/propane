@@ -238,20 +238,68 @@ module PrefixWide =
     let inline private allCommMatches filters = 
         Util.List.fold (fun acc f -> 
             match f with 
-            | Allow ((Match.State(c,_),lp), es) ->
+            | Allow ((Match.State(c,_),_), es) ->
                 Set.add c acc
             | _ -> acc) Set.empty filters
 
-    let private removeUnobservedTag filters = 
-        let matchedComms = allCommMatches filters
-        List.map (fun f -> 
-            chooseAction (fun a ->
-                match a with
-                | SetComm(c) when not (Set.contains c matchedComms) -> None
-                | _ -> Some a) f
-        ) filters
+    let inline private allCommTags filters = 
+        Util.List.fold (fun acc f -> 
+            match f with 
+            | Allow ((_,_), es) ->
+                List.fold (fun acc (peer,mods) -> 
+                    List.fold (fun acc m ->
+                        match m with 
+                        | SetComm c -> Set.add c acc 
+                        | _ -> acc
+                    ) acc mods 
+                ) acc es
+            | _ -> acc) Set.empty filters
 
-    let private combineInOut filters = 
+    let updateActions usedMatches _ actions = 
+        match actions with 
+        | Originate -> Originate
+        | Filters fs -> 
+            List.map (fun f -> 
+                chooseAction (fun a ->
+                    match a with
+                    | SetComm(c) when not (Set.contains c usedMatches) -> 
+                        printfn "  Removing comm: %s" c
+                        None
+                    | _ -> Some a) f
+            ) fs 
+            |> Filters
+
+    let updateMatches usedTags _ actions = 
+        match actions with 
+        | Originate -> Originate
+        | Filters fs -> 
+            List.choose (fun f -> 
+                match f with 
+                | Allow ((Match.State(c,_), _), _) when not (Set.contains c usedTags) -> None
+                | _ -> Some f
+            ) fs 
+            |> Filters
+
+    let private removeUnobservedTags (config: Map<string,Actions>) =
+        let allFilters = 
+            config |> Map.fold (fun acc router actions -> 
+                match actions with 
+                | Originate -> acc
+                | Filters fs -> acc @ fs) []
+        let usedMatches = allCommMatches allFilters
+        Map.map (updateActions usedMatches) config
+
+    let private removeUnobservedMatches (config: Map<string,Actions>) =
+        let allFilters = 
+            config |> Map.fold (fun acc router actions -> 
+                match actions with 
+                | Originate -> acc
+                | Filters fs -> acc @ fs) []
+        let usedTags = allCommTags allFilters
+        printfn "Used tags: %A" usedTags
+        Map.map (updateMatches usedTags) config
+
+    (* let private combineInOut filters = 
         match filters with
         | (Allow ((Peer s1,lp1),es1) as hd1) :: 
           (Allow ((Peer s2,lp2),es2) as hd2) :: tl -> 
@@ -261,12 +309,14 @@ module PrefixWide =
                     Allow ((Match.Peer Any, lp1),es1) :: tl
                 else filters
             | _, _ -> filters
-        | _ -> filters
+        | _ -> filters *)
 
-    let minimize filters =
-        filters
-        |> removeUnobservedTag
-        |> combineInOut 
+    let minimize (config: Map<string,Actions>) =
+        config
+        |> removeUnobservedTags
+        // |> removeUnobservedMatches
+        //|> removeUnobservedMatch
+        //|> combineInOut 
 
 module RouterWide = 
 
@@ -725,11 +775,6 @@ let genConfig (cg: CGraph.T)
                         else exports, m
                     filters <- Allow ((m,lp), exports) :: filters
                 originates <- origin || originates
-        // prefix-wide minimizations
-        filters <- 
-            if settings.Minimize
-            then PrefixWide.minimize filters
-            else filters
         // no need for explicit deny if we allow everything
         match filters with 
         | [Allow ((Match.Peer Any,_), _)] -> ()
@@ -740,6 +785,11 @@ let genConfig (cg: CGraph.T)
             then Originate
             else Filters filters
         config <- Map.add router deviceConf config
+    // prefix-wide minimizations
+    config <- 
+        if settings.Minimize
+        then PrefixWide.minimize config
+        else config    
     (pred, config)
 
 let inline insideLoc v = 

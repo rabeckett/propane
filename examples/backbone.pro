@@ -1,17 +1,17 @@
 define PCust = 10.0.0.0/24
 
-define Routing = {
-  true  => exit(R1 >> R2 >> Peer >> Prov)
+define routing = {
+  true  => exit(R1) >> exit(R2) >> exit(Peer) >> exit(Prov)
 }
 
-define Ownership = {
-  PCust => later(Cust) 
+define ownership = {
+  PCust => through(Cust) 
 }
 
 define transit(X) = enter(X) and exit(X)
 
-define NoTransit = {
-    true => not transit(Peer or Prov)
+define notransit = {
+    true => not transit( {Peer, Prov} )
 }
 
-define main = Routing and Ownership and NoTransit
+define main = routing and ownership and notransit
