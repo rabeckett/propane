@@ -3,13 +3,11 @@ define PG2 = 1.0.1.0/24
 define PL1 = 2.0.1.0/24
 define PL2 = 2.0.2.0/24
 
-/* in = A or B or C or D or E or ... */
+define transit(X) = enter(X) and exit(X)
 
 define locality = {
 	PL1 or PL2 => always(in)
 }
-
-define transit(X) = enter(X) and exit(X)
 
 define notransit = {
 	true => not transit(Back1 or Back2)

@@ -91,14 +91,14 @@ type BddBuilder(order : Var -> Var -> int) =
 
     // iterate over each path to a leaf node
     member __.IterPath(f, Bdd x) = 
-        let rec aux path idx =
-            if idx = trueIdx then f path 
+        let rec aux ts fs idx =
+            if idx = trueIdx then f ts fs 
             elif idx = falseIdx then ()
             else
                 let n = idxToNode(idx)
-                aux (n.Var :: path) n.Left 
-                aux path n.Right
-        aux [] x
+                aux (Set.add n.Var ts) fs n.Left 
+                aux ts (Set.add n.Var fs) n.Right
+        aux Set.empty Set.empty x
 
     member __.ToString(Bdd idx) = 
         let rec fmt depth idx =
@@ -121,15 +121,23 @@ end
 
 type Predicate = Predicate of Bdd
  
-type PredicateBuilder(comms: Set<string>) = 
-    let builder = BddBuilder(compare)
+type Bit = One | Zero | Either
 
-    let addVars(onBits: bool [], onComms: Set<string>) =
+type PredicateBuilder() = 
+    let builder = BddBuilder(compare)
+    //let commMap = Dictionary()
+
+    let addVars(onBits: Bit [], onComms: Set<string>) =
         let bdd = ref builder.True
         Array.iteri (fun i b ->
-            if b then 
+            match b with 
+            | One -> 
                 let var = "p" + string i in 
-                bdd := builder.And(!bdd, builder.Var(var)) ) onBits
+                bdd := builder.And(!bdd, builder.Var(var))
+            | Zero ->
+                let var = "p" + string i in 
+                bdd := builder.And(!bdd, builder.Not(builder.Var(var)))
+            | Either -> () ) onBits
         Set.iter (fun s -> 
             let var = "c" + s
             bdd := builder.And(!bdd, builder.Var(var)) ) onComms
@@ -144,31 +152,51 @@ type PredicateBuilder(comms: Set<string>) =
     let isOne x i =
         shr (shl x i) 31 = 1u
 
-    let binaryStr x =
-        let mutable result = "" 
-        for i = 0 to 31 do
-            if i % 8 = 0 then 
-                result <- result + " "
-            result <- result + (if isOne x i then "1" else "0")
-        result
+    let bitFromBool b = 
+        if b then One else Zero
 
-    let arrayOfPrefix (p: Prefix) = 
+    let prefixBits (p: Prefix) (range: (int*int) option) = 
+        let useAny = Option.isSome range
         Array.init 32 (fun i -> 
-            if i <= int p.Slash then 
+            if not useAny && (i < int p.Slash) then 
                 let (m,r) = i/8, i%8
-                if m = 0 then isOne p.X1 (31-r)
-                elif m = 1 then isOne p.X2 (31-r)
-                elif m = 2 then isOne p.X3 (31-r)
-                else isOne p.X4 r
-            else false)
+                if m = 0 then isOne p.X1 (32-8+r) |> bitFromBool
+                elif m = 1 then isOne p.X2 (32-8+r) |> bitFromBool
+                elif m = 2 then isOne p.X3 (32-8+r) |> bitFromBool
+                else isOne p.X4 (32-8+r) |> bitFromBool
+            else Either)
 
+    let intBits (x:uint32) =
+        let mutable acc = builder.True
+        for i in 0..31 do
+            if isOne x i 
+            then acc <- builder.And(acc, builder.Var("s" + string i))
+            else acc <- builder.And(acc, builder.Var("s" + string i) |> builder.Not)
+        acc
+
+    let slashBits (p: Prefix) (range: (uint32*uint32) option) = 
+        match range with 
+        | None -> intBits p.Slash
+        | Some (x,y) -> 
+            let mutable acc = builder.False
+            for i in x..y do
+                acc <- builder.Or(acc, intBits i)
+            acc
+
+    let displayBinary ts fs = 
+        let mutable res = ""
+        for i in 0..31 do 
+            let elt = "p" + string i
+            if Set.contains elt ts then res <- res + "1"
+            elif Set.contains elt fs then res <- res + "0"
+            else res <- res + "x" 
+        res
+ 
     member __.Prefix (p: Prefix) =
-        let onBits = arrayOfPrefix p
+        let onBits = prefixBits p None
         addVars(onBits, Set.empty)
 
     member __.Community c = 
-        if not (Set.contains c comms) then 
-            failwith (sprintf "Invalid community value: %s" c)
         addVars(Array.empty, Set.singleton c)
 
     member __.True = Predicate(builder.True)
@@ -182,5 +210,6 @@ type PredicateBuilder(comms: Set<string>) =
         builder.ToString(p)
 
     member __.DoCrazy(Predicate p) = 
-        let f = fun vars -> printfn "path: %A" vars
+        let f = fun ts fs -> 
+            printfn "%s" (displayBinary ts fs)
         builder.IterPath(f, p)

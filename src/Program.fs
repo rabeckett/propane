@@ -30,22 +30,19 @@ let displayStats (stats: Abgp.Stats) =
 
 [<EntryPoint>] 
 let main argv =
-    (* let pb = PredicateBuilder(Set.ofList ["A"; "B"])
-    let pred = pb.Prefix (Prefix(255u,255u,1u,1u,16u))
-    let pred = pb.Or(pred, pb.Community "A")
+    (*
+    let pb = PredicateBuilder()
+    let x = pb.Prefix (Prefix(0u,0u,0u,1u,32u))
+    let y = pb.Prefix (Prefix(0u,0u,0u,3u,32u))
+    let pred = pb.Or(x, y)
     printfn "Result: %O" (pb.ToString(pred))
     pb.DoCrazy(pred)
-
     exit 0 *)
 
     ignore (Args.parse argv)
     let settings = Args.getSettings ()
-    if settings.Test then
-        runUnitTests ()
-        exit 0
-    if settings.Bench then 
-        Benchmark.generate () 
-        exit 0
+    if settings.Test then runUnitTests (); exit 0
+    if settings.Bench then Benchmark.generate (); exit 0
     let fullName = settings.DebugDir + (Util.Option.getOrDefault "output" settings.OutFile)
     let topoInfo = 
         match settings.TopoFile with 
@@ -75,9 +72,7 @@ let main argv =
                     sprintf "It may be possible to disconnect the prefix %s at location %s from the " (string p) x +
                     sprintf "aggregate prefix %s at %s after %d failures. " (string agg) y (i+1) +
                     sprintf "Consider using the -failures:n flag to specify a tolerable failure level."
-                if warn then 
-                    warning msg 
-                else error msg
+                if warn then warning msg else error msg
         | _ -> ()
         if settings.Stats then 
             displayStats res.Stats
