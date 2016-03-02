@@ -32,11 +32,12 @@ let displayStats (stats: Abgp.Stats) =
 let main argv =
     (*
     let pb = PredicateBuilder()
-    let x = pb.Prefix (Prefix(0u,0u,0u,1u,32u))
-    let y = pb.Prefix (Prefix(0u,0u,0u,3u,32u))
+    let x = pb.Prefix (Prefix("0.0.0.1/32[32..32]"))
+    let y = pb.Prefix (Prefix("0.0.0.3/32[32..32]"))
+    let z = pb.Community "A"
     let pred = pb.Or(x, y)
-    printfn "Result: %O" (pb.ToString(pred))
-    pb.DoCrazy(pred)
+    let pred = pb.Or(pred, z)
+    pb.DoCrazy(pred) |> ignore
     exit 0 *)
 
     ignore (Args.parse argv)

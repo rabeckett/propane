@@ -1,5 +1,5 @@
 Big Items:
-  - Compilation to arista/templates
+  - Compilation to arista/juniper/templates
   - Issue with avoid for external peers when going through out
   - Fix issue with MED, Prepending etc for Backbone example
 

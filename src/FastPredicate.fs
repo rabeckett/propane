@@ -2,8 +2,16 @@
 
 open System.Collections.Generic
 
-/// Binary decision diagram
-/// BddNodes are hash consed for unicity
+
+/// Multi-terminal Binary decision diagram to represent predicates
+/// over router prefixes, communities, topology locations etc.
+///
+/// Bdd nodes are hash consed for unicity, and have terminal 
+/// nodes that represent a prefix length range.
+/// 
+/// For example, the prefix predicate:  (1.2.3.0/8 ge 16 le 24)
+/// would have bdd variables for each bit of the prefix, and 
+/// a terminal node representing the length [16..24]
 
 let memoize f =
     let unq = Dictionary()
@@ -11,205 +19,299 @@ let memoize f =
         if unq.ContainsKey(x) then unq.[x]
         else 
             let res = f x 
-            unq.[x] <- res ;res)
+            unq.[x] <- res; res)
 
-type Var = string
-type BddIndex = int
-type Bdd = Bdd of BddIndex
+type Var = int
 
 
-type BddNode = struct 
-    val Var: Var
-    val Left: BddIndex
-    val Right: BddIndex
-    new(v,l,r) = {Var = v; Left = l; Right = r}
-end 
+/// Simple range data structure representing 
+/// a continuous range of valid prefix lengths 
+/// between 0 and 32
 
-type BddBuilder(order : Var -> Var -> int) =
+type Range = struct 
+    val Lo: int
+    val Hi: int
+    new(l,h) = {Lo = l; Hi = h}
 
-    let uniqueTab = new Dictionary<BddNode,BddIndex>() 
-    let nodeTab = new Dictionary<BddIndex,BddNode>()
+    member this.IsEmpty = this.Lo < 0
 
-    let mutable nextIdx = 2 
-    let trueIdx = 1
-    let falseIdx = -1
+    member r1.Union(r2: Range) =
+        if r1.IsEmpty then r2 
+        elif r2.IsEmpty then r1 
+        else Range(min r1.Lo r2.Lo, max r1.Hi r2.Hi)
 
-    let trueNode = BddNode("",trueIdx,trueIdx)
-    let falseNode = BddNode("",falseIdx,falseIdx)
+    member r1.Inter(r2: Range) = 
+        if r1.IsEmpty || r1.IsEmpty || r1.Lo > r2.Hi || r2.Lo > r1.Hi 
+        then Range.Empty
+        else Range(max r1.Lo r2.Lo, min r1.Hi r2.Hi)
 
-    // Map indexes to nodes. Negative indexes go to their negation. The special // indexes -1 and 1 go to special true/false nodes.
-    let idxToNode(idx) =
-        if idx = trueIdx then trueNode
-        elif idx = falseIdx then falseNode
-        elif idx > 0 then nodeTab.[idx]
-        else 
-            let n = nodeTab.[-idx]
-            BddNode(n.Var,-n.Left,-n.Right)
+    member r.Negate() = 
+        if r.IsEmpty then Range.Full 
+        else
+            match r.Lo, r.Hi with 
+            | 0, 32 -> Range.Empty 
+            | -1, -1 -> Range.Full
+            | 0, x -> Range(x+1,32)
+            | x, 32 -> Range(0, x-1)
+            | _ -> failwith "Invalid range negation"
 
-    // Map nodes to indexes. Add an entry to the table if needed.
-    let nodeToUniqueIdx(node) =
-        if uniqueTab.ContainsKey(node) then uniqueTab.[node] else
-        let idx = nextIdx 
-        uniqueTab.[node] <- idx 
-        nodeTab.[idx] <- node 
-        nextIdx <- nextIdx + 1 
-        idx
-
-    // Get the canonical index for a node. Preserve the invariant that the 
-    // left-hand node of a conditional is always a positive node
-    let mkNode(v:Var,l:BddIndex,r:BddIndex) =
-        if l = r then l
-        elif l >= 0 then nodeToUniqueIdx(BddNode(v,l,r) ) 
-        else -nodeToUniqueIdx(BddNode(v,-l,-r))
-
-    let rec mkAnd(m1,m2) =
-        if m1 = falseIdx || m2 = falseIdx then falseIdx
-        elif m1 = trueIdx then m2
-        elif m2 = trueIdx then m1
-        else 
-            let n1 = idxToNode(m1)
-            let n2 = idxToNode(m2)
-            let x, l1, r1 = n1.Var, n1.Left, n1.Right
-            let y, l2, r2 = n2.Var, n2.Left, n2.Right
-            let v,(la,lb),(ra,rb) = 
-                match order x y with 
-                | c when c = 0 -> x,(l1,l2),(r1,r2)
-                | c when c < 0 -> x,(l1,m2),(r1,m2)
-                | c            -> y,(m1,l2),(m1,r2)
-            mkNode(v, mkAnd(la,lb), mkAnd(ra,rb))
-
-    let mkAnd = memoize mkAnd
-
-    member __.False = Bdd falseIdx
-    member __.True = Bdd trueIdx
-    member __.And(Bdd m1, Bdd m2) = Bdd(mkAnd(m1,m2))
-    member __.Not(Bdd m) = Bdd(-m)
-    member __.Or(Bdd m1, Bdd m2) = Bdd(-mkAnd(-m1, -m2))
-    member __.Var(nm) = Bdd(mkNode(nm,trueIdx,falseIdx))
-    member __.Implies(Bdd m1, Bdd m2) = mkAnd(m1, -m2) = falseIdx
-    member __.NodeCount = nextIdx
-
-    // iterate over each path to a leaf node
-    member __.IterPath(f, Bdd x) = 
-        let rec aux ts fs idx =
-            if idx = trueIdx then f ts fs 
-            elif idx = falseIdx then ()
-            else
-                let n = idxToNode(idx)
-                aux (Set.add n.Var ts) fs n.Left 
-                aux ts (Set.add n.Var fs) n.Right
-        aux Set.empty Set.empty x
-
-    member __.ToString(Bdd idx) = 
-        let rec fmt depth idx =
-            if depth > 4 then "..." else
-            let n = idxToNode(idx)
-            if n.Var = "" then if n.Left = trueIdx then "T" else "F"
-            else sprintf "(%s => %s | %s)" n.Var (fmt (depth+1) n.Left) (fmt (depth+1) n.Right)
-        fmt 1 idx
-
-
-type Prefix = struct 
-    val X1: uint32
-    val X2: uint32 
-    val X3: uint32
-    val X4: uint32
-    val Slash: uint32
-    new(a,b,c,d,e) = {X1=a; X2=b; X3=c; X4=d; Slash=e}
-    override v.ToString() = sprintf "%d.%d.%d.%d/%d" v.X1 v.X2 v.X3 v.X4 v.Slash 
+    override r.ToString() = sprintf "%d..%d" r.Lo r.Hi
+    static member Empty = Range(-1,-1)
+    static member Full = Range(0,32)
 end
 
-type Predicate = Predicate of Bdd
+
+/// Bdd nodes are hash consed to ensure maximal sharing.
+/// This enables O(1) hashing, comparison, equality,
+/// satisfiability and validity checks.
+
+[<CustomComparison; CustomEquality>]
+type HashCons = struct
+    val Id: int
+    val Node: Node
+    new(id, node) = {Id = id; Node = node}
+
+    override x.Equals(other) =
+        match other with
+        | :? HashCons as y -> (x.Id = y.Id)
+        | _ -> false
  
-type Bit = One | Zero | Either
+    override x.GetHashCode() = x.Id
+     
+    interface System.IComparable with
+        member x.CompareTo other =
+          match other with
+          | :? HashCons as y -> x.Id - y.Id
+          | _ -> failwith "cannot compare values of different types"
+end 
+
+/// Multi-terminal Bdd node. We store prefix len ranges in 
+/// the leaves, which is more efficient than encoding 
+/// the range directly in binary.
+///
+/// Pointers to adjacent nodes are stored directly to avoid 
+/// lookup going through a hash table indirection 
+
+and Node = 
+    | Leaf of Range
+    | Node of Var * HashCons * HashCons
+
+
+/// Bdd builder object, which stores Bdd nodes in 
+/// a unique table. The variable order can be provided, 
+/// but it does no variable reordering.
+
+type BddBuilder(order : Var -> Var -> int) =
+    let uniqueTab = Dictionary<Node,HashCons>()
+    let mutable nextIdx = 1
+
+    let mkNode(node: Node) : HashCons =
+        if uniqueTab.ContainsKey(node) then 
+            uniqueTab.[node]
+        else
+            let idx = nextIdx 
+            let hconsNode = HashCons(idx, node)
+            uniqueTab.[node] <- hconsNode 
+            nextIdx <- nextIdx + 1 
+            hconsNode
+
+    let leaf v = mkNode(Leaf v)
+
+    let node(v, l, r) = 
+        if l = r then l 
+        else mkNode(Node(v,l,r))
+
+    let trueNode = leaf Range.Full
+    let falseNode = leaf Range.Empty
+
+    let rec negate (n: HashCons) = 
+        match n.Node with 
+        | Leaf v -> leaf (v.Negate())
+        | Node(v,l,r) -> node(v, negate l, negate r)
+
+    let rec apply f (n1: HashCons) (n2: HashCons) =
+        match n1.Node, n2.Node with
+        | Leaf v1, Leaf v2 -> leaf (f v1 v2)
+        | Leaf _, Node(v,l,r) -> node(v, apply f l n1, apply f r n1)
+        | Node(v,l,r), Leaf _ -> node(v, apply f l n2, apply f r n2)
+        | Node(v1,l1,r1), Node(v2,l2,r2) -> 
+            let v, (la,lb), (ra,rb) = 
+                match order v1 v2 with 
+                | c when c = 0 -> v1,(l1,l2),(r1,r2)
+                | c when c < 0 -> v1,(l1,n2),(r1,n2)
+                | c            -> v2,(n1,l2),(n1,r2)
+            node(v, apply f la lb, apply f ra rb)
+
+    let apply f = memoize (apply f)
+    let opOr = apply (fun r1 r2 -> r1.Union(r2))
+    let opAnd = apply (fun r1 r2 -> r1.Inter(r2))
+
+    member __.NodeCount = nextIdx + 1
+    member __.Value(v) = leaf v
+    member __.Var(x) = node(x, trueNode, falseNode)
+    member __.Ite(x,l,r) = node(x, l, r)
+    member __.False = falseNode
+    member __.True = trueNode
+    member __.Or(n1, n2) = opOr n1 n2
+    member __.And(n1, n2) = opAnd n1 n2
+    member __.Not(n) = negate n
+    member this.Implies(n1, n2) = this.Or(this.Not n1, n2) = falseNode
+   
+    member __.IterPath(f, x) = 
+        let rec aux ts fs (n: HashCons) =
+            match n.Node with
+            | Node(v,l,r) ->  
+                aux (Set.add v ts) fs l 
+                aux ts (Set.add v fs) r
+            | Leaf v -> f ts fs v
+        aux Set.empty Set.empty x
+
+    member __.ToString(n) = 
+        let rec fmt depth (n: HashCons) =
+            match n.Node with 
+            | Leaf v ->
+                if v.IsEmpty then "F"
+                elif v = Range.Full then "T"
+                else sprintf "[%d..%d]" v.Lo v.Hi
+            | Node(v,l,r) ->
+                if depth > 4 then "..." else
+                sprintf "(%d => %s | %s)" v (fmt (depth+1) l) (fmt (depth+1) r)
+        fmt 1 n
+
+
+/// Helper bitwise operations for manipulating prefixes
+/// so they can be stored in a compact integer, but manipulated
+/// in dot notation x1.x2.x3.x4/s[lo..hi]
+
+module Bitwise = 
+
+    let inline shr x bits = if bits >= 32 then 0 else x >>> bits
+    let inline shl x bits = if bits >= 32 then 0 else x <<< bits
+    let inline isOne x i = (shr x (31-i)) &&& 1 = 1
+
+    let fromDotted (x1,x2,x3,x4) = 
+        (shl (x1 &&& 0x000000FF) 24) |||
+        (shl (x2 &&& 0x000000FF) 16) |||
+        (shl (x3 &&& 0x000000FF) 8) |||
+        (shl (x4 &&& 0x000000FF) 0)
+
+    let toDotted x = 
+        let a = shr x 24
+        let b = shr (shl x 8) 24
+        let c = shr (shl x 16) 24
+        let d = shr (shl x 24) 24
+        (a, b, c, d)
+
+
+/// Simple wrapper class for 32 bit prefixes with a convenience 
+/// constructor that will read from dot notation string
+
+type Prefix = class 
+    val Bits: int32
+    val Slash: int
+    val Range: Range
+
+    new(bits,s,r) = {Bits = bits; Slash = s; Range = r}
+    new(a,b,c,d,s,r) = {Bits = Bitwise.fromDotted(a,b,c,d); Slash=s; Range = r}
+    new(s: string) = 
+        let a,b,c,d,s,x,y = Util.Scanf.sscanf "%d.%d.%d.%d/%d[%d..%d]" s
+        {Bits = Bitwise.fromDotted(a,b,c,d); Slash=s; Range = Range(x,y)}
+                            
+    override v.ToString() = 
+        let (a,b,c,d) = Bitwise.toDotted v.Bits
+        let r = v.Range
+        sprintf "%d.%d.%d.%d/%d[%d..%d]" a b c d v.Slash r.Lo r.Hi 
+end
+
+
+/// Predicate is just a wrapper around the root Bdd node
+
+type Predicate = 
+    Predicate of HashCons
+ 
+
+/// Predicate builder class to encapsulate the Bdd data structure 
+/// for manipulating predicates. Provides higher-level constructs 
+/// like building a predicate directly from a prefix, or community value.
 
 type PredicateBuilder() = 
-    let builder = BddBuilder(compare)
-    //let commMap = Dictionary()
+    let bdd = BddBuilder(fun x y -> compare y x)
 
-    let addVars(onBits: Bit [], onComms: Set<string>) =
-        let bdd = ref builder.True
-        Array.iteri (fun i b ->
-            match b with 
-            | One -> 
-                let var = "p" + string i in 
-                bdd := builder.And(!bdd, builder.Var(var))
-            | Zero ->
-                let var = "p" + string i in 
-                bdd := builder.And(!bdd, builder.Not(builder.Var(var)))
-            | Either -> () ) onBits
-        Set.iter (fun s -> 
-            let var = "c" + s
-            bdd := builder.And(!bdd, builder.Var(var)) ) onComms
-        Predicate(!bdd)
+    let commMap = Dictionary<string,int>()
+    let idxMap = Dictionary<int,string>()
+    let mutable nextIdx = 32
 
-    let shr x bits = 
-        if bits >= 32 then 0u else x >>> bits
-
-    let shl x bits =
-        if bits >= 32 then 0u else x <<< bits
-
-    let isOne x i =
-        shr (shl x i) 31 = 1u
-
-    let bitFromBool b = 
-        if b then One else Zero
-
-    let prefixBits (p: Prefix) (range: (int*int) option) = 
-        let useAny = Option.isSome range
-        Array.init 32 (fun i -> 
-            if not useAny && (i < int p.Slash) then 
-                let (m,r) = i/8, i%8
-                if m = 0 then isOne p.X1 (32-8+r) |> bitFromBool
-                elif m = 1 then isOne p.X2 (32-8+r) |> bitFromBool
-                elif m = 2 then isOne p.X3 (32-8+r) |> bitFromBool
-                else isOne p.X4 (32-8+r) |> bitFromBool
-            else Either)
-
-    let intBits (x:uint32) =
-        let mutable acc = builder.True
-        for i in 0..31 do
-            if isOne x i 
-            then acc <- builder.And(acc, builder.Var("s" + string i))
-            else acc <- builder.And(acc, builder.Var("s" + string i) |> builder.Not)
-        acc
-
-    let slashBits (p: Prefix) (range: (uint32*uint32) option) = 
-        match range with 
-        | None -> intBits p.Slash
-        | Some (x,y) -> 
-            let mutable acc = builder.False
-            for i in x..y do
-                acc <- builder.Or(acc, intBits i)
-            acc
+    let truePrefix = Prefix("0.0.0.0/0[0..32]")
 
     let displayBinary ts fs = 
         let mutable res = ""
         for i in 0..31 do 
-            let elt = "p" + string i
-            if Set.contains elt ts then res <- res + "1"
-            elif Set.contains elt fs then res <- res + "0"
+            if Set.contains i ts then res <- res + "1"
+            elif Set.contains i fs then res <- res + "0"
             else res <- res + "x" 
         res
- 
+
+    /// Given a set of true and false variables, construct conjunction of prefixes
+    let communities cts cfs = 
+        let x = Seq.choose (fun x -> if x > 32 then Some x else None) cts 
+        let y = Seq.choose (fun x -> if x > 32 then Some x else None) cfs
+        (x,y)
+
+
+    /// Given a set of true and false variables, construct a disjunction of prefixes (set)
+    let prefixes pts pfs =
+        let maxts = if Set.isEmpty pts then -1 else Set.maxElement pts
+        let maxfs = if Set.isEmpty pfs then -1 else Set.maxElement pfs
+        let largest = 1 + max maxts maxfs
+        let rec aux i partialInt = 
+            if i >= largest then Set.singleton partialInt
+            else
+                let newInt = partialInt ||| (Bitwise.shl 1 (31-i))
+                if pts.Contains i then aux (i+1) newInt
+                elif pfs.Contains i then aux (i+1) partialInt
+                else Set.union (aux (i+1) newInt) (aux (i+1) partialInt)
+        Seq.map (fun i -> Prefix(i, largest, Range(largest,32))) (aux 0 0)
+
     member __.Prefix (p: Prefix) =
-        let onBits = prefixBits p None
-        addVars(onBits, Set.empty)
-
+        let mutable acc = bdd.Value p.Range
+        let isExact = p.Range.Lo = p.Range.Hi
+        for i in 0..31 do 
+            if isExact || i < p.Slash then 
+                if Bitwise.isOne p.Bits i 
+                then acc <- bdd.And(acc, bdd.Var(i))
+                else acc <- bdd.And(acc, bdd.Var(i) |> bdd.Not)
+        Predicate(acc)
+ 
     member __.Community c = 
-        addVars(Array.empty, Set.singleton c)
+        let idx = 
+            if commMap.ContainsKey(c) then commMap.[c]    
+            else 
+                commMap.[c] <- nextIdx 
+                idxMap.[nextIdx] <- c
+                nextIdx <- nextIdx + 1 
+                nextIdx
+        Predicate(bdd.Var(idx))
 
-    member __.True = Predicate(builder.True)
-    member __.False = Predicate(builder.False)
-    member __.And(Predicate x, Predicate y) = Predicate(builder.And(x,y))
-    member __.Or(Predicate x, Predicate y) = Predicate(builder.Or(x,y))
-    member __.Not(Predicate x) = Predicate(builder.Not(x))
-    member __.Implies(Predicate x, Predicate y) = builder.Implies(x,y)
+    member __.True = Predicate(bdd.True)
+    member __.False = Predicate(bdd.False)
+    member __.And(Predicate x, Predicate y) = Predicate(bdd.And(x,y))
+    member __.Or(Predicate x, Predicate y) = Predicate(bdd.Or(x,y))
+    member __.Not(Predicate x) = Predicate(bdd.Not(x))
+    member __.Implies(Predicate x, Predicate y) = bdd.Implies(x,y)
 
     member __.ToString(Predicate p) = 
-        builder.ToString(p)
+        bdd.ToString(p)
 
-    member __.DoCrazy(Predicate p) = 
-        let f = fun ts fs -> 
-            printfn "%s" (displayBinary ts fs)
-        builder.IterPath(f, p)
+    member __.DoCrazy(Predicate p) : (seq<Prefix> * seq<string> * seq<string>) list =
+        let acc = ref []
+        let aux ts fs (r : Range) =
+            if not r.IsEmpty then  
+                let pts, cts = Set.partition (fun x -> x < 32) ts
+                let pfs, cfs = Set.partition (fun x -> x < 32) fs
+                let ps = prefixes pts pfs
+                let cs = communities cts cfs
+                printfn "%A" cs
+                printfn "%A" ps
+                printfn "%s" (displayBinary pts pfs)
+        bdd.IterPath(aux, p)
+        []

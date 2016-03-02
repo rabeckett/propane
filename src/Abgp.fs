@@ -764,6 +764,31 @@ let genConfig (cg: CGraph.T)
                     | [Match.State(_,(Router x))] -> Some x 
                     | _ -> None
                 let exports = getExports outPeerInfo cgstate inExports sendTo unqMatchPeer 
+
+                // use ibgp configurations
+                (* let matches = 
+                    if settings.UseIBGP then 
+                        List.choose (fun m -> 
+                            match m with 
+                            | Match.Peer Any -> Some (Match.Peer Out) 
+                            | Match.Peer In -> None 
+                            | Match.Peer (Router x) -> if ain.Contains x then None else Some m
+                            | Match.State(c,Any) -> Some (Match.State(c,Out))
+                            | Match.State(_,In) -> None 
+                            | Match.State (_,Router x) -> if ain.Contains x then None else Some m
+                            | _ -> Some m) matches
+                    else matches
+                let exports =
+                    if settings.UseIBGP then
+                        List.choose (fun ((peer, mods) as e) ->
+                            match peer with 
+                            | Out -> Some e
+                            | In -> None
+                            | Any -> Some (Out, mods)
+                            | Router x -> if ain.Contains x then Some e else None
+                        ) exports
+                    else exports *)
+
                 // match/export local minimizations
                 for m in matches do 
                     let exports, m = 
