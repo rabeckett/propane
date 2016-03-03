@@ -30,16 +30,6 @@ let displayStats (stats: Abgp.Stats) =
 
 [<EntryPoint>] 
 let main argv =
-    (*
-    let pb = PredicateBuilder()
-    let x = pb.Prefix (Prefix("0.0.0.1/32[32..32]"))
-    let y = pb.Prefix (Prefix("0.0.0.3/32[32..32]"))
-    let z = pb.Community "A"
-    let pred = pb.Or(x, y)
-    let pred = pb.Or(pred, z)
-    pb.DoCrazy(pred) |> ignore
-    exit 0 *)
-
     ignore (Args.parse argv)
     let settings = Args.getSettings ()
     if settings.Test then runUnitTests (); exit 0

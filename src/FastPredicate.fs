@@ -156,15 +156,6 @@ type BddBuilder(order : Var -> Var -> int) =
     member __.And(n1, n2) = opAnd n1 n2
     member __.Not(n) = negate n
     member this.Implies(n1, n2) = this.Or(this.Not n1, n2) = falseNode
-   
-    member __.IterPath(f, x) = 
-        let rec aux ts fs (n: HashCons) =
-            match n.Node with
-            | Node(v,l,r) ->  
-                aux (Set.add v ts) fs l 
-                aux ts (Set.add v fs) r
-            | Leaf v -> f ts fs v
-        aux Set.empty Set.empty x
 
     member __.ToString(n) = 
         let rec fmt depth (n: HashCons) =
@@ -213,9 +204,10 @@ type Prefix = class
 
     new(bits,s,r) = {Bits = bits; Slash = s; Range = r}
     new(a,b,c,d,s,r) = {Bits = Bitwise.fromDotted(a,b,c,d); Slash=s; Range = r}
+
     new(s: string) = 
         let a,b,c,d,s,x,y = Util.Scanf.sscanf "%d.%d.%d.%d/%d[%d..%d]" s
-        {Bits = Bitwise.fromDotted(a,b,c,d); Slash=s; Range = Range(x,y)}
+        Prefix(Bitwise.fromDotted(a,b,c,d), s, Range(x,y))
                             
     override v.ToString() = 
         let (a,b,c,d) = Bitwise.toDotted v.Bits
@@ -251,13 +243,27 @@ type PredicateBuilder() =
             else res <- res + "x" 
         res
 
+    let iterPath f x = 
+        let rec aux ts fs (n: HashCons) =
+            match n.Node with
+            | Node(v,({Node=Leaf x} as l),r) when v >= 32 && x = Range.Full -> 
+                aux (Set.add v ts) fs l 
+                aux ts fs r
+            | Node(v,l,({Node=Leaf x} as r)) when v >= 32 && x = Range.Full -> 
+                aux ts fs l 
+                aux ts (Set.add v fs) r
+            | Node(v,l,r) ->  
+                aux (Set.add v ts) fs l 
+                aux ts (Set.add v fs) r
+            | Leaf v -> f ts fs v
+        aux Set.empty Set.empty x
+
     /// Given a set of true and false variables, construct conjunction of prefixes
     let communities cts cfs = 
-        let x = Seq.choose (fun x -> if x > 32 then Some x else None) cts 
-        let y = Seq.choose (fun x -> if x > 32 then Some x else None) cfs
+        let x = Seq.choose (fun x -> if x >= 32 then Some (idxMap.[x]) else None) cts 
+        let y = Seq.choose (fun x -> if x >= 32 then Some (idxMap.[x]) else None) cfs
         (x,y)
-
-
+       
     /// Given a set of true and false variables, construct a disjunction of prefixes (set)
     let prefixes pts pfs =
         let maxts = if Set.isEmpty pts then -1 else Set.maxElement pts
@@ -284,12 +290,15 @@ type PredicateBuilder() =
  
     member __.Community c = 
         let idx = 
-            if commMap.ContainsKey(c) then commMap.[c]    
-            else 
+            let b, value = commMap.TryGetValue(c)
+            if b then 
+                value
+            else
                 commMap.[c] <- nextIdx 
                 idxMap.[nextIdx] <- c
+                let res = nextIdx
                 nextIdx <- nextIdx + 1 
-                nextIdx
+                res
         Predicate(bdd.Var(idx))
 
     member __.True = Predicate(bdd.True)
@@ -302,16 +311,31 @@ type PredicateBuilder() =
     member __.ToString(Predicate p) = 
         bdd.ToString(p)
 
-    member __.DoCrazy(Predicate p) : (seq<Prefix> * seq<string> * seq<string>) list =
+    member __.ToPrioritizedList(Predicate p) : (seq<Prefix> * seq<string> * seq<string>) list =
         let acc = ref []
         let aux ts fs (r : Range) =
             if not r.IsEmpty then  
                 let pts, cts = Set.partition (fun x -> x < 32) ts
                 let pfs, cfs = Set.partition (fun x -> x < 32) fs
                 let ps = prefixes pts pfs
-                let cs = communities cts cfs
-                printfn "%A" cs
-                printfn "%A" ps
-                printfn "%s" (displayBinary pts pfs)
-        bdd.IterPath(aux, p)
-        []
+                let (cts,cfs) = communities cts cfs
+                acc := (ps,cts,cfs) :: !acc
+        iterPath aux p 
+        List.rev !acc
+
+
+module Test = 
+
+    let testPredicates () = 
+        let pb = PredicateBuilder()
+        let x = pb.Prefix (Prefix("0.0.0.1/32[32..32]"))
+        let y = pb.Prefix (Prefix("0.0.0.3/32[32..32]"))
+        let z = pb.Community "A"
+        let pred = pb.Or(x, y)
+        let pred = pb.Or(pred, z)
+        printfn "%A" <| pb.ToPrioritizedList(pred)
+        exit 0 
+
+    let run () = 
+        testPredicates()
+        
