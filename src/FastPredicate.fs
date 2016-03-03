@@ -1,17 +1,16 @@
 ﻿module FastPredicate
 
 open System.Collections.Generic
+open NUnit.Framework
 
 
 /// Multi-terminal Binary decision diagram to represent predicates
 /// over router prefixes, communities, topology locations etc.
-///
 /// Bdd nodes are hash consed for unicity, and have terminal 
-/// nodes that represent a prefix length range.
-/// 
+/// nodes that represent a prefix length range. 
 /// For example, the prefix predicate:  (1.2.3.0/8 ge 16 le 24)
 /// would have bdd variables for each bit of the prefix, and 
-/// a terminal node representing the length [16..24]
+/// a terminal node representing the length [16..24] 
 
 let memoize f =
     let unq = Dictionary()
@@ -68,15 +67,16 @@ end
 [<CustomComparison; CustomEquality>]
 type HashCons = struct
     val Id: int
+    val Hash: int
     val Node: Node
-    new(id, node) = {Id = id; Node = node}
+    new(id, node) = {Id = id; Hash = hash node; Node = node}
 
     override x.Equals(other) =
         match other with
         | :? HashCons as y -> (x.Id = y.Id)
         | _ -> false
  
-    override x.GetHashCode() = x.Id
+    override x.GetHashCode() = x.Hash
      
     interface System.IComparable with
         member x.CompareTo other =
@@ -106,8 +106,8 @@ type BddBuilder(order : Var -> Var -> int) =
     let mutable nextIdx = 1
 
     let mkNode(node: Node) : HashCons =
-        if uniqueTab.ContainsKey(node) then 
-            uniqueTab.[node]
+        let b, value = uniqueTab.TryGetValue(node)
+        if b then value
         else
             let idx = nextIdx 
             let hconsNode = HashCons(idx, node)
@@ -117,7 +117,7 @@ type BddBuilder(order : Var -> Var -> int) =
 
     let leaf v = mkNode(Leaf v)
 
-    let node(v, l, r) = 
+    let node(v, l : HashCons, r : HashCons) =
         if l = r then l 
         else mkNode(Node(v,l,r))
 
@@ -146,7 +146,7 @@ type BddBuilder(order : Var -> Var -> int) =
     let opOr = apply (fun r1 r2 -> r1.Union(r2))
     let opAnd = apply (fun r1 r2 -> r1.Inter(r2))
 
-    member __.NodeCount = nextIdx + 1
+    member __.NodeCount = nextIdx - 1
     member __.Value(v) = leaf v
     member __.Var(x) = node(x, trueNode, falseNode)
     member __.Ite(x,l,r) = node(x, l, r)
@@ -155,7 +155,7 @@ type BddBuilder(order : Var -> Var -> int) =
     member __.Or(n1, n2) = opOr n1 n2
     member __.And(n1, n2) = opAnd n1 n2
     member __.Not(n) = negate n
-    member this.Implies(n1, n2) = this.Or(this.Not n1, n2) = falseNode
+    member this.Implies(n1, n2) = this.And(n1, n2) = n1
 
     member __.ToString(n) = 
         let rec fmt depth (n: HashCons) =
@@ -178,7 +178,8 @@ module Bitwise =
 
     let inline shr x bits = if bits >= 32 then 0 else x >>> bits
     let inline shl x bits = if bits >= 32 then 0 else x <<< bits
-    let inline isOne x i = (shr x (31-i)) &&& 1 = 1
+    let inline get x i = (shr x (31-i)) &&& 1 = 1
+    let inline set x i = x ||| (shl 1 (31-i))
 
     let fromDotted (x1,x2,x3,x4) = 
         (shl (x1 &&& 0x000000FF) 24) |||
@@ -197,34 +198,48 @@ module Bitwise =
 /// Simple wrapper class for 32 bit prefixes with a convenience 
 /// constructor that will read from dot notation string
 
-type Prefix = class 
+[<StructuralEquality; StructuralComparison>]
+type Prefix = struct 
     val Bits: int32
     val Slash: int
     val Range: Range
+    val IsExact: bool
 
-    new(bits,s,r) = {Bits = bits; Slash = s; Range = r}
-    new(a,b,c,d,s,r) = {Bits = Bitwise.fromDotted(a,b,c,d); Slash=s; Range = r}
-
-    new(s: string) = 
-        let a,b,c,d,s,x,y = Util.Scanf.sscanf "%d.%d.%d.%d/%d[%d..%d]" s
-        Prefix(Bitwise.fromDotted(a,b,c,d), s, Range(x,y))
-                            
+    internal new(bits,s) = {Bits = bits; Slash = s; Range = Range(s,s); IsExact = true}
+    internal new(bits,s,r) = {Bits = bits; Slash = s; Range = r; IsExact = false}
+    new(a,b,c,d,s) = {Bits = Bitwise.fromDotted(a,b,c,d); Slash=s; Range = Range(s,s); IsExact = true}
+    new(a,b,c,d,s,r) = {Bits = Bitwise.fromDotted(a,b,c,d); Slash=s; Range = r; IsExact = false}
+         
     override v.ToString() = 
         let (a,b,c,d) = Bitwise.toDotted v.Bits
         let r = v.Range
-        sprintf "%d.%d.%d.%d/%d[%d..%d]" a b c d v.Slash r.Lo r.Hi 
+        if v.IsExact 
+            then sprintf "%d.%d.%d.%d/%d" a b c d v.Slash 
+            else sprintf "%d.%d.%d.%d/%d[%d..%d]" a b c d v.Slash r.Lo r.Hi 
+
+    static member True = Prefix(0,0,0,0, 0, Range.Full) 
+    static member False = Prefix(0,0,0,0, 0, Range.Empty)
 end
 
 
 /// Predicate is just a wrapper around the root Bdd node
+type Predicate = Predicate of HashCons
 
-type Predicate = 
-    Predicate of HashCons
- 
+/// Traffic classifier matches an individual prefix and positive + negative communities
+type TrafficClassifier = 
+    | TrafficClassifier of (Prefix * Set<string> * Set<string>)
+
+    override x.ToString() = 
+        let (TrafficClassifier(p,cts,cfs)) = x
+        let comms = Set.fold (fun acc ct -> if acc <> "" then acc + "," + ct else ct) "" cts
+        let comms = Set.fold (fun acc ct -> if acc <> "" then acc + ",!" + ct else "!" + ct) comms cts
+        sprintf "{Prefix=%s, Comms=%s}" (string p) comms
+
 
 /// Predicate builder class to encapsulate the Bdd data structure 
 /// for manipulating predicates. Provides higher-level constructs 
 /// like building a predicate directly from a prefix, or community value.
+/// And converting the Bdd encoding back to a human-readable format
 
 type PredicateBuilder() = 
     let bdd = BddBuilder(fun x y -> compare y x)
@@ -233,8 +248,11 @@ type PredicateBuilder() =
     let idxMap = Dictionary<int,string>()
     let mutable nextIdx = 32
 
-    let truePrefix = Prefix("0.0.0.0/0[0..32]")
+    let isPrefixVar x = (x >= 0 && x < 32)
+    let isCommVar x = (x >= 32)
+    let isTopoVar x = (x < 0)
 
+    /// Given a variable assignment, show prefix binary with don't care markers: 1000x0x1011
     let displayBinary ts fs = 
         let mutable res = ""
         for i in 0..31 do 
@@ -243,13 +261,14 @@ type PredicateBuilder() =
             else res <- res + "x" 
         res
 
+    /// Iterate over all each path with a non-false terminal
     let iterPath f x = 
         let rec aux ts fs (n: HashCons) =
             match n.Node with
-            | Node(v,({Node=Leaf x} as l),r) when v >= 32 && x = Range.Full -> 
+            | Node(v,({Node=Leaf x} as l),r) when isCommVar v && x = Range.Full -> 
                 aux (Set.add v ts) fs l 
                 aux ts fs r
-            | Node(v,l,({Node=Leaf x} as r)) when v >= 32 && x = Range.Full -> 
+            | Node(v,l,({Node=Leaf x} as r)) when isCommVar v && x = Range.Full -> 
                 aux ts fs l 
                 aux ts (Set.add v fs) r
             | Node(v,l,r) ->  
@@ -260,34 +279,38 @@ type PredicateBuilder() =
 
     /// Given a set of true and false variables, construct conjunction of prefixes
     let communities cts cfs = 
-        let x = Seq.choose (fun x -> if x >= 32 then Some (idxMap.[x]) else None) cts 
-        let y = Seq.choose (fun x -> if x >= 32 then Some (idxMap.[x]) else None) cfs
-        (x,y)
+        let aux cs = 
+            cs 
+            |> Set.filter (fun x -> x >= 32)
+            |> Set.map (fun x -> idxMap.[x])
+        (aux cts, aux cfs)
        
     /// Given a set of true and false variables, construct a disjunction of prefixes (set)
-    let prefixes pts pfs =
+    let prefixes pts pfs (r : Range) =
         let maxts = if Set.isEmpty pts then -1 else Set.maxElement pts
         let maxfs = if Set.isEmpty pfs then -1 else Set.maxElement pfs
         let largest = 1 + max maxts maxfs
         let rec aux i partialInt = 
             if i >= largest then Set.singleton partialInt
             else
-                let newInt = partialInt ||| (Bitwise.shl 1 (31-i))
+                let newInt = Bitwise.set partialInt i
                 if pts.Contains i then aux (i+1) newInt
                 elif pfs.Contains i then aux (i+1) partialInt
                 else Set.union (aux (i+1) newInt) (aux (i+1) partialInt)
-        Seq.map (fun i -> Prefix(i, largest, Range(largest,32))) (aux 0 0)
+        let inline prefixFromBinary i = Prefix(i, largest, r)
+        Seq.map prefixFromBinary (aux 0 0)
 
+    /// Return the bdd representing a prefix x1.x2.x3.x4/s[lo..hi]
     member __.Prefix (p: Prefix) =
         let mutable acc = bdd.Value p.Range
-        let isExact = p.Range.Lo = p.Range.Hi
         for i in 0..31 do 
-            if isExact || i < p.Slash then 
-                if Bitwise.isOne p.Bits i 
+            if p.IsExact || i < p.Slash then 
+                if Bitwise.get p.Bits i 
                 then acc <- bdd.And(acc, bdd.Var(i))
                 else acc <- bdd.And(acc, bdd.Var(i) |> bdd.Not)
         Predicate(acc)
  
+    /// Return the bdd representing a match on the community c
     member __.Community c = 
         let idx = 
             let b, value = commMap.TryGetValue(c)
@@ -301,41 +324,257 @@ type PredicateBuilder() =
                 res
         Predicate(bdd.Var(idx))
 
+    /// The predicate matching any route announcement
     member __.True = Predicate(bdd.True)
+
+    /// The predicate matching no route announcements
     member __.False = Predicate(bdd.False)
+
+    /// The predicate matching both x and y
     member __.And(Predicate x, Predicate y) = Predicate(bdd.And(x,y))
+
+    /// The predicate matching either x or y
     member __.Or(Predicate x, Predicate y) = Predicate(bdd.Or(x,y))
+
+    /// The predicate not matching x
     member __.Not(Predicate x) = Predicate(bdd.Not(x))
+
+    /// Check if one predicate implies the other
     member __.Implies(Predicate x, Predicate y) = bdd.Implies(x,y)
 
-    member __.ToString(Predicate p) = 
-        bdd.ToString(p)
-
-    member __.ToPrioritizedList(Predicate p) : (seq<Prefix> * seq<string> * seq<string>) list =
+    /// Convert the Bdd representation of a predicate to a prioritized list of matches
+    member __.TrafficClassifiers(Predicate p) : TrafficClassifier list =
         let acc = ref []
         let aux ts fs (r : Range) =
             if not r.IsEmpty then  
                 let pts, cts = Set.partition (fun x -> x < 32) ts
                 let pfs, cfs = Set.partition (fun x -> x < 32) fs
-                let ps = prefixes pts pfs
+                let ps = prefixes pts pfs r
                 let (cts,cfs) = communities cts cfs
-                acc := (ps,cts,cfs) :: !acc
+                for p in ps do
+                    acc := TrafficClassifier(p,cts,cfs) :: !acc
         iterPath aux p 
         List.rev !acc
 
+    member x.ToString(p) = 
+        let tcs = x.TrafficClassifiers(p)
+        let res = List.map string tcs
+        sprintf "[%s]" (Util.List.joinBy "," res)
 
-module Test = 
 
-    let testPredicates () = 
-        let pb = PredicateBuilder()
-        let x = pb.Prefix (Prefix("0.0.0.1/32[32..32]"))
-        let y = pb.Prefix (Prefix("0.0.0.3/32[32..32]"))
-        let z = pb.Community "A"
-        let pred = pb.Or(x, y)
-        let pred = pb.Or(pred, z)
-        printfn "%A" <| pb.ToPrioritizedList(pred)
-        exit 0 
+/// Unit tests for the Bdd data structure 
+/// Ensures basic logic properties hold and 
+/// that Bdd node uniqueness is preserved
 
-    let run () = 
-        testPredicates()
-        
+[<TestFixture>]
+type TestBdd() =
+
+    let bb = BddBuilder(compare)
+
+    [<Test>]
+    member __.HashConsUnicity () = 
+        let bb = BddBuilder(compare)
+        // Don't create separate nodes for 1
+        let x = bb.Var(1)
+        let y = bb.Var(1)
+        let res = bb.Ite(2,x,y)
+        // Don't create node for 2
+        Assert.AreEqual(3, bb.NodeCount)
+
+    [<Test>]
+    member __.Identity () = 
+        Assert.AreEqual(bb.True, bb.Or(bb.True, bb.False))
+        Assert.AreEqual(bb.True, bb.Or(bb.False, bb.True))
+        Assert.AreEqual(bb.True, bb.And(bb.True, bb.True))
+        Assert.AreEqual(bb.False, bb.Or(bb.False, bb.False))
+        Assert.AreEqual(bb.False, bb.And(bb.False, bb.True))
+        Assert.AreEqual(bb.False, bb.And(bb.True, bb.False))
+
+    [<Test>]
+    member __.Commutativity () = 
+        let x = bb.Var(1)
+        let y = bb.Var(2)
+        Assert.AreEqual(bb.And(x,y), bb.And(y,x))
+        Assert.AreEqual(bb.Or(x,y), bb.Or(y,x))
+
+    [<Test>]
+    member __.Associativity () = 
+        let x = bb.Var(1)
+        let y = bb.Var(2)
+        let z = bb.Var(3)
+        Assert.AreEqual(bb.And(x,bb.And(y,z)), bb.And(bb.And(x,y), z))
+        Assert.AreEqual(bb.Or(x,bb.Or(y,z)), bb.Or(bb.Or(x,y), z))
+
+    [<Test>]
+    member __.DisjunctionIdentity () = 
+        let x = bb.Var(1)
+        Assert.AreEqual(bb.True, bb.Or(bb.True,x))
+        Assert.AreEqual(bb.True, bb.Or(x,bb.True))
+        Assert.AreEqual(x, bb.Or(bb.False, x))
+        Assert.AreEqual(x, bb.Or(x, bb.False))
+
+    [<Test>]
+    member __.DisjunctionIdempotent () = 
+        let x = bb.Var(1)
+        let y = bb.Var(2)
+        let x = bb.Var(1)
+        let z = bb.Or(x,y)
+        Assert.AreEqual(x, bb.Or(x,x))
+        Assert.AreEqual(z, bb.Or(x,z))
+        Assert.AreEqual(z, bb.Or(y,z))
+
+    [<Test>]
+    member __.ConjunctionIdentity () = 
+        let x = bb.Var(1)
+        Assert.AreEqual(bb.False, bb.And(bb.False,x))
+        Assert.AreEqual(bb.False, bb.And(x,bb.False))
+        Assert.AreEqual(x, bb.And(bb.True, x))
+        Assert.AreEqual(x, bb.And(x, bb.True))
+
+    [<Test>]
+    member __.ConjunctionIdempotent () = 
+        let x = bb.Var(1)
+        let y = bb.Var(2)
+        let x = bb.Var(1)
+        let z = bb.And(x,y)
+        Assert.AreEqual(x, bb.And(x,x))
+        Assert.AreEqual(z, bb.And(x,z))
+        Assert.AreEqual(z, bb.And(y,z))
+
+    [<Test>]
+    member __.Distributivity () = 
+        let x = bb.Var(1)
+        let y = bb.Var(2)
+        let z = bb.Var(3)
+        Assert.AreEqual(bb.And(x, bb.Or(y,z)), bb.Or(bb.And(x,y), bb.And(x,z)))
+        Assert.AreEqual(bb.And(bb.Or(y,z), x), bb.Or(bb.And(y,x), bb.And(z,x)))
+        Assert.AreEqual(bb.Or(x, bb.And(y,z)), bb.And(bb.Or(x,y), bb.Or(x,z)))
+        Assert.AreEqual(bb.Or(bb.And(y,z), x), bb.And(bb.Or(y,x), bb.Or(z,x)))
+
+    [<Test>]
+    member __.DoubleNegation () = 
+        let x = bb.Var(1)
+        Assert.AreEqual(x, bb.Not(bb.Not x))
+
+    [<Test>]
+    member __.Implies () = 
+        let x = bb.Var(1)
+        let y = bb.Var(2)
+        let z = bb.Or(x,y)
+        Assert.IsTrue( bb.Implies(x,x) )
+        Assert.IsTrue( bb.Implies(y,z) )
+        Assert.IsTrue( bb.Implies(x,z) )
+
+    [<Test>]
+    member __.RangeOps () = 
+        let r1 = Range(0,20)
+        let r2 = Range(10,30)
+        let r3 = Range(10,20)
+        let r4 = Range(0,30)
+        let r5 = Range(21,32)
+        let x = bb.Ite(1, bb.Value r1, bb.Value r2)
+        Assert.AreEqual(x, bb.And(x,x))
+        Assert.AreEqual(x, bb.Or(x,x))
+        Assert.AreEqual(bb.Value r3, bb.And(bb.Value r1, bb.Value r2))
+        Assert.AreEqual(bb.Value r4, bb.Or(bb.Value r1, bb.Value r2))
+        Assert.AreEqual(bb.Value r5, bb.Not(bb.Value r1))
+
+
+/// Unit tests for the Predicate data structure 
+/// Checks that the Bdd encoding is valid, and can 
+/// be reversed to a prioritized list or rules
+
+[<TestFixture>]
+type TestPredicate() =
+
+    let pb = PredicateBuilder()
+
+    let equalRules (x : _ list) (y : _ list) = 
+        Assert.AreEqual(x.Length, y.Length)
+        for vx in x do 
+            Assert.IsTrue(List.contains vx y)
+    
+    [<Test>]
+    member __.Identities () = 
+        let p1 = Prefix(0,0,0,1,32,Range(32,32))
+        let p = pb.Prefix p1
+        Assert.AreEqual(pb.True, pb.Or(pb.True, p))
+        Assert.AreEqual(pb.True, pb.Or(p, pb.True))
+        Assert.AreEqual(p, pb.And(p, pb.True))
+        Assert.AreEqual(p, pb.And(pb.True, p))
+        Assert.AreEqual(pb.False, pb.And(pb.False, p))
+        Assert.AreEqual(pb.False, pb.And(p, pb.False))
+        Assert.AreEqual(p, pb.Or(p, pb.False))
+        Assert.AreEqual(p, pb.Or(pb.False, p))
+
+    [<Test>]
+    member __.ExactAndRange () = 
+        let p1 = Prefix(0,0,0,0,32)
+        let p2 = Prefix(0,0,0,1,32)
+        let p3 = Prefix(0,0,0,0,31,Range(32,32))
+        let x = pb.Prefix p1 
+        let y = pb.Prefix p2
+        let z = pb.Prefix p3
+        Assert.AreEqual(z, pb.Or(x, y))
+
+    [<Test>]
+    member __.SupersetPrefix () = 
+        let p1 = Prefix(0,1,0,2,24,Range(24,32))
+        let p2 = Prefix(0,1,0,1,16,Range(16,32))
+        let x = pb.Prefix p1 
+        let y = pb.Prefix p2
+        Assert.AreEqual(x, pb.And(x,y))
+        Assert.AreEqual(y, pb.Or(x,y))
+        Assert.IsTrue(pb.Implies(x,y))
+        Assert.IsTrue(pb.True = pb.Or(pb.Not x, y))
+
+
+    [<Test>]
+    member __.ExpandUnknownBits () = 
+        let p1 = Prefix(0,0,0,1,32,Range(32,32))
+        let p2 = Prefix(0,0,0,3,32,Range(32,32))
+        let pred = pb.Or(pb.Prefix p1, pb.Prefix p2)
+        let vs = pb.TrafficClassifiers(pred)
+        equalRules vs 
+            [TrafficClassifier(p1, Set.empty, Set.empty); 
+             TrafficClassifier(p2, Set.empty, Set.empty)]
+
+    [<Test>]
+    member __.AvoidExtraNegation () = 
+        let p1 = Prefix(0,0,0,1,32,Range(32,32))
+        let p2 = Prefix(0,0,0,3,32,Range(32,32))
+        let pred = pb.Or(pb.Prefix p1, pb.Prefix p2)
+        let pred = pb.Or(pred, pb.Community "A")
+        let vs = pb.TrafficClassifiers(pred)
+        equalRules vs 
+            [TrafficClassifier(p1, Set.empty, Set.empty); 
+             TrafficClassifier(p2, Set.empty, Set.empty); 
+             TrafficClassifier(Prefix.True, Set.singleton "A", Set.empty)]
+
+    [<Test>]
+    member __.MultipleCommunitiesOr () = 
+        let p1 = Prefix(0,0,0,1,32,Range(32,32))
+        let p2 = Prefix(0,0,0,3,32,Range(32,32))
+        let pred = pb.Or(pb.Prefix p1, pb.Prefix p2)
+        let pred = pb.Or(pred, pb.Community "A")
+        let pred = pb.Or(pred, pb.Community "B")
+        let vs = pb.TrafficClassifiers(pred)
+        equalRules vs 
+            [TrafficClassifier(p1, Set.empty, Set.empty); 
+             TrafficClassifier(p2, Set.empty, Set.empty); 
+             TrafficClassifier(Prefix.True, Set.singleton "A", Set.empty);
+             TrafficClassifier(Prefix.True, Set.singleton "B", Set.empty)]
+
+    [<Test>]
+    member __.MultipleCommunitiesAnd () = 
+        let p1 = Prefix(0,0,0,1,32,Range(32,32))
+        let p2 = Prefix(0,0,0,3,32,Range(32,32))
+        let c1 = pb.Community "A"
+        let c2 = pb.Community "B"
+        let x = pb.Or(pb.Prefix p1, pb.Prefix p2)
+        let y = pb.And(c1, c2)
+        let pred = pb.And(x, y)
+        let vs = pb.TrafficClassifiers(pred)
+        equalRules vs 
+            [TrafficClassifier(p1, Set.ofList ["A"; "B"], Set.empty); 
+             TrafficClassifier(p2, Set.ofList ["A"; "B"], Set.empty)]
