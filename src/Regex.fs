@@ -60,12 +60,9 @@ let rec insertOrdered rs r =
     | [] -> [r]
     | rhd::rtl -> 
         let cmp = compare r rhd
-        if cmp < 0 then
-            r::rs
-        else if cmp = 0 then
-            rs
-        else 
-            rhd::(insertOrdered rtl r)
+        if cmp < 0 then r::rs
+        elif cmp = 0 then rs
+        else rhd::(insertOrdered rtl r)
 
 let rec insertOrderedAll dups rs1 rs2 = 
     match rs2 with 
@@ -396,11 +393,12 @@ type REBuilder(topo: Topology.T) =
         let dfa = this.MakeDFA (convert r)
         emptiness dfa
 
-    member this.Build (pred: Predicate.T) (pref:int) re =
+    member this.Build (pred: Route.Predicate) (pref:int) re =
         finalAlphabet <- true
         match this.WellFormed re with
         | None -> convert re
         | Some cs ->
+            // TODO: how to convert predicate to string?
             let msg = 
                 sprintf "Invalid path shape for prefix %s, preference %d. " (string pred) pref + 
                 sprintf "Paths must go through the internal network exactly once, " + 
@@ -529,6 +527,7 @@ module Test =
 
     let testRegexWellFormedness () =
         writeFormatted "Regex well-formedness "
+        let pb = Route.PredicateBuilder()
         let reb = REBuilder (Examples.topoStretchingManWAN ())
         let pref1 = reb.Path ["X"; "B"; "X"; "B"]
         let pref2 = reb.Concat [reb.External(); reb.Internal(); reb.External(); reb.Internal()]
@@ -536,7 +535,7 @@ module Test =
         let mutable fail = false
         for p in [pref1; pref2; pref3] do
             try 
-                ignore (reb.Build Predicate.top 1 p)
+                ignore (reb.Build pb.True 1 p)
                 fail <- true
             with _ -> ()
         if fail then failed () else passed ()

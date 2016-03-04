@@ -7,7 +7,7 @@ open Microsoft.FSharp.Text.Lexing
 exception EofInComment
 
 let inline getAsn (s: string) =
-    System.UInt32.Parse  s.[2..]
+    System.Int32.Parse  s.[2..]
 
 let inline newline (lexbuf: LexBuffer<_>) =
     lexbuf.EndPos <- lexbuf.EndPos.NextLine
@@ -33,7 +33,7 @@ rule tokenize = parse
 	| "control"             { CONTROL (position lexbuf) }
     | asn                   { ASN (position lexbuf, getAsn (LexBuffer<char>.LexemeString lexbuf)) }
 	| id                    { ID (position lexbuf, LexBuffer<char>.LexemeString lexbuf) }
-	| digits                { INT (position lexbuf, UInt32.Parse (LexBuffer<char>.LexemeString lexbuf)) }
+	| digits                { INT (position lexbuf, Int32.Parse (LexBuffer<char>.LexemeString lexbuf)) }
 	| '='                   { EQUAL (position lexbuf) }
 	| '('                   { LPAREN (position lexbuf) }
 	| ')'                   { RPAREN (position lexbuf) }

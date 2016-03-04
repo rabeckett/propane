@@ -48,8 +48,8 @@ let buildDefinitions defs : Ast.Definitions =
 %token <LineInfo> TRUE
 %token <LineInfo> FALSE
 %token <LineInfo * string> ID
-%token <LineInfo * System.UInt32> INT
-%token <LineInfo * System.UInt32> ASN
+%token <LineInfo * int32> INT
+%token <LineInfo * int32> ASN
 
 %token <LineInfo> NOT 
 %token <LineInfo> DIFFERENCE

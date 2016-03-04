@@ -18,8 +18,8 @@ type AggregationSafety =
     {NumFailures: int; 
      PrefixLoc: string; 
      AggregateLoc: string; 
-     Prefix: Prefix.T;
-     Aggregate: Prefix.T}
+     Prefix: Route.Prefix;
+     Aggregate: Route.Prefix}
     
 type CompilationResult =
     {Abgp: T;

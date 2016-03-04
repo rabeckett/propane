@@ -56,7 +56,7 @@ val findLinks: T -> Set<string> * Set<string> -> (Node * Node) list
 
 type TopoInfo =
     {Graph: T; 
-     AsnMap: Map<string, uint32>;
+     AsnMap: Map<string, int>;
      InternalNames: Set<string>;
      ExternalNames: Set<string>;
      AllNames: Set<string>}
@@ -84,7 +84,7 @@ module Examples =
     val topoBackboneWAN: unit -> T
     /// Fattree topology 
     type Tiers = Dictionary<Node,int>
-    type Prefixes = Dictionary<Node,Prefix.T>
+    type Prefixes = Dictionary<Node,Route.Prefix>
     val fatTree: int -> T * Prefixes * Tiers
     // Full mesh topology
     val complete: int -> T

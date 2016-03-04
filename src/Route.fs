@@ -1,4 +1,4 @@
-﻿module FastPredicate
+﻿module Route
 
 open System.Collections.Generic
 open NUnit.Framework
@@ -55,6 +55,7 @@ type Range = struct
             | _ -> failwith "Invalid range negation"
 
     override r.ToString() = sprintf "%d..%d" r.Lo r.Hi
+
     static member Empty = Range(-1,-1)
     static member Full = Range(0,32)
 end
@@ -242,24 +243,29 @@ type TrafficClassifier =
 /// And converting the Bdd encoding back to a human-readable format
 
 type PredicateBuilder() = 
-    let bdd = BddBuilder(fun x y -> compare y x)
+    // The order is important to easily reverse the encoding
+    let bdd = BddBuilder(compare)
 
-    let commMap = Dictionary<string,int>()
-    let idxMap = Dictionary<int,string>()
-    let mutable nextIdx = 32
+    let commToIdxMap = Dictionary<string,int>()
+    let idxToCommMap = Dictionary<int,string>()
+    let nextCommIdx = ref (-1)
+
+    let topoToIdxMap = Dictionary<string,int>()
+    let idxToTopoMap = Dictionary<int,string>()
+    let nextTopoIdx = ref (-10001)
 
     let isPrefixVar x = (x >= 0 && x < 32)
-    let isCommVar x = (x >= 32)
-    let isTopoVar x = (x < 0)
+    let isCommVar x = (x < 0 && x > -10000)
+    let isTopoVar x = (x < -10000)
 
     /// Given a variable assignment, show prefix binary with don't care markers: 1000x0x1011
-    let displayBinary ts fs = 
+    let displayBinary ts fs (r : Range) = 
         let mutable res = ""
         for i in 0..31 do 
             if Set.contains i ts then res <- res + "1"
             elif Set.contains i fs then res <- res + "0"
             else res <- res + "x" 
-        res
+        res + " " + (sprintf "[%d..%d]" r.Lo r.Hi)
 
     /// Iterate over all each path with a non-false terminal
     let iterPath f x = 
@@ -277,14 +283,19 @@ type PredicateBuilder() =
             | Leaf v -> f ts fs v
         aux Set.empty Set.empty x
 
+    let filterTrueFalse f (map: Dictionary<_,_>) ts fs = 
+        let aux vs = 
+            vs 
+            |> Set.filter f
+            |> Set.map (fun x -> map.[x])
+        (aux ts, aux fs)
+
     /// Given a set of true and false variables, construct conjunction of prefixes
-    let communities cts cfs = 
-        let aux cs = 
-            cs 
-            |> Set.filter (fun x -> x >= 32)
-            |> Set.map (fun x -> idxMap.[x])
-        (aux cts, aux cfs)
-       
+    let communities = filterTrueFalse isCommVar idxToCommMap
+
+    /// Given a set of true and false variables, construct conjunction of topology locations
+    let locations = filterTrueFalse isTopoVar idxToTopoMap
+
     /// Given a set of true and false variables, construct a disjunction of prefixes (set)
     let prefixes pts pfs (r : Range) =
         let maxts = if Set.isEmpty pts then -1 else Set.maxElement pts
@@ -297,8 +308,21 @@ type PredicateBuilder() =
                 if pts.Contains i then aux (i+1) newInt
                 elif pfs.Contains i then aux (i+1) partialInt
                 else Set.union (aux (i+1) newInt) (aux (i+1) partialInt)
+        let r = Range(max r.Lo largest, r.Hi)
         let inline prefixFromBinary i = Prefix(i, largest, r)
         Seq.map prefixFromBinary (aux 0 0)
+
+    let addForString (map: Dictionary<_,_>) (idxMap: Dictionary<_,_>) v idxVar =
+        let idx = 
+            let b, value = map.TryGetValue(v)
+            if b then value
+            else
+                map.[v] <- !idxVar 
+                idxMap.[!idxVar] <- v
+                let res = !idxVar
+                idxVar := !idxVar - 1 
+                res
+        Predicate(bdd.Var(idx))
 
     /// Return the bdd representing a prefix x1.x2.x3.x4/s[lo..hi]
     member __.Prefix (p: Prefix) =
@@ -309,20 +333,14 @@ type PredicateBuilder() =
                 then acc <- bdd.And(acc, bdd.Var(i))
                 else acc <- bdd.And(acc, bdd.Var(i) |> bdd.Not)
         Predicate(acc)
- 
+
     /// Return the bdd representing a match on the community c
     member __.Community c = 
-        let idx = 
-            let b, value = commMap.TryGetValue(c)
-            if b then 
-                value
-            else
-                commMap.[c] <- nextIdx 
-                idxMap.[nextIdx] <- c
-                let res = nextIdx
-                nextIdx <- nextIdx + 1 
-                res
-        Predicate(bdd.Var(idx))
+        addForString commToIdxMap idxToCommMap c nextCommIdx
+
+    /// Return the bdd representing a match on the community c
+    member __.Location l = 
+        addForString topoToIdxMap idxToTopoMap l nextTopoIdx
 
     /// The predicate matching any route announcement
     member __.True = Predicate(bdd.True)
@@ -347,19 +365,30 @@ type PredicateBuilder() =
         let acc = ref []
         let aux ts fs (r : Range) =
             if not r.IsEmpty then  
-                let pts, cts = Set.partition (fun x -> x < 32) ts
-                let pfs, cfs = Set.partition (fun x -> x < 32) fs
+                let pts, ots = Set.partition isPrefixVar ts
+                let pfs, ofs = Set.partition isPrefixVar fs
+                let cts, tts = Set.partition isCommVar ots
+                let cfs, tfs = Set.partition isCommVar ofs
                 let ps = prefixes pts pfs r
                 let (cts,cfs) = communities cts cfs
+                let (tts, _ ) = locations tts tfs
                 for p in ps do
                     acc := TrafficClassifier(p,cts,cfs) :: !acc
         iterPath aux p 
         List.rev !acc
 
+    /// Pick out a single representative assignment
+    member x.Example(p) : TrafficClassifier =
+        let tcs = x.TrafficClassifiers(p)
+        tcs.Head
+
+    /// Output predicate as traffic classifiers representation
     member x.ToString(p) = 
         let tcs = x.TrafficClassifiers(p)
-        let res = List.map string tcs
-        sprintf "[%s]" (Util.List.joinBy "," res)
+        let ex = tcs.Head 
+        if tcs.Length = 1 
+            then sprintf "[%s]" (string ex)
+            else sprintf "[%s or ...]" (string ex)
 
 
 /// Unit tests for the Bdd data structure 
@@ -505,7 +534,7 @@ type TestPredicate() =
         Assert.AreEqual(pb.False, pb.And(pb.False, p))
         Assert.AreEqual(pb.False, pb.And(p, pb.False))
         Assert.AreEqual(p, pb.Or(p, pb.False))
-        Assert.AreEqual(p, pb.Or(pb.False, p))
+        Assert.AreEqual(p, pb.Or(pb.False, p)) 
 
     [<Test>]
     member __.ExactAndRange () = 
@@ -528,6 +557,31 @@ type TestPredicate() =
         Assert.IsTrue(pb.Implies(x,y))
         Assert.IsTrue(pb.True = pb.Or(pb.Not x, y))
 
+    [<Test>]
+    member __.ExactNotTheSameAsRange () = 
+        let p1 = Prefix(0,0,0,1,24)
+        let p2 = Prefix(0,0,0,1,24,Range(24,24))
+        let x = pb.Prefix p1 
+        let y = pb.Prefix p2
+        Assert.AreNotEqual(x, y)
+
+    [<Test>]
+    member __.LargerSlash () = 
+        let p1 = Prefix(0,0,0,1,24,Range(24,30))
+        let p2 = Prefix(0,0,1,1,24,Range(24,30))
+        let p3 = Prefix(0,0,0,0,23,Range(24,30))
+        let x = pb.Prefix p1 
+        let y = pb.Prefix p2
+        let z = pb.Prefix p3
+        Assert.AreEqual(z, pb.Or(x, y))
+
+    [<Test>]
+    member __.EmptyConjunction () = 
+        let p1 = Prefix(0,0,0,1,24,Range(24,30))
+        let p2 = Prefix(0,0,1,1,24,Range(24,30))
+        let x = pb.Prefix p1 
+        let y = pb.Prefix p2
+        Assert.AreEqual(pb.False, pb.And(x, y))
 
     [<Test>]
     member __.ExpandUnknownBits () = 
@@ -578,3 +632,35 @@ type TestPredicate() =
         equalRules vs 
             [TrafficClassifier(p1, Set.ofList ["A"; "B"], Set.empty); 
              TrafficClassifier(p2, Set.ofList ["A"; "B"], Set.empty)]
+
+    [<Test>]
+    member __.CommunityRangeKnowledge () = 
+        let c1 = pb.Community "A"
+        let c2 = pb.Community "B"
+        let c3 = pb.Community "C"
+        let x = pb.Or(c1, pb.Or(c2,c3))
+        let knowledge = pb.And( pb.Not c1, pb.And(pb.Not c2, pb.Not c3) )
+        Assert.AreEqual(pb.True, pb.Or(x,knowledge))
+
+    [<Test>]
+    member __.TopologyRangeKnowledge () = 
+        let t1 = pb.Location "X"
+        let t2 = pb.Location "Y"
+        let t3 = pb.Location "Z"
+        let x = pb.Or(t1, pb.Or(t2,t3))
+        let knowledge = pb.And( pb.Not t1, pb.And(pb.Not t2, pb.Not t3) )
+        Assert.AreEqual(pb.True, pb.Or(x,knowledge))
+
+    [<Test>]
+    member __.BothRangeKnowledge () = 
+        let c1 = pb.Community "A"
+        let c2 = pb.Community "B"
+        let c3 = pb.Community "C"
+        let t1 = pb.Location "X"
+        let t2 = pb.Location "Y"
+        let t3 = pb.Location "Z"
+        let x = pb.Or(c1, pb.Or(c2,c3))
+        let y = pb.Or(t1, pb.Or(t2,t3))
+        let knowledgec = pb.And( pb.Not c1, pb.And(pb.Not c2, pb.Not c3) )
+        let knowledget = pb.And( pb.Not t1, pb.And(pb.Not t2, pb.Not t3) )
+        Assert.AreEqual(pb.True, pb.Or(x,pb.Or(knowledgec, knowledget)))

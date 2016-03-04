@@ -79,12 +79,7 @@
     <Compile Include="Bitset32.fsi" />
     <Compile Include="Bitset32.fs" />
     <Compile Include="Util.fs" />
-    <Compile Include="Prefix.fsi" />
-    <Compile Include="Prefix.fs" />
-    <Compile Include="Community.fsi" />
-    <Compile Include="Community.fs" />
-    <Compile Include="Predicate.fsi" />
-    <Compile Include="Predicate.fs" />
+    <Compile Include="Route.fs" />
     <Compile Include="Topology.fsi" />
     <Compile Include="Topology.fs" />
     <Compile Include="Regex.fsi" />
@@ -108,7 +103,6 @@
     <Compile Include="Abgp.fsi" />
     <Compile Include="Abgp.fs" />
     <Compile Include="Benchmark.fs" />
-    <Compile Include="FastPredicate.fs" />
     <Compile Include="Program.fs" />
     <None Include="App.config" />
     <None Include="packages.config" />

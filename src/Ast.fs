@@ -2,6 +2,7 @@
 
 open Topology
 open Util.Format
+open Route
 
 type Position = 
     {SLine: int;
@@ -25,10 +26,10 @@ and Node =
     | OrExpr of Expr * Expr
     | AndExpr of Expr * Expr
     | NotExpr of Expr
-    | PrefixLiteral of uint32 * uint32 * uint32 * uint32 * uint32 option
-    | CommunityLiteral of uint32 * uint32
-    | Asn of uint32
-    | IntLiteral of uint32
+    | PrefixLiteral of int * int * int * int * int option
+    | CommunityLiteral of int * int
+    | Asn of int
+    | IntLiteral of int
     | True
     | False
 
@@ -68,12 +69,12 @@ type ControlConstraints = (Ident * Expr list) list
 type Definitions = Map<string, Position * Ident list * Expr>
 
 type CConstraint = 
-    | CAggregate of Prefix.T * Set<string> * Set<string>
-    | CCommunity of string * Prefix.T list * Set<string> * Set<string>
-    | CMaxRoutes of uint32 * Set<string> * Set<string>
-    | CLongestPath of uint32 * Set<string>
+    | CAggregate of Prefix * Set<string> * Set<string>
+    | CCommunity of string * Prefix list * Set<string> * Set<string>
+    | CMaxRoutes of int * Set<string> * Set<string>
+    | CLongestPath of int * Set<string>
 
-type PolicyPair = (Predicate.T * Regex.REBuilder * Regex.T list)
+type PolicyPair = (Predicate * Regex.REBuilder * Regex.T list)
 
 type T = 
     {Input: string [];
@@ -283,13 +284,13 @@ let substitute (ast: T) (e: Expr) : Expr =
 
 let inline adjustBits bits = 
     match bits with 
-    | None -> 32u
+    | None -> 32
     | Some b -> b
 
 let wellFormedPrefix ast pos (a,b,c,d,bits) =
     let bits = adjustBits bits
-    let p = Prefix.prefix (a,b,c,d) bits
-    if (a > 255u || b > 255u || c > 255u || d > 255u || (bits > 32u)) then
+    if (a > 255 || b > 255 || c > 255 || d > 255 || (bits > 32)) then
+        let p = Prefix(a,b,c,d,bits,Range(bits,32))
         let msg = 
             sprintf "Found an invalid prefix %s, " (string p) +
             sprintf "must match [0-255].[0-255].[0-255].[0-255]/[0-32]"
@@ -461,17 +462,18 @@ let rec buildRegex (ast: T) (reb: Regex.REBuilder) (r: Expr) : Regex.LazyT =
 (* Build a concrete predicate from an expression
    that is known the have predicate type *)
 
-let rec buildPredicate (e: Expr) : Predicate.T = 
+let rec buildPredicate (pb: PredicateBuilder) (e: Expr) : Predicate = 
     match e.Node with 
-    | True -> Predicate.top
-    | False -> Predicate.bot
-    | AndExpr(a,b) -> Predicate.conj (buildPredicate a) (buildPredicate b)
-    | OrExpr(a,b) -> Predicate.disj (buildPredicate a) (buildPredicate b)
-    | NotExpr a -> Predicate.negate (buildPredicate a)
+    | True -> pb.True
+    | False -> pb.False
+    | AndExpr(a,b) -> pb.And(buildPredicate pb a, buildPredicate pb b)
+    | OrExpr(a,b) -> pb.Or (buildPredicate pb a, buildPredicate pb b)
+    | NotExpr a -> pb.Not(buildPredicate pb a)
     | PrefixLiteral (a,b,c,d,bits) ->
-        let adjBits = adjustBits bits
-        Predicate.prefix (a,b,c,d) adjBits
-    | CommunityLiteral (x,y) ->  Predicate.community (string x + ":" + string y)
+        let bits = adjustBits bits
+        let p = Prefix(a,b,c,d,bits,Range(bits,32))
+        pb.Prefix p
+    | CommunityLiteral (x,y) -> pb.Community (string x + ":" + string y)
     | _ -> Util.unreachable ()
 
 (* Helper getter functions for expressions
@@ -531,7 +533,8 @@ let buildCConstraint ast (cc: Ident * Expr list) =
     wellFormedCCs ast id args argsOrig
     let inline prefix x = 
         let (a,b,c,d,bits) as p = getPrefix x
-        Prefix.prefix (a,b,c,d) (adjustBits bits)
+        let bits = adjustBits bits
+        Prefix(a,b,c,d,bits,Range(bits,32))
     let inline getLinkLocations (x,y) =
         let xs = reb.SingleLocations (buildRegex ast reb x) |> Option.get
         let ys = reb.SingleLocations (buildRegex ast reb y) |> Option.get
@@ -626,23 +629,22 @@ let warnRawAsn (ast: T) =
         | None -> ()
 
 let inline buildPrefix ast (a,b,c,d,bits) =
-    let adjBits = adjustBits bits
-    Prefix.prefix (a,b,c,d) adjBits
+    let bits = adjustBits bits
+    Prefix(a,b,c,d,bits,Range(bits,32))
 
 let inline getPrefixes ast pfxs e =
     match e.Node with
     | PrefixLiteral (a,b,c,d,bits) ->
         wellFormedPrefix ast e.Pos (a,b,c,d,bits)
         let pfx = buildPrefix ast (a,b,c,d,bits)
-        pfxs := Set.add [pfx] !pfxs
+        pfxs := Set.add pfx !pfxs
     | _ -> ()
 
-let warnUnusedAggregates (ast:T) e =
-    let inline isPfxFor agg p = 
-        p <> agg && Prefix.implies agg p
+let warnUnusedAggregates (ast:T) (pb: PredicateBuilder) e =
+    let inline isPfxFor agg p =
+        p <> agg && pb.Implies(pb.Prefix agg, pb.Prefix p)
     let prefixes = ref Set.empty 
     iter (getPrefixes ast prefixes) e
-    let prefixes = Set.map Prefix.toPredicate !prefixes
     for (id, es) in ast.CConstraints do 
         for e in es do
             let e = substitute ast e
@@ -650,8 +652,7 @@ let warnUnusedAggregates (ast:T) e =
             | PrefixLiteral (a,b,c,d,bits) ->
                 wellFormedPrefix ast e.Pos (a,b,c,d,bits)
                 let pfx = buildPrefix ast (a,b,c,d,bits)
-                let pred = Prefix.toPredicate [pfx]
-                if not (Set.exists (isPfxFor pred) prefixes) then 
+                if not (Set.exists (isPfxFor pfx) !prefixes) then 
                     let msg = 
                         sprintf "The aggregate prefix %s does not summarize any " (string pfx) +
                         sprintf "specific prefix used in the policy."
@@ -697,34 +698,35 @@ let applyOp r1 r2 op =
     | OUnion -> OrExpr(r1,r2)
     | ODifference -> DiffExpr(r1,r2)
 
-let checkBlock ast e pcs =
-    let mutable remaining = Predicate.top
-    let mutable matched = Predicate.bot
+let checkBlock ast (pb: PredicateBuilder) e (pcs: (Predicate * _) list) =
+    let mutable remaining = pb.True
+    let mutable matched = pb.False
     for (pred, es) in pcs do
-        let p = Predicate.conj pred remaining
-        remaining <- Predicate.conj remaining (Predicate.negate p)
-        let p' = Predicate.disj pred matched
+        let p = pb.And(pred, remaining)
+        remaining <- pb.And(remaining, pb.Not p)
+        let p' = pb.Or(pred, matched)
         if p' = matched then
-            warning (sprintf "Dead prefix %s will never apply" (string p'))
+            let str = pb.ToString(p')
+            warning (sprintf "Dead prefix match for %s will never apply" str)
         matched <- p'
-    if remaining <> Predicate.bot then
-        let s = Predicate.example remaining
+    if remaining <> pb.False then
+        // let s = Predicate.example remaining
         // let msg = sprintf "Incomplete prefixes in block. An example of a prefix that is not matched: %s" s
         // Message.warningAst ast msg e.Pos
         let e = pcs |> List.head |> snd |> List.head
         // TODO: what is the right thing here?
-        pcs @ [(Predicate.top, [ {Pos=e.Pos; Node=Ident ({Pos=e.Pos;Name="any"}, [])} ])]
+        pcs @ [(pb.True, [ {Pos=e.Pos; Node=Ident ({Pos=e.Pos;Name="any"}, [])} ])]
     else pcs
 
-let combineBlocks pos pcs1 pcs2 (op: BinOp) =
+let combineBlocks (pb: PredicateBuilder) pos pcs1 pcs2 (op: BinOp) =
     let mutable combined = []
-    let mutable rollingPred = Predicate.bot
+    let mutable rollingPred = pb.False
     for (ps, res) in pcs1 do 
         for (ps', res') in pcs2 do
-            let comb = Predicate.conj ps ps'
-            let notAbove = Predicate.conj comb (Predicate.negate rollingPred)
-            if notAbove <> Predicate.bot then
-                rollingPred <- Predicate.disj rollingPred comb
+            let comb = pb.And(ps, ps')
+            let notAbove = pb.And(comb, (pb.Not rollingPred))
+            if notAbove <> pb.False then
+                rollingPred <- pb.Or(rollingPred, comb)
                 let both = (comb, applyOp res res' op)
                 combined <- both :: combined
     List.rev combined
@@ -733,14 +735,14 @@ let combineBlocks pos pcs1 pcs2 (op: BinOp) =
 let inline collapsePrefs pos (es: Expr list) : Expr =
     Util.List.fold1 (fun e1 e2 -> {Pos=pos; Node=ShrExpr (e1,e2)}) es
 
-let rec expandBlocks ast (e: Expr) = 
+let rec expandBlocks ast (pb: PredicateBuilder) (e: Expr) : (Predicate * Expr) list = 
     match e.Node with
-    | OrExpr (e1,e2) -> combineBlocks e.Pos (expandBlocks ast e1) (expandBlocks ast e2) OUnion
-    | AndExpr (e1,e2) -> combineBlocks e.Pos (expandBlocks ast e1) (expandBlocks ast e2) OInter
-    | DiffExpr (e1,e2) -> combineBlocks e.Pos (expandBlocks ast e1) (expandBlocks ast e2) ODifference
+    | OrExpr (e1,e2) -> combineBlocks pb e.Pos (expandBlocks ast pb e1) (expandBlocks ast pb e2) OUnion
+    | AndExpr (e1,e2) -> combineBlocks pb e.Pos (expandBlocks ast pb e1) (expandBlocks ast pb e2) OInter
+    | DiffExpr (e1,e2) -> combineBlocks pb e.Pos (expandBlocks ast pb e1) (expandBlocks ast pb e2) ODifference
     | BlockExpr es ->  
-        List.map (fun (x,y) -> (buildPredicate x, pushPrefsToTop ast y)) es
-        |> checkBlock ast e
+        List.map (fun (x,y) -> (buildPredicate pb x, pushPrefsToTop ast y)) es
+        |> checkBlock ast pb e
         |> List.map (fun (p,es) -> (p, collapsePrefs e.Pos es))
     | _ -> Util.unreachable ()
 
@@ -761,9 +763,10 @@ let addTopoDefinitions (ast: T) : T =
 
 type PolInfo =
     {Ast: T;
+     PredBuilder: PredicateBuilder;
      Policy: PolicyPair list;
      CConstraints: CConstraint list;
-     OrigLocs: Map<Predicate.T, Set<string>>}
+     OrigLocs: Map<Predicate, Set<string>>}
 
 let makePolicyPairs (ast: T) =
     // Map topology names to as numbers
@@ -771,6 +774,7 @@ let makePolicyPairs (ast: T) =
     // Ensure main is defined
     match Map.tryFind "main" ast.Defs with 
     | Some (_,[],e) ->
+        let pb = PredicateBuilder()
         // Find unused definitions
         warnUnused ast e
         // Warn when using raw asn for a named router
@@ -783,26 +787,26 @@ let makePolicyPairs (ast: T) =
         | BlockType -> ()
         | _ -> Message.errorAst ast (typeMsg [BlockType] t) e.Pos
         // Check for unused aggregates given the final expr e
-        warnUnusedAggregates ast e
+        warnUnusedAggregates ast pb e
         // Expand all blocks, pushing preferences to the top of the expr
         let topLevel = 
-            expandBlocks ast e 
+            expandBlocks ast pb e 
             |> List.map (fun (p,e) -> (p, pushPrefsToTop ast e))
         // Get all syntactically specified origination points
         let origLocs = ref Map.empty
         // Build concrete regexes from top-level block expr
         let polPairs = 
-            List.map (fun (p, res) ->
+            List.map (fun (p : Predicate, res) ->
                 let locs = orginationLocationsList ast res
                 origLocs := Map.add p locs !origLocs
                 let reb = Regex.REBuilder(ast.TopoInfo.Graph)
                 let res = List.map (buildRegex ast reb) res
                 let res = List.mapi (fun i re -> reb.Build p (i+1) re) res
                 (p, reb, res) ) topLevel
-        (ast, polPairs, !origLocs)
+        (ast, polPairs, !origLocs, pb)
     | _ -> error (sprintf "Main policy not defined, use define main = ...")
 
 let build ast = 
-    let ast, polPairs, origLocs = makePolicyPairs ast
+    let ast, polPairs, origLocs, pb = makePolicyPairs ast
     let ccs = makeControlConstraints ast
-    {Ast = ast; Policy = polPairs; OrigLocs = origLocs; CConstraints = ccs}
+    {Ast = ast; PredBuilder = pb; Policy = polPairs; OrigLocs = origLocs; CConstraints = ccs}

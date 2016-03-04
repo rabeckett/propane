@@ -1,5 +1,7 @@
 ﻿module Ast
 
+open Route
+
 type Position = 
     {SLine: int;
      SCol: int;
@@ -22,10 +24,10 @@ and Node =
     | OrExpr of Expr * Expr
     | AndExpr of Expr * Expr
     | NotExpr of Expr
-    | PrefixLiteral of uint32 * uint32 * uint32 * uint32 * uint32 option
-    | CommunityLiteral of uint32 * uint32
-    | Asn of uint32
-    | IntLiteral of uint32
+    | PrefixLiteral of int * int * int * int * int option
+    | CommunityLiteral of int * int
+    | Asn of int
+    | IntLiteral of int
     | True
     | False
 
@@ -38,18 +40,19 @@ type T =
      Defs: Definitions;
      CConstraints: ControlConstraints}
 
-type PolicyPair = Predicate.T * Regex.REBuilder * Regex.T list
+type PolicyPair = Predicate * Regex.REBuilder * Regex.T list
 
 type CConstraint = 
-    | CAggregate of Prefix.T * Set<string> * Set<string>
-    | CCommunity of string * Prefix.T list * Set<string> * Set<string>
-    | CMaxRoutes of uint32 * Set<string> * Set<string>
-    | CLongestPath of uint32 * Set<string>
+    | CAggregate of Prefix * Set<string> * Set<string>
+    | CCommunity of string * Prefix list * Set<string> * Set<string>
+    | CMaxRoutes of int * Set<string> * Set<string>
+    | CLongestPath of int * Set<string>
 
 type PolInfo =
     {Ast: T;
+     PredBuilder: PredicateBuilder;
      Policy: PolicyPair list;
      CConstraints: CConstraint list;
-     OrigLocs: Map<Predicate.T, Set<string>>}
+     OrigLocs: Map<Predicate, Set<string>>}
 
 val build: T -> PolInfo

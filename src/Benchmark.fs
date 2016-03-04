@@ -169,7 +169,7 @@ let singleCore n =
     // Main policy 
     let reb = Regex.REBuilder(topo)
     let pol = reb.Any() 
-    pairs <- (Predicate.top, reb, getPol reb pol) :: pairs
+    pairs <- (pb.True, reb, getPol reb pol) :: pairs
 
     // Compile the policy
     let (ir, _, stats) = Abgp.compileAllPrefixes (settings.DebugDir + "/output") topo (List.rev pairs) []

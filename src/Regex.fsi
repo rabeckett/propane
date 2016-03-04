@@ -1,5 +1,6 @@
 ﻿module Regex
 
+
 /// Extended regular expressions with negation, 
 /// intersection, and character classes
 type T
@@ -49,7 +50,7 @@ type REBuilder  =
     new: Topology.T -> REBuilder
     member Alphabet: unit -> Set<string>
     member Topo: unit -> Topology.T
-    member Build: Predicate.T -> int -> LazyT -> T
+    member Build: Route.Predicate -> int -> LazyT -> T
     member Inside: LazyT
     member Outside: LazyT
     member Empty: LazyT

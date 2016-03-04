@@ -7,6 +7,8 @@ open QuickGraph.Algorithms
 open System.Xml
 open FSharp.Data
 open System.Collections.Generic
+open Route
+
 
 type NodeType = 
     | Start
@@ -123,7 +125,7 @@ type Topo = XmlProvider<"../examples/dc.xml">
 
 type TopoInfo =
     {Graph: T; 
-     AsnMap: Map<string, uint32>;
+     AsnMap: Map<string, int>;
      InternalNames: Set<string>;
      ExternalNames: Set<string>;
      AllNames: Set<string>}
@@ -131,7 +133,7 @@ type TopoInfo =
 let inline getAsn name asn =
     if asn < 0 then 
         error (sprintf "Negate AS number '%d' in topology for node '%s'" asn name)
-    else uint32 asn
+    else asn
 
 let router (asn:string) (ti:TopoInfo) = 
     let inline eqAsn _ v = string v = asn
@@ -393,13 +395,13 @@ module Examples =
     /// Fattree topology 
 
     type Tiers = Dictionary<Node,int>
-    type Prefixes = Dictionary<Node,Prefix.T>
+    type Prefixes = Dictionary<Node, Prefix>
 
     let getPrefix i = 
-        let a = uint32 (i / (256 * 256))
-        let b = uint32 (i / 256)
-        let c = uint32 (i % 256)
-        Prefix.prefix (a, b, c, 0u) 24u
+        let a = (i / (256 * 256))
+        let b = (i / 256)
+        let c = (i % 256)
+        Prefix(a,b,c,0,24)
 
     let fatTree k : T * Prefixes * Tiers = 
         let iT0 = (k * k) / 2

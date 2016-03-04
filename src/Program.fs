@@ -4,14 +4,14 @@ open Util
 open Util.Debug
 open Util.Format
 open System
-open FastPredicate
+open Route
 
 
 let runUnitTests () = 
     writeFormatted (header "Running unit tests ")
     Topology.Test.run () 
     Regex.Test.run () 
-    Predicate.Test.run ()
+    //Predicate.Test.run ()
     Abgp.Test.run ()
 
 let total xs = 
@@ -30,14 +30,16 @@ let displayStats (stats: Abgp.Stats) =
 
 [<EntryPoint>] 
 let main argv =
+
+    (*
     let pb = PredicateBuilder()
-    let p1 = Prefix(0,1,0,2,24,Range(24,32))
-    let p2 = Prefix(0,1,0,1,16,Range(16,32))
+    let p1 = Prefix(0,0,0,2,24,Range(24,32))
+    let p2 = Prefix(0,0,0,1,16,Range(16,32))
     let x = pb.Prefix p1 
     let y = pb.Prefix p2
     printfn "%s" (pb.ToString(x))
     printfn "%s" (pb.ToString(pb.Not x))
-    exit 0
+    exit 0 *)
 
     ignore (Args.parse argv)
     let settings = Args.getSettings ()
