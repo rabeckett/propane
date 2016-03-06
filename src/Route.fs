@@ -234,7 +234,9 @@ type TrafficClassifier =
         let (TrafficClassifier(p,cts,cfs)) = x
         let comms = Set.fold (fun acc ct -> if acc <> "" then acc + "," + ct else ct) "" cts
         let comms = Set.fold (fun acc ct -> if acc <> "" then acc + ",!" + ct else "!" + ct) comms cts
-        sprintf "{Prefix=%s, Comms=%s}" (string p) comms
+        if cts.IsEmpty 
+        then sprintf "%s" (string p)
+        else sprintf "%s, {%s}" (string p) comms
 
 
 /// Predicate builder class to encapsulate the Bdd data structure 
@@ -308,9 +310,12 @@ type PredicateBuilder() =
                 if pts.Contains i then aux (i+1) newInt
                 elif pfs.Contains i then aux (i+1) partialInt
                 else Set.union (aux (i+1) newInt) (aux (i+1) partialInt)
-        let r = Range(max r.Lo largest, r.Hi)
-        let inline prefixFromBinary i = Prefix(i, largest, r)
-        Seq.map prefixFromBinary (aux 0 0)
+        let isExact = largest = 32 && r.Lo = r.Hi
+        if isExact then 
+            Seq.map (fun i -> Prefix(i, r.Hi)) (aux 0 0)
+        else
+            let r = Range(max r.Lo largest, r.Hi)
+            Seq.map (fun i -> Prefix(i, largest, r)) (aux 0 0)
 
     let addForString (map: Dictionary<_,_>) (idxMap: Dictionary<_,_>) v idxVar =
         let idx = 
@@ -387,8 +392,8 @@ type PredicateBuilder() =
         let tcs = x.TrafficClassifiers(p)
         let ex = tcs.Head 
         if tcs.Length = 1 
-            then sprintf "[%s]" (string ex)
-            else sprintf "[%s or ...]" (string ex)
+            then sprintf "%s" (string ex)
+            else sprintf "%s or ..." (string ex)
 
 
 /// Unit tests for the Bdd data structure 
@@ -585,8 +590,8 @@ type TestPredicate() =
 
     [<Test>]
     member __.ExpandUnknownBits () = 
-        let p1 = Prefix(0,0,0,1,32,Range(32,32))
-        let p2 = Prefix(0,0,0,3,32,Range(32,32))
+        let p1 = Prefix(0,0,0,1,32)
+        let p2 = Prefix(0,0,0,3,32)
         let pred = pb.Or(pb.Prefix p1, pb.Prefix p2)
         let vs = pb.TrafficClassifiers(pred)
         equalRules vs 
@@ -595,8 +600,8 @@ type TestPredicate() =
 
     [<Test>]
     member __.AvoidExtraNegation () = 
-        let p1 = Prefix(0,0,0,1,32,Range(32,32))
-        let p2 = Prefix(0,0,0,3,32,Range(32,32))
+        let p1 = Prefix(0,0,0,1,32)
+        let p2 = Prefix(0,0,0,3,32)
         let pred = pb.Or(pb.Prefix p1, pb.Prefix p2)
         let pred = pb.Or(pred, pb.Community "A")
         let vs = pb.TrafficClassifiers(pred)
@@ -606,9 +611,18 @@ type TestPredicate() =
              TrafficClassifier(Prefix.True, Set.singleton "A", Set.empty)]
 
     [<Test>]
+    member __.RecoverExact () = 
+        let p1 = Prefix(0,0,1,1,24)
+        let x = pb.Prefix p1
+        let vs = pb.TrafficClassifiers(x)
+        equalRules vs 
+            [TrafficClassifier(p1, Set.empty, Set.empty)]
+
+    [<Test>]
     member __.MultipleCommunitiesOr () = 
-        let p1 = Prefix(0,0,0,1,32,Range(32,32))
-        let p2 = Prefix(0,0,0,3,32,Range(32,32))
+        let p1 = Prefix(0,0,0,1,32)
+        let p2 = Prefix(0,0,0,3,32)
+
         let pred = pb.Or(pb.Prefix p1, pb.Prefix p2)
         let pred = pb.Or(pred, pb.Community "A")
         let pred = pb.Or(pred, pb.Community "B")
@@ -621,8 +635,8 @@ type TestPredicate() =
 
     [<Test>]
     member __.MultipleCommunitiesAnd () = 
-        let p1 = Prefix(0,0,0,1,32,Range(32,32))
-        let p2 = Prefix(0,0,0,3,32,Range(32,32))
+        let p1 = Prefix(0,0,0,1,32)
+        let p2 = Prefix(0,0,0,3,32)
         let c1 = pb.Community "A"
         let c2 = pb.Community "B"
         let x = pb.Or(pb.Prefix p1, pb.Prefix p2)

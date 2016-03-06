@@ -44,9 +44,9 @@ type Match =
 
     override x.ToString () = 
         match x with 
-        | Peer p -> "Peer=" + (string p)
-        | State(is,p) -> "Community=" + is + ", Peer=" + (string p)
-        | PathRE r -> "Regex=" + string r
+        | Peer p -> "peer=" + (string p)
+        | State(c,p) -> sprintf "peer=%s, comm=%s" (string p) c
+        | PathRE r -> sprintf "regex=%s" (string r)
 
 
 type Modification = 
@@ -56,9 +56,9 @@ type Modification =
 
     override this.ToString() = 
         match this with 
-        | SetComm(is) -> "Community<-" + is
-        | SetMed i -> "MED<-" + string i
-        | PrependPath i -> "Prepend " + string i
+        | SetComm(is) -> sprintf "comm<-%s" is
+        | SetMed i -> sprintf "med<-%d" i
+        | PrependPath i -> sprintf "prepend %d" i
 
 type Import = Match * LocalPref
 type Export = Peer * Modification list
@@ -124,28 +124,32 @@ let getPredStr (pi: Ast.PolInfo option) pred =
     | None -> "..."
     | Some pi -> pi.PredBuilder.ToString(pred)
 
+let formatExport pi sb peer acts = 
+    let actStr = if acts <> [] then ", " + Util.List.joinBy "," (List.map string acts) else ""
+    let peerStr = peer |> lookupPeer pi |> string
+    bprintf sb "[export peer<-%s%s]" peerStr actStr
+
 let formatActions (sb: System.Text.StringBuilder) (pi: Ast.PolInfo option) pred (actions: Actions) =              
     let predStr = getPredStr pi pred
     match actions with 
-    | Originate -> bprintf sb "\n  Originate: [Pred=%s]" predStr 
+    | Originate -> bprintf sb "\n  origin:  %s" predStr 
     | Filters fs ->
         for f in fs do
             match f with 
             | Deny ->
-                bprintf sb "\n  Deny: "
-                bprintf sb "[Pred=%s]" predStr
+                bprintf sb "\n  deny:    "
+                bprintf sb "%s" predStr
             | Allow ((m, lp), es) ->
                 let allow = m |> lookupMatch pi |> string
-                bprintf sb "\n  Allow: [Pred=%s, %s]" predStr allow
+                bprintf sb "\n  allow:   %s, %s " predStr allow
                 if lp <> 100 then
-                    bprintf sb " (LP=%d)" lp
-                for (peer, acts) in es do
-                    let export = peer |> lookupPeer pi |> string
-                    bprintf sb "\n    Export: [Peer<-%s" export
-                    if acts <> [] then
-                        let str = Util.List.joinBy "," (List.map string acts)
-                        sb.Append(", " + str) |> ignore
-                    bprintf sb "]"
+                    bprintf sb "(lp=%d) " lp
+                match es with 
+                | [(peer,acts)] -> formatExport pi sb peer acts
+                | _ ->
+                    for (peer, acts) in es do
+                        bprintf sb "\n             "
+                        formatExport pi sb peer acts
 
 let formatPred (polInfo: Ast.PolInfo option) (pred: Route.Predicate) (racts: Map<string, Actions>) =
     let sb = System.Text.StringBuilder ()
@@ -164,13 +168,13 @@ let format (config: T) =
         bprintf sb "Router %s" routerName
         for (prefix, peers) in routerConfig.Control.Aggregates do
             for peer in peers do
-                bprintf sb "\n  Aggregate(%s, %s)" (string prefix) (Topology.router peer ti)
+                bprintf sb "\n  control: aggregate(%s, %s)" (string prefix) (Topology.router peer ti)
         for ((c, prefix), peers) in routerConfig.Control.Tags do 
             for peer in peers do 
-                bprintf sb "\n  Tag(%s, %s, %s)" c (string prefix) (Topology.router peer ti)
+                bprintf sb "\n  control: tag(%s, %s, %s)" c (string prefix) (Topology.router peer ti)
         for (i, peers)  in routerConfig.Control.MaxRoutes do 
             for peer in peers do 
-                bprintf sb "\n  MaxRoutes(%d)" i
+                bprintf sb "\n  control: max_routes(%d)" i
         for (pred, actions) in routerConfig.Actions do
             formatActions sb (Some config.PolInfo) pred actions
         bprintf sb "\n\n" 
