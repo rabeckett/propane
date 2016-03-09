@@ -1,3 +1,4 @@
+<?xml version="1.0" encoding="utf-8"?>
 <topology>
   <node internal="true" can-originate="true" asn="100" name="A"></node>
   <node internal="true" can-originate="true" asn="101" name="B"></node>
