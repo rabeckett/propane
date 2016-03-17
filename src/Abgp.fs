@@ -46,7 +46,7 @@ type Match =
         match x with 
         | Peer p -> "peer=" + (string p)
         | State(c,p) -> sprintf "peer=%s, comm=%s" (string p) c
-        | PathRE r -> sprintf "regex(%s)" (string r)
+        | PathRE r -> sprintf "regex(...)" // (string r)
 
 
 type Modification = 
@@ -142,11 +142,14 @@ let formatActions (sb: System.Text.StringBuilder) (pi: Ast.PolInfo option) pred 
             | Allow ((m, lp), es) ->
                 let allow = m |> lookupMatch pi |> string
                 bprintf sb "\n  allow:   %s, %s " predStr allow
-                if lp <> 100 then
-                    bprintf sb "(lp=%d) " lp
                 match es with 
-                | [(peer,acts)] -> formatExport pi sb peer acts
+                | [(peer,acts)] -> 
+                    formatExport pi sb peer acts
+                    if lp <> 100 then
+                        bprintf sb " (lp=%d) " lp
                 | _ ->
+                    if lp <> 100 then
+                        bprintf sb "(lp=%d) " lp
                     for (peer, acts) in es do
                         bprintf sb "\n             "
                         formatExport pi sb peer acts
@@ -190,11 +193,13 @@ module Update =
         let rconfigs = Map.map f config.RConfigs
         {PolInfo = config.PolInfo; RConfigs = rconfigs}
 
+
     let updateActions f (config:T) = 
         updateConfig (fun router rconf ->
             let actions = List.choose f rconf.Actions
             {Actions = actions; Control = rconf.Control}
         ) config
+
 
     let updateFilter f (config:T) =
         updateActions (fun (pred, acts) -> 
@@ -202,6 +207,7 @@ module Update =
             | Originate -> Some (pred, Originate)
             | Filters fs -> Some (pred, (Filters (List.choose (f pred) fs)))
         ) config
+
 
     let updateAllow f (config:T) = 
         updateFilter (fun pred filt -> 
@@ -213,11 +219,13 @@ module Update =
                 | Some (m',lp',es') -> Some (Allow ((m',lp'),es'))
         ) config
 
+
     let updateMods f (config:T) = 
         updateAllow (fun pred m lp es -> 
             let es' = List.choose (f pred m lp) es 
             Some (m,lp,es')
         ) config
+
 
     let updateMod f (config:T) = 
         updateMods (fun pred m lp (peer,mods) -> 
@@ -247,6 +255,7 @@ let size (config: T) =
                         count <- count + (List.length es)
     count
 
+
 let private chooseAction f (filt: Filter) =
     let inline adjActs (peer,acts) =
         peer, List.choose f acts
@@ -255,7 +264,9 @@ let private chooseAction f (filt: Filter) =
     | Allow ((m,lp),es) ->
         Allow ((m,lp), List.map adjActs es)
 
+
 module NodeWide =
+
 
     let removeRedundantTag m exports = 
         match m with 
@@ -267,6 +278,7 @@ module NodeWide =
                     | SetComm c -> c <> is
                     | _ -> true) acts
                 Some (peer, acts') ) exports
+
 
     let removeCommMatchForUnqEdges cg (eCounts : Dictionary<_,_> ) v m = 
         let inline unq e =
@@ -284,10 +296,12 @@ module NodeWide =
             | Out -> Match.Peer(Out)
         | _ -> m
 
+
     let minimize cg eCounts v m exports =
         let exports' = removeRedundantTag m exports 
         let m' = removeCommMatchForUnqEdges cg eCounts v m
         (exports', m')
+
 
 module PrefixWide = 
 
@@ -297,6 +311,7 @@ module PrefixWide =
             | Allow ((Match.State(c,_),_), es) ->
                 Set.add c acc
             | _ -> acc) Set.empty filters
+
 
     let private allCommTags filters = 
         Util.List.fold (fun acc f -> 
@@ -311,6 +326,7 @@ module PrefixWide =
                 ) acc es
             | _ -> acc) Set.empty filters
 
+
     let updateActions usedMatches _ actions = 
         match actions with 
         | Originate -> Originate
@@ -323,6 +339,7 @@ module PrefixWide =
             ) fs 
             |> Filters
 
+
     let updateMatches usedTags _ actions = 
         match actions with 
         | Originate -> Originate
@@ -334,6 +351,7 @@ module PrefixWide =
             ) fs 
             |> Filters
 
+
     let private removeUnobservedTags (config: Map<string,Actions>) =
         let allFilters = 
             config |> Map.fold (fun acc router actions -> 
@@ -343,6 +361,7 @@ module PrefixWide =
         let usedMatches = allCommMatches allFilters
         Map.map (updateActions usedMatches) config
 
+
     let private removeUnobservedMatches (config: Map<string,Actions>) =
         let allFilters = 
             config |> Map.fold (fun acc router actions -> 
@@ -351,18 +370,6 @@ module PrefixWide =
                 | Filters fs -> acc @ fs) []
         let usedTags = allCommTags allFilters
         Map.map (updateMatches usedTags) config
-
-    (* let private combineInOut filters = 
-        match filters with
-        | (Allow ((Peer s1,lp1),es1) as hd1) :: 
-          (Allow ((Peer s2,lp2),es2) as hd2) :: tl -> 
-            match s1, s2 with 
-            | In, Out | Out, In -> 
-                if (lp1 = lp2) && (es1 = es2) then 
-                    Allow ((Match.Peer Any, lp1),es1) :: tl
-                else filters
-            | _, _ -> filters
-        | _ -> filters *)
 
 
     let removeUnreachableRules (cg: CGraph.T) (pb: Route.PredicateBuilder) (config: Map<string,Actions>) = 
@@ -404,6 +411,7 @@ module PrefixWide =
                 let acc = ref (pb.Not( pb.And(anyComm,anyPeer) ))
                 List.choose (fun f ->
                     let oldAcc = !acc
+                    let mutable isRE = false
                     match f with 
                     | Deny -> acc := pb.True
                     | Allow((m,_),_) -> 
@@ -411,9 +419,9 @@ module PrefixWide =
                             match m with 
                             | Peer p -> predOfPeer p
                             | State(c,p) -> pb.And(pb.Community c, predOfPeer p)
-                            | PathRE _ -> pb.False
+                            | PathRE _ -> isRE <- true; pb.False
                         acc := pb.Or(!acc, p) 
-                    if !acc <> oldAcc then Some f else None) fs 
+                    if !acc <> oldAcc || isRE then Some f else None) fs 
                 |> Filters
 
         Map.map aux config
@@ -429,8 +437,13 @@ module PrefixWide =
 
 module RouterWide = 
 
+    type CoverResult = 
+        | No
+        | Yes
+        | ForComm of string
 
-    let inline disjointMatch m1 m2 =
+
+    let disjointMatch m1 m2 =
         match m1, m2 with
         | Peer(x), Peer(y)
         | State(_,x), Peer(y) ->
@@ -443,7 +456,7 @@ module RouterWide =
         | _, _ -> true
 
 
-    let inline disjointFilter (f1: Filter) (f2: Filter) =
+    let disjointFilter (f1: Filter) (f2: Filter) =
         match f1, f2 with
         | Deny, _ -> false
         | _, Deny -> false
@@ -451,29 +464,37 @@ module RouterWide =
             disjointMatch m1 m2
 
 
-    let inline eqExports (f1: Filter) (f2: Filter) = 
+    let coveringPeer x y = 
+        match x,y with 
+        | _, Any -> true
+        | In, In | Out, Out -> true
+        | _, _ -> false // TODO: use topology for routers
+
+
+    let coveringMatch m1 m2 = 
+        match m1, m2 with
+        | Peer x, Peer y -> if coveringPeer x y then Yes else No
+        | Peer x, State (d,y) -> if coveringPeer x y then ForComm d else No
+        | State(_,x), Peer y -> if coveringPeer x y then Yes else No
+        | State(c,x), State(d,y) -> if c = d && coveringPeer x y then ForComm d else No
+        | _, _ -> No
+
+
+    let coveringFilter (f1: Filter) (f2: Filter) = 
+        match f1, f2 with 
+        | Deny, Deny -> Yes
+        | Deny, Allow _ -> No
+        | Allow _, Deny -> Yes
+        | Allow ((m1,_),_), Allow ((m2,_),_) -> 
+            coveringMatch m1 m2
+
+
+    let eqExports (f1: Filter) (f2: Filter) = 
         match f1, f2 with
         | Deny, Deny -> true
         | Deny, _ -> false
         | _, Deny -> false
         | Allow (_,es1), Allow (_,es2) -> es1 = es2
-
-
-    let inline coveredMatch m1 m2 =
-        match m1, m2 with
-        | Peer(x), Peer(y)
-        | State(_,x), Peer(y) ->
-            y = Any || x = y
-        | _, _ -> true
-
-
-    let inline coveredFilter (f1: Filter) (f2: Filter) = 
-        match f1, f2 with
-        | Deny, Allow _ -> false
-        | Allow _, Deny -> false
-        | Deny, Deny -> true
-        | Allow ((m1,_),es1), Allow ((m2,_),es2) -> 
-            (coveredMatch m1 m2) && (es1 = es2)
 
 
     let makePairs (pairs: (Route.Predicate * Actions) list) = 
@@ -493,10 +514,6 @@ module RouterWide =
         |> List.ofSeq
 
 
-    let inline overlap (pb: Route.PredicateBuilder) (p1,f1) (p2,f2) =
-        not (disjointFilter f1 f2) && not (pb.And(p1, p2) = pb.False)
-
-
     let addBackPair origins pairs acc (p,_) =
         if Set.contains p origins then (p,Originate) :: acc else 
         match Map.tryFind p pairs with 
@@ -510,33 +527,56 @@ module RouterWide =
         | _ -> acc
 
 
-    let rec fteAux (pb: Route.PredicateBuilder) pairs =
+    let rec catchAll (pb: Route.PredicateBuilder) allComms covered (p1,f1) below : bool = 
+        match below with
+        | [] -> false
+        | ((p2,f2) as pair)::tl ->
+            if disjointFilter f1 f2 && pb.And(p1,p2) = pb.False then 
+                catchAll pb allComms covered (p1,f1) tl
+            else
+                match coveringFilter f1 f2 with 
+                | No -> catchAll pb allComms covered (p1,f1) tl
+                | Yes -> 
+                    if pb.Implies(p1,p2) then eqExports f1 f2
+                    else catchAll pb allComms covered (p1,f1) tl
+                | ForComm c -> 
+                    let newCovered = Set.add c covered 
+                    if newCovered = allComms then true
+                    else catchAll pb allComms newCovered (p1,f1) tl
+
+
+    let rec fteAux (pb: Route.PredicateBuilder) allComms pairs =
         match pairs with 
         | [] -> []
         | ((p1,f1) as pair)::tl ->
-            let tl = fteAux pb tl
-            match List.tryFind (overlap pb pair) tl with
-            | None -> pair :: tl
-            | Some (p2,f2) ->
-                if (coveredFilter f1 f2) && (pb.Implies(p1, p2))
-                then tl
-                else pair :: tl
+            let tl = fteAux pb allComms tl
+            if catchAll pb allComms Set.empty pair tl then tl else pair :: tl
 
 
-    let fallThroughElimination (pb: Route.PredicateBuilder) (rconfig: RouterConfig) : RouterConfig =
+    let getAllCommunities (config : T) = 
+        let comms = ref Set.empty 
+        Update.updateMod (fun _ _ _ _ m ->
+            match m with 
+            | SetComm c -> comms := Set.add c !comms; Some m
+            | _ -> Some m) config |> ignore
+        !comms
+
+
+    let fallThroughElimination (pb: Route.PredicateBuilder) allComms (rconfig: RouterConfig) : RouterConfig =
         let origins = Util.List.fold addOriginator Set.empty rconfig.Actions
-        let pairs = fteAux pb (makePairs rconfig.Actions) |> unMakePairs |> Map.ofList
+        let pairs = fteAux pb allComms (makePairs rconfig.Actions) |> unMakePairs |> Map.ofList
         let actions = Util.List.fold (addBackPair origins pairs) [] rconfig.Actions
         {Control = rconfig.Control; Actions = List.rev actions}
 
 
-    let minimizeForRouter (pi: Ast.PolInfo) r rconf =
+    let minimizeForRouter (pi: Ast.PolInfo) allComms r rconf =
         rconf 
-        |> fallThroughElimination pi.PredBuilder
+        |> fallThroughElimination pi.PredBuilder allComms
 
 
     let minimize (config: T) = 
         let settings = Args.getSettings () 
+        let allComms = getAllCommunities config
         let map = 
             if settings.Parallel 
             then Array.Parallel.map 
@@ -544,7 +584,7 @@ module RouterWide =
         let rconfs = 
             config.RConfigs
             |> Map.toArray 
-            |> map (fun (r,rconf) -> r, minimizeForRouter config.PolInfo r rconf)
+            |> map (fun (r,rconf) -> r, minimizeForRouter config.PolInfo allComms r rconf)
             |> Map.ofArray
         {PolInfo = config.PolInfo; RConfigs = rconfs}
 
@@ -590,6 +630,7 @@ type CompilationResult =
      AggSafety: AggregationSafety option;
      Stats: Stats}
 
+
 let joinConfigs polInfo (aggs, comms, maxroutes) (results: PrefixResult list) : T =
     let mutable result = Map.empty
     for v in results do
@@ -624,8 +665,9 @@ module Incoming =
     type IncomingInfo = 
         {Peers: seq<CgState>;
          Info: Map<CgState, IncomingPattern>}
-
+        
     type IncomingExportMap = Map<CgState, Modification list>
+
 
     let collectForPeer cg acc peer = 
         let reachable = Reachable.dfs cg peer Down
@@ -644,6 +686,7 @@ module Incoming =
             let cexample = CGraph.ToRegex.constructRegex (copyGraph cg) peer
             Map.add peer (Specific cexample) acc 
 
+
     let collectIncomingInfo (cg: CGraph.T) : IncomingInfo =
         let isExportPeer v = 
             Topology.isOutside v.Node && 
@@ -652,8 +695,10 @@ module Incoming =
         let info = Seq.fold (collectForPeer cg) Map.empty exportPeers
         {Peers = exportPeers; Info = info}
 
+
     let getUnique peers =
         Set.ofSeq (Seq.map (fun p -> p.Node.Loc) peers)
+
 
     let addExports (settings: Args.T) info peers actions exportMap =
         let mutable exportMap = exportMap
@@ -672,6 +717,7 @@ module Incoming =
                 raise (UncontrollableEnterException msg)
             exportMap <- Map.add p actions exportMap
         exportMap
+
 
     let configureIncomingTraffic cg : IncomingExportMap =
         let settings = Args.getSettings()
@@ -716,6 +762,7 @@ module Incoming =
             i <- i + 1
         exportMap
 
+
 /// Ensure well-formedness for outgoing 
 /// traffic leaving the network. Use regex filters 
 /// to control advertisements and rewrite as peers when possible.
@@ -726,20 +773,24 @@ module Outgoing =
         | PeerMatch of CgState
         | RegexMatch of Regex.T
 
+
     let inline isPeerMatch x = 
         match x with 
         | PeerMatch _ -> true
         | RegexMatch _ -> false
+
 
     let inline getPeerMatch x = 
         match x with 
         | PeerMatch y -> y
         | RegexMatch _ -> failwith "unreachable"
 
+
     let inline getRegexMatch x = 
         match x with 
         | PeerMatch _ -> failwith "unreachable"
         | RegexMatch y -> y
+
 
     let getOutPeerType cg (x:CgState) = 
         if Topology.isOutside x.Node then
@@ -754,6 +805,7 @@ module Outgoing =
                 PeerMatch x
             else RegexMatch (CGraph.ToRegex.constructRegex (CGraph.copyReverseGraph cg) x)
         else PeerMatch x
+
 
 let getMatches (allPeers, inPeers, outPeers) outgoingMatches =
     // get peer topology location information
@@ -800,6 +852,7 @@ let getMatches (allPeers, inPeers, outPeers) outgoingMatches =
             matches <- m :: matches
     matches
 
+
 let inline getExport specialCase inExports x v = 
     if Topology.isOutside v.Node 
     then 
@@ -808,6 +861,7 @@ let inline getExport specialCase inExports x v =
             specialCase := true
         ret
     else [SetComm(string x.State)]
+
 
 let getExports (allPeers, inPeers, outPeers) x inExports (outgoing: seq<CgState>) unqMatchPeer = 
     let toInside, toOutside = 
@@ -827,6 +881,7 @@ let getExports (allPeers, inPeers, outPeers) x inExports (outgoing: seq<CgState>
         else exports @ insideExport
     else  exports @ insideExport
 
+
 let inline edgeCounts (cg: CGraph.T) =
     let counts = Dictionary()
     for e in cg.Graph.Edges do 
@@ -837,6 +892,7 @@ let inline edgeCounts (cg: CGraph.T) =
         else
             counts.Add(key,1)
     counts
+
 
 let getPeerInfo (vs: seq<Topology.Node>) =
     let mutable allIn = Set.empty
@@ -851,12 +907,39 @@ let getPeerInfo (vs: seq<Topology.Node>) =
     let all = Set.union allIn allOut
     (all, allIn, allOut)
 
+
+let reindexPrefixCommunities (pc: PredConfig) : PredConfig =
+    let r = Util.Reindexer(HashIdentity.Structural)
+    let (pred, conf) = pc
+    pred, Map.map (fun router acts -> 
+        match acts with 
+        | Originate -> Originate
+        | Filters fs -> 
+            Filters (List.map (fun f -> 
+                match f with
+                | Deny -> Deny 
+                | Allow ((m,lp),es) -> 
+                    let m =
+                        match m with 
+                        | Match.State(c,p) -> Match.State(string (r.Index c), p)
+                        | m -> m
+                    let es = 
+                        List.map (fun (p, mods) -> 
+                            let mods = List.map (fun m -> 
+                                match m with 
+                                | SetComm c -> SetComm (r.Index c |> string)
+                                | m -> m) mods
+                            (p,mods)) es
+                    Allow ((m,lp),es)
+            ) fs)
+    ) conf
+
+
 let genConfig (cg: CGraph.T) 
-              (pb: Route.PredicateBuilder)
+              (pb: Route.PredicateBuilder) 
               (pred: Route.Predicate) 
-              (ord: Consistency.Ordering) 
-              (inExports: Incoming.IncomingExportMap) 
-              : PredConfig =
+              (ord: Consistency.Ordering)
+              (inExports: Incoming.IncomingExportMap) : PredConfig =
     let settings = Args.getSettings ()
     let ain, aout = Topology.alphabet cg.Topo 
     let ain = ain |> Set.map (fun v -> v.Loc)
@@ -943,23 +1026,27 @@ let genConfig (cg: CGraph.T)
     config <- 
         if settings.Minimize
         then PrefixWide.minimize cg pb config
-        else config    
-    (pred, config)
+        else config
+    reindexPrefixCommunities (pred, config)
+
 
 let inline insideLoc v = 
-    if Topology.isInside v.Node then 
-        Some (CGraph.loc v) 
+    if Topology.isInside v.Node 
+    then Some (CGraph.loc v) 
     else None
 
+
 let inline insideOriginatorLoc v =
-    if (Topology.isInside v) && 
-       (Topology.canOriginateTraffic v) then Some v.Loc 
+    if (Topology.isInside v) && (Topology.canOriginateTraffic v) 
+    then Some v.Loc 
     else None
+
 
 let inline insideOriginators cg =
     CGraph.neighbors cg cg.Start
     |> Seq.choose insideLoc
     |> Set.ofSeq
+
 
 let getLocsThatCantGetPath idx cg (reb: Regex.REBuilder) dfas = 
     let startingLocs = Array.fold (fun acc dfa -> Set.union (reb.StartingLocs dfa) acc) Set.empty dfas
@@ -974,6 +1061,7 @@ let getLocsThatCantGetPath idx cg (reb: Regex.REBuilder) dfas =
     logInfo(idx, sprintf "Locations that get path: %s" (locsThatGetPath.ToString()))
     Set.difference locsThatNeedPath locsThatGetPath
 
+
 let getUnusedPrefs cg res = 
     let mutable nRegexes = Bitset32.empty 
     for i in 1..List.length res do 
@@ -981,6 +1069,7 @@ let getUnusedPrefs cg res =
     let prefs = CGraph.preferences cg
     Bitset32.difference nRegexes prefs // don't use difference here
     |> Bitset32.filter (fun i -> res.[i-1] <> Regex.empty)
+
 
 let warnAnycasts cg (polInfo:Ast.PolInfo) pred =
     let settings = Args.getSettings()
@@ -1007,6 +1096,7 @@ let warnAnycasts cg (polInfo:Ast.PolInfo) pred =
             sprintf "mentioned in the policy. This is almost always a mistake."
         warning msg
 
+
 let getMinAggregateFailures (cg: CGraph.T) (pb: Route.PredicateBuilder) pred (aggInfo: Map<string, DeviceAggregates>) =
     let originators = CGraph.neighbors cg cg.Start
     let prefixes = pb.TrafficClassifiers(pred)
@@ -1027,22 +1117,17 @@ let getMinAggregateFailures (cg: CGraph.T) (pb: Route.PredicateBuilder) pred (ag
     if !smallest = System.Int32.MaxValue then None else 
     let (x,y,p,agg) = Option.get !pairs
     Some {NumFailures = !smallest; 
-          PrefixLoc = x; 
-          AggregateLoc = y; 
-          Prefix = p; 
+          PrefixLoc = x;
+          AggregateLoc = y;
+          Prefix = p;
           Aggregate = agg}
+
 
 let inline buildDfas (reb: Regex.REBuilder) res = 
     List.map (fun r -> reb.MakeDFA (Regex.rev r)) res
 
-let compileToIR (fullName: string) 
-                (idx: int) 
-                (pred: Route.Predicate) 
-                (polInfo: Ast.PolInfo option) 
-                (aggInfo: Map<string,DeviceAggregates>) 
-                (reb: Regex.REBuilder) 
-                (res: Regex.T list) 
-                : PrefixCompileResult =
+
+let compileToIR fullName idx pred (polInfo: Ast.PolInfo option) aggInfo (reb: Regex.REBuilder) res : PrefixCompileResult =
     let settings = Args.getSettings ()
     let fullName = fullName + "(" + (string idx) + ")"
     let topo = reb.Topo()
@@ -1100,12 +1185,7 @@ let compileToIR (fullName: string)
         | UncontrollablePeerPreferenceException s -> Err(UncontrollablePeerPreference s)
 
 
-let compileForSinglePrefix (fullName:string) 
-                           (idx:int) 
-                           (polInfo: Ast.PolInfo) 
-                           (aggInfo: Map<string, DeviceAggregates>)
-                           ((pred, reb, res): Ast.PolicyPair) 
-                           : PrefixResult =
+let compileForSinglePrefix fullName idx (polInfo: Ast.PolInfo) aggInfo (pred, reb, res) : PrefixResult =
     match compileToIR fullName idx pred (Some polInfo) aggInfo reb res with 
     | Ok(config) -> config
     | Err(x) ->
@@ -1138,6 +1218,7 @@ let compileForSinglePrefix (fullName:string)
                 sprintf "predicate %s. Possibly enable prepending: -prepending:on" (polInfo.PredBuilder.ToString(pred))
             error msg
 
+
 let checkAggregateLocs ins _ prefix links = 
     if Set.contains "out" ins then
         let msg = 
@@ -1151,6 +1232,7 @@ let checkAggregateLocs ins _ prefix links =
             sprintf "Cannot aggregate on external location: " +
             sprintf "%s for prefix: %s" (fst x).Loc (string prefix)
         error msg
+
 
 let checkCommunityTagLocs ins _ (c, prefix) links =
     if Set.contains "out" ins then
@@ -1166,6 +1248,7 @@ let checkCommunityTagLocs ins _ (c, prefix) links =
             sprintf "%s for community %s prefix: %s" (fst x).Loc c (string prefix)
         error msg
 
+
 let checkMaxRouteLocs ins outs i links =
     let v = List.exists (fun (a,b) -> Topology.isOutside a && Topology.isOutside b) links
     let w = Set.contains "out" ins
@@ -1177,6 +1260,7 @@ let checkMaxRouteLocs ins outs i links =
             sprintf "Cannot set maxroutes(%d) on links " i +
             sprintf "without an edge in the internal topology"
         error msg
+
 
 let splitByLocation f topo (vs: _ list) = 
     let mutable acc = Map.empty
@@ -1207,6 +1291,7 @@ let splitConstraints (pi: Ast.PolInfo) =
     let maxRouteInfo = splitByLocation checkMaxRouteLocs topo maxroutes
     (aggInfo, commInfo, maxRouteInfo)
 
+
 let minFails x y = 
     match x, y with 
     | None, _ -> y 
@@ -1214,17 +1299,16 @@ let minFails x y =
     | Some a, Some b ->
         if a.NumFailures < b.NumFailures then x else y
 
+
 // TODO: don't reindex the no-export community
 let reindexCommunities (config:T) : T = 
     let reindex = Util.Reindexer(HashIdentity.Structural)
-    // reindex all communities used in modification
     let changeModComms _ _ _ _ modif = 
         match modif with 
         | SetComm(c) ->
             let c' = string (reindex.Index c)
             Some (SetComm c')
         | _ -> Some modif
-    // reindex all communities matched against
     let changeMatchComms _ m lp es = 
         match m with 
         | State(c,p) -> 
@@ -1235,9 +1319,16 @@ let reindexCommunities (config:T) : T =
     |> Update.updateMod changeModComms
     |> Update.updateAllow changeMatchComms
 
-let compileAllPrefixes (fullName: string) 
-                       (polInfo: Ast.PolInfo) 
-                       : CompilationResult =
+
+let moveOriginationToTop (config : T) : T =
+    let aux router rc = 
+        let origins, others = List.partition (fun (_,act) -> act = Originate) rc.Actions
+        {rc with Actions = origins @ others}
+    let rcs = Map.map aux config.RConfigs
+    {config with RConfigs = rcs}
+
+
+let compileAllPrefixes (fullName: string) (polInfo: Ast.PolInfo) : CompilationResult =
     let settings = Args.getSettings () 
     let mapi = if settings.Parallel then Array.Parallel.mapi else Array.mapi
     let info = splitConstraints polInfo
@@ -1250,6 +1341,7 @@ let compileAllPrefixes (fullName: string)
     let k = Array.fold minFails None nAggFails
     let configs, times = Array.unzip timedConfigs
     let joined, joinTime = Profile.time (joinConfigs polInfo info) (Array.toList configs)
+    let joined = moveOriginationToTop joined
     let minJoined, minTime = 
         if settings.Minimize
         then Profile.time RouterWide.minimize joined

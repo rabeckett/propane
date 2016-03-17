@@ -99,17 +99,20 @@ let rec addEdgesDirected (topo: T) (es: (Node * Node) list) =
     | (x,y)::es -> 
         let e = Edge(x,y)
         ignore (topo.AddEdge e)
-        addEdgesDirected topo es
+        addEdgesDirected topo es 
 
-let getStateByLoc (topo: T) loc = 
+let findByLoc (topo: T) loc = 
     topo.Vertices |> Seq.tryFind (fun v -> v.Loc = loc)
-    
+
+let peers (topo: T) (node: Node) = 
+    topo.OutEdges node |> Seq.map (fun e -> e.Target)
+
 let findLinks (topo: T) (froms, tos) =
     let mutable pairs = []
     for x in Set.toSeq froms do 
         for y in Set.toSeq tos do 
-            let a = getStateByLoc topo x 
-            let b = getStateByLoc topo y
+            let a = findByLoc topo x 
+            let b = findByLoc topo y
             match a,b with 
             | Some a, Some b -> 
                 let ns = 

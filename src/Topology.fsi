@@ -54,6 +54,12 @@ val addEdgesUndirected: T -> (Node*Node) list -> unit
 /// Find all the valid topology links corresponding to pairs of locations
 val findLinks: T -> Set<string> * Set<string> -> (Node * Node) list
 
+/// Find a topology node by location name
+val findByLoc: T -> string -> Node option
+
+/// Find peer topology nodes
+val peers: T -> Node -> seq<Node>
+
 type TopoInfo =
     {Graph: T; 
      AsnMap: Map<string, int>;
