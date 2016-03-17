@@ -423,7 +423,7 @@ module PrefixWide =
         config
         |> removeUnobservedTags 
         |> removeUnobservedMatches
-        //|> removeUnreachableRules cg pb
+        |> removeUnreachableRules cg pb
 
 
 

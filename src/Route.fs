@@ -269,7 +269,20 @@ type PredicateBuilder() =
             else res <- res + "x" 
         res + " " + (sprintf "[%d..%d]" r.Lo r.Hi)
 
-    /// Iterate over all each path with a non-false terminal
+    let filterTrueFalse f (map: Dictionary<_,_>) ts fs = 
+        let aux vs = 
+            vs 
+            |> Set.filter f
+            |> Set.map (fun x -> map.[x])
+        (aux ts, aux fs)
+
+    /// Given a set of true and false variables, construct conjunction of prefixes
+    let communities = filterTrueFalse isCommVar idxToCommMap
+
+    /// Given a set of true and false variables, construct conjunction of topology locations
+    let locations = filterTrueFalse isTopoVar idxToTopoMap
+
+    /// Iterate over each path with a non-false terminal
     let iterPath f x = 
         let rec aux ts fs (n: HashCons) =
             match n.Node with
@@ -284,19 +297,6 @@ type PredicateBuilder() =
                 aux ts (Set.add v fs) r
             | Leaf v -> f ts fs v
         aux Set.empty Set.empty x
-
-    let filterTrueFalse f (map: Dictionary<_,_>) ts fs = 
-        let aux vs = 
-            vs 
-            |> Set.filter f
-            |> Set.map (fun x -> map.[x])
-        (aux ts, aux fs)
-
-    /// Given a set of true and false variables, construct conjunction of prefixes
-    let communities = filterTrueFalse isCommVar idxToCommMap
-
-    /// Given a set of true and false variables, construct conjunction of topology locations
-    let locations = filterTrueFalse isTopoVar idxToTopoMap
 
     /// Given a set of true and false variables, construct a disjunction of prefixes (set)
     let prefixes pts pfs (r : Range) =
