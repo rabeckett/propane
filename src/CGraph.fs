@@ -9,6 +9,7 @@ open System.Diagnostics
 open QuickGraph
 open QuickGraph.Algorithms
 
+
 [<CustomEquality; CustomComparison>]
 type CgState =
     {Id: int; 
@@ -54,6 +55,7 @@ let copyGraph (cg: T) : T =
         newCG.AddEdge e |> ignore
     {Start=cg.Start; Graph=newCG; End=cg.End; Topo=cg.Topo}
 
+
 let copyReverseGraph (cg: T) : T = 
     let newCG = QuickGraph.BidirectionalGraph() 
     for v in cg.Graph.Vertices do newCG.AddVertex v |> ignore
@@ -61,6 +63,7 @@ let copyReverseGraph (cg: T) : T =
         let e' = Edge(e.Target, e.Source)
         newCG.AddEdge e' |> ignore
     {Start=cg.Start; Graph=newCG; End=cg.End; Topo=cg.Topo}
+
 
 let index ((graph, topo, startNode, endNode): BidirectionalGraph<_, _> * _ * _ * _) =
     let newCG = QuickGraph.BidirectionalGraph()
@@ -87,6 +90,7 @@ let index ((graph, topo, startNode, endNode): BidirectionalGraph<_, _> * _ * _ *
         newCG.AddEdge (Edge(x,y)) |> ignore
     {Start=nstart; Graph=newCG; End=nend; Topo=topo}
 
+
 let getTransitions autos =
     let aux (auto: Regex.Automaton) = 
         let trans = Dictionary(HashIdentity.Structural)
@@ -97,6 +101,7 @@ let getTransitions autos =
                 trans.[(q1,s)] <- q2
         trans
     Array.map aux autos
+
 
 let getGarbageStates (auto: Regex.Automaton) = 
     let inline aux (kv: KeyValuePair<_,_>) = 
@@ -112,6 +117,7 @@ let getGarbageStates (auto: Regex.Automaton) =
             |> Seq.choose aux
             |> Set.ofSeq
     Set.difference selfLoops auto.F
+
 
 let buildFromAutomata (topo: Topology.T) (autos : Regex.Automaton array) : T =
     if autos.Length > 31 then 
@@ -166,10 +172,13 @@ let buildFromAutomata (topo: Topology.T) (autos : Regex.Automaton array) : T =
             ignore (graph.AddEdge(e))
     index (graph, topo, newStart, newEnd)
 
+
 let inline loc x = x.Node.Loc
+
 
 let inline shadows x y = 
     (loc x = loc y) && (x <> y)
+
 
 let inline preferences (cg: T) : Bitset32.T = 
     let mutable all = Bitset32.empty
@@ -177,36 +186,43 @@ let inline preferences (cg: T) : Bitset32.T =
         all <- Bitset32.union all v.Accept
     all
 
+
 let inline acceptingStates (cg: T) : Set<CgState> =
     cg.Graph.Vertices
     |> Seq.filter (fun (v: CgState) -> not (Bitset32.isEmpty v.Accept))
     |> Set.ofSeq
 
+
 let inline acceptingLocations (cg: T) : Set<string> = 
     acceptingStates cg
     |> Set.map loc
 
+
 let inline isRealNode (state: CgState) : bool =
     Topology.isTopoNode state.Node
+
 
 let inline neighbors (cg: T) (state: CgState) =
     seq {for e in cg.Graph.OutEdges state do yield e.Target}
 
+
 let inline neighborsIn (cg: T) (state: CgState) =
     seq {for e in cg.Graph.InEdges state do yield e.Source}
+
 
 let inline isRepeatedOut (cg: T) (state: CgState) =
     (state.Node.Typ = Topology.Unknown) &&
     (Seq.contains state (neighbors cg state))
 
-let inline isInside x = 
-    Topology.isInside x.Node
 
-let inline isOutside x = 
-    Topology.isOutside x.Node
+let inline isInside x = Topology.isInside x.Node
 
-let inline isEmpty (cg: T) = 
-    cg.Graph.VertexCount = 2
+
+let inline isOutside x = Topology.isOutside x.Node
+
+
+let inline isEmpty (cg: T) = cg.Graph.VertexCount = 2
+
 
 let restrict (cg: T) (i: int) = 
     if Bitset32.contains i (preferences cg) then 
@@ -219,6 +235,7 @@ let restrict (cg: T) (i: int) =
             else false) |> ignore
         copy
     else cg
+
 
 let toDot (cg: T) (pi: Ast.PolInfo option) : string = 
     let onFormatEdge(e: Graphviz.FormatEdgeEventArgs<CgState, Edge<CgState>>) = ()
@@ -248,6 +265,7 @@ let toDot (cg: T) (pi: Ast.PolInfo option) : string =
     graphviz.FormatEdge.Add(onFormatEdge)
     graphviz.FormatVertex.Add(onFormatVertex)
     graphviz.Generate()
+
 
 let generatePNG (cg: T) pi (file: string) : unit =
     System.IO.File.WriteAllText(file + ".dot", toDot cg pi)

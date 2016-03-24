@@ -536,7 +536,7 @@ module RouterWide =
             else
                 match coveringFilter f1 f2 with 
                 | No -> catchAll pb allComms covered (p1,f1) tl
-                | Yes -> 
+                | Yes ->
                     if pb.Implies(p1,p2) then eqExports f1 f2
                     else catchAll pb allComms covered (p1,f1) tl
                 | ForComm c -> 
@@ -1104,7 +1104,7 @@ let getMinAggregateFailures (cg: CGraph.T) (pb: Route.PredicateBuilder) pred (ag
     let pairs = ref None
     for (Route.TrafficClassifier(p,_,_)) in prefixes do
         aggInfo |> Map.iter (fun aggRouter aggs ->
-            let relevantAggs = List.filter (fun (prefix, _) -> pb.Implies(pb.Prefix prefix, pb.Prefix p)) aggs
+            let relevantAggs = List.filter (fun (prefix, _) -> pb.Implies(pb.Prefix p, pb.Prefix prefix)) aggs
             if not relevantAggs.IsEmpty then 
                 let rAgg, _ = relevantAggs.Head
                 match CGraph.Failure.disconnectLocs cg originators aggRouter with 
@@ -1895,7 +1895,7 @@ module Test =
          Fail = None};
     ]
 
-    (* let testAggregationFailure () = 
+    let testAggregationFailure () = 
         printf "Aggregation failures "
         let pb = Route.PredicateBuilder()
         let topo = Topology.Examples.topoDatacenterMedium () 
@@ -1909,7 +1909,7 @@ module Test =
         | Ok(res) -> 
             match res.K with 
             | Some x when x.NumFailures = 1 -> passed ()
-            | _ -> failed () *)
+            | _ -> failed ()
 
     let testCompilation () =
         let border = String.replicate 80 "-"
@@ -1990,5 +1990,5 @@ module Test =
         printfn "%s" border
 
     let run () =
-        // testAggregationFailure ()
+        testAggregationFailure ()
         testCompilation ()
