@@ -578,9 +578,9 @@ module RouterWide =
         let settings = Args.getSettings () 
         let allComms = getAllCommunities config
         let map = 
-            if settings.Parallel 
+            (* if settings.Parallel 
             then Array.Parallel.map 
-            else Array.map
+            else *) Array.map
         let rconfs = 
             config.RConfigs
             |> Map.toArray 
