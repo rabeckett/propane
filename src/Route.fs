@@ -1,5 +1,6 @@
 ﻿module Route
 
+open System
 open System.Collections.Generic
 open NUnit.Framework
 
@@ -245,6 +246,10 @@ type TrafficClassifier =
 /// And converting the Bdd encoding back to a human-readable format
 
 type PredicateBuilder() = 
+
+    // Not thread safe, so we use a lock
+    let obj = new Object()
+
     // The order is important to easily reverse the encoding
     let bdd = BddBuilder(compare)
 
@@ -331,21 +336,23 @@ type PredicateBuilder() =
 
     /// Return the bdd representing a prefix x1.x2.x3.x4/s[lo..hi]
     member __.Prefix (p: Prefix) =
-        let mutable acc = bdd.Value p.Range
-        for i in 0..31 do 
-            if p.IsExact || i < p.Slash then 
-                if Bitwise.get p.Bits i 
-                then acc <- bdd.And(acc, bdd.Var(i))
-                else acc <- bdd.And(acc, bdd.Var(i) |> bdd.Not)
-        Predicate(acc)
+        lock obj (fun () ->
+            let mutable acc = bdd.Value p.Range
+            for i in 0..31 do 
+                if p.IsExact || i < p.Slash then 
+                    if Bitwise.get p.Bits i 
+                    then acc <- bdd.And(acc, bdd.Var(i))
+                    else acc <- bdd.And(acc, bdd.Var(i) |> bdd.Not)
+            Predicate(acc)
+        )
 
     /// Return the bdd representing a match on the community c
     member __.Community c = 
-        addForString commToIdxMap idxToCommMap c nextCommIdx
+        lock obj (fun () -> addForString commToIdxMap idxToCommMap c nextCommIdx)
 
     /// Return the bdd representing a match on the community c
     member __.Location l = 
-        addForString topoToIdxMap idxToTopoMap l nextTopoIdx
+        lock obj (fun () -> addForString topoToIdxMap idxToTopoMap l nextTopoIdx)
 
     /// The predicate matching any route announcement
     member __.True = Predicate(bdd.True)
@@ -354,16 +361,16 @@ type PredicateBuilder() =
     member __.False = Predicate(bdd.False)
 
     /// The predicate matching both x and y
-    member __.And(Predicate x, Predicate y) = Predicate(bdd.And(x,y))
+    member __.And(Predicate x, Predicate y) = lock obj (fun () -> Predicate(bdd.And(x,y)))
 
     /// The predicate matching either x or y
-    member __.Or(Predicate x, Predicate y) = Predicate(bdd.Or(x,y))
+    member __.Or(Predicate x, Predicate y) = lock obj (fun () -> Predicate(bdd.Or(x,y)))
 
     /// The predicate not matching x
-    member __.Not(Predicate x) = Predicate(bdd.Not(x))
+    member __.Not(Predicate x) = lock obj (fun () -> Predicate(bdd.Not(x)))
 
     /// Check if one predicate implies the other
-    member __.Implies(Predicate x, Predicate y) = bdd.Implies(x,y)
+    member __.Implies(Predicate x, Predicate y) = lock obj (fun () -> bdd.Implies(x,y))
 
     /// Convert the Bdd representation of a predicate to a prioritized list of matches
     member __.TrafficClassifiers(Predicate p) : TrafficClassifier list =
