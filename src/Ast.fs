@@ -642,7 +642,7 @@ let inline getPrefixes ast pfxs e =
 
 let warnUnusedAggregates (ast:T) (pb: PredicateBuilder) e =
     let inline isPfxFor agg p =
-        p <> agg && pb.Implies(pb.Prefix agg, pb.Prefix p)
+        p <> agg && pb.Implies(pb.Prefix p, pb.Prefix agg)
     let prefixes = ref Set.empty 
     iter (getPrefixes ast prefixes) e
     for (id, es) in ast.CConstraints do 

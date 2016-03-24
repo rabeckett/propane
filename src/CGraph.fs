@@ -347,6 +347,7 @@ module Domination =
                 found
     end
 
+
     let inter (po: Dictionary<CgState,int>) (dom: DomTreeMapping) b1 b2 =
         let mutable finger1 = b1
         let mutable finger2 = b2
@@ -360,7 +361,8 @@ module Domination =
                 finger2 <- Option.get dom.[finger2]
                 y <- po.[finger2]
         finger1
-        
+
+
     let dominators (cg: T) root direction : DominationTree =
         let adj = if direction = Up then neighbors cg else neighborsIn cg
         let dom = Dictionary()
@@ -398,12 +400,14 @@ module Minimize =
         new(x,y) = {X=x; Y=y}
     end
 
+
     let edgeSet (cg: T) = 
         let acc = HashSet()
         for e in cg.Graph.Edges do 
             let e = Edge(e.Source.Id, e.Target.Id)
             ignore (acc.Add e)
         acc
+
 
     let removeDominated (cg: T) =
         let dom = Domination.dominators cg cg.Start Down
@@ -427,15 +431,18 @@ module Minimize =
             (not (isRepeatedOut cg e.Source || isRepeatedOut cg e.Target)) &&
             (domRev.IsDominatedByFun(y, shadows x)) ) |> ignore
 
+
     let removeNodesThatCantReachEnd (cg: T) = 
         let canReach = Reachable.dfs cg cg.End Up
         cg.Graph.RemoveVertexIf(fun v -> 
             Topology.isTopoNode v.Node && not (canReach.Contains v)) |> ignore
         
+
     let removeNodesThatStartCantReach (cg: T) = 
         let canReach = Reachable.dfs cg cg.Start Down
         cg.Graph.RemoveVertexIf(fun v -> 
             Topology.isTopoNode v.Node && not (canReach.Contains v)) |> ignore
+
 
     let delMissingSuffixPaths cg = 
         let starting = neighbors cg cg.Start |> Seq.filter isRealNode |> Set.ofSeq
@@ -445,12 +452,14 @@ module Minimize =
             not (Set.contains v starting) ) |> ignore
         cg
 
+
     let inline allConnected cg outStar scc = 
         Set.forall (fun x -> 
             let nOut = Set.ofSeq (neighbors cg x)
             let nIn = Set.ofSeq (neighborsIn cg x)
             x = outStar || 
             (nOut.Contains outStar && nIn.Contains outStar) ) scc
+
 
     let removeConnectionsToOutStar (cg: T) = 
         cg.Graph.RemoveEdgeIf (fun e -> 
@@ -465,6 +474,7 @@ module Minimize =
                      Seq.forall ((<>) cg.Start) (neighborsIn cg x))
                 else false
             else false) |> ignore
+
 
     let removeRedundantExternalNodes (cg: T) =
         let toDelNodes = HashSet(HashIdentity.Structural)
@@ -488,6 +498,7 @@ module Minimize =
                         ignore (toDelNodes.Add n)
         cg.Graph.RemoveVertexIf (fun v -> toDelNodes.Contains v) |> ignore
           
+
     let minimize (idx: int) (cg: T) =
         logInfo(idx, sprintf "Node count: %d" cg.Graph.VertexCount)
         let inline count cg = 
@@ -540,6 +551,7 @@ module Consistency =
         | Yes of HashSet<Node>
         | No
 
+
     let protect (idx: int) (doms: Domination.DominationTree) (cg1,n1) (cg2,n2) : ProtectResult = 
         if loc n1 <> loc n2 then No else
         let q = Queue()
@@ -571,6 +583,7 @@ module Consistency =
         | None -> Yes seen
         | Some cex -> No
 
+
     let getDuplicateNodes (cg: T) = 
         let ret = Dictionary() 
         for v in cg.Graph.Vertices do 
@@ -581,6 +594,7 @@ module Consistency =
             else ret.[l] <- Set.singleton v
         Util.Dictionary.filter (fun _ v -> Set.count v > 1) ret
 
+
     let allDisjoint (cg: T) (dups: Dictionary<_,_>) = 
         let components = Dictionary() :> IDictionary<CgState,int>
         cg.Graph.WeaklyConnectedComponents(components) |> ignore
@@ -588,6 +602,7 @@ module Consistency =
             let szInit = Set.count kv.Value
             let szFinal = Set.map (fun x -> components.[x]) kv.Value |> Set.count
             szInit = szFinal)
+
 
     let getHardPreferences (cg: T) = 
         let cg = copyGraph cg
@@ -605,6 +620,7 @@ module Consistency =
                     mustPrefer.[d] <- below
             mustPrefer
 
+
     let simulate idx cg (cache: HashSet<_>) (doms: Domination.DominationTree) restrict (x,y) (i,j) =
         let ce = CacheEntry(x.Id,y.Id,i,j)
         if cache.Contains ce then true else
@@ -621,11 +637,13 @@ module Consistency =
                     ignore (cache.Add ce)
                 true
 
+
     let isPreferred idx cg cache doms restrict (x,y) (reachX, reachY) =
         let subsumes i j =
             simulate idx cg cache doms restrict (x,y) (i,j)
         Set.forall (fun j -> 
             (Set.exists (fun i' -> i' <= j && subsumes i' j) reachX) ) reachY
+
 
     let checkIncomparableNodes (g: Constraints) edges = 
         for x in g.Vertices do
@@ -633,15 +651,18 @@ module Consistency =
                 if x <> y && not (Set.contains (x,y) edges || Set.contains (y,x) edges) then
                     raise (ConsistencyException(x,y))
 
+
     let removeUnconstrainedEdges (g: Constraints) edges =
         let both = Set.filter (fun (x,y) -> Set.exists (fun (a,b) -> x=b && y=a) edges) edges
         g.RemoveEdgeIf (fun e -> Set.contains (e.Source, e.Target) both) |> ignore
+
 
     let getOrdering (g: Constraints) edges =
         checkIncomparableNodes g edges
         removeUnconstrainedEdges g edges
         g.TopologicalSort ()
-    
+
+
     let getReachabilityMap (cg:T) =
         let ret = Dictionary()
         let prefs = preferences cg
@@ -657,6 +678,7 @@ module Consistency =
                 else ret.[v] <- Set.singleton i
         Bitset32.iter getNodesWithPref prefs    
         ret
+
 
     let addPrefConstraints idx cg cache doms (g: Constraints) r mustPrefer nodes reachMap =
         let mutable edges = Set.empty
@@ -675,16 +697,19 @@ module Consistency =
                     logInfo (idx, sprintf "  %s is NOT preferred to %s" (string x) (string y))
         g, edges
 
+
     let encodeConstraints idx cache doms (cg, reachMap) mustPrefer r nodes =
         let g = BidirectionalGraph<CgState ,Edge<CgState>>()
         for n in nodes do 
             g.AddVertex n |> ignore
         addPrefConstraints idx cg cache doms g r mustPrefer nodes reachMap
 
+
     let findPrefAssignment idx cache doms r (cg, reachMap) mustPrefer nodes = 
         let g, edges = encodeConstraints idx cache doms (cg, reachMap) mustPrefer r nodes
         getOrdering g edges
-        
+
+
     let addForLabel idx cache doms ain r (cg, reachMap) mustPrefer (map: Dictionary<_,_>) l =
         if Set.contains l ain then
             if not (map.ContainsKey(l)) then 
@@ -694,6 +719,7 @@ module Consistency =
             map.[l] <- Seq.empty
         map
 
+
     let restrictedGraphs cg prefs =
         let inline aux acc i =
             let r = restrict cg i 
@@ -702,6 +728,7 @@ module Consistency =
             r.Graph.RemoveEdgeIf (fun e -> not (isRealNode e.Source) || not (isRealNode e.Target) ) |> ignore
             Map.add i r acc
         Bitset32.fold aux Map.empty prefs
+
 
     let findOrdering idx cg pi outName : Result<Ordering, CounterExample> =
         try
@@ -721,6 +748,7 @@ module Consistency =
             try Ok(Set.fold (addForLabel idx cache doms ain rs (cg, reachMap) mustPrefer) (Dictionary()) labels)
             with ConsistencyException(x,y) -> Err((x,y) )
         with SimplePathException(x,y) -> Err(x,y)
+
 
     let findOrderingConservative (idx: int) =
         findOrdering idx
@@ -769,6 +797,7 @@ module Failure =
             | NodeFailure n -> "Node(" + n.Loc + ")"
             | LinkFailure e -> "Link(" + e.Source.Loc + "," + e.Target.Loc + ")"
   
+
     let allFailures n (topo: Topology.T) : seq<FailType list> =
         let fvs = topo.Vertices |> Seq.filter Topology.isInside |> Seq.map NodeFailure
         let fes =
@@ -778,6 +807,7 @@ module Failure =
         Seq.append fes fvs 
         |> Seq.toList
         |> Util.List.combinations n
+
 
     let failedGraph (cg: T) (failures: FailType list) : T =
         let failed = copyGraph cg
@@ -796,6 +826,7 @@ module Failure =
             List.exists ((=) (loc e.Source, loc e.Target)) failedEdges) |> ignore
         failed
 
+
     let disconnect (cg: T) src dst : int =
         let cg = copyGraph cg
         let mutable removed = 0
@@ -812,6 +843,7 @@ module Failure =
                     Seq.exists ((=) e) p) |> ignore
         removed
        
+
     let disconnectAll (cg: T) srcs dsts =
         if Seq.isEmpty srcs || Seq.isEmpty dsts then None else
         let mutable smallest = System.Int32.MaxValue
@@ -825,6 +857,7 @@ module Failure =
         let (x,y) = Option.get pair
         let k = max 0 (smallest - 1)
         Some (k, x.Node.Loc, y.Node.Loc)
+
 
     let disconnectLocs (cg: T) srcs dstLoc =
         let dsts = Seq.filter (fun v -> loc v = dstLoc) cg.Graph.Vertices 
