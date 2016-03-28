@@ -30,17 +30,6 @@ let displayStats (stats: Abgp.Stats) =
 
 [<EntryPoint>] 
 let main argv =
-
-    (*
-    let pb = PredicateBuilder()
-    let p1 = Prefix(0,0,0,2,24,Range(24,32))
-    let p2 = Prefix(0,0,0,1,16,Range(16,32))
-    let x = pb.Prefix p1 
-    let y = pb.Prefix p2
-    printfn "%s" (pb.ToString(x))
-    printfn "%s" (pb.ToString(pb.Not x))
-    exit 0 *)
-
     ignore (Args.parse argv)
     let settings = Args.getSettings ()
     if settings.Test then runUnitTests (); exit 0
@@ -79,8 +68,24 @@ let main argv =
         if settings.Stats then 
             displayStats res.Stats
         if settings.Target <> Args.Off then          
-            match settings.OutFile, settings.Target with
-            | None, _ -> ()
-            | Some out, Args.IR -> System.IO.File.WriteAllText(out + ".ir", Abgp.format res.Abgp)
-            | Some _, _ -> ()
+            match settings.OutFile with
+            | None -> ()
+            | Some out ->
+                let dir = System.IO.Directory.CreateDirectory(out)
+                dir.Create()
+                let sep = string System.IO.Path.DirectorySeparatorChar
+
+                // write IR file
+                let irfile = out + sep + out + ".ir"
+                System.IO.File.WriteAllText(irfile, Abgp.format res.Abgp)
+
+                // Get low-level representation of config
+                let nc = Abgp.toConfig res.Abgp
+
+                // write Quagga files
+                let quaggaDir = out + sep + "quagga"
+                let dir = System.IO.Directory.CreateDirectory(quaggaDir)
+                dir.Create()
+
+                Config.generate(nc, quaggaDir)
     0

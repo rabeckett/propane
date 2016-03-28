@@ -3,8 +3,10 @@
 open System
 open System.Collections.Generic
 
+
 let unreachable () = 
     failwith "unreachable" 
+
 
 [<Sealed>]
 type Reindexer<'a when 'a: equality> = class
@@ -62,6 +64,7 @@ module List =
             acc <- f acc i 
         acc
 
+
     let inline fold1 f ls = 
         match ls with 
         | [] -> failwith "empty list in fold1"
@@ -71,8 +74,10 @@ module List =
                 acc <- f acc i 
             acc 
 
+
     let inline joinBy sep ss = 
         fold1 (fun a b -> a + sep + b) ss
+
 
     let inline toString xs = 
         match xs with 
@@ -80,6 +85,7 @@ module List =
         | _ -> 
             let s = joinBy "," (List.map string xs)
             sprintf "[%s]" s
+
 
     let combinations n ls = 
         let rec aux acc size set = seq {
@@ -102,14 +108,17 @@ module Set =
             let xs' = Set.remove x xs
             Set.fold f x xs'
 
+
     let inline joinBy sep ss =
         fold1 (fun a b -> a + sep + b) ss
+
 
     let inline toString ss = 
         if Set.isEmpty ss then "{}"
         else 
             let s = joinBy "," (Set.map string ss)
             sprintf "{%s}" s
+
 
 module Dictionary = 
 
@@ -119,11 +128,13 @@ module Dictionary =
             acc <- f acc kv.Key kv.Value
         acc
 
+
     let inline map f (d: Dictionary<_,_>) =
         let acc = Dictionary(d.Count)
         for kv in d do 
             acc.[kv.Key] <- f kv.Value
         acc
+
 
     let inline filter f (d: Dictionary<_,_>) =
         let acc = Dictionary() 
@@ -131,6 +142,7 @@ module Dictionary =
             if f kv.Key kv.Value then 
                 acc.[kv.Key] <- kv.Value
         acc
+
 
 module HashSet = 
 
@@ -140,11 +152,13 @@ module HashSet =
             acc <- f acc v
         acc
 
+
     let inline map f (h: HashSet<_>) =
         let acc = HashSet()
         for v in h do 
             acc.Add (f v) |> ignore
         acc
+
 
     let inline filter f (h: HashSet<_>) = 
         let acc = HashSet()
@@ -161,6 +175,7 @@ module Option =
         | None -> d
         | Some x -> x
 
+
     let inline get o = 
         match o with 
         | None -> failwith "Option.get"
@@ -174,9 +189,11 @@ module Map =
         | None -> d 
         | Some x -> x
 
+
     let inline adjust k d f m = 
         let current = getOrDefault k d m
         Map.add k (f current) m
+
 
     let merge a b f =
         Map.fold (fun s k v ->
@@ -191,20 +208,24 @@ module Error =
         | Ok of 'a
         | Err of 'b
 
+
     let isOk res = 
         match res with 
         | Ok _ -> true 
         | Err _ -> false 
+
 
     let isErr res =
         match res with 
         | Ok _ -> false 
         | Err _ -> true
 
+
     let unwrap res = 
         match res with 
         | Ok v -> v 
         | Err _ -> failwith "unwrapping error result"
+
 
     let map f res = 
         match res with 
@@ -239,22 +260,28 @@ module Format =
                 count <- count + len + 1
         result
 
+
     let writeColor (s: string) c = 
         Console.ForegroundColor <- c
         Console.Write s
         Console.ResetColor ()
 
+
     let inline cyan (s: string) = 
         lock obj (fun () -> writeColor s ConsoleColor.DarkCyan)
+
 
     let inline green (s: string) =
         lock obj (fun () -> writeColor s ConsoleColor.DarkGreen)
 
+
     let inline red (s: string) = 
         lock obj (fun () -> writeColor s ConsoleColor.DarkRed)
 
+
     let inline gray (s: string) = 
         lock obj (fun () -> writeColor s ConsoleColor.DarkGray)
+
 
     let writeFormatted (s:string) =
         let arr = s.Split('#')
@@ -267,9 +294,11 @@ module Format =
             elif s.Length >= 7 && s.[0..5] = "(cyan)" then cyan s.[6..]
             else lock obj (fun () -> printf "%s" s)
 
+
     let writeFooter () =
         let banner = String.replicate footerSize "-"
         writeFormatted (sprintf "#(gray)%s#\n" banner)
+
 
     let writeHeader () =
         let settings = Args.getSettings () 
@@ -287,6 +316,7 @@ module Format =
                 writeFooter ()
             writeFormatted (sprintf "#(cyan)%s#\n" name))
 
+
     let error str = 
         lock obj (fun () ->
             writeHeader ()
@@ -297,6 +327,7 @@ module Format =
             writeFooter ()
             exit 0)
 
+
     let warning str = 
         lock obj (fun () ->
             writeHeader ()
@@ -306,14 +337,17 @@ module Format =
             printfn "%s" (wrapText str)
             writeFooter ())
 
+
     let header s = 
         let eqs = "========="
         let right = eqs + "> "
         let left = " <" + eqs
         sprintf "#(cyan)%s%s%s#\n" right s left
 
+
     let passed () = 
         writeFormatted "#(green)passed#\n"
+
 
     let failed () = 
         writeFormatted "#(red)failed#\n"

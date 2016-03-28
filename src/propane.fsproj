@@ -100,6 +100,7 @@
     <Compile Include="Input.fs" />
     <Compile Include="CGraph.fsi" />
     <Compile Include="CGraph.fs" />
+    <Compile Include="Config.fs" />
     <Compile Include="Abgp.fsi" />
     <Compile Include="Abgp.fs" />
     <Compile Include="Benchmark.fs" />

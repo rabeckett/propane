@@ -217,7 +217,7 @@ type Prefix = struct
         let r = v.Range
         if v.IsExact 
             then sprintf "%d.%d.%d.%d/%d" a b c d v.Slash 
-            else sprintf "%d.%d.%d.%d/%d[%d..%d]" a b c d v.Slash r.Lo r.Hi 
+            else sprintf "%d.%d.%d.%d/%d ge %d le %d" a b c d v.Slash r.Lo r.Hi 
 
     static member True = Prefix(0,0,0,0, 0, Range.Full) 
     static member False = Prefix(0,0,0,0, 0, Range.Empty)
