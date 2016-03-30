@@ -83,7 +83,7 @@ end
 /// Represent no update with the null value
 [<AllowNullLiteral>]
 type SetCommunity = class
-    val Value: int
+    val Value: string
     new(i) = {Value = i}
 end
 
@@ -105,8 +105,8 @@ type RouteMap = class
     val PrefixLists: List<string>
     val AsPathLists: List<string>
     val CommunityLists: List<string>
-    val SetCommunity: SetCommunity
     val SetLocalPref: SetLocalPref
+    val SetCommunity: List<SetCommunity>
     new(n,i,pls,als,cls,sc,slp) = 
         {Name = n; 
          Priority = i; 
@@ -132,7 +132,7 @@ end
 /// If there is no network, then the string will be empty.
 type RouterConfiguration = class
     val Name: string
-    val Network: string
+    val Networks: List<string>
     val RouteMaps: List<RouteMap>
     val PrefixLists: List<PrefixList>
     val AsPathLists: List<AsPathList>
@@ -140,7 +140,7 @@ type RouterConfiguration = class
     val PeerConfigurations: List<PeerConfig>
     new(name, nwrk, rms, pls, als, cls, pcs) = 
         {Name = name; 
-         Network=nwrk; 
+         Networks=nwrk; 
          RouteMaps = rms;
          PrefixLists = pls;
          AsPathLists = als;
@@ -171,6 +171,10 @@ let output(rc: RouterConfiguration) : string =
 
     bprintf sb "router bgp %s\n" rc.Name
 
+    // owned networks
+    for n in rc.Networks do 
+        bprintf sb "  network %s\n" n
+
     // peer networks
     for pc in rc.PeerConfigurations do 
         bprintf sb "  neighbor [ip] remote-as %s\n" pc.Peer
@@ -180,10 +184,6 @@ let output(rc: RouterConfiguration) : string =
         for f in pc.OutFilters do 
             bprintf sb "  neighbor [ip] route-map %s out\n" f
     bprintf sb "!\n"
-
-    // this network
-    if rc.Network <> "" then
-        bprintf sb "network %s\n" rc.Network
 
     // prefix lists
     for pl in rc.PrefixLists do 
@@ -211,10 +211,14 @@ let output(rc: RouterConfiguration) : string =
         for pname in rm.PrefixLists do 
             bprintf sb "  match ip address prefix-list %s\n" pname
         for aname in rm.AsPathLists do
-            bprintf sb "  match as-path %s" aname
+            bprintf sb "  match as-path %s\n" aname
         let lp = rm.SetLocalPref
+        let sc = rm.SetCommunity
         if lp <> null then 
             bprintf sb "  set local-preference %d\n" lp.Value
+        if sc <> null then
+            for s in sc do  
+                bprintf sb "  set community additive %s\n" s.Value
         bprintf sb "!\n"
 
     string sb
