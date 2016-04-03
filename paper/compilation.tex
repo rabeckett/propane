@@ -133,7 +133,7 @@ A key constraint when translating FE to RIR is to ensure that all specified rout
 The translation from \sysname to RIR is based on a set of rewriting rules.
 The first step merges separate constraints. It takes the cross product of per-prefix constraints, where logical conjunction ($a \AND b$) is replaced by intersection on regular constraints ($a \Intersect b$), logical disjunction is replaced by union, and logical negation ($\NOT a$) is replaced by ($\Any \cap \NOT(a)$), where $\Any$ ensures the routes are well-formed.
 %
-For example, in the data center configuration from \S\ref{sec:propane}, combining the \CD{Routing} and \CD{Ownership} policies results in the following RIR:
+For example, in the data center configuration from \S\ref{sec:propane}, combining the \CD{Locality} and \CD{Ownership} policies results in the following RIR:
 
 %% \begin{lstlisting}[mathescape=true]
 %% $\path{p_{g1}}{any \cap end(A)}$
@@ -144,10 +144,10 @@ For example, in the data center configuration from \S\ref{sec:propane}, combinin
 %% \end{lstlisting}
 
 \begin{code}
-PG1 \Path \Any \Intersect \End(A)
-PG2 \Path \Any \Intersect \End(B)
-PL1 \Path \NOT\Enter(\Out) \Intersect \End(E)
-PL2 \Path \NOT\Enter(\Out) \Intersect \End(F)
+PG1 \Path \End(A)
+PG2 \Path \End(B)
+PL1 \Path \textbf{only}(\In) \Intersect \End(E)
+PL2 \Path \textbf{only}(\In) \Intersect \End(F)
 \True \Path \Exit(\Out)
 \end{code}
 
@@ -315,7 +315,7 @@ $(\CD{W} \cdot \CD{A} \cdot \CD{C} \cdot \CD{D}) \Prefer (\CD{W} \cdot \CD{B} \c
 
 How could such a policy be implemented in BGP? Suppose we set the local preference at router $C$ to prefer $D$ over $E$, and use the BGP MED attribute to influence $W$ to prefer $A$ over $B$. This might work as expected under normal conditions, however, if the A -- C link fails, then suddenly $C$ has made the wrong decision. Traffic will now follow the
 $W \cdot B \cdot C \cdot D$ path, even though this path was not specified by the policy. This is a violation of \emph{soundness}: The distributed implementation has used a route not specified by the policy. To make matters worse, the second preference $W \cdot B \cdot C \cdot E$ is available in the network but not being used. This is a violation of \emph{completeness}: A path for the best possible route available exists in the network but is not being used by the distributed implementation.
-We could solve the first problem by placing routes that go through $D$ at $B$, however, we can not fix the second problem---$C$ has made the wrong choice. In fact, this policy can not be implemented in BGP in a way that is policy compliant under all failures.
+We could solve the first problem by filtering routes that go through $D$ at $B$, however, we can not fix the second problem---$C$ has made the wrong choice. In fact, this policy can not be implemented in BGP in a way that is policy compliant under all failures.
 
 %and can not get either the primary or backup route specified, despite the fact that the $W \cdot B \cdot C \cdot E$ path is available in the network.
 
@@ -390,6 +390,49 @@ Because the \sysname compiler has the complete user policy and topology, it is a
 \newcommand{\MED}{\texttt{MED}}
 \newcommand{\Arrow}{\ensuremath{\leftarrow}}
 
+
+
+%\begin{figure}[t!]
+%\begin{lstlisting}[frame=single, mathescape=true]
+%$\Router{A}$
+%  Match $\PEER=C$
+%    Export $\MED \leftarrow 80, \PEER \leftarrow W$
+%$\Router{B}$
+%  Match $\PEER = C$
+%    Export $\COMM \leftarrow \text{noexport}, \MED \leftarrow 81, \PEER \leftarrow W$
+%$\Router{C}$
+%  Match$[LP=99]$ $\PEER = E $
+%    Export $\PEER \leftarrow B$
+%  Match $\PEER = D$
+%    Export $\PEER \leftarrow A,B$
+%$\Router{D}$
+%  Match $\REGEX{X + Y}$
+%    Export $\PEER \leftarrow C$
+%$\Router{E}$
+%  Match $\REGEX{Z}$
+%    Export $\PEER \leftarrow C$
+%\end{lstlisting}
+%\label{fig:config-min}
+%\caption{Abstract BGP minimized configurations}
+%\end{figure}
+
+The final stage of our compiler translates policies from PGIR to a vendor-neutral abstraction of BGP (ABGP).
+% and then from ABGP to actual device configurations.
+
+\para{From PGIR to ABGP}
+
+Once we have the ordering on node preferences in the PGIR from the failure safety analysis, the translation to ABGP is straightforward. The idea is to encode the state of the automaton using BGP community values. Each router will match based on its peer and a community value corresponding to the state of the PGIR, and then update the state before exporting to the neighbors permitted by the PGIR. For example, router $A$ in Figure~\ref{fig:example-compilation} will allow an announcement from $C$ with a community value for state $(3,2)$ (and deny anything else). If it sees such an announcement, it will remove the old community value, and add a new one for state $(4,2)$ before exporting it to $W$.
+
+To ensure preferred paths are always obtained, for each router $r$ in the topology, the compiler sets a higher local preference for neighbors of a more-preferred node for $r$ in the PGIR. For example, $C$ will prefer an advertisement from $D$ in state $(2,2)$ over an advertisement from $E$ in state $(-,2)$.
+
+Since the compiler is only able to control community tagging only for routers under the control of the AS being programmed, it cannot match on communities for external ASes. Instead, it translates matches from external ASes into a BGP regular expression filter. For example, node $D$ in Figure~\ref{fig:example-compilation} would match the single hop external paths $X$ or $Y$. In general, if routes are allowed from beyond $X$ or $Y$, these will also be captured in the BGP regular expression filters. The unknown AS topology is modelled as a special node in the PGIR that generates a filter to match any sequence of ASes.
+
+Finally, the external AS $W$ should prefer our internal router $A$ over $B$. In general, it is not possible to reliably control traffic entering the network beyond certain special cases. In this example, however, assuming our network and $W$ have an agreement to honor MEDs, the MED attribute can influence $W$ to prefer $A$ over $B$. Additionally, the compiler can use the BGP no-export community to ensure that no other AS beyond $W$ can send us traffic. The compiler can perform a simple analysis to determine when it can utilize BGP special attributes to ensure traffic enters the network in a particular way by looking at links in the product graph that cross from the internal topology to the external topology. 
+%Aggregation is another tool commonly used to influence how traffic can enter the network, by relying on BGP's longest prefix matching default. Since aggregates are provided as additional user constraints, the compiler can also make use of this information to check that incoming preferences can be met given the aggregates specified (e.g., to ensure that all external ASes prefer to enter from one location over another).
+Figure~\ref{fig:abgp-config} shows the full configuration from the compilation example. 
+
+After configuration generation, the compiler further processes the ABGP policy, removing community tags when possible, combining filters, removing dead filters, and so on. In the compilation example, all community tags can be removed since there is never any ambiguity based on the router importing the route, and the neigbor the route is being imported from. Similarly, after removing the communities, the two rules at router $B$ are merged into a single rule.
+
 \begin{figure}[t!]
 %% \begin{lstlisting}[frame=single, mathescape=true]
 %% $\Router{A}$
@@ -441,45 +484,3 @@ Because the \sysname compiler has the complete user policy and topology, it is a
   \caption{Abstract BGP router configurations. \label{fig:abgp-config}}
   \vspace{-1em}
 \end{figure}
-
-
-%\begin{figure}[t!]
-%\begin{lstlisting}[frame=single, mathescape=true]
-%$\Router{A}$
-%  Match $\PEER=C$
-%    Export $\MED \leftarrow 80, \PEER \leftarrow W$
-%$\Router{B}$
-%  Match $\PEER = C$
-%    Export $\COMM \leftarrow \text{noexport}, \MED \leftarrow 81, \PEER \leftarrow W$
-%$\Router{C}$
-%  Match$[LP=99]$ $\PEER = E $
-%    Export $\PEER \leftarrow B$
-%  Match $\PEER = D$
-%    Export $\PEER \leftarrow A,B$
-%$\Router{D}$
-%  Match $\REGEX{X + Y}$
-%    Export $\PEER \leftarrow C$
-%$\Router{E}$
-%  Match $\REGEX{Z}$
-%    Export $\PEER \leftarrow C$
-%\end{lstlisting}
-%\label{fig:config-min}
-%\caption{Abstract BGP minimized configurations}
-%\end{figure}
-
-The final stage of our compiler translates policies from PGIR to a vendor-neutral abstraction of BGP (ABGP).
-% and then from ABGP to actual device configurations.
-
-\para{From PGIR to ABGP}
-
-Once we have the ordering on node preferences in the PGIR from the failure safety analysis, the translation to ABGP is straightforward. The idea is to encode the state of the automaton using BGP community values. Each router will match based on its peer and a community value corresponding to the state of the PGIR, and then update the state before exporting to the neighbors permitted by the PGIR. For example, router $A$ in Figure~\ref{fig:example-compilation} will allow an announcement from $C$ with a community value for state $(3,2)$ (and deny anything else). If it sees such an announcement, it will remove the old community value, and add a new one for state $(4,2)$ before exporting it to $W$.
-
-To ensure preferred paths are always obtained, for each router $r$ in the topology, the compiler sets a higher local preference for neighbors of a more-preferred node for $r$ in the PGIR. For example, $C$ will prefer an advertisement from $D$ in state $(2,2)$ over an advertisement from $E$ in state $(-,2)$.
-
-Since the compiler is only able to control community tagging only for routers under the control of the AS being programmed, it cannot match on communities for external ASes. Instead, it translates matches from external ASes into a BGP regular expression filter. For example, node $D$ in Figure~\ref{fig:example-compilation} would match the single hop external paths $X$ or $Y$. In general, if routes are allowed from beyond $X$ or $Y$, these will also be captured in the BGP regular expression filters. The unknown AS topology is modelled as a special node in the PGIR that generates a filter to match any sequence of ASes.
-
-Finally, the external AS $W$ should prefer our internal router $A$ over $B$. In general, it is not possible to reliably control traffic entering the network beyond certain special cases. In this example, however, assuming our network and $W$ have an agreement to honor MEDs, the MED attribute can influence $W$ to prefer $A$ over $B$. Additionally, the compiler can use the BGP no-export community to ensure that no other AS beyond $W$ can send us traffic. The compiler can perform a simple analysis to determine when it can utilize BGP special attributes to ensure traffic enters the network in a particular way by looking at links in the product graph that cross from the internal topology to the external topology. 
-%Aggregation is another tool commonly used to influence how traffic can enter the network, by relying on BGP's longest prefix matching default. Since aggregates are provided as additional user constraints, the compiler can also make use of this information to check that incoming preferences can be met given the aggregates specified (e.g., to ensure that all external ASes prefer to enter from one location over another).
-Figure~\ref{fig:abgp-config} shows the full configuration from the compilation example. 
-
-After configuration generation, the compiler further processes the ABGP policy, removing community tags when possible, combining filters, removing dead filters, and so on. In the compilation example, all community tags can be removed since there is never any ambiguity based on the router importing the route, and the neigbor the route is being imported from. Similarly, after removing the communities, the two rules at router $B$ are merged into a single rule.

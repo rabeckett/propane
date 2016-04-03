@@ -1,6 +1,6 @@
 ﻿module Config
 
-
+open Core.Printf
 open System
 open System.Collections.Generic
 
@@ -35,12 +35,12 @@ end
 
 /// Community value representation as human-readable
 /// pair of integers x:y (e.g., 100:2)
-[<Struct>]
+(* [<Struct>]
 type Community = struct
     val X: int
     val Y: int
     new(x,y) = {X = x; Y = y}
-end
+end *)
 
 
 /// BGP Prefix list, consists of 
@@ -82,7 +82,16 @@ end
 /// Simple wrapper around the new community value.
 /// Represent no update with the null value
 [<AllowNullLiteral>]
-type SetCommunity = class
+type Community = class
+    val Value: string
+    new(i) = {Value = i}
+end
+
+
+/// Simple wrapper around the community list to remove communities.
+/// A null value indicates that no such list applies.
+[<AllowNullLiteral>]
+type DeleteCommunityList = class
     val Value: string
     new(i) = {Value = i}
 end
@@ -91,30 +100,45 @@ end
 /// Simple wrapper around the local preference value.
 /// Represent the default value (100) with null.
 [<AllowNullLiteral>]
-type SetLocalPref = class
+type LocalPref = class
     val Value: int
     new(i) = {Value = i}
+end
+
+
+/// A policy list for (reusable) matching on several BGP attributes
+/// Route maps will match using a policy list, and then perform updates.
+/// Some vendors do not support policy lists, so each route-map will
+/// need to inline the policy list at each usage site.
+type PolicyList = class
+    val Name: string
+    val PrefixLists: List<string>
+    val AsPathLists: List<string>
+    val CommunityLists: List<string>
+    new(n, pls, als, cls) = 
+        {Name = n;
+         PrefixLists = pls;
+         AsPathLists = als;
+         CommunityLists = cls;}
 end
 
 
 /// A route map, which matches using various filter lists.
 /// Filter lists (prefix, as-path, community,...) are usually in conjunction.
 type RouteMap = class
-    val Name: String
+    val Name: string
     val Priority: int
-    val PrefixLists: List<string>
-    val AsPathLists: List<string>
-    val CommunityLists: List<string>
-    val SetLocalPref: SetLocalPref
-    val SetCommunity: List<SetCommunity>
-    new(n,i,pls,als,cls,sc,slp) = 
+    val PolicyList: string
+    val SetLocalPref: LocalPref
+    val SetCommunity: List<Community>
+    val DeleteCommunity: DeleteCommunityList
+    new(n,i,pl,slp,sc,dc) = 
         {Name = n; 
+         PolicyList = pl;
          Priority = i; 
-         PrefixLists = pls;
-         AsPathLists = als;
-         CommunityLists = cls;
-         SetCommunity = sc; 
-         SetLocalPref = slp}
+         SetLocalPref = slp;
+         SetCommunity = sc;
+         DeleteCommunity = dc}
 end
 
 
@@ -122,9 +146,9 @@ end
 /// filters to that peer. Filters are represented using route maps only.
 type PeerConfig = class
     val Peer: string
-    val InFilters: List<string> // route map name
-    val OutFilters: List<string>
-    new(p,ifs,ofs) = {Peer = p; InFilters = ifs; OutFilters = ofs}
+    val InFilter: string // route map name
+    val OutFilter: string
+    new(p,i,o) = {Peer = p; InFilter = i; OutFilter = o}
 end
 
 
@@ -133,18 +157,20 @@ end
 type RouterConfiguration = class
     val Name: string
     val Networks: List<string>
-    val RouteMaps: List<RouteMap>
     val PrefixLists: List<PrefixList>
     val AsPathLists: List<AsPathList>
     val CommunityLists: List<CommunityList>
+    val PolicyLists: List<PolicyList>
+    val RouteMaps: List<RouteMap>
     val PeerConfigurations: List<PeerConfig>
-    new(name, nwrk, rms, pls, als, cls, pcs) = 
+    new(name, nwrk, pls, als, cls, pols, rms, pcs) = 
         {Name = name; 
          Networks=nwrk; 
-         RouteMaps = rms;
          PrefixLists = pls;
          AsPathLists = als;
          CommunityLists = cls;
+         PolicyLists = pols;
+         RouteMaps = rms;
          PeerConfigurations = pcs}
 end
 
@@ -157,15 +183,24 @@ end
 
 
 
-
-open Core.Printf
-
-
 let stringOfKind(k:Kind) = 
     if k = Kind.Permit then "permit" else "deny"
 
+let lookupPolicyList (name: string) (pols: List<PolicyList>) = 
+    pols |> Seq.find (fun p -> p.Name = name)
+
+let writePolList sb (pol: PolicyList) = 
+    for cname in pol.CommunityLists do
+        bprintf sb "  match community %s\n" cname
+    for pname in pol.PrefixLists do 
+        bprintf sb "  match ip address prefix-list %s\n" pname
+    for aname in pol.AsPathLists do
+        bprintf sb "  match as-path %s\n" aname
+
+let writeRouteMap sb (rm: RouteMap) = 
+    failwith ""
+
   
- 
 let output(rc: RouterConfiguration) : string = 
     let sb = System.Text.StringBuilder()
 
@@ -179,46 +214,48 @@ let output(rc: RouterConfiguration) : string =
     for pc in rc.PeerConfigurations do 
         bprintf sb "  neighbor [ip] remote-as %s\n" pc.Peer
     for pc in rc.PeerConfigurations do 
-        for f in pc.InFilters do 
-            bprintf sb "  neighbor [ip] route-map %s in\n" f 
-        for f in pc.OutFilters do 
-            bprintf sb "  neighbor [ip] route-map %s out\n" f
+        bprintf sb "  neighbor [ip] route-map %s in\n" pc.InFilter
+        bprintf sb "  neighbor [ip] route-map %s out\n" pc.OutFilter
+    
     bprintf sb "!\n"
 
     // prefix lists
     for pl in rc.PrefixLists do 
         bprintf sb "ip prefix-list %s %s %s\n" pl.Name (stringOfKind pl.Kind) pl.Prefix
+    
     bprintf sb "!\n"
 
     // community lists
     for cl in rc.CommunityLists do 
         bprintf sb "ip community-list standard %s %s " cl.Name (stringOfKind cl.Kind)
         for c in cl.Values do
-            bprintf sb "100:%s " c
+            bprintf sb "%s " c
         bprintf sb "\n"
+    
     bprintf sb "!\n"
 
     // as path lists
     for al in rc.AsPathLists do 
         bprintf sb "ip as-path access-list %s %s %s\n" al.Name (stringOfKind al.Kind) al.Regex  // name should be a number
+    
     bprintf sb "!\n"
 
     // route maps
     for rm in rc.RouteMaps do 
         bprintf sb "route-map %s permit %d\n" rm.Name rm.Priority
-        for cname in rm.CommunityLists do
-            bprintf sb "  match community %s\n" cname
-        for pname in rm.PrefixLists do 
-            bprintf sb "  match ip address prefix-list %s\n" pname
-        for aname in rm.AsPathLists do
-            bprintf sb "  match as-path %s\n" aname
+        let pol = lookupPolicyList rm.PolicyList rc.PolicyLists
+        writePolList sb pol
         let lp = rm.SetLocalPref
-        let sc = rm.SetCommunity
         if lp <> null then 
             bprintf sb "  set local-preference %d\n" lp.Value
-        if sc <> null then
-            for s in sc do  
-                bprintf sb "  set community additive %s\n" s.Value
+
+        let dc = rm.DeleteCommunity 
+        if dc <> null then
+            bprintf sb "  set comm-list %s delete\n" dc.Value
+
+        for c in rm.SetCommunity do  
+            bprintf sb "  set community additive %s\n" c.Value
+
         bprintf sb "!\n"
 
     string sb
@@ -228,5 +265,5 @@ let generate(nc: NetworkConfiguration, outDir: string) =
     let sep = string System.IO.Path.DirectorySeparatorChar
     for kv in nc.RouterConfigurations do 
         let file = outDir + sep + "as" + kv.Key + ".quagga"
-        let str = output(kv.Value) 
+        let str = output kv.Value 
         System.IO.File.WriteAllText(file, str)

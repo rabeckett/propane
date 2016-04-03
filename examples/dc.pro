@@ -3,14 +3,14 @@ define PG2 = 1.0.1.0/24
 define PL1 = 2.0.1.0/24
 define PL2 = 2.0.2.0/24
 
-define Peer = {Back1, Back2}
+define Peer = {Peer1, Peer2}
 
 define ownership = {
-	PG1 => end(A),
-	PG2 => end(B),
-	PL1 => end(E),
-	PL2 => end(F),
-	true => exit(Back1) >> exit(Back2)
+	PG1 => originate(A),
+	PG2 => originate(B),
+	PL1 => originate(E),
+	PL2 => originate(F),
+	true => exit(Peer1) >> exit(Peer2)
 }
 
 define locality = {

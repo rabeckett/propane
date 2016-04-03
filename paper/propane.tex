@@ -164,13 +164,15 @@ in the network.
     \{PG1 \Path \End(A)
      PG2 \Path \End(B)
      PL1 \Path \End(E)
-     PL2 \Path \End(F)\}
+     PL2 \Path \End(F)
+     \True \Path \End(\Out)\}
 \end{code}
 \noindent
 In English: traffic for prefix \CD{PG1} is only allowed to follow paths that
 end at router \CD{A}; traffic matching \CD{PG2},
 but not \CD{PG1}, must
 end at router \CD{B}; and so on.
+Any traffic destined for a prefix that not a part of the data center should be allowed to leave the data center and end at some external location.
 For the second constraint, we can define another policy:
 
 %% \begin{lstlisting}[mathescape=true]
@@ -181,22 +183,21 @@ For the second constraint, we can define another policy:
 %% }
 %% \end{lstlisting}
 \begin{code}
-\Define Routing = 
-    \{PG1 \OR PG2 \Path \Any
-     PL1 \OR PL2 \Path \NOT{}\Enter(\Out)
-     \True      \Path \Exit(\Out)\}
+\Define Locality = 
+    \{PL1 \OR PL2 \Path \textbf{only}(\In)\}
 \end{code}
 \noindent
-The first line states that there is no restriction (\Any)
-on how traffic must traverse the network for global prefixes.
+%The first line states that there is no restriction (\Any)
+%on how traffic must traverse the network for global prefixes.
 %aside from the default restriction
 %that traffic must not pass through the user's network and then loop
 %back on itself. 
-This means traffic for
-\CD{PG*} may be sent either from other data center routers or
-from external ASes. The second line ensures that traffic for local
-prefixes never enters the network from an outside location. This constraint
-guarantees that the services remain reachable only to locations
+%This means traffic for
+%\CD{PG*} may be sent either from other data center routers or
+%from external ASes. 
+The locality constraint ensures that traffic for local
+prefixes only ever follows paths that are internal to the network at each hop. 
+This constraint guarantees that the services remain reachable only to locations
 inside the data center.
 
 As in the backbone example, we can logically conjoin these constraints
@@ -212,7 +213,7 @@ as \CD{74.3.28.0/24})
 when advertised outside the datacenter.
 
 \begin{code}
-Ownership \AND{} Routing \AND{} \Agg(PG, \In \Link \Out)
+Ownership \AND{} Locality \AND{} \Agg(PG, \In \Link \Out)
 \end{code}
 
 As before, once \sysname compiles the policy, it is guaranteed to hold under all possible failure scenarios. \sysname also ensures safety against aggregation-induced black holes.

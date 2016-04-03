@@ -29,6 +29,8 @@ type Reindexer<'a when 'a: equality> = class
             x.Count
 
     member x.Value(i) = x.IdToValue.[i]
+
+    member x.Iter(f) = x.ValueToId |> Seq.iter (fun kv -> f kv.Key kv.Value)
 end
 
 
