@@ -1386,7 +1386,6 @@ let createPolicyList(id, policyLists: List<_>, pls, als, cls) =
     policyLists.Add(pol)
     pol
 
-
 let createRouteMap(name, priority, routeMaps: List<_>, rms: List<_>, pol: string, slp, sc, dc) = 
     let name = sprintf "rm-%s" name
     let rm = RouteMap(name, priority, pol, slp, sc, dc)
@@ -1435,7 +1434,8 @@ let peers (ti: Topology.TopoInfo) (router: string) =
     | Some s -> 
         let peers = ti.Graph.OutEdges s |> Seq.map (fun e -> e.Target)
         let inPeers, outPeers = Set.ofSeq peers |> Set.partition Topology.isInside
-        Set.map loc inPeers, Set.map loc outPeers
+        let inPeers, outPeers = Set.map loc inPeers, Set.map loc outPeers
+        Set.union inPeers outPeers, inPeers, outPeers
 
 let peerPol asPathMap asPathLists (als: List<_>) alID (p: Peer) = 
     match p with 
@@ -1452,6 +1452,12 @@ let matchAllPeers (peers: Set<string>) =
             else v + " | " + acc) "" peers
     "(" + str + ")"
 
+let makeInitialPathList peers (asMap, asLists, alID) = 
+    if not (Set.isEmpty peers) then
+        let str = matchAllPeers peers
+        createAsPathList(Config.Kind.Permit, asMap, asLists, List(), alID, str) |> ignore
+
+
 let getExportComm (p: Peer) maxComm commExportMap =
     match p with
     | Peer.Any -> maxComm + 2
@@ -1465,6 +1471,66 @@ let peerApplies (p: Peer) (peer:string) (allPeers,inPeers,outPeers) =
     | Peer.Out -> Set.contains peer outPeers
     | Peer.Any -> Set.contains peer allPeers
     | Peer.Router x -> peer = x
+
+let relevantCommsByPeer (exportMap: Reindexer<_>) (all,ins,outs) = 
+    let mutable relevantCommMap = Map.empty
+    for peer in all do 
+        exportMap.Iter(fun (p,ms) c -> 
+            if peerApplies p peer (all,ins,outs) then 
+                let existing = Util.Map.getOrDefault peer Set.empty relevantCommMap
+                relevantCommMap <- Map.add peer (Set.add (c,ms) existing) relevantCommMap)
+    relevantCommMap
+
+let commGroupsByRelevantPeers m = 
+    Map.fold (fun acc k v -> 
+        match Map.tryFind v acc with 
+        | None -> Map.add v (Set.singleton k) acc
+        | Some ps -> Map.add v (Set.add k ps) acc
+    ) Map.empty m
+
+let createExportRouteMap peerExportMap id (cMap,cLists,clID) (pLists,polID) rMaps cs ps = 
+    incr id
+    let rmname = "export-" + (string !id)
+    for (i,ms) in cs do 
+        let rms = List()
+        let pls = List()
+        let als = List()
+        let cls = List()
+        let values = List()
+        values.Add("200:" + string i)
+        createCommunityList(Config.Kind.Permit, cMap, cLists, cls, clID, values)
+        let name = sprintf "cl-%d" (!clID - 1)
+        let pol = createPolicyList(polID, pLists, pls, als, cls)
+        let scs = List()
+        for m in ms do 
+            match m with 
+            | SetComm(c) -> scs.Add(Community("200:" + c))
+            | _ -> failwith "" // TODO
+        createRouteMap(rmname, 10, rMaps, rms, pol.Name, null, scs, DeleteCommunityList(name)) |> ignore
+    for peer in ps do 
+        peerExportMap := Map.add peer ("rm-" + rmname) !peerExportMap
+
+let addExportLists peerExportMap peerGroups commInfo polInfo rMaps = 
+    let id = ref 0
+    peerGroups |> Map.iter (createExportRouteMap peerExportMap id commInfo polInfo rMaps)
+
+let computeExportFilters (exportMap: Reindexer<_>) peerInfo commInfo polInfo rMaps = 
+    // group export peer by applicable communities
+    let relevantCommMap = relevantCommsByPeer exportMap peerInfo
+    // group sets of communities with sets of peers
+    let peerGroups = commGroupsByRelevantPeers relevantCommMap
+    // add new export community lists / route maps 
+    let peerExportMap = ref Map.empty
+    addExportLists peerExportMap peerGroups commInfo polInfo rMaps
+    !peerExportMap
+
+let importFilterCommunityMods (exportMap: Reindexer<_>) es = 
+    let scs = List()
+    for (peer, mods) in es do 
+        let comm = exportMap.Index(peer, Set.ofList mods)
+        let c = Community("200:" + string comm)
+        scs.Add(c)
+    scs
 
 
 let toConfig (abgp: T) = 
@@ -1484,41 +1550,27 @@ let toConfig (abgp: T) =
         let origins = List()
 
         // peer information
-        let inPeers, outPeers = peers ti rname
-        let allPeers = Set.union inPeers outPeers
+        let (allPeers, inPeers, outPeers) = peers ti rname
 
         // peer map for peer configurations
         let peerMap = Dictionary()
 
         // map from unique (peer,mods) pair to community value to attach
-        let exportMap : Reindexer<Peer * Set<Modification>> = Reindexer(HashIdentity.Structural)
+        let exportMap = Reindexer(HashIdentity.Structural)
 
         // low-level filter list ids
         let priority = ref 10
-        let plID = ref 1
-        let alID = ref 1
-        let clID = ref 1
-        let polID = ref 1
+        let (plID, alID, clID, polID) = ref 1, ref 1, ref 1, ref 1
 
         // all filter lists used
-        let routeMaps = List()
-        let prefixLists = List()
-        let asPathLists = List()
-        let communityLists = List()
-        let policyLists = List()
+        let (rMaps, pfxLists, asLists, cLists, polLists) = List(), List(), List(), List(), List()
 
         // map lists to existing names to avoid duplicates
-        let prefixMap = Dictionary()
-        let asPathMap = Dictionary()
-        let communityMap = Dictionary()
+        let (pfxMap, asMap, cMap) = Dictionary(), Dictionary(), Dictionary()
 
         // create the internal and external as-path lists
-        if not inPeers.IsEmpty then
-            let internalStr = matchAllPeers inPeers
-            createAsPathList(Config.Kind.Permit, asPathMap, asPathLists, List(), alID, internalStr) |> ignore
-        if not outPeers.IsEmpty then
-            let externalStr = matchAllPeers outPeers
-            createAsPathList(Config.Kind.Permit, asPathMap, asPathLists, List(), alID, externalStr) |> ignore
+        makeInitialPathList inPeers (asMap, asLists, alID)
+        makeInitialPathList outPeers (asMap, asLists, alID)
 
         // create a route map for each predicate
         for (pred, acts) in rconfig.Actions do
@@ -1537,101 +1589,42 @@ let toConfig (abgp: T) =
                     for f in fs do 
 
                         // references to filter lists
-                        let rms = List()
-                        let pls = List()
-                        let als = List()
-                        let cls = List()
-
-                        // function to translate an ABGP peer to an appropriate as-path filter
-                        let ppol = peerPol asPathMap asPathLists als alID
+                        let (rms, pls, als, cls) = List(), List(), List(), List()
 
                         match f with
                         | Deny -> 
                             // block routes with import filter
-                            createPrefixList(Config.Kind.Deny, plID, prefixMap, prefixLists, pls, string prefix) |> ignore
-                            let pol = createPolicyList(polID, policyLists, pls, als, cls)
-                            createRouteMap("in", !priority, routeMaps, rms, pol.Name, null, List(), null) |> ignore
+                            createPrefixList(Config.Kind.Deny, plID, pfxMap, pfxLists, pls, string prefix) |> ignore
+                            let pol = createPolicyList(polID, polLists, pls, als, cls)
+                            createRouteMap("in", !priority, rMaps, rms, pol.Name, null, List(), null) |> ignore
 
                         | Allow((m,lp),es) -> 
                             // must create symmetric export route-map
-                            createPrefixList(Config.Kind.Permit, plID, prefixMap, prefixLists, pls, string prefix) |> ignore
+                            createPrefixList(Config.Kind.Permit, plID, pfxMap, pfxLists, pls, string prefix) |> ignore
                             match m with 
-                            | Match.Peer(x) -> ppol x
-                            | Match.State(c,x) -> ppol x
-                            | Match.PathRE(re) -> 
-                                createAsPathList(Config.Kind.Permit, asPathMap, asPathLists, als, alID, string re) |> ignore
+                            | Match.Peer(x) -> peerPol asMap asLists als alID x
+                            | Match.State(c,x) -> peerPol asMap asLists als alID x
+                            | Match.PathRE(re) -> createAsPathList(Config.Kind.Permit, asMap, asLists, als, alID, string re) |> ignore
                             let slp = if lp = 100 then null else LocalPref(lp)
 
-                            // add modifications for outgoing peers
-                            let scs = List()
-                            for (peer, mods) in es do 
-                                let comm = exportMap.Index(peer, Set.ofList mods)
-                                let c = Community("200:" + string comm)
-                                scs.Add(c)
+                            // add communities to later add modifications for outgoing peers
+                            let scs = importFilterCommunityMods exportMap es
 
-                            let pol = createPolicyList(polID, policyLists, pls, als, cls)
-                            createRouteMap("in", !priority, routeMaps, rms, pol.Name, slp, scs, null) |> ignore
+                            let pol = createPolicyList(polID, polLists, pls, als, cls)
+                            createRouteMap("in", !priority, rMaps, rms, pol.Name, slp, scs, null) |> ignore
                            
                         priority := !priority + 10
 
-        // group export peer by applicable communities
-        let mutable relevantCommMap = Map.empty
-        for peer in allPeers do 
-            exportMap.Iter(fun (p,ms) c -> 
-                if peerApplies p peer (allPeers,inPeers,outPeers) then 
-                    let existing = Util.Map.getOrDefault peer Set.empty relevantCommMap
-                    relevantCommMap <- Map.add peer (Set.add (c,ms) existing) relevantCommMap)
-
-        // group sets of communities with sets of peers
-        let peerGroups = 
-            Map.fold (fun acc k v -> 
-                match Map.tryFind v acc with 
-                | None -> Map.add v (Set.singleton k) acc
-                | Some ps -> Map.add v (Set.add k ps) acc
-            ) Map.empty relevantCommMap
-
-        // add new export community lists / route maps 
-        let peerExportMap = ref Map.empty
-        let id = ref 0
-        peerGroups |> Map.iter (fun cs ps -> 
-            incr id
-            let rmname = "export-" + (string !id)
-            for (i,ms) in cs do 
-                let rms = List()
-                let pls = List()
-                let als = List()
-                let cls = List()
-
-                let values = List()
-                values.Add("200:" + string i)
-
-                createCommunityList(Config.Kind.Permit, communityMap, communityLists, cls, clID, values)
-
-                let name = sprintf "cl-%d" (!clID - 1)
-                let pol = createPolicyList(polID, policyLists, pls, als, cls)
-
-                let scs = List()
-                for m in ms do 
-                    match m with 
-                    | SetComm(c) -> scs.Add(Community(c))
-                    | _ -> failwith ""
-
-                createRouteMap(rmname, 10, routeMaps, rms, pol.Name, null, scs, DeleteCommunityList(name)) |> ignore
-
-            for peer in ps do 
-                peerExportMap := Map.add peer ("rm-" + rmname) !peerExportMap
-        )
+        // get export filter information
+        let peerInfo = (allPeers,inPeers,outPeers)
+        let peerExportMap = computeExportFilters exportMap peerInfo (cMap, cLists, clID) (polLists, polID) rMaps
 
         // add import filter for all peers
         for peer in allPeers do 
-            let export = (!peerExportMap).[peer]
+            let export = peerExportMap.[peer]
             peerMap.[peer] <- PeerConfig(peer, "rm-in", export)
 
-        // Build the final configuration for the router
-        let pcs = List(peerMap.Values)
-        let routerConfig = RouterConfiguration(rname, origins, prefixLists, asPathLists, communityLists, policyLists, routeMaps, pcs)
-
-        // update the network configuration
+        let routerConfig = RouterConfiguration(rname, origins, pfxLists, asLists, cLists, polLists, rMaps, List(peerMap.Values))
         networkConfig.[rname] <- routerConfig
 
     Config.NetworkConfiguration(networkConfig)
