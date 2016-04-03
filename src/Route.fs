@@ -229,10 +229,10 @@ type Predicate = Predicate of HashCons
 
 /// Traffic classifier matches an individual prefix and positive + negative communities
 type TrafficClassifier = 
-    | TrafficClassifier of (Prefix * Set<string> * Set<string>)
+    | TrafficClassifier of (Prefix * Set<string>)
 
     override x.ToString() = 
-        let (TrafficClassifier(p,cts,cfs)) = x
+        let (TrafficClassifier(p,cts)) = x
         let comms = Set.fold (fun acc ct -> if acc <> "" then acc + "," + ct else ct) "" cts
         let comms = Set.fold (fun acc ct -> if acc <> "" then acc + ",!" + ct else "!" + ct) comms cts
         if cts.IsEmpty 
@@ -382,10 +382,10 @@ type PredicateBuilder() =
                 let cts, tts = Set.partition isCommVar ots
                 let cfs, tfs = Set.partition isCommVar ofs
                 let ps = prefixes pts pfs r
-                let (cts,cfs) = communities cts cfs
-                let (tts, _ ) = locations tts tfs
+                let (cts, _) = communities cts cfs
+                let (tts, _) = locations tts tfs
                 for p in ps do
-                    acc := TrafficClassifier(p,cts,cfs) :: !acc
+                    acc := TrafficClassifier(p,cts) :: !acc
         iterPath aux p 
         List.rev !acc
 
@@ -602,8 +602,8 @@ type TestPredicate() =
         let pred = pb.Or(pb.Prefix p1, pb.Prefix p2)
         let vs = pb.TrafficClassifiers(pred)
         equalRules vs 
-            [TrafficClassifier(p1, Set.empty, Set.empty); 
-             TrafficClassifier(p2, Set.empty, Set.empty)]
+            [TrafficClassifier(p1, Set.empty); 
+             TrafficClassifier(p2, Set.empty)]
 
     [<Test>]
     member __.AvoidExtraNegation () = 
@@ -613,9 +613,9 @@ type TestPredicate() =
         let pred = pb.Or(pred, pb.Community "A")
         let vs = pb.TrafficClassifiers(pred)
         equalRules vs 
-            [TrafficClassifier(p1, Set.empty, Set.empty); 
-             TrafficClassifier(p2, Set.empty, Set.empty); 
-             TrafficClassifier(Prefix.True, Set.singleton "A", Set.empty)]
+            [TrafficClassifier(p1, Set.empty); 
+             TrafficClassifier(p2, Set.empty); 
+             TrafficClassifier(Prefix.True, Set.singleton "A")]
 
     [<Test>]
     member __.RecoverExact () = 
@@ -623,7 +623,7 @@ type TestPredicate() =
         let x = pb.Prefix p1
         let vs = pb.TrafficClassifiers(x)
         equalRules vs 
-            [TrafficClassifier(p1, Set.empty, Set.empty)]
+            [TrafficClassifier(p1, Set.empty)]
 
     [<Test>]
     member __.MultipleCommunitiesOr () = 
@@ -635,10 +635,10 @@ type TestPredicate() =
         let pred = pb.Or(pred, pb.Community "B")
         let vs = pb.TrafficClassifiers(pred)
         equalRules vs 
-            [TrafficClassifier(p1, Set.empty, Set.empty); 
-             TrafficClassifier(p2, Set.empty, Set.empty); 
-             TrafficClassifier(Prefix.True, Set.singleton "A", Set.empty);
-             TrafficClassifier(Prefix.True, Set.singleton "B", Set.empty)]
+            [TrafficClassifier(p1, Set.empty); 
+             TrafficClassifier(p2, Set.empty); 
+             TrafficClassifier(Prefix.True, Set.singleton "A");
+             TrafficClassifier(Prefix.True, Set.singleton "B")]
 
     [<Test>]
     member __.MultipleCommunitiesAnd () = 
@@ -651,8 +651,8 @@ type TestPredicate() =
         let pred = pb.And(x, y)
         let vs = pb.TrafficClassifiers(pred)
         equalRules vs 
-            [TrafficClassifier(p1, Set.ofList ["A"; "B"], Set.empty); 
-             TrafficClassifier(p2, Set.ofList ["A"; "B"], Set.empty)]
+            [TrafficClassifier(p1, Set.ofList ["A"; "B"]); 
+             TrafficClassifier(p2, Set.ofList ["A"; "B"])]
 
     [<Test>]
     member __.CommunityRangeKnowledge () = 

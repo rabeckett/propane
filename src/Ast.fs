@@ -361,11 +361,9 @@ let wellFormed ast (e: Expr) : Type =
             | RegexType -> RegexType
             | PredicateType ->
                 let msg = 
-                    sprintf "Using explicit negation with predicates is discouraged " + 
-                    sprintf "and may lead to the creation of unexpected filters. " + 
-                    sprintf "Implicit negation through ordering is preferred."
-                Message.warningAst ast msg e.Pos
-                PredicateType
+                    sprintf "Using explicit negation with predicates is not allowed. " + 
+                    sprintf "Implicit negation through ordering is required."
+                Message.errorAst ast msg e.Pos
             | _ -> Message.errorAst ast (typeMsg [RegexType; PredicateType] t) e.Pos
         | PrefixLiteral (a,b,c,d,bits) -> wellFormedPrefix ast e.Pos (a,b,c,d,bits); PredicateType
         | True _ | False _ | CommunityLiteral _ -> PredicateType

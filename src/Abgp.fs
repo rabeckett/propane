@@ -1102,7 +1102,7 @@ let getMinAggregateFailures (cg: CGraph.T) (pb: Route.PredicateBuilder) pred (ag
     let prefixes = pb.TrafficClassifiers(pred)
     let smallest = ref System.Int32.MaxValue
     let pairs = ref None
-    for (Route.TrafficClassifier(p,_,_)) in prefixes do
+    for (Route.TrafficClassifier(p,_)) in prefixes do
         aggInfo |> Map.iter (fun aggRouter aggs ->
             let relevantAggs = List.filter (fun (prefix, _) -> pb.Implies(pb.Prefix p, pb.Prefix prefix)) aggs
             if not relevantAggs.IsEmpty then 
@@ -1577,8 +1577,7 @@ let toConfig (abgp: T) =
             let tcs = pb.TrafficClassifiers(pred)
 
             // split predicate if it is a disjunction of prefixes/communities
-            for Route.TrafficClassifier(prefix, comms, negComms) in tcs do 
-                assert(negComms.IsEmpty) // TODO: remove this as a possibility
+            for Route.TrafficClassifier(prefix, comms) in tcs do 
                 assert(comms.IsEmpty) // TODO: handle this case
 
                 // look at each action
