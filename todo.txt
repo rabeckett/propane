@@ -1,5 +1,4 @@
 Big Items:
-  - Compilation to arista/juniper/templates
   - Issue with avoid for external peers when going through out
   - Fix issue with MED, Prepending etc for Backbone example
 
@@ -7,7 +6,6 @@ Avoid duplicate constraints (do this at router level after expanding predicates)
 Aggregation can leak local prefixes (lint?)
 Concrete failure scenario for counterexample
 add syntax for building ranges of ASes (e.g., as[101-500])
-Reuse finding path code across Regex and CGraph modules
 
 add syntax + support for IP V6
 add syntax + support for different prefix matches (e.g., pfx[8..24], need BDD?)

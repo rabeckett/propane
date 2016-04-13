@@ -1,15 +1,16 @@
-define PG1 = 1.0.0.0/24
-define PG2 = 1.0.1.0/24
 define PL1 = 2.0.1.0/24
 define PL2 = 2.0.2.0/24
+define PG1 = 1.0.0.0/24
+define PG2 = 1.0.1.0/24
+define PG  = 1.0.0.0/16
 
 define Peer = {Peer1, Peer2}
 
-define ownership = {
-	PG1 => originate(A),
-	PG2 => originate(B),
-	PL1 => originate(E),
-	PL2 => originate(F),
+define routing = {
+	PG1 => end(A),
+	PG2 => end(B),
+	PL1 => end(E),
+	PL2 => end(F),
 	true => exit(Peer1) >> exit(Peer2)
 }
 
@@ -23,9 +24,8 @@ define notransit = {
 	true => not transit(Peer, Peer)
 }
 
-define main = ownership and locality and notransit
+define main = routing and locality and notransit
 
 control {
-	aggregate(1.0.0.0/16, in -> out)
+	aggregate(PG, in -> out)
 }
-

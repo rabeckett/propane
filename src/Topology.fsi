@@ -65,7 +65,8 @@ type TopoInfo =
      AsnMap: Map<string, int>;
      InternalNames: Set<string>;
      ExternalNames: Set<string>;
-     AllNames: Set<string>}
+     AllNames: Set<string>;
+     IpMap: Dictionary<string*string, string*string>}
 
 val router: string -> TopoInfo -> string
 

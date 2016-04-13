@@ -1367,9 +1367,6 @@ let compileAllPrefixes (fullName: string) (polInfo: Ast.PolInfo) : CompilationRe
 
 
 
-
-
-
 /// Conversion from Abstract BGP to a more low-level format
 /// specified in Config.fs. The low-level format includes features 
 /// such as prefix lists, community lists, as-path lists, route-maps and so on.
@@ -1497,14 +1494,14 @@ let createExportRouteMap peerExportMap id (cMap,cLists,clID) (pLists,polID) rMap
         let als = List()
         let cls = List()
         let values = List()
-        values.Add("200:" + string i)
+        values.Add("100:" + string i)
         createCommunityList(Config.Kind.Permit, cMap, cLists, cls, clID, values)
         let name = sprintf "cl-%d" (!clID - 1)
         let pol = createPolicyList(polID, pLists, pls, als, cls)
         let scs = List()
-        for m in ms do 
+        for m in ms do
             match m with 
-            | SetComm(c) -> scs.Add(Community("200:" + c))
+            | SetComm(c) -> scs.Add(SetCommunity("100:" + c))
             | _ -> failwith "" // TODO
         createRouteMap(rmname, 10, rMaps, rms, pol.Name, null, scs, DeleteCommunityList(name)) |> ignore
     for peer in ps do 
@@ -1528,7 +1525,7 @@ let importFilterCommunityMods (exportMap: Reindexer<_>) es =
     let scs = List()
     for (peer, mods) in es do 
         let comm = exportMap.Index(peer, Set.ofList mods)
-        let c = Community("200:" + string comm)
+        let c = SetCommunity("200:" + string comm)
         scs.Add(c)
     scs
 
@@ -1538,36 +1535,27 @@ let toConfig (abgp: T) =
     let pi = abgp.PolInfo
     let ti = pi.Ast.TopoInfo
     let pb = pi.PredBuilder
-
     // network configuration
     let networkConfig = Dictionary()
 
     for kv in abgp.RConfigs do 
         let rname = kv.Key 
         let rconfig = kv.Value 
-
         // origin information
         let origins = List()
-
         // peer information
         let (allPeers, inPeers, outPeers) = peers ti rname
-
         // peer map for peer configurations
         let peerMap = Dictionary()
-
         // map from unique (peer,mods) pair to community value to attach
         let exportMap = Reindexer(HashIdentity.Structural)
-
         // low-level filter list ids
-        let priority = ref 10
+        let priority = ref 0
         let (plID, alID, clID, polID) = ref 1, ref 1, ref 1, ref 1
-
         // all filter lists used
         let (rMaps, pfxLists, asLists, cLists, polLists) = List(), List(), List(), List(), List()
-
         // map lists to existing names to avoid duplicates
         let (pfxMap, asMap, cMap) = Dictionary(), Dictionary(), Dictionary()
-
         // create the internal and external as-path lists
         makeInitialPathList inPeers (asMap, asLists, alID)
         makeInitialPathList outPeers (asMap, asLists, alID)
@@ -1575,28 +1563,24 @@ let toConfig (abgp: T) =
         // create a route map for each predicate
         for (pred, acts) in rconfig.Actions do
             let tcs = pb.TrafficClassifiers(pred)
-
             // split predicate if it is a disjunction of prefixes/communities
             for Route.TrafficClassifier(prefix, comms) in tcs do 
                 assert(comms.IsEmpty) // TODO: handle this case
-
                 // look at each action
                 match acts with
                 | Originate -> origins.Add(string prefix)
                 | Filters fs ->
                     // different actions for the same prefix but different community/regex etc
                     for f in fs do 
-
+                        priority := !priority + 10
                         // references to filter lists
                         let (rms, pls, als, cls) = List(), List(), List(), List()
-
                         match f with
                         | Deny -> 
                             // block routes with import filter
                             createPrefixList(Config.Kind.Deny, plID, pfxMap, pfxLists, pls, string prefix) |> ignore
                             let pol = createPolicyList(polID, polLists, pls, als, cls)
                             createRouteMap("in", !priority, rMaps, rms, pol.Name, null, List(), null) |> ignore
-
                         | Allow((m,lp),es) -> 
                             // must create symmetric export route-map
                             createPrefixList(Config.Kind.Permit, plID, pfxMap, pfxLists, pls, string prefix) |> ignore
@@ -1604,30 +1588,24 @@ let toConfig (abgp: T) =
                             | Match.Peer(x) -> peerPol asMap asLists als alID x
                             | Match.State(c,x) -> peerPol asMap asLists als alID x
                             | Match.PathRE(re) -> createAsPathList(Config.Kind.Permit, asMap, asLists, als, alID, string re) |> ignore
-                            let slp = if lp = 100 then null else LocalPref(lp)
-
+                            let slp = if lp = 100 then null else SetLocalPref(lp)
                             // add communities to later add modifications for outgoing peers
                             let scs = importFilterCommunityMods exportMap es
-
                             let pol = createPolicyList(polID, polLists, pls, als, cls)
                             createRouteMap("in", !priority, rMaps, rms, pol.Name, slp, scs, null) |> ignore
-                           
-                        priority := !priority + 10
-
         // get export filter information
         let peerInfo = (allPeers,inPeers,outPeers)
         let peerExportMap = computeExportFilters exportMap peerInfo (cMap, cLists, clID) (polLists, polID) rMaps
-
         // add import filter for all peers
         for peer in allPeers do 
             let export = peerExportMap.[peer]
-            peerMap.[peer] <- PeerConfig(peer, "rm-in", export)
-
+            let routerIp, peerIp = ti.IpMap.[(rname, peer)]
+            peerMap.[peer] <- PeerConfig(peer, peerIp, routerIp, "rm-in", export)
+        // create the complete configuration for this router
         let routerConfig = RouterConfiguration(rname, origins, pfxLists, asLists, cLists, polLists, rMaps, List(peerMap.Values))
         networkConfig.[rname] <- routerConfig
 
     Config.NetworkConfiguration(networkConfig)
-
 
 
 

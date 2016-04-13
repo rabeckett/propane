@@ -6,7 +6,7 @@ open Util
 open Util.Format
 open System.Collections.Generic
 
-type T = 
+type T =
     | Empty
     | Epsilon
     | Locs of Set<string> 

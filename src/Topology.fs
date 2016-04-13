@@ -124,14 +124,15 @@ let findLinks (topo: T) (froms, tos) =
             | _, _ -> ()
     pairs
 
-type Topo = XmlProvider<"../examples/dc.xml">
+type Topo = XmlProvider<"../examples/dc/dc.xml">
 
 type TopoInfo =
     {Graph: T; 
      AsnMap: Map<string, int>;
      InternalNames: Set<string>;
      ExternalNames: Set<string>;
-     AllNames: Set<string>}
+     AllNames: Set<string>;
+     IpMap: Dictionary<string*string, string*string>}
 
 let inline getAsn name asn =
     if asn < 0 then 
@@ -178,6 +179,7 @@ let readTopology (file: string) : TopoInfo =
         nodeMap <- Map.add n.Name state nodeMap
         ignore (g.AddVertex state)
 
+    let ipMap = Dictionary()
     for e in topo.Edges do 
         if not (nodeMap.ContainsKey e.Source) then 
             error (sprintf "Invalid edge source location %s in topology" e.Source)
@@ -188,14 +190,18 @@ let readTopology (file: string) : TopoInfo =
             let y = nodeMap.[e.Target]
             if e.Directed then
                 addEdge x y
+                ipMap.[(x.Loc,y.Loc)] <- (e.SourceIp, e.TargetIp)
             else 
                 addEdge x y 
                 addEdge y x
+                ipMap.[(x.Loc,y.Loc)] <- (e.SourceIp, e.TargetIp)
+                ipMap.[(y.Loc,x.Loc)] <- (e.TargetIp, e.SourceIp)
     {Graph = g; 
-     AsnMap = asnMap; 
+     AsnMap = asnMap;
      InternalNames = internalNames; 
      ExternalNames = externalNames; 
-     AllNames = Set.union internalNames externalNames }
+     AllNames = Set.union internalNames externalNames;
+     IpMap = ipMap}
 
 
 module Examples = 

@@ -18,31 +18,6 @@ type Direction =
     | Out = 1
 
 
-/// Prefix representation of the form x1.x2.x3.x4/len ge (ge) le (le)
-/// Prefix with an exact match will have negative ge, and le values
-type Prefix = class
-    val X1: int
-    val X2: int
-    val X3: int
-    val X4: int
-    val Len: int 
-    val Ge: int
-    val Le: int
-    new(x1,x2,x3,x4,len,ge,le) = 
-        {X1 = x1; X2 = x2; X3 = x3; X4 = x4; Len = len; Ge = ge; Le = le}
-end
-
-
-/// Community value representation as human-readable
-/// pair of integers x:y (e.g., 100:2)
-(* [<Struct>]
-type Community = struct
-    val X: int
-    val Y: int
-    new(x,y) = {X = x; Y = y}
-end *)
-
-
 /// BGP Prefix list, consists of 
 /// Name: prefix list name
 /// Kind: either permit or deny routes
@@ -82,7 +57,7 @@ end
 /// Simple wrapper around the new community value.
 /// Represent no update with the null value
 [<AllowNullLiteral>]
-type Community = class
+type SetCommunity = class
     val Value: string
     new(i) = {Value = i}
 end
@@ -100,7 +75,7 @@ end
 /// Simple wrapper around the local preference value.
 /// Represent the default value (100) with null.
 [<AllowNullLiteral>]
-type LocalPref = class
+type SetLocalPref = class
     val Value: int
     new(i) = {Value = i}
 end
@@ -129,8 +104,8 @@ type RouteMap = class
     val Name: string
     val Priority: int
     val PolicyList: string
-    val SetLocalPref: LocalPref
-    val SetCommunity: List<Community>
+    val SetLocalPref: SetLocalPref
+    val SetCommunity: List<SetCommunity>
     val DeleteCommunity: DeleteCommunityList
     new(n,i,pl,slp,sc,dc) = 
         {Name = n; 
@@ -146,9 +121,11 @@ end
 /// filters to that peer. Filters are represented using route maps only.
 type PeerConfig = class
     val Peer: string
+    val PeerIp: string
+    val SourceIp: string
     val InFilter: string // route map name
     val OutFilter: string
-    new(p,i,o) = {Peer = p; InFilter = i; OutFilter = o}
+    new(p,pip,sip,i,o) = {Peer = p; PeerIp = pip; SourceIp = sip; InFilter = i; OutFilter = o}
 end
 
 
@@ -197,13 +174,8 @@ let writePolList sb (pol: PolicyList) =
     for aname in pol.AsPathLists do
         bprintf sb "  match as-path %s\n" aname
 
-let writeRouteMap sb (rm: RouteMap) = 
-    failwith ""
 
-  
-let output(rc: RouterConfiguration) : string = 
-    let sb = System.Text.StringBuilder()
-
+let output sb (rc: RouterConfiguration) : string = 
     bprintf sb "router bgp %s\n" rc.Name
 
     // owned networks
@@ -212,17 +184,15 @@ let output(rc: RouterConfiguration) : string =
 
     // peer networks
     for pc in rc.PeerConfigurations do 
-        bprintf sb "  neighbor [ip] remote-as %s\n" pc.Peer
+        bprintf sb "  neighbor %s remote-as %s\n" pc.PeerIp pc.Peer
     for pc in rc.PeerConfigurations do 
-        bprintf sb "  neighbor [ip] route-map %s in\n" pc.InFilter
-        bprintf sb "  neighbor [ip] route-map %s out\n" pc.OutFilter
-    
+        bprintf sb "  neighbor %s route-map %s in\n" pc.PeerIp pc.InFilter 
+        bprintf sb "  neighbor %s route-map %s out\n" pc.PeerIp pc.OutFilter 
     bprintf sb "!\n"
 
     // prefix lists
     for pl in rc.PrefixLists do 
         bprintf sb "ip prefix-list %s %s %s\n" pl.Name (stringOfKind pl.Kind) pl.Prefix
-    
     bprintf sb "!\n"
 
     // community lists
@@ -231,13 +201,11 @@ let output(rc: RouterConfiguration) : string =
         for c in cl.Values do
             bprintf sb "%s " c
         bprintf sb "\n"
-    
     bprintf sb "!\n"
 
     // as path lists
     for al in rc.AsPathLists do 
         bprintf sb "ip as-path access-list %s %s %s\n" al.Name (stringOfKind al.Kind) al.Regex  // name should be a number
-    
     bprintf sb "!\n"
 
     // route maps
@@ -248,22 +216,20 @@ let output(rc: RouterConfiguration) : string =
         let lp = rm.SetLocalPref
         if lp <> null then 
             bprintf sb "  set local-preference %d\n" lp.Value
-
         let dc = rm.DeleteCommunity 
         if dc <> null then
             bprintf sb "  set comm-list %s delete\n" dc.Value
-
         for c in rm.SetCommunity do  
             bprintf sb "  set community additive %s\n" c.Value
-
         bprintf sb "!\n"
 
     string sb
-       
+
 
 let generate(nc: NetworkConfiguration, outDir: string) =
     let sep = string System.IO.Path.DirectorySeparatorChar
     for kv in nc.RouterConfigurations do 
         let file = outDir + sep + "as" + kv.Key + ".quagga"
-        let str = output kv.Value 
+        let sb = System.Text.StringBuilder()
+        let str = output sb kv.Value 
         System.IO.File.WriteAllText(file, str)
