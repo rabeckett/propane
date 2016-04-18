@@ -5,7 +5,7 @@ open Util.Debug
 open Util.Format
 open System
 open Route
-
+ 
 
 let runUnitTests () = 
     writeFormatted (header "Running unit tests ")
@@ -14,10 +14,7 @@ let runUnitTests () =
     //Predicate.Test.run ()
     Abgp.Test.run ()
 
-let total xs = 
-    xs 
-    |> Array.map float 
-    |> Array.sum
+let total xs = xs |> Array.map float |> Array.sum
 
 let displayStats (stats: Abgp.Stats) = 
     printfn ""

@@ -1068,8 +1068,6 @@ let getUnusedPrefs cg res =
         nRegexes <- Bitset32.add i nRegexes
     let prefs = CGraph.preferences cg
     Bitset32.difference nRegexes prefs // don't use difference here
-    |> Bitset32.filter (fun i -> res.[i-1] <> Regex.empty)
-
 
 let warnAnycasts cg (polInfo:Ast.PolInfo) pred =
     let settings = Args.getSettings()
@@ -1128,33 +1126,44 @@ let inline buildDfas (reb: Regex.REBuilder) res =
 
 
 let compileToIR fullName idx pred (polInfo: Ast.PolInfo option) aggInfo (reb: Regex.REBuilder) res : PrefixCompileResult =
+    // get logging information if necessary
     let settings = Args.getSettings ()
     let fullName = fullName + "(" + (string idx) + ")"
+
+    // combine topology and dfa information
     let topo = reb.Topo()
     let dfas, dfaTime = Profile.time (buildDfas reb) res
     let dfas = Array.ofList dfas
     let cg, pgTime = Profile.time (CGraph.buildFromAutomata topo) dfas
     let buildTime = dfaTime + pgTime
     debug (fun () -> CGraph.generatePNG cg polInfo fullName)
+
+    // minimize PG and record time
     let cg, delTime = Profile.time (CGraph.Minimize.delMissingSuffixPaths) cg
     let cg, minTime = Profile.time (CGraph.Minimize.minimize idx) cg
     let minTime = delTime + minTime
     debug (fun () -> CGraph.generatePNG cg polInfo (fullName + "-min")) 
+
     // warn for anycasts 
     if not settings.Test then
         warnAnycasts cg polInfo.Value pred
+
     // check there is a route for each location specified
     let lost = getLocsThatCantGetPath idx cg reb dfas
-    if not (Set.isEmpty lost) then Err(NoPathForRouters(lost)) else
+    if not (Set.isEmpty lost) then 
+        Err(NoPathForRouters(lost)) 
+    else
+
     // Find unused preferences for policies that were not drop
     let unusedPrefs = getUnusedPrefs cg res
     if not (Bitset32.isEmpty unusedPrefs)  then
         let predStr = getPredStr polInfo pred
         Bitset32.iter (fun i -> 
             let msg = 
-                sprintf "Unused preference %d for predicate " i +
-                sprintf "%s for a non-drop policy" predStr
+                sprintf "Unused preference %d policy " i +
+                sprintf "for predicate %s" predStr
             warning msg) unusedPrefs
+
     try
         // check that BGP can ensure incoming traffic compliance
         let inExports = Incoming.configureIncomingTraffic cg
@@ -1164,7 +1173,8 @@ let compileToIR fullName idx pred (polInfo: Ast.PolInfo option) aggInfo (reb: Re
             | None -> Route.PredicateBuilder()
             | Some pi -> pi.PredBuilder
         let k = getMinAggregateFailures cg pb pred aggInfo
-        // check  that BGP preferences can be set properly
+
+        // check that there is a valid ordering for BGP preferences to ensure compliance
         let (ordering, orderTime) = Profile.time (Consistency.findOrderingConservative idx cg polInfo) fullName
         match ordering with
         | Ok ord ->
@@ -1535,27 +1545,36 @@ let toConfig (abgp: T) =
     let pi = abgp.PolInfo
     let ti = pi.Ast.TopoInfo
     let pb = pi.PredBuilder
+
     // network configuration
     let networkConfig = Dictionary()
 
     for kv in abgp.RConfigs do 
-        let rname = kv.Key 
-        let rconfig = kv.Value 
+        let rname = kv.Key
+        let rconfig = kv.Value
+
         // origin information
         let origins = List()
+
         // peer information
         let (allPeers, inPeers, outPeers) = peers ti rname
+
         // peer map for peer configurations
         let peerMap = Dictionary()
+
         // map from unique (peer,mods) pair to community value to attach
         let exportMap = Reindexer(HashIdentity.Structural)
+
         // low-level filter list ids
         let priority = ref 0
         let (plID, alID, clID, polID) = ref 1, ref 1, ref 1, ref 1
+
         // all filter lists used
         let (rMaps, pfxLists, asLists, cLists, polLists) = List(), List(), List(), List(), List()
+
         // map lists to existing names to avoid duplicates
         let (pfxMap, asMap, cMap) = Dictionary(), Dictionary(), Dictionary()
+
         // create the internal and external as-path lists
         makeInitialPathList inPeers (asMap, asLists, alID)
         makeInitialPathList outPeers (asMap, asLists, alID)
@@ -1563,17 +1582,16 @@ let toConfig (abgp: T) =
         // create a route map for each predicate
         for (pred, acts) in rconfig.Actions do
             let tcs = pb.TrafficClassifiers(pred)
+
             // split predicate if it is a disjunction of prefixes/communities
             for Route.TrafficClassifier(prefix, comms) in tcs do 
                 assert(comms.IsEmpty) // TODO: handle this case
-                // look at each action
                 match acts with
                 | Originate -> origins.Add(string prefix)
                 | Filters fs ->
                     // different actions for the same prefix but different community/regex etc
                     for f in fs do 
                         priority := !priority + 10
-                        // references to filter lists
                         let (rms, pls, als, cls) = List(), List(), List(), List()
                         match f with
                         | Deny -> 
@@ -1589,18 +1607,21 @@ let toConfig (abgp: T) =
                             | Match.State(c,x) -> peerPol asMap asLists als alID x
                             | Match.PathRE(re) -> createAsPathList(Config.Kind.Permit, asMap, asLists, als, alID, string re) |> ignore
                             let slp = if lp = 100 then null else SetLocalPref(lp)
+
                             // add communities to later add modifications for outgoing peers
                             let scs = importFilterCommunityMods exportMap es
                             let pol = createPolicyList(polID, polLists, pls, als, cls)
                             createRouteMap("in", !priority, rMaps, rms, pol.Name, slp, scs, null) |> ignore
+
         // get export filter information
         let peerInfo = (allPeers,inPeers,outPeers)
         let peerExportMap = computeExportFilters exportMap peerInfo (cMap, cLists, clID) (polLists, polID) rMaps
+
         // add import filter for all peers
-        for peer in allPeers do 
-            let export = peerExportMap.[peer]
+        for peer in allPeers do
+            let export = Map.tryFind peer peerExportMap
             let routerIp, peerIp = ti.IpMap.[(rname, peer)]
-            peerMap.[peer] <- PeerConfig(peer, peerIp, routerIp, "rm-in", export)
+            peerMap.[peer] <- PeerConfig(peer, peerIp, routerIp, Some "rm-in", export)
         // create the complete configuration for this router
         let routerConfig = RouterConfiguration(rname, origins, pfxLists, asLists, cLists, polLists, rMaps, List(peerMap.Values))
         networkConfig.[rname] <- routerConfig

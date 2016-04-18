@@ -123,8 +123,8 @@ type PeerConfig = class
     val Peer: string
     val PeerIp: string
     val SourceIp: string
-    val InFilter: string // route map name
-    val OutFilter: string
+    val InFilter: string option // route map name
+    val OutFilter: string option
     new(p,pip,sip,i,o) = {Peer = p; PeerIp = pip; SourceIp = sip; InFilter = i; OutFilter = o}
 end
 
@@ -186,8 +186,12 @@ let output sb (rc: RouterConfiguration) : string =
     for pc in rc.PeerConfigurations do 
         bprintf sb "  neighbor %s remote-as %s\n" pc.PeerIp pc.Peer
     for pc in rc.PeerConfigurations do 
-        bprintf sb "  neighbor %s route-map %s in\n" pc.PeerIp pc.InFilter 
-        bprintf sb "  neighbor %s route-map %s out\n" pc.PeerIp pc.OutFilter 
+        match pc.InFilter with 
+        | None -> () 
+        | Some f -> bprintf sb "  neighbor %s route-map %s in\n" pc.PeerIp f
+        match pc.OutFilter with 
+        | None -> () 
+        | Some f -> bprintf sb "  neighbor %s route-map %s out\n" pc.PeerIp f
     bprintf sb "!\n"
 
     // prefix lists

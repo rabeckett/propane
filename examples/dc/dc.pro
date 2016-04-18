@@ -24,7 +24,11 @@ define notransit = {
 	true => not transit(Peer, Peer)
 }
 
-define main = routing and locality and notransit
+define badstuff = {
+	true => drop
+}
+
+define main = routing and locality and notransit and badstuff
 
 control {
 	aggregate(PG, in -> out)
