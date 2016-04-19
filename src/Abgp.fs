@@ -388,8 +388,8 @@ module PrefixWide =
         let anyComm = anyValue pb.Community comms
 
         let aux router actions = 
-            let nodes = cg.Topo.Vertices |> Seq.filter (fun x -> x.Loc = router)
-            let peers = nodes |> Seq.map (fun x -> cg.Topo.InEdges x |> Seq.map (fun v -> v.Source)) |> Seq.concat
+            let nodes = Topology.vertices cg.Topo |> Seq.filter (fun x -> x.Loc = router)
+            let peers = nodes |> Seq.map (Topology.neighbors cg.Topo) |> Seq.concat
             let peersIn = peers |> Seq.filter Topology.isInside |> Seq.map (fun x -> x.Loc) |> Set.ofSeq
             let peersOut = peers |> Seq.filter Topology.isOutside |> Seq.map (fun x -> x.Loc) |> Set.ofSeq
             let peers = Set.union peersIn peersOut
@@ -958,8 +958,8 @@ let genConfig (cg: CGraph.T)
             for cgstate in prefs do
                 lp <- lp - 1
                 // get incoming and outgoing topology peer information
-                let allInPeers = cg.Topo.InEdges cgstate.Node |> Seq.map (fun e -> e.Source)
-                let allOutPeers = cg.Topo.OutEdges cgstate.Node |> Seq.map (fun e -> e.Target)
+                let allInPeers = Topology.neighbors cg.Topo cgstate.Node
+                let allOutPeers = Topology.neighbors cg.Topo cgstate.Node
                 let inPeerInfo = getPeerInfo allInPeers
                 let outPeerInfo = getPeerInfo allOutPeers
                 let nsIn = neighborsIn cg cgstate
@@ -1052,7 +1052,7 @@ let getLocsThatCantGetPath idx cg (reb: Regex.REBuilder) dfas =
     let startingLocs = Array.fold (fun acc dfa -> Set.union (reb.StartingLocs dfa) acc) Set.empty dfas
     let originators = insideOriginators cg
     let canOriginate = 
-        cg.Topo.Vertices
+        Topology.vertices cg.Topo
         |> Seq.choose insideOriginatorLoc
         |> Set.ofSeq
     let locsThatNeedPath = Set.difference (Set.intersect startingLocs canOriginate) originators
@@ -1439,7 +1439,7 @@ let peers (ti: Topology.TopoInfo) (router: string) =
     match Topology.findByLoc ti.Graph router with 
     | None -> failwith "unreachable"
     | Some s -> 
-        let peers = ti.Graph.OutEdges s |> Seq.map (fun e -> e.Target)
+        let peers = Topology.neighbors ti.Graph s
         let inPeers, outPeers = Set.ofSeq peers |> Set.partition Topology.isInside
         let inPeers, outPeers = Set.map loc inPeers, Set.map loc outPeers
         Set.union inPeers outPeers, inPeers, outPeers

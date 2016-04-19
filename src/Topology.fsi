@@ -17,14 +17,28 @@ type Node =
     val Typ: NodeType
     new: string * NodeType -> Node
 
-type T = BidirectionalGraph<Node,Edge<Node>>
-
+type T
 
 /// Make a defensive copy of the topology
 val copyTopology: T -> T
 
 /// Build the internal and external alphabet from a topology
 val alphabet: T -> Set<Node> * Set<Node> 
+
+//  Return the nodes in the topology
+val vertices: T -> seq<Node>
+
+//  Return all the edges in the topology
+val edges: T -> seq<Node*Node>
+
+//  Return all incoming edges for a given node
+val inEdges: T -> Node -> seq<Node*Node>
+
+//  Return all outgoing edges for a given node
+val outEdges: T -> Node -> seq<Node*Node>
+
+//  Return all the topological neighbors of a node
+val neighbors: T -> Node -> seq<Node>
 
 /// Check if a node is a valid topology node
 val isTopoNode: Node -> bool
@@ -61,7 +75,7 @@ val findByLoc: T -> string -> Node option
 val peers: T -> Node -> seq<Node>
 
 type TopoInfo =
-    {Graph: T; 
+    {Graph: T;
      AsnMap: Map<string, int>;
      InternalNames: Set<string>;
      ExternalNames: Set<string>;
@@ -75,6 +89,9 @@ val readTopology: string -> TopoInfo
 
 /// Examples of useful topologies for testing
 module Examples = 
+    type Tiers = Dictionary<Node,int>
+    type Prefixes = Dictionary<Node,Route.Prefix>
+
     val topoDisconnected: unit -> T
     val topoDiamond: unit -> T
     val topoDatacenterSmall: unit -> T 
@@ -89,11 +106,8 @@ module Examples =
     val topoStretchingManWAN2: unit -> T
     val topoPinCushionWAN: unit -> T
     val topoBackboneWAN: unit -> T
-    /// Fattree topology 
-    type Tiers = Dictionary<Node,int>
-    type Prefixes = Dictionary<Node,Route.Prefix>
+
     val fatTree: int -> T * Prefixes * Tiers
-    // Full mesh topology
     val complete: int -> T
 
 /// Module with unit tests

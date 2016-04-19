@@ -24,17 +24,16 @@ type Node =
     val Typ: NodeType
     new(l,t) = {Loc = l; Typ = t}
 
+type T = Topology of BidirectionalGraph<Node,Edge<Node>>
 
-type T = BidirectionalGraph<Node,Edge<Node>>
 
-
-let copyTopology (topo: T) : T = 
+let copyTopology (Topology(topo): T) : T = 
     let newTopo = BidirectionalGraph<Node,Edge<Node>>()
     for v in topo.Vertices do newTopo.AddVertex v |> ignore
     for e in topo.Edges do newTopo.AddEdge e |> ignore 
-    newTopo
+    Topology(newTopo)
 
-let alphabet (topo: T) : Set<Node> * Set<Node> = 
+let alphabet (Topology(topo): T) : Set<Node> * Set<Node> = 
     let mutable ain = Set.empty 
     let mutable aout = Set.empty 
     for v in topo.Vertices do
@@ -43,6 +42,21 @@ let alphabet (topo: T) : Set<Node> * Set<Node> =
         | Outside | Unknown -> aout <- Set.add v aout
         | Start | End -> failwith "unreachable"
     (ain, aout)
+
+let vertices (Topology(topo): T) = 
+    topo.Vertices
+
+let neighbors (Topology(topo): T) v = 
+    topo.OutEdges v |> Seq.map (fun e -> e.Target)
+
+let edges (Topology(topo): T) = 
+    topo.Edges |> Seq.map (fun e -> (e.Source, e.Target))
+
+let inEdges (Topology(topo): T) v = 
+    topo.InEdges v |> Seq.map (fun e -> (e.Source, e.Target))
+
+let outEdges (Topology(topo): T) v = 
+    topo.OutEdges v |> Seq.map (fun e -> (e.Source, e.Target))
 
 let isTopoNode (t: Node) = 
     match t.Typ with 
@@ -70,44 +84,48 @@ let canOriginateTraffic (t: Node) =
     | Start | End -> false
 
 let isWellFormed (topo: T) : bool =
-    let onlyInside = copyTopology topo
+    let (Topology(onlyInside)) = copyTopology topo
     onlyInside.RemoveVertexIf (fun v -> isOutside v) |> ignore
     let d = Dictionary<Node,int>()
     ignore (onlyInside.WeaklyConnectedComponents d)
     (Set.ofSeq d.Values).Count = 1
 
 let rec addVertices (topo: T) (vs: Node list) = 
+    let (Topology(t)) = topo
     match vs with 
     | [] -> ()
     | v::vs -> 
-        topo.AddVertex v |> ignore
+        t.AddVertex v |> ignore
         addVertices topo vs
 
 let rec addEdgesUndirected (topo: T) (es: (Node * Node) list) =
+    let (Topology(t)) = topo
     match es with 
     | [] -> () 
     | (x,y)::es -> 
         let e1 = Edge(x,y)
         let e2 = Edge(y,x)
-        ignore (topo.AddEdge e1)
-        ignore (topo.AddEdge e2)
+        ignore (t.AddEdge e1)
+        ignore (t.AddEdge e2)
         addEdgesUndirected topo es
 
 let rec addEdgesDirected (topo: T) (es: (Node * Node) list) = 
+    let (Topology(t)) = topo
     match es with 
     | [] -> () 
     | (x,y)::es -> 
         let e = Edge(x,y)
-        ignore (topo.AddEdge e)
+        ignore (t.AddEdge e)
         addEdgesDirected topo es 
 
-let findByLoc (topo: T) loc = 
+let findByLoc (Topology(topo): T) loc = 
     topo.Vertices |> Seq.tryFind (fun v -> v.Loc = loc)
 
-let peers (topo: T) (node: Node) = 
+let peers (Topology(topo): T) (node: Node) = 
     topo.OutEdges node |> Seq.map (fun e -> e.Target)
 
 let findLinks (topo: T) (froms, tos) =
+    let (Topology(t)) = topo
     let mutable pairs = []
     for x in Set.toSeq froms do 
         for y in Set.toSeq tos do 
@@ -116,7 +134,7 @@ let findLinks (topo: T) (froms, tos) =
             match a,b with 
             | Some a, Some b -> 
                 let ns = 
-                    topo.OutEdges a
+                    t.OutEdges a
                     |> Seq.map (fun (e: Edge<Node>) -> e.Target)
                     |> Set.ofSeq
                 if Set.contains b ns then 
@@ -127,7 +145,7 @@ let findLinks (topo: T) (froms, tos) =
 type Topo = XmlProvider<"../examples/dc/dc.xml">
 
 type TopoInfo =
-    {Graph: T; 
+    {Graph: T;
      AsnMap: Map<string, int>;
      InternalNames: Set<string>;
      ExternalNames: Set<string>;
@@ -196,7 +214,7 @@ let readTopology (file: string) : TopoInfo =
                 addEdge y x
                 ipMap.[(x.Loc,y.Loc)] <- (e.SourceIp, e.TargetIp)
                 ipMap.[(y.Loc,x.Loc)] <- (e.TargetIp, e.SourceIp)
-    {Graph = g; 
+    {Graph = Topology(g); 
      AsnMap = asnMap;
      InternalNames = internalNames; 
      ExternalNames = externalNames; 
@@ -207,7 +225,7 @@ let readTopology (file: string) : TopoInfo =
 module Examples = 
 
     let topoDisconnected () = 
-        let g = BidirectionalGraph<Node ,Edge<Node>>()
+        let g = Topology(BidirectionalGraph<Node ,Edge<Node>>())
         let vA = Node("A", Inside)
         let vB = Node("B", Inside)
         let vC = Node("C", Inside)
@@ -217,7 +235,7 @@ module Examples =
         g
 
     let topoDiamond () = 
-        let g = BidirectionalGraph<Node ,Edge<Node>>()
+        let g = Topology(BidirectionalGraph<Node ,Edge<Node>>())
         let vA = Node("A", InsideOriginates)
         let vX = Node("X", Inside)
         let vM = Node("M", Inside)
@@ -230,7 +248,7 @@ module Examples =
         g
 
     let topoDatacenterSmall () = 
-        let g = BidirectionalGraph<Node ,Edge<Node>>()
+        let g = Topology(BidirectionalGraph<Node ,Edge<Node>>())
         let vA = Node("A", InsideOriginates)
         let vB = Node("B", InsideOriginates)
         let vC = Node("C", InsideOriginates)
@@ -244,7 +262,7 @@ module Examples =
         g
 
     let topoDatacenterMedium () = 
-        let g = BidirectionalGraph<Node ,Edge<Node>>()
+        let g = Topology(BidirectionalGraph<Node ,Edge<Node>>())
         let vA = Node("A", InsideOriginates)
         let vB = Node("B", InsideOriginates)
         let vC = Node("C", Inside)
@@ -262,7 +280,7 @@ module Examples =
         g
 
     let topoDatacenterMediumAggregation () = 
-        let g = BidirectionalGraph<Node ,Edge<Node>>()
+        let g = Topology(BidirectionalGraph<Node ,Edge<Node>>())
         let vA = Node("A", InsideOriginates)
         let vB = Node("B", InsideOriginates)
         let vC = Node("C", Inside)
@@ -282,7 +300,7 @@ module Examples =
         g
 
     let topoDatacenterLarge () = 
-        let g = BidirectionalGraph<Node ,Edge<Node>>()
+        let g = Topology(BidirectionalGraph<Node ,Edge<Node>>())
         let vA = Node("A", InsideOriginates)
         let vB = Node("B", InsideOriginates)
         let vC = Node("C", InsideOriginates)
@@ -303,7 +321,7 @@ module Examples =
         g
 
     let topoBadGadget () = 
-        let g = BidirectionalGraph<Node ,Edge<Node>>()
+        let g = Topology(BidirectionalGraph<Node ,Edge<Node>>())
         let vA = Node("A", InsideOriginates)
         let vB = Node("B", InsideOriginates)
         let vC = Node("C", InsideOriginates)
@@ -313,7 +331,7 @@ module Examples =
         g
 
     let topoBrokenTriangle () = 
-        let g = BidirectionalGraph<Node ,Edge<Node>>()
+        let g = Topology(BidirectionalGraph<Node ,Edge<Node>>())
         let vA = Node("A", InsideOriginates)
         let vB = Node("B", Inside)
         let vC = Node("C", InsideOriginates)
@@ -324,7 +342,7 @@ module Examples =
         g
 
     let topoBigDipper () = 
-        let g = BidirectionalGraph<Node ,Edge<Node>>()
+        let g = Topology(BidirectionalGraph<Node ,Edge<Node>>())
         let vA = Node("A", InsideOriginates)
         let vC = Node("C", InsideOriginates)
         let vD = Node("D", InsideOriginates)
@@ -334,7 +352,7 @@ module Examples =
         g
 
     let topoSeesaw () = 
-        let g = BidirectionalGraph<Node ,Edge<Node>>()
+        let g = Topology(BidirectionalGraph<Node ,Edge<Node>>())
         let vM = Node("M", InsideOriginates)
         let vN = Node("N", Inside)
         let vO = Node("O", Inside)
@@ -346,7 +364,7 @@ module Examples =
         g
 
     let topoStretchingManWAN () = 
-        let g = BidirectionalGraph<Node ,Edge<Node>>()
+        let g = Topology(BidirectionalGraph<Node ,Edge<Node>>())
         let vA = Node("A", Inside)
         let vB = Node("B", Inside)
         let vC = Node("C", Inside)
@@ -359,7 +377,7 @@ module Examples =
         g
 
     let topoStretchingManWAN2 () = 
-        let g = BidirectionalGraph<Node ,Edge<Node>>()
+        let g = Topology(BidirectionalGraph<Node ,Edge<Node>>())
         let vA = Node("A", Inside)
         let vB = Node("B", Inside)
         let vC = Node("C", Inside)
@@ -376,7 +394,7 @@ module Examples =
         g
 
     let topoPinCushionWAN () = 
-        let g = BidirectionalGraph<Node ,Edge<Node>>()
+        let g = Topology(BidirectionalGraph<Node ,Edge<Node>>())
         let vA = Node("A", Inside)
         let vB = Node("B", Inside)
         let vC = Node("C", Inside)
@@ -391,7 +409,7 @@ module Examples =
         g
 
     let topoBackboneWAN () = 
-        let g = BidirectionalGraph<Node ,Edge<Node>>()
+        let g = Topology(BidirectionalGraph<Node ,Edge<Node>>())
         let vA = Node("A", InsideOriginates)
         let vSEA = Node("SEA", InsideOriginates)
         let vNY = Node("NY", InsideOriginates)
@@ -438,27 +456,28 @@ module Examples =
             ignore (g.AddVertex v)
             tiers.[v] <- 2
             v)
+        let t = Topology(g)
         let perPod = (k/2)
         for i = 0 to  iT0-1 do
             let pod = i / (perPod)
             for j = 0 to perPod-1 do
                 let x = routersT0.[i]
                 let y = routersT1.[pod*perPod + j]
-                addEdgesUndirected g [(x,y)]
+                addEdgesUndirected t [(x,y)]
         for i = 0 to iT1-1 do 
             for j = 0 to perPod-1 do
                 let rem = i % perPod
                 let x = routersT1.[i]
                 let y = routersT2.[rem*perPod + j]
-                addEdgesUndirected g [(x,y)]
+                addEdgesUndirected t [(x,y)]
         let back1 = Node("BACK1", Outside)
         let back2 = Node("BACK2", Outside)
         ignore (g.AddVertex back1)
         ignore (g.AddVertex back2)
         for i = 0 to iT2-1 do 
             let x = routersT2.[i]
-            addEdgesUndirected g [(x,back1); (x,back2)]
-        (g, prefixes, tiers)
+            addEdgesUndirected t [(x,back1); (x,back2)]
+        (t, prefixes, tiers)
 
     let complete n  = 
         let g = BidirectionalGraph<Node ,Edge<Node>>()
@@ -516,7 +535,7 @@ module Examples =
                 let e2 = Edge (ePeer, router) 
                 ignore (g.AddEdge e1)
                 ignore (g.AddEdge e2)
-        g
+        Topology(g)
 
 
 module Test = 

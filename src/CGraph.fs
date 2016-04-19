@@ -124,7 +124,7 @@ let buildFromAutomata (topo: Topology.T) (autos : Regex.Automaton array) : T =
         error (sprintf "Propane does not currently support more than 31 preferences")
     if not (Topology.isWellFormed topo) then
         error (sprintf "Invalid topology. Topology must be weakly connected.")
-    let unqTopo = Set.ofSeq topo.Vertices
+    let unqTopo = Set.ofSeq (Topology.vertices topo)
     let transitions = getTransitions autos
     let garbage = Array.map getGarbageStates autos
     let graph = BidirectionalGraph<CgStateTmp, Edge<CgStateTmp>>()
@@ -140,7 +140,7 @@ let buildFromAutomata (topo: Topology.T) (autos : Regex.Automaton array) : T =
         let adj = 
             if t.Typ = Topology.Start 
             then Seq.filter Topology.canOriginateTraffic unqTopo 
-            else topo.OutEdges t |> Seq.map (fun e -> e.Target)
+            else Topology.neighbors topo t
         let adj = if t.Typ = Topology.Unknown then Seq.append (Seq.singleton t) adj else adj
         for c in adj do
             let dead = ref true
@@ -808,19 +808,20 @@ module Failure =
 
     type FailType =
         | NodeFailure of Topology.Node
-        | LinkFailure of Edge<Topology.Node>
+        | LinkFailure of Topology.Node * Topology.Node
 
         override x.ToString() = 
             match x with 
             | NodeFailure n -> "Node(" + n.Loc + ")"
-            | LinkFailure e -> "Link(" + e.Source.Loc + "," + e.Target.Loc + ")"
+            | LinkFailure (s,t) -> "Link(" + s.Loc + "," + t.Loc + ")"
   
 
     let allFailures n (topo: Topology.T) : seq<FailType list> =
-        let fvs = topo.Vertices |> Seq.filter Topology.isInside |> Seq.map NodeFailure
+
+        let fvs = Topology.vertices topo |> Seq.filter Topology.isInside |> Seq.map NodeFailure
         let fes =
-            topo.Edges
-            |> Seq.filter (fun e -> Topology.isInside e.Source || Topology.isInside e.Target) 
+            Topology.edges topo
+            |> Seq.filter (fun (src,tgt) -> Topology.isInside src || Topology.isInside tgt) 
             |> Seq.map LinkFailure
         Seq.append fes fvs 
         |> Seq.toList
@@ -835,8 +836,8 @@ module Failure =
             | [] -> acc
             | (NodeFailure s)::tl ->
                 aux (s.Loc::vs, es) tl
-            | (LinkFailure s)::tl ->
-                aux (vs, (s.Source.Loc, s.Target.Loc)::(s.Target.Loc, s.Source.Loc)::es) tl
+            | (LinkFailure (s,t))::tl ->
+                aux (vs, (s.Loc, t.Loc)::(t.Loc, s.Loc)::es) tl
         let (failedNodes, failedEdges) = aux ([],[]) failures
         failed.Graph.RemoveVertexIf (fun v -> 
             List.exists ((=) v.Node.Loc) failedNodes) |> ignore

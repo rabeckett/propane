@@ -363,9 +363,9 @@ type REBuilder(topo: Topology.T) =
     let unknown: Topology.Node = Node(unknownName, Topology.Unknown)
     let topo =
         let t = Topology.copyTopology topo
-        ignore (t.AddVertex unknown)
-        for v in t.Vertices do
-            if v.Typ = Topology.Outside then 
+        Topology.addVertices t [unknown]
+        for v in Topology.vertices t do
+            if Topology.isOutside v then 
                 Topology.addEdgesUndirected t [(v,unknown)]
         t
 
@@ -420,8 +420,8 @@ type REBuilder(topo: Topology.T) =
             outside <- Set.add x outside
             alphabet <- Set.add x alphabet
             let v = Node(x, Topology.Outside)
-            ignore (topo.AddVertex v)
-            let allOutside = topo.Vertices |> Seq.filter Topology.isOutside
+            Topology.addVertices topo [v]
+            let allOutside = Topology.vertices topo |> Seq.filter Topology.isOutside
             for u in allOutside do
                 if u <> v then
                     Topology.addEdgesUndirected topo [(u,v)]

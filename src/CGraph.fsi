@@ -126,7 +126,7 @@ module Failure =
     /// A single node or link falure
     type FailType =
         | NodeFailure of Topology.Node
-        | LinkFailure of Edge<Topology.Node>
+        | LinkFailure of Topology.Node * Topology.Node
 
     /// Enumerate all failures up to a given size
     val allFailures: int -> Topology.T -> seq<FailType list>
