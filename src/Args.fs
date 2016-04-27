@@ -6,11 +6,6 @@ type Spec =
     | Unit of (unit -> unit)
     | String of (string -> unit)
 
-type Target = 
-    | Off
-    | IR 
-    | Template
-
 type Failures = 
     | Any
     | Concrete of int
@@ -19,7 +14,7 @@ type T =
     {PolFile: string option;
      TopoFile: string option;
      OutFile: string option;
-     Target: Target;
+     IsAbstract: bool;
      Anycast: bool;
      UseMed: bool;
      UsePrepending: bool;
@@ -43,7 +38,7 @@ let sep = string Path.DirectorySeparatorChar
 let polFile = ref None
 let topoFile = ref None
 let outFile = ref None
-let target = ref IR
+let isAbstract = ref false
 let anycast = ref false
 let useMed = ref false
 let usePrepending = ref false
@@ -73,13 +68,6 @@ let setOnOff var msg s =
     | "on" -> var := true
     | "off" -> var := false
     | _ -> raise (InvalidArgException (sprintf "Invalid %s value: %s" msg s))
-
-let setTarget s = 
-    match s with
-    | "none" -> target := Off
-    | "ir" -> target := IR 
-    | "templ" -> target := Template
-    | _ -> raise (InvalidArgException ("Invalid format value: " + s))
 
 let setFailures s =
     match s with 
@@ -112,19 +100,23 @@ let usage = "Usage: propane [options]"
 let args = 
     [|("-pol", String (fun s -> polFile := Some (setFile s)), "Policy file");
       ("-topo", String (fun s -> topoFile := Some (setFile s)), "Topology file");
-      ("-out", String (fun s -> outFile := Some s), "Output file");
+      ("-out", String (fun s -> outFile := Some s), "Output directory");
+
+      ("-abstract:on|off", String (setOnOff isAbstract "abstract"), "Compile for an abstract topology");
+      ("-stats:on|off", String (setOnOff stats "stats"), "Display performance statistics to stdout (default off)");
+     
+      ("-minimize:on|off", String (setOnOff minimize "minimize"), "Minimize configuration (default on)");
+      ("-parallel:on|off", String (setOnOff isParallel "parallel"), "Parallelize compilation (default on)");
+
       ("-failures:any|n", String setFailures, "Failure safety for aggregation (default any)");
       ("-anycast:on|off", String (setOnOff anycast "anycast"), "Allow anycast (default off)");
       ("-med:on|off", String (setOnOff useMed "MED"), "Use MED attribute (default off)");
       ("-prepending:on|off", String (setOnOff usePrepending "prepending"), "Use AS path prepending (default off)");
       ("-no-export:on|off", String (setOnOff useNoExport "no-export"), "Use no-export community (default off)");
       ("-ibgp:on|off", String (setOnOff useIBGP "ibgp"), "Assume IBGP configuration (default off)");
-      ("-minimize:on|off", String (setOnOff minimize "minimize"), "Minimize configuration (default on)");
-      ("-parallel:on|off", String (setOnOff isParallel "parallel"), "Parallelize compilation (default on)");
-      ("-target:none|ir|templ", String setTarget, "Compilation target");
-      ("-stats:on|off", String (setOnOff stats "stats"), "Display performance statistics to stdout (default off)");
+
       ("-checkenter:on|off", String (setOnOff checkEnter "check enter"), "Check traffic entry conditions to network");
-      ("-debug:on:off", String (setOnOff debug "debug"), "Log/Save Debugging information (default off)");
+      ("-debug:on|off", String (setOnOff debug "debug"), "Log/Save Debugging information (default off)");
       ("-debug-dir", String setDebugDir, "Debugging directory (default 'debug')");
       ("-test", Unit (fun () -> test := true), "Run unit tests");
       ("-bench", Unit (fun () -> bench := true), "Generate benchmark files");
@@ -183,7 +175,10 @@ let parse (argv: string[]) : unit =
             let curr = argv.[i]
             let next = if (i = Array.length argv - 1) then None else Some argv.[i+1]
             i <- lookup curr next i
-    cleanDir !debugDir
+    
+    if !debug then
+        cleanDir !debugDir
+    
     settings := 
         Some {PolFile = !polFile; 
               TopoFile = !topoFile;
@@ -195,7 +190,7 @@ let parse (argv: string[]) : unit =
               UseIBGP = !useIBGP; 
               Minimize = !minimize;
               Parallel = !isParallel;
-              Target = !target; 
+              IsAbstract = !isAbstract; 
               Test = !test; 
               Bench = !bench;
               CheckEnter = !checkEnter;

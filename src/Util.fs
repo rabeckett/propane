@@ -66,7 +66,6 @@ module List =
             acc <- f acc i 
         acc
 
-
     let inline fold1 f ls = 
         match ls with 
         | [] -> failwith "empty list in fold1"
@@ -76,10 +75,8 @@ module List =
                 acc <- f acc i 
             acc 
 
-
     let inline joinBy sep ss = 
         fold1 (fun a b -> a + sep + b) ss
-
 
     let inline toString xs = 
         match xs with 
@@ -87,7 +84,6 @@ module List =
         | _ -> 
             let s = joinBy "," (List.map string xs)
             sprintf "[%s]" s
-
 
     let combinations n ls = 
         let rec aux acc size set = seq {
@@ -110,10 +106,8 @@ module Set =
             let xs' = Set.remove x xs
             Set.fold f x xs'
 
-
     let inline joinBy sep ss =
         fold1 (fun a b -> a + sep + b) ss
-
 
     let inline toString ss = 
         if Set.isEmpty ss then "{}"
@@ -130,13 +124,11 @@ module Dictionary =
             acc <- f acc kv.Key kv.Value
         acc
 
-
     let inline map f (d: Dictionary<_,_>) =
         let acc = Dictionary(d.Count)
         for kv in d do 
             acc.[kv.Key] <- f kv.Value
         acc
-
 
     let inline filter f (d: Dictionary<_,_>) =
         let acc = Dictionary() 
@@ -154,13 +146,11 @@ module HashSet =
             acc <- f acc v
         acc
 
-
     let inline map f (h: HashSet<_>) =
         let acc = HashSet()
         for v in h do 
             acc.Add (f v) |> ignore
         acc
-
 
     let inline filter f (h: HashSet<_>) = 
         let acc = HashSet()
@@ -176,12 +166,6 @@ module Option =
         match o with
         | None -> d
         | Some x -> x
-
-
-    let inline get o = 
-        match o with 
-        | None -> failwith "Option.get"
-        | Some v -> v
 
 
 module Map = 

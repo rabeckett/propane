@@ -125,7 +125,7 @@ type PeerConfig = class
     val SourceIp: string
     val InFilter: string option // route map name
     val OutFilter: string option
-    new(p,pip,sip,i,o) = {Peer = p; PeerIp = pip; SourceIp = sip; InFilter = i; OutFilter = o}
+    new(p,sip,pip,i,o) = {Peer = p; SourceIp = sip; PeerIp = pip; InFilter = i; OutFilter = o}
 end
 
 
@@ -159,81 +159,81 @@ type NetworkConfiguration = class
 end
 
 
+module Quagga =
 
-let stringOfKind(k:Kind) = 
-    if k = Kind.Permit then "permit" else "deny"
+  let stringOfKind(k:Kind) = 
+      if k = Kind.Permit then "permit" else "deny"
 
-let lookupPolicyList (name: string) (pols: List<PolicyList>) = 
-    pols |> Seq.find (fun p -> p.Name = name)
+  let lookupPolicyList (name: string) (pols: List<PolicyList>) = 
+      pols |> Seq.find (fun p -> p.Name = name)
 
-let writePolList sb (pol: PolicyList) = 
-    for cname in pol.CommunityLists do
-        bprintf sb "  match community %s\n" cname
-    for pname in pol.PrefixLists do 
-        bprintf sb "  match ip address prefix-list %s\n" pname
-    for aname in pol.AsPathLists do
-        bprintf sb "  match as-path %s\n" aname
+  let writePolList sb (pol: PolicyList) = 
+      for cname in pol.CommunityLists do
+          bprintf sb "  match community %s\n" cname
+      for pname in pol.PrefixLists do 
+          bprintf sb "  match ip address prefix-list %s\n" pname
+      for aname in pol.AsPathLists do
+          bprintf sb "  match as-path %s\n" aname
 
+  let output sb (rc: RouterConfiguration) : string = 
+      bprintf sb "router bgp %s\n" rc.Name
 
-let output sb (rc: RouterConfiguration) : string = 
-    bprintf sb "router bgp %s\n" rc.Name
+      // owned networks
+      for n in rc.Networks do 
+          bprintf sb "  network %s\n" n
 
-    // owned networks
-    for n in rc.Networks do 
-        bprintf sb "  network %s\n" n
+      // peer networks
+      for pc in rc.PeerConfigurations do 
+          bprintf sb "  neighbor %s remote-as %s\n" pc.PeerIp pc.Peer
+      for pc in rc.PeerConfigurations do 
+          match pc.InFilter with 
+          | None -> () 
+          | Some f -> bprintf sb "  neighbor %s route-map %s in\n" pc.PeerIp f
+          match pc.OutFilter with 
+          | None -> () 
+          | Some f -> bprintf sb "  neighbor %s route-map %s out\n" pc.PeerIp f
+      bprintf sb "!\n"
 
-    // peer networks
-    for pc in rc.PeerConfigurations do 
-        bprintf sb "  neighbor %s remote-as %s\n" pc.PeerIp pc.Peer
-    for pc in rc.PeerConfigurations do 
-        match pc.InFilter with 
-        | None -> () 
-        | Some f -> bprintf sb "  neighbor %s route-map %s in\n" pc.PeerIp f
-        match pc.OutFilter with 
-        | None -> () 
-        | Some f -> bprintf sb "  neighbor %s route-map %s out\n" pc.PeerIp f
-    bprintf sb "!\n"
+      // prefix lists
+      for pl in rc.PrefixLists do 
+          bprintf sb "ip prefix-list %s %s %s\n" pl.Name (stringOfKind pl.Kind) pl.Prefix
+      bprintf sb "!\n"
 
-    // prefix lists
-    for pl in rc.PrefixLists do 
-        bprintf sb "ip prefix-list %s %s %s\n" pl.Name (stringOfKind pl.Kind) pl.Prefix
-    bprintf sb "!\n"
+      // community lists
+      for cl in rc.CommunityLists do 
+          bprintf sb "ip community-list standard %s %s " cl.Name (stringOfKind cl.Kind)
+          for c in cl.Values do
+              bprintf sb "%s " c
+          bprintf sb "\n"
+      bprintf sb "!\n"
 
-    // community lists
-    for cl in rc.CommunityLists do 
-        bprintf sb "ip community-list standard %s %s " cl.Name (stringOfKind cl.Kind)
-        for c in cl.Values do
-            bprintf sb "%s " c
-        bprintf sb "\n"
-    bprintf sb "!\n"
+      // as path lists
+      for al in rc.AsPathLists do 
+          bprintf sb "ip as-path access-list %s %s %s\n" al.Name (stringOfKind al.Kind) al.Regex  // name should be a number
+      bprintf sb "!\n"
 
-    // as path lists
-    for al in rc.AsPathLists do 
-        bprintf sb "ip as-path access-list %s %s %s\n" al.Name (stringOfKind al.Kind) al.Regex  // name should be a number
-    bprintf sb "!\n"
+      // route maps
+      for rm in rc.RouteMaps do 
+          bprintf sb "route-map %s permit %d\n" rm.Name rm.Priority
+          let pol = lookupPolicyList rm.PolicyList rc.PolicyLists
+          writePolList sb pol
+          let lp = rm.SetLocalPref
+          if lp <> null then 
+              bprintf sb "  set local-preference %d\n" lp.Value
+          let dc = rm.DeleteCommunity 
+          if dc <> null then
+              bprintf sb "  set comm-list %s delete\n" dc.Value
+          for c in rm.SetCommunity do  
+              bprintf sb "  set community additive %s\n" c.Value
+          bprintf sb "!\n"
 
-    // route maps
-    for rm in rc.RouteMaps do 
-        bprintf sb "route-map %s permit %d\n" rm.Name rm.Priority
-        let pol = lookupPolicyList rm.PolicyList rc.PolicyLists
-        writePolList sb pol
-        let lp = rm.SetLocalPref
-        if lp <> null then 
-            bprintf sb "  set local-preference %d\n" lp.Value
-        let dc = rm.DeleteCommunity 
-        if dc <> null then
-            bprintf sb "  set comm-list %s delete\n" dc.Value
-        for c in rm.SetCommunity do  
-            bprintf sb "  set community additive %s\n" c.Value
-        bprintf sb "!\n"
-
-    string sb
+      string sb
 
 
 let generate(nc: NetworkConfiguration, outDir: string) =
     let sep = string System.IO.Path.DirectorySeparatorChar
     for kv in nc.RouterConfigurations do 
-        let file = outDir + sep + "as" + kv.Key + ".quagga"
+        let file = outDir + sep + kv.Key + ".quagga"
         let sb = System.Text.StringBuilder()
-        let str = output sb kv.Value 
+        let str = Quagga.output sb kv.Value 
         System.IO.File.WriteAllText(file, str)

@@ -1,10 +1,5 @@
 ﻿module Args
 
-type Target =
-    | Off 
-    | IR 
-    | Template
-
 type Failures = 
     | Any
     | Concrete of int
@@ -13,7 +8,7 @@ type T =
     {PolFile: string option;
      TopoFile: string option;
      OutFile: string option;
-     Target: Target;
+     IsAbstract: bool;
      Anycast: bool;
      UseMed: bool;
      UsePrepending: bool;

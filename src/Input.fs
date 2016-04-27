@@ -27,8 +27,5 @@ let readFromFile fname =
             let column = pos.Column
             let settings = Args.getSettings ()
             writeColor "Error:" System.ConsoleColor.DarkRed
-            if settings.Target = Args.Off then
-                printfn "(%d,%d,%d,%d) Parse error" line column line column
-            else 
-                printfn " Line %d, Column %d" line column
+            printfn " Line %d, Column %d" line column
             exit 0

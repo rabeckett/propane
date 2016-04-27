@@ -18,11 +18,13 @@ type NodeType =
     | InsideOriginates
     | Unknown
 
-[<Struct>]
-type Node =
+
+type Node = struct
     val Loc: string 
     val Typ: NodeType
     new(l,t) = {Loc = l; Typ = t}
+end
+
 
 type T = Topology of BidirectionalGraph<Node,Edge<Node>>
 
@@ -32,6 +34,7 @@ let copyTopology (Topology(topo): T) : T =
     for v in topo.Vertices do newTopo.AddVertex v |> ignore
     for e in topo.Edges do newTopo.AddEdge e |> ignore 
     Topology(newTopo)
+
 
 let alphabet (Topology(topo): T) : Set<Node> * Set<Node> = 
     let mutable ain = Set.empty 
@@ -43,25 +46,32 @@ let alphabet (Topology(topo): T) : Set<Node> * Set<Node> =
         | Start | End -> failwith "unreachable"
     (ain, aout)
 
+
 let vertices (Topology(topo): T) = 
     topo.Vertices
+
 
 let neighbors (Topology(topo): T) v = 
     topo.OutEdges v |> Seq.map (fun e -> e.Target)
 
+
 let edges (Topology(topo): T) = 
     topo.Edges |> Seq.map (fun e -> (e.Source, e.Target))
+
 
 let inEdges (Topology(topo): T) v = 
     topo.InEdges v |> Seq.map (fun e -> (e.Source, e.Target))
 
+
 let outEdges (Topology(topo): T) v = 
     topo.OutEdges v |> Seq.map (fun e -> (e.Source, e.Target))
+
 
 let isTopoNode (t: Node) = 
     match t.Typ with 
     | Start | End -> false
     | _ -> true
+
 
 let isOutside (t: Node) = 
     match t.Typ with 
@@ -69,11 +79,13 @@ let isOutside (t: Node) =
     | Unknown -> true
     | _ -> false
 
+
 let isInside (t: Node) = 
     match t.Typ with 
     | Inside -> true 
     | InsideOriginates ->  true 
     | _ -> false
+
 
 let canOriginateTraffic (t: Node) = 
     match t.Typ with 
@@ -83,12 +95,14 @@ let canOriginateTraffic (t: Node) =
     | Inside -> false
     | Start | End -> false
 
+
 let isWellFormed (topo: T) : bool =
     let (Topology(onlyInside)) = copyTopology topo
     onlyInside.RemoveVertexIf (fun v -> isOutside v) |> ignore
     let d = Dictionary<Node,int>()
     ignore (onlyInside.WeaklyConnectedComponents d)
     (Set.ofSeq d.Values).Count = 1
+
 
 let rec addVertices (topo: T) (vs: Node list) = 
     let (Topology(t)) = topo
@@ -97,6 +111,7 @@ let rec addVertices (topo: T) (vs: Node list) =
     | v::vs -> 
         t.AddVertex v |> ignore
         addVertices topo vs
+
 
 let rec addEdgesUndirected (topo: T) (es: (Node * Node) list) =
     let (Topology(t)) = topo
@@ -109,6 +124,7 @@ let rec addEdgesUndirected (topo: T) (es: (Node * Node) list) =
         ignore (t.AddEdge e2)
         addEdgesUndirected topo es
 
+
 let rec addEdgesDirected (topo: T) (es: (Node * Node) list) = 
     let (Topology(t)) = topo
     match es with 
@@ -118,11 +134,14 @@ let rec addEdgesDirected (topo: T) (es: (Node * Node) list) =
         ignore (t.AddEdge e)
         addEdgesDirected topo es 
 
+
 let findByLoc (Topology(topo): T) loc = 
     topo.Vertices |> Seq.tryFind (fun v -> v.Loc = loc)
 
+
 let peers (Topology(topo): T) (node: Node) = 
     topo.OutEdges node |> Seq.map (fun e -> e.Target)
+
 
 let findLinks (topo: T) (froms, tos) =
     let (Topology(t)) = topo
@@ -142,7 +161,9 @@ let findLinks (topo: T) (froms, tos) =
             | _, _ -> ()
     pairs
 
-type Topo = XmlProvider<"../examples/dc/dc.xml">
+
+type Topo = XmlProvider<"../examples/template.xml">
+
 
 type TopoInfo =
     {Graph: T;
@@ -152,18 +173,32 @@ type TopoInfo =
      AllNames: Set<string>;
      IpMap: Dictionary<string*string, string*string>}
 
-let inline getAsn name asn =
-    if asn < 0 then 
-        error (sprintf "Negate AS number '%d' in topology for node '%s'" asn name)
-    else asn
 
-let router (asn:string) (ti:TopoInfo) = 
+let counter = ref 0
+
+
+let inline getAsn isAbstract name (asn: string) =
+    if isAbstract then
+        incr counter 
+        !counter
+    else 
+        let i = 
+            try int asn 
+            with _ -> error (sprintf "Invalid topology: Unrecognized AS number %s" asn)
+        if i < 0 then 
+            error (sprintf "Negate AS number '%s' in topology for node '%s'" asn name)
+        else i
+
+
+let router (asn: string) (ti: TopoInfo) = 
     let inline eqAsn _ v = string v = asn
     match Map.tryFindKey eqAsn ti.AsnMap with
     | None -> if asn = "out" then asn else "AS" + asn
     | Some r -> r
 
+
 let readTopology (file: string) : TopoInfo =
+    let settings = Args.getSettings ()
     let g = BidirectionalGraph<Node,Edge<Node>>()
     // avoid adding edges twice
     let seen = HashSet()
@@ -172,33 +207,46 @@ let readTopology (file: string) : TopoInfo =
             seen.Add (x,y) |> ignore
             let e = Edge(x,y)
             ignore (g.AddEdge e)
-    let topo = Topo.Load file
+
+    let topo = 
+        try Topo.Load file
+        with _ -> error "Invalid topology XML file"
+
     let mutable nodeMap = Map.empty
     let mutable asnMap = Map.empty
     let mutable internalNames = Set.empty
     let mutable externalNames = Set.empty
+
     for n in topo.Nodes do
+        if settings.IsAbstract && n.Asn <> "" then 
+            error (sprintf "Invalid topology: ASN included in abstract topology")
+        
+        let asn = getAsn settings.IsAbstract n.Name n.Asn
+
         match Map.tryFind n.Name asnMap with
-        | None -> asnMap <- Map.add n.Name (getAsn n.Name n.Asn) asnMap
+        | None -> asnMap <- Map.add n.Name asn asnMap
         | Some _ -> error (sprintf "Duplicate router name '%s' in topology" n.Name)
+
         let typ = 
             match n.Internal, n.CanOriginate with 
             | true, false -> Inside
             | true, true -> InsideOriginates
             | false, true
             | false, false -> Outside
-        if n.Internal then 
-            internalNames <- Set.add n.Name internalNames
-        else 
-            externalNames <- Set.add n.Name externalNames
+
+        if n.Internal 
+            then internalNames <- Set.add n.Name internalNames
+            else externalNames <- Set.add n.Name externalNames
+
         // TODO: duplicate names not handled
-        let asn = string n.Asn
-        let state = Node(asn, typ)
+        let state = Node(string asn, typ)
         nodeMap <- Map.add n.Name state nodeMap
         ignore (g.AddVertex state)
 
     let ipMap = Dictionary()
     for e in topo.Edges do 
+        if settings.IsAbstract && (e.SourceIp <> "" || e.TargetIp <> "") then 
+            error (sprintf "Invalid topology: source/target IP included in abstract topology")
         if not (nodeMap.ContainsKey e.Source) then 
             error (sprintf "Invalid edge source location %s in topology" e.Source)
         elif not (nodeMap.ContainsKey e.Target) then 
@@ -214,6 +262,7 @@ let readTopology (file: string) : TopoInfo =
                 addEdge y x
                 ipMap.[(x.Loc,y.Loc)] <- (e.SourceIp, e.TargetIp)
                 ipMap.[(y.Loc,x.Loc)] <- (e.TargetIp, e.SourceIp)
+
     {Graph = Topology(g); 
      AsnMap = asnMap;
      InternalNames = internalNames; 

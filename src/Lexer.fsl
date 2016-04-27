@@ -46,6 +46,7 @@ rule tokenize = parse
 	| ','                   { COMMA (position lexbuf) }
 	| '/'                   { SLASH (position lexbuf) }
 	| '\\'                  { DIFFERENCE (position lexbuf) }
+	| '$'                   { DOLLAR (position lexbuf) }
 	| ':'                   { COLON (position lexbuf) }
 	| '.'                   { DOT (position lexbuf) }
 	| ">>"                  { SHR (position lexbuf) } 

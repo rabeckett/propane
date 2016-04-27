@@ -4,8 +4,6 @@ open Util
 open Util.Debug
 open Util.Format
 open System
-open Route
- 
 
 let runUnitTests () = 
     writeFormatted (header "Running unit tests ")
@@ -40,7 +38,13 @@ let main argv =
     | None -> error "No policy file specified, use -pol:file compiler flag"
     | Some polFile ->
         let (lines, defs, cs) = Input.readFromFile polFile
-        let ast : Ast.T = {Input = lines; TopoInfo = topoInfo; Defs = defs; CConstraints = cs}
+
+        let ast : Ast.T = 
+            {Input = lines; 
+             TopoInfo = topoInfo; 
+             Defs = defs; 
+             CConstraints = cs}
+
         let polInfo = Ast.build ast
         let res = Abgp.compileAllPrefixes fullName polInfo
         match res.AggSafety, settings.Failures with
@@ -62,27 +66,24 @@ let main argv =
                     sprintf "Consider using the -failures:n flag to specify a tolerable failure level."
                 if warn then warning msg else error msg
         | _ -> ()
+
         if settings.Stats then 
             displayStats res.Stats
-        if settings.Target <> Args.Off then          
-            match settings.OutFile with
-            | None -> ()
-            | Some out ->
-                let dir = System.IO.Directory.CreateDirectory(out)
-                dir.Create()
-                let sep = string System.IO.Path.DirectorySeparatorChar
 
-                // write IR file
-                let irfile = out + sep + out + ".ir"
-                System.IO.File.WriteAllText(irfile, Abgp.format res.Abgp)
-
-                // Get low-level representation of config
-                let nc = Abgp.toConfig res.Abgp
-
-                // write Quagga files
-                let quaggaDir = out + sep + "quagga"
-                let dir = System.IO.Directory.CreateDirectory(quaggaDir)
-                dir.Create()
-
-                Config.generate(nc, quaggaDir)
+        match settings.OutFile with
+        | None -> ()
+        | Some out ->
+            let dir = System.IO.Directory.CreateDirectory(out)
+            dir.Create()
+            let sep = string System.IO.Path.DirectorySeparatorChar
+            // write IR file
+            let irfile = out + sep + out + ".ir"
+            System.IO.File.WriteAllText(irfile, Abgp.format res.Abgp)
+            // Get low-level representation of network config
+            let nc = Abgp.toConfig res.Abgp
+            // write Quagga files
+            let quaggaDir = out + sep + "quagga"
+            let dir = System.IO.Directory.CreateDirectory(quaggaDir)
+            dir.Create()
+            Config.generate(nc, quaggaDir)
     0

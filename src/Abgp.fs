@@ -10,7 +10,6 @@ open System.Collections.Generic
 exception UncontrollableEnterException of string
 exception UncontrollablePeerPreferenceException of string
 
-
 /// Collection of IR types organized as follows:
 ///
 /// Config type T maps each router name to a RouterConfig
@@ -28,7 +27,6 @@ type Peer =
     | In
     | Out
     | Router of string
-
     override x.ToString() =
         match x with
         | Any -> "*"
@@ -36,24 +34,20 @@ type Peer =
         | Out -> "out"
         | Router y -> y
 
-
 type Match = 
     | Peer of Peer 
     | State of Community * Peer
     | PathRE of Regex.T
-
     override x.ToString () = 
         match x with 
         | Peer p -> "peer=" + (string p)
         | State(c,p) -> sprintf "peer=%s, comm=%s" (string p) c
         | PathRE r -> sprintf "regex(...)" // (string r)
 
-
 type Modification = 
     | SetComm of string
     | SetMed of int
     | PrependPath of int
-
     override this.ToString() = 
         match this with 
         | SetComm(is) -> sprintf "comm<-%s" is
@@ -94,11 +88,13 @@ type CounterExample =
     | UncontrollableEnter of string
     | UncontrollablePeerPreference of string
 
+
 /// Functions that operate over final per-router 
 /// configurations, and display them in a nice, 
 /// human-readable format w/indentation.
 
 open Core.Printf
+
 
 let lookupRouter (pi: Ast.PolInfo option) s = 
     match pi with 
@@ -107,11 +103,13 @@ let lookupRouter (pi: Ast.PolInfo option) s =
         let ti = pi.Ast.TopoInfo 
         Topology.router s ti
 
+
 let lookupPeer pi p = 
     match p with 
     | Router s -> 
         Router (lookupRouter pi s)
     | _ -> p
+
 
 let lookupMatch pi m = 
     match m with 
@@ -119,15 +117,18 @@ let lookupMatch pi m =
     | State(c,p) -> State(c,lookupPeer pi p)
     | PathRE _ -> m
 
+
 let getPredStr (pi: Ast.PolInfo option) pred = 
     match pi with 
     | None -> "..."
-    | Some pi -> pi.PredBuilder.ToString(pred)
+    | Some pi -> Route.toString pi.PredBuilder pred
+
 
 let formatExport pi sb peer acts = 
     let actStr = if acts <> [] then ", " + Util.List.joinBy "," (List.map string acts) else ""
     let peerStr = peer |> lookupPeer pi |> string
     bprintf sb "[export peer<-%s%s]" peerStr actStr
+
 
 let formatActions (sb: System.Text.StringBuilder) (pi: Ast.PolInfo option) pred (actions: Actions) =              
     let predStr = getPredStr pi pred
@@ -154,12 +155,14 @@ let formatActions (sb: System.Text.StringBuilder) (pi: Ast.PolInfo option) pred 
                         bprintf sb "\n             "
                         formatExport pi sb peer acts
 
+
 let formatPred (polInfo: Ast.PolInfo option) (pred: Route.Predicate) (racts: Map<string, Actions>) =
     let sb = System.Text.StringBuilder ()
     Map.iter (fun (router:string) act -> 
         bprintf sb "\nRouter %s" router
         formatActions sb polInfo pred act) racts
     sb.ToString()
+
 
 let format (config: T) =
     let sb = System.Text.StringBuilder ()
@@ -192,14 +195,12 @@ module Update =
     let updateConfig f (config:T) =
         let rconfigs = Map.map f config.RConfigs
         {PolInfo = config.PolInfo; RConfigs = rconfigs}
-
-
+       
     let updateActions f (config:T) = 
         updateConfig (fun router rconf ->
             let actions = List.choose f rconf.Actions
             {Actions = actions; Control = rconf.Control}
         ) config
-
 
     let updateFilter f (config:T) =
         updateActions (fun (pred, acts) -> 
@@ -207,7 +208,6 @@ module Update =
             | Originate -> Some (pred, Originate)
             | Filters fs -> Some (pred, (Filters (List.choose (f pred) fs)))
         ) config
-
 
     let updateAllow f (config:T) = 
         updateFilter (fun pred filt -> 
@@ -219,19 +219,16 @@ module Update =
                 | Some (m',lp',es') -> Some (Allow ((m',lp'),es'))
         ) config
 
-
     let updateMods f (config:T) = 
         updateAllow (fun pred m lp es -> 
             let es' = List.choose (f pred m lp) es 
             Some (m,lp,es')
         ) config
 
-
     let updateMod f (config:T) = 
         updateMods (fun pred m lp (peer,mods) -> 
             Some (peer, List.choose (f pred m lp peer) mods)
         ) config
-
 
 
 /// Minimization helper functions for reducing the size of 
@@ -267,7 +264,6 @@ let private chooseAction f (filt: Filter) =
 
 module NodeWide =
 
-
     let removeRedundantTag m exports = 
         match m with 
         | Match.Peer _ | Match.PathRE _ -> exports 
@@ -278,7 +274,6 @@ module NodeWide =
                     | SetComm c -> c <> is
                     | _ -> true) acts
                 Some (peer, acts') ) exports
-
 
     let removeCommMatchForUnqEdges cg (eCounts : Dictionary<_,_> ) v m = 
         let inline unq e =
@@ -296,7 +291,6 @@ module NodeWide =
             | Out -> Match.Peer(Out)
         | _ -> m
 
-
     let minimize cg eCounts v m exports =
         let exports' = removeRedundantTag m exports 
         let m' = removeCommMatchForUnqEdges cg eCounts v m
@@ -312,7 +306,6 @@ module PrefixWide =
                 Set.add c acc
             | _ -> acc) Set.empty filters
 
-
     let private allCommTags filters = 
         Util.List.fold (fun acc f -> 
             match f with 
@@ -326,7 +319,6 @@ module PrefixWide =
                 ) acc es
             | _ -> acc) Set.empty filters
 
-
     let updateActions usedMatches _ actions = 
         match actions with 
         | Originate -> Originate
@@ -339,7 +331,6 @@ module PrefixWide =
             ) fs 
             |> Filters
 
-
     let updateMatches usedTags _ actions = 
         match actions with 
         | Originate -> Originate
@@ -351,7 +342,6 @@ module PrefixWide =
             ) fs 
             |> Filters
 
-
     let private removeUnobservedTags (config: Map<string,Actions>) =
         let allFilters = 
             config |> Map.fold (fun acc router actions -> 
@@ -361,7 +351,6 @@ module PrefixWide =
         let usedMatches = allCommMatches allFilters
         Map.map (updateActions usedMatches) config
 
-
     let private removeUnobservedMatches (config: Map<string,Actions>) =
         let allFilters = 
             config |> Map.fold (fun acc router actions -> 
@@ -370,7 +359,6 @@ module PrefixWide =
                 | Filters fs -> acc @ fs) []
         let usedTags = allCommTags allFilters
         Map.map (updateMatches usedTags) config
-
 
     let removeUnreachableRules (cg: CGraph.T) (pb: Route.PredicateBuilder) (config: Map<string,Actions>) = 
         let inline anyValue f vs =
@@ -397,7 +385,7 @@ module PrefixWide =
             let anyInPeer = anyValue pb.Location peersIn
             let anyOutPeer = anyValue pb.Location peersOut
 
-            let predOfPeer (p : Peer) : Route.Predicate =
+            let predOfPeer (p : Peer) =
                 match p with 
                 | Router r -> pb.Location r
                 | In -> anyInPeer
@@ -426,13 +414,11 @@ module PrefixWide =
 
         Map.map aux config
 
-
     let minimize (cg: CGraph.T) (pb: Route.PredicateBuilder) (config: Map<string,Actions>) =
         config
         |> removeUnobservedTags 
         |> removeUnobservedMatches
         |> removeUnreachableRules cg pb
-
 
 
 module RouterWide = 
@@ -441,7 +427,6 @@ module RouterWide =
         | No
         | Yes
         | ForComm of string
-
 
     let disjointMatch m1 m2 =
         match m1, m2 with
@@ -455,7 +440,6 @@ module RouterWide =
             | _, _ -> false
         | _, _ -> true
 
-
     let disjointFilter (f1: Filter) (f2: Filter) =
         match f1, f2 with
         | Deny, _ -> false
@@ -463,13 +447,11 @@ module RouterWide =
         | Allow ((m1,_),es1), Allow ((m2,_),es2) -> 
             disjointMatch m1 m2
 
-
     let coveringPeer x y = 
         match x,y with 
         | _, Any -> true
         | In, In | Out, Out -> true
         | _, _ -> false // TODO: use topology for routers
-
 
     let coveringMatch m1 m2 = 
         match m1, m2 with
@@ -479,7 +461,6 @@ module RouterWide =
         | State(c,x), State(d,y) -> if c = d && coveringPeer x y then ForComm d else No
         | _, _ -> No
 
-
     let coveringFilter (f1: Filter) (f2: Filter) = 
         match f1, f2 with 
         | Deny, Deny -> Yes
@@ -488,7 +469,6 @@ module RouterWide =
         | Allow ((m1,_),_), Allow ((m2,_),_) -> 
             coveringMatch m1 m2
 
-
     let eqExports (f1: Filter) (f2: Filter) = 
         match f1, f2 with
         | Deny, Deny -> true
@@ -496,8 +476,7 @@ module RouterWide =
         | _, Deny -> false
         | Allow (_,es1), Allow (_,es2) -> es1 = es2
 
-
-    let makePairs (pairs: (Route.Predicate * Actions) list) = 
+    let makePairs (pairs: (_ * Actions) list) = 
         let mutable res = [] 
         for (pred, actions) in pairs do
             match actions with
@@ -507,12 +486,10 @@ module RouterWide =
                     res <- (pred,f) :: res
         List.rev res
 
-
     let inline unMakePairs pairs = 
         Seq.groupBy fst pairs
         |> Seq.map (fun (x,ys) -> (x, Seq.map snd ys |> List.ofSeq)) 
         |> List.ofSeq
-
 
     let addBackPair origins pairs acc (p,_) =
         if Set.contains p origins then (p,Originate) :: acc else 
@@ -520,12 +497,10 @@ module RouterWide =
         | None -> acc
         | Some fs -> (p, Filters fs) :: acc
 
-
     let inline addOriginator acc (p,actions) =
         match actions with 
         | Originate -> Set.add p acc
         | _ -> acc
-
 
     let rec catchAll (pb: Route.PredicateBuilder) allComms covered (p1,f1) below : bool = 
         match below with
@@ -544,14 +519,12 @@ module RouterWide =
                     if newCovered = allComms then true
                     else catchAll pb allComms newCovered (p1,f1) tl
 
-
     let rec fteAux (pb: Route.PredicateBuilder) allComms pairs =
         match pairs with 
         | [] -> []
         | ((p1,f1) as pair)::tl ->
             let tl = fteAux pb allComms tl
             if catchAll pb allComms Set.empty pair tl then tl else pair :: tl
-
 
     let getAllCommunities (config : T) = 
         let comms = ref Set.empty 
@@ -561,19 +534,24 @@ module RouterWide =
             | _ -> Some m) config |> ignore
         !comms
 
-
     let fallThroughElimination (pb: Route.PredicateBuilder) allComms (rconfig: RouterConfig) : RouterConfig =
-        let origins = Util.List.fold addOriginator Set.empty rconfig.Actions
-        let pairs = fteAux pb allComms (makePairs rconfig.Actions) |> unMakePairs |> Map.ofList
-        let actions = Util.List.fold (addBackPair origins pairs) [] rconfig.Actions
-        {Control = rconfig.Control; Actions = List.rev actions}
-
+        let usesTemplate = List.fold (fun acc (p,_) -> acc || Route.isTemplate p) false rconfig.Actions
+        if usesTemplate then rconfig
+        else
+            let actions = List.map (fun (p,x) -> (Route.getConcrete p,x)) rconfig.Actions
+            let origins = Util.List.fold addOriginator Set.empty rconfig.Actions
+            let pairs = 
+                fteAux pb allComms (makePairs actions) 
+                |> unMakePairs 
+                |> List.map (fun (p,x) -> (Route.ConcretePred(p),x)) 
+                |> Map.ofList
+            let actions = Util.List.fold (addBackPair origins pairs) [] rconfig.Actions
+            {Control = rconfig.Control; Actions = List.rev actions}
 
     let minimizeForRouter (pi: Ast.PolInfo) allComms r rconf =
         rconf 
         |> fallThroughElimination pi.PredBuilder allComms
     
-
     let minimize (config: T) = 
         let settings = Args.getSettings () 
         let allComms = getAllCommunities config
@@ -668,7 +646,6 @@ module Incoming =
         
     type IncomingExportMap = Map<CgState, Modification list>
 
-
     let collectForPeer cg acc peer = 
         let reachable = Reachable.dfs cg peer Down
         let reach = ResizeArray()
@@ -686,7 +663,6 @@ module Incoming =
             let cexample = CGraph.ToRegex.constructRegex (copyGraph cg) peer
             Map.add peer (Specific cexample) acc 
 
-
     let collectIncomingInfo (cg: CGraph.T) : IncomingInfo =
         let isExportPeer v = 
             Topology.isOutside v.Node && 
@@ -695,10 +671,8 @@ module Incoming =
         let info = Seq.fold (collectForPeer cg) Map.empty exportPeers
         {Peers = exportPeers; Info = info}
 
-
     let getUnique peers =
         Set.ofSeq (Seq.map (fun p -> p.Node.Loc) peers)
-
 
     let addExports (settings: Args.T) info peers actions exportMap =
         let mutable exportMap = exportMap
@@ -717,7 +691,6 @@ module Incoming =
                 raise (UncontrollableEnterException msg)
             exportMap <- Map.add p actions exportMap
         exportMap
-
 
     let configureIncomingTraffic cg : IncomingExportMap =
         let settings = Args.getSettings()
@@ -773,24 +746,20 @@ module Outgoing =
         | PeerMatch of CgState
         | RegexMatch of Regex.T
 
-
     let inline isPeerMatch x = 
         match x with 
         | PeerMatch _ -> true
         | RegexMatch _ -> false
-
 
     let inline getPeerMatch x = 
         match x with 
         | PeerMatch y -> y
         | RegexMatch _ -> failwith "unreachable"
 
-
     let inline getRegexMatch x = 
         match x with 
         | PeerMatch _ -> failwith "unreachable"
         | RegexMatch y -> y
-
 
     let getOutPeerType cg (x:CgState) = 
         if Topology.isOutside x.Node then
@@ -887,10 +856,9 @@ let inline edgeCounts (cg: CGraph.T) =
     for e in cg.Graph.Edges do 
         let key = (e.Source.Node.Loc, e.Target.Node.Loc)
         let mutable value = 0
-        if counts.TryGetValue(key, &value) then 
-            counts.[key] <- value + 1
-        else
-            counts.Add(key,1)
+        if counts.TryGetValue(key, &value) 
+          then counts.[key] <- value + 1
+          else counts.Add(key,1)
     counts
 
 
@@ -1069,6 +1037,7 @@ let getUnusedPrefs cg res =
     let prefs = CGraph.preferences cg
     Bitset32.difference nRegexes prefs // don't use difference here
 
+
 let warnAnycasts cg (polInfo:Ast.PolInfo) pred =
     let settings = Args.getSettings()
     let origLocs = polInfo.OrigLocs.[pred]
@@ -1082,27 +1051,27 @@ let warnAnycasts cg (polInfo:Ast.PolInfo) pred =
         let bad2 = Topology.router bad2 ti
         let msg =
             sprintf "Anycasting from multiple locations, e.g., %s and %s " bad1 bad2 +
-            sprintf "for predicate %s. If you believe this is not a mistake, you can "  (polInfo.PredBuilder.ToString(pred)) +
+            sprintf "for predicate %s. If you believe this is not a mistake, you can "  (Route.toString polInfo.PredBuilder pred) +
             sprintf "enable anycast by using the -anycast:on flag"
         error msg
     if not (Set.isEmpty bad) then
         let bad1 = Topology.router (bad.MinimumElement) ti
         let bad2 = Topology.router (orig.MaximumElement) ti
         let msg =
-            sprintf "Anycasting from multiple locations, e.g., %s and %s for  " bad1 bad2  +
-            sprintf "predicate %s, even though the location is not explicitly " (polInfo.PredBuilder.ToString(pred)) +
+            sprintf "Anycasting from multiple locations, e.g., %s and %s for " bad1 bad2  +
+            sprintf "predicate %s, even though the location is not explicitly " (Route.toString polInfo.PredBuilder pred) +
             sprintf "mentioned in the policy. This is almost always a mistake."
         warning msg
 
 
-let getMinAggregateFailures (cg: CGraph.T) (pb: Route.PredicateBuilder) pred (aggInfo: Map<string, DeviceAggregates>) =
+let getMinAggregateFailures (cg: CGraph.T) (pb: Route.PredicateBuilder) (pred: Route.Predicate) (aggInfo: Map<string, DeviceAggregates>) =
     let originators = CGraph.neighbors cg cg.Start
-    let prefixes = pb.TrafficClassifiers(pred)
+    let prefixes = Route.trafficClassifiers pb pred
     let smallest = ref System.Int32.MaxValue
     let pairs = ref None
     for (Route.TrafficClassifier(p,_)) in prefixes do
         aggInfo |> Map.iter (fun aggRouter aggs ->
-            let relevantAggs = List.filter (fun (prefix, _) -> pb.Implies(pb.Prefix p, pb.Prefix prefix)) aggs
+            let relevantAggs = List.filter (fun (prefix, _) -> Route.isMoreGeneralPrefixOf pb prefix p) aggs
             if not relevantAggs.IsEmpty then 
                 let rAgg, _ = relevantAggs.Head
                 match CGraph.Failure.disconnectLocs cg originators aggRouter with 
@@ -1207,25 +1176,25 @@ let compileForSinglePrefix fullName idx (polInfo: Ast.PolInfo) aggInfo (pred, re
                 |> Util.Set.joinBy ", "
             let msg = 
                 sprintf "Unable to find a path for routers: " + 
-                sprintf "%s for predicate %s" routers (polInfo.PredBuilder.ToString(pred))
+                sprintf "%s for predicate %s" routers (Route.toString polInfo.PredBuilder pred)
             error msg
         | InconsistentPrefs(x,y) ->
             let l = Topology.router (CGraph.loc x) ti
             let msg = 
                 sprintf "Cannot find preferences for router " + 
-                sprintf "%s for predicate %s" l (polInfo.PredBuilder.ToString(pred))
+                sprintf "%s for predicate %s" l (Route.toString polInfo.PredBuilder pred)
             error msg
         | UncontrollableEnter x -> 
             let l = Topology.router x ti
             let msg = 
                 sprintf "Cannot control inbound traffic from " + 
-                sprintf "peer: %s for predicate %s" l (polInfo.PredBuilder.ToString(pred))
+                sprintf "peer: %s for predicate %s" l (Route.toString polInfo.PredBuilder pred)
             error msg
         | UncontrollablePeerPreference x -> 
             let l = Topology.router x ti
             let msg =
                 sprintf "Cannot control inbound preference from peer: %s for " l  +
-                sprintf "predicate %s. Possibly enable prepending: -prepending:on" (polInfo.PredBuilder.ToString(pred))
+                sprintf "predicate %s. Possibly enable prepending: -prepending:on" (Route.toString polInfo.PredBuilder pred)
             error msg
 
 
@@ -1285,6 +1254,7 @@ let splitByLocation f topo (vs: _ list) =
             |> Map.ofSeq
         acc <- Util.Map.merge acc pairs (fun _ (xs,ys) -> xs @ ys)
     acc
+
 
 let splitConstraints (pi: Ast.PolInfo) =
     let aggs, comms, maxroutes = 
@@ -1375,8 +1345,6 @@ let compileAllPrefixes (fullName: string) (polInfo: Ast.PolInfo) : CompilationRe
     {Abgp = minJoined; AggSafety = k; Stats = stats}
 
 
-
-
 /// Conversion from Abstract BGP to a more low-level format
 /// specified in Config.fs. The low-level format includes features 
 /// such as prefix lists, community lists, as-path lists, route-maps and so on.
@@ -1393,12 +1361,14 @@ let createPolicyList(id, policyLists: List<_>, pls, als, cls) =
     policyLists.Add(pol)
     pol
 
+
 let createRouteMap(name, priority, routeMaps: List<_>, rms: List<_>, pol: string, slp, sc, dc) = 
     let name = sprintf "rm-%s" name
     let rm = RouteMap(name, priority, pol, slp, sc, dc)
     rms.Add(name)
     routeMaps.Add(rm)
     rm
+
 
 let createPrefixList(kind, id, prefixMap: Dictionary<_, _>, prefixLists: List<_>, pls: List<_>, prefix) = 
     let b, name = prefixMap.TryGetValue( (kind, prefix) )
@@ -1410,6 +1380,7 @@ let createPrefixList(kind, id, prefixMap: Dictionary<_, _>, prefixLists: List<_>
         pls.Add(name)
         prefixLists.Add(pl)
         prefixMap.[(kind,prefix)] <- name
+
 
 let createCommunityList(kind, communityMap: Dictionary<_, _>, communityLists: List<_> , cls: List<_>, id, values) = 
     let vs = List.ofSeq values
@@ -1423,6 +1394,7 @@ let createCommunityList(kind, communityMap: Dictionary<_, _>, communityLists: Li
         communityLists.Add(cl)
         communityMap.[(kind,vs)] <- name
 
+
 let createAsPathList(kind, asPathMap: Dictionary<_, _>, asPathLists: List<_>, als: List<_>, id, re) =
     let b, name = asPathMap.TryGetValue((kind, re))
     if b then als.Add(name)
@@ -1434,6 +1406,7 @@ let createAsPathList(kind, asPathMap: Dictionary<_, _>, asPathLists: List<_>, al
         asPathLists.Add(al)
         asPathMap.[(kind, string re)] <- name
 
+
 let peers (ti: Topology.TopoInfo) (router: string) = 
     let loc (x: Topology.Node) = x.Loc
     match Topology.findByLoc ti.Graph router with 
@@ -1444,24 +1417,36 @@ let peers (ti: Topology.TopoInfo) (router: string) =
         let inPeers, outPeers = Set.map loc inPeers, Set.map loc outPeers
         Set.union inPeers outPeers, inPeers, outPeers
 
-let peerPol asPathMap asPathLists (als: List<_>) alID (p: Peer) = 
+
+let matchPeer ti x = 
+    let settings = Args.getSettings ()
+    let router = if settings.IsAbstract then Topology.router x ti else x
+    "^" + router + "_"
+
+
+let peerPol ti asPathMap asPathLists (als: List<_>) alID (p: Peer) = 
     match p with 
     | Peer.Any -> ()
     | Peer.In -> als.Add("path-1")
     | Peer.Out -> als.Add("path-2")
-    | Peer.Router x -> createAsPathList(Config.Kind.Permit, asPathMap, asPathLists, als, alID, "^" + x + "_")
+    | Peer.Router x -> 
+        let regexMatch = matchPeer ti x
+        createAsPathList(Config.Kind.Permit, asPathMap, asPathLists, als, alID, regexMatch)
 
-let matchAllPeers (peers: Set<string>) = 
+
+
+let matchAllPeers ti (peers: Set<string>) = 
     let str = 
         Set.fold (fun acc p -> 
-            let v = "^" + p + "_"
+            let v = matchPeer ti p
             if acc = "" then v 
             else v + " | " + acc) "" peers
     "(" + str + ")"
 
-let makeInitialPathList peers (asMap, asLists, alID) = 
+
+let makeInitialPathList ti peers (asMap, asLists, alID) = 
     if not (Set.isEmpty peers) then
-        let str = matchAllPeers peers
+        let str = matchAllPeers ti peers
         createAsPathList(Config.Kind.Permit, asMap, asLists, List(), alID, str) |> ignore
 
 
@@ -1472,12 +1457,14 @@ let getExportComm (p: Peer) maxComm commExportMap =
     | Peer.Out -> maxComm
     | Peer.Router x -> Map.find x commExportMap
 
+
 let peerApplies (p: Peer) (peer:string) (allPeers,inPeers,outPeers) = 
     match p with 
     | Peer.In -> Set.contains peer inPeers
     | Peer.Out -> Set.contains peer outPeers
     | Peer.Any -> Set.contains peer allPeers
     | Peer.Router x -> peer = x
+
 
 let relevantCommsByPeer (exportMap: Reindexer<_>) (all,ins,outs) = 
     let mutable relevantCommMap = Map.empty
@@ -1488,12 +1475,14 @@ let relevantCommsByPeer (exportMap: Reindexer<_>) (all,ins,outs) =
                 relevantCommMap <- Map.add peer (Set.add (c,ms) existing) relevantCommMap)
     relevantCommMap
 
+
 let commGroupsByRelevantPeers m = 
     Map.fold (fun acc k v -> 
         match Map.tryFind v acc with 
         | None -> Map.add v (Set.singleton k) acc
         | Some ps -> Map.add v (Set.add k ps) acc
     ) Map.empty m
+
 
 let createExportRouteMap peerExportMap id (cMap,cLists,clID) (pLists,polID) rMaps cs ps = 
     incr id
@@ -1517,9 +1506,11 @@ let createExportRouteMap peerExportMap id (cMap,cLists,clID) (pLists,polID) rMap
     for peer in ps do 
         peerExportMap := Map.add peer ("rm-" + rmname) !peerExportMap
 
+
 let addExportLists peerExportMap peerGroups commInfo polInfo rMaps = 
     let id = ref 0
     peerGroups |> Map.iter (createExportRouteMap peerExportMap id commInfo polInfo rMaps)
+
 
 let computeExportFilters (exportMap: Reindexer<_>) peerInfo commInfo polInfo rMaps = 
     // group export peer by applicable communities
@@ -1531,6 +1522,7 @@ let computeExportFilters (exportMap: Reindexer<_>) peerInfo commInfo polInfo rMa
     addExportLists peerExportMap peerGroups commInfo polInfo rMaps
     !peerExportMap
 
+
 let importFilterCommunityMods (exportMap: Reindexer<_>) es = 
     let scs = List()
     for (peer, mods) in es do 
@@ -1541,6 +1533,8 @@ let importFilterCommunityMods (exportMap: Reindexer<_>) es =
 
 
 let toConfig (abgp: T) = 
+    let settings = Args.getSettings ()
+
     // policy information
     let pi = abgp.PolInfo
     let ti = pi.Ast.TopoInfo
@@ -1576,12 +1570,12 @@ let toConfig (abgp: T) =
         let (pfxMap, asMap, cMap) = Dictionary(), Dictionary(), Dictionary()
 
         // create the internal and external as-path lists
-        makeInitialPathList inPeers (asMap, asLists, alID)
-        makeInitialPathList outPeers (asMap, asLists, alID)
+        makeInitialPathList ti inPeers (asMap, asLists, alID)
+        makeInitialPathList ti outPeers (asMap, asLists, alID)
 
         // create a route map for each predicate
         for (pred, acts) in rconfig.Actions do
-            let tcs = pb.TrafficClassifiers(pred)
+            let tcs = Route.trafficClassifiers pb pred
 
             // split predicate if it is a disjunction of prefixes/communities
             for Route.TrafficClassifier(prefix, comms) in tcs do 
@@ -1603,8 +1597,8 @@ let toConfig (abgp: T) =
                             // must create symmetric export route-map
                             createPrefixList(Config.Kind.Permit, plID, pfxMap, pfxLists, pls, string prefix) |> ignore
                             match m with 
-                            | Match.Peer(x) -> peerPol asMap asLists als alID x
-                            | Match.State(c,x) -> peerPol asMap asLists als alID x
+                            | Match.Peer(x) -> peerPol ti asMap asLists als alID x
+                            | Match.State(c,x) -> peerPol ti asMap asLists als alID x
                             | Match.PathRE(re) -> createAsPathList(Config.Kind.Permit, asMap, asLists, als, alID, string re) |> ignore
                             let slp = if lp = 100 then null else SetLocalPref(lp)
 
@@ -1621,13 +1615,24 @@ let toConfig (abgp: T) =
         for peer in allPeers do
             let export = Map.tryFind peer peerExportMap
             let routerIp, peerIp = ti.IpMap.[(rname, peer)]
-            peerMap.[peer] <- PeerConfig(peer, peerIp, routerIp, Some "rm-in", export)
+            let peerName, rIp, pIp =
+                if settings.IsAbstract then
+                    let loc = Topology.router peer ti
+                    let name = Topology.router rname ti
+                    (loc, sprintf "%s.$routerIP$" name, sprintf "%s.%s.$peerIP$" name loc)
+                else (peer, routerIp, peerIp)
+            peerMap.[peerName] <- PeerConfig(peerName, rIp, pIp, Some "rm-in", export)
+
         // create the complete configuration for this router
-        let routerConfig = RouterConfiguration(rname, origins, pfxLists, asLists, cLists, polLists, rMaps, List(peerMap.Values))
-        networkConfig.[rname] <- routerConfig
+        let routerName = Topology.router rname ti
+        let name = 
+            if settings.IsAbstract 
+            then routerName + ".$router$"
+            else rname
+        let routerConfig = RouterConfiguration(name, origins, pfxLists, asLists, cLists, polLists, rMaps, List(peerMap.Values))
+        networkConfig.[routerName] <- routerConfig
 
     Config.NetworkConfiguration(networkConfig)
-
 
 
 /// Unit tests for compilation.
@@ -1716,94 +1721,94 @@ module Test =
 
     let rDiamond1 (pb: Route.PredicateBuilder) (reb: Regex.REBuilder) = 
         let pref1 = reb.Concat (List.map reb.Loc ["A"; "X"; "N"; "Y"; "B"])
-        [reb.Build pb.True 1 pref1]
+        [reb.Build (Route.top pb) 1 pref1]
 
     let rDiamond2 (pb: Route.PredicateBuilder) (reb: Regex.REBuilder) = 
         let pref1 = reb.Concat (List.map reb.Loc ["A"; "X"; "N"; "Y"; "B"])
         let pref2 = reb.Concat [reb.Loc "A"; reb.Star reb.Inside; reb.Loc "N"; reb.Loc "Z"; reb.Loc "B"]
-        [reb.Build pb.True 1 pref1; reb.Build pb.True 2 pref2]
+        [reb.Build (Route.top pb) 1 pref1; reb.Build (Route.top pb) 2 pref2]
 
     let rDatacenterSmall1 (pb: Route.PredicateBuilder) (reb: Regex.REBuilder) = 
         let pref1 = reb.Internal()
-        [reb.Build pb.True 1 pref1]
+        [reb.Build (Route.top pb) 1 pref1]
 
     let rDatacenterSmall2 (pb: Route.PredicateBuilder) (reb: Regex.REBuilder) = 
         let pref1 = reb.Inter [reb.Through ["M"]; reb.End ["A"]]
-        [reb.Build pb.True 1 pref1]
+        [reb.Build (Route.top pb) 1 pref1]
 
     let rDatacenterSmall3 (pb: Route.PredicateBuilder)  (reb: Regex.REBuilder) =
         let pref1 = reb.Inter [reb.Through ["M"]; reb.End ["A"]]
         let pref2 = reb.Inter [reb.Internal(); reb.End ["A"]]
-        [reb.Build pb.True 1 pref1; reb.Build pb.True 2 pref2]
+        [reb.Build (Route.top pb) 1 pref1; reb.Build (Route.top pb) 2 pref2]
 
     let rDatacenterSmall4 (pb: Route.PredicateBuilder) (reb: Regex.REBuilder) =
         let pref1 = reb.End(["A"])
-        [reb.Build pb.True 1 pref1]
+        [reb.Build (Route.top pb) 1 pref1]
 
     let rDatacenterSmall5 (pb: Route.PredicateBuilder) (reb: Regex.REBuilder) =
         let pref1 = reb.Inter [reb.Through ["M"]; reb.End ["A"]]
         let pref2 = reb.Inter [reb.Through ["N"]; reb.End ["A"]]
         let pref3 = reb.Inter [reb.End ["A"]]
-        [reb.Build pb.True 1 pref1; reb.Build pb.True 2 pref2; reb.Build pb.True 3 pref3]
+        [reb.Build (Route.top pb) 1 pref1; reb.Build (Route.top pb) 2 pref2; reb.Build (Route.top pb) 3 pref3]
 
     let rDatacenterMedium1 (pb: Route.PredicateBuilder) (reb: Regex.REBuilder) =
         let pref1 = reb.Internal()
-        [reb.Build pb.True 1 pref1]
+        [reb.Build (Route.top pb) 1 pref1]
 
     let rDatacenterMedium2 (pb: Route.PredicateBuilder) (reb: Regex.REBuilder) =
         let pref1 = reb.Inter [reb.Start ["A"]; reb.Through ["X"]; reb.End ["F"]]
-        [reb.Build pb.True 1 pref1]
+        [reb.Build (Route.top pb) 1 pref1]
 
     let rDatacenterMedium3 (pb: Route.PredicateBuilder) (reb: Regex.REBuilder) =
         let vf = reb.ValleyFree([["A";"B";"E";"F"]; ["C";"D";"G";"H"]; ["X";"Y"]])
         let pref1 = reb.Inter [reb.Through ["X"]; reb.End ["F"]; vf]
-        [reb.Build pb.True 1 pref1]
+        [reb.Build (Route.top pb) 1 pref1]
 
     let rDatacenterMedium4 (pb: Route.PredicateBuilder) (reb: Regex.REBuilder) =
         let vf = reb.ValleyFree([["A";"B";"E";"F"]; ["C";"D";"G";"H"]; ["X";"Y"]])
         let start = reb.Start(["A"; "B"])
         let pref1 = reb.Inter [start; reb.Through ["X"]; reb.End ["F"]; vf]
         let pref2 = reb.Inter [reb.End ["F"]; vf]
-        [reb.Build pb.True 1 pref1; reb.Build pb.True 2 pref2]
+        [reb.Build (Route.top pb) 1 pref1; reb.Build (Route.top pb) 2 pref2]
 
     let rDatacenterMedium5 (pb: Route.PredicateBuilder) (reb: Regex.REBuilder) =
         let vf = reb.ValleyFree([["A";"B";"E";"F"]; ["C";"D";"G";"H"]; ["X";"Y"]])
         let pref1 = reb.Inter [reb.Through ["X"]; reb.End ["F"]; vf]
         let pref2 = reb.Inter [reb.Through ["Y"]; reb.End ["F"]; vf]
-        [reb.Build pb.True 1 pref1; reb.Build pb.True 2 pref2]
+        [reb.Build (Route.top pb) 1 pref1; reb.Build (Route.top pb) 2 pref2]
 
     let rDatacenterMedium6 (pb: Route.PredicateBuilder) (reb: Regex.REBuilder) =
         let vf = reb.ValleyFree([["A";"B";"E";"F"]; ["C";"D";"G";"H"]; ["X";"Y"]])
         let pref1 = reb.Inter [reb.Through ["X"]; reb.End ["F"]; vf]
         let pref2 = reb.Inter [reb.Through ["Y"]; reb.End ["F"]; vf]
         let pref3 = reb.Inter [reb.End ["F"]; vf]
-        [reb.Build pb.True 1 pref1; reb.Build pb.True 2 pref2; reb.Build pb.True 3 pref3]
+        [reb.Build (Route.top pb) 1 pref1; reb.Build (Route.top pb) 2 pref2; reb.Build (Route.top pb) 3 pref3]
 
     let rDatacenterLarge1 (pb: Route.PredicateBuilder) (reb: Regex.REBuilder) =
         let pref1 = reb.Inter [reb.Through ["M"]; reb.End ["A"]]
-        [reb.Build pb.True 1 pref1]
+        [reb.Build (Route.top pb) 1 pref1]
 
     let rDatacenterLarge2 (pb: Route.PredicateBuilder) (reb: Regex.REBuilder) =
         let pref1 = reb.Inter [reb.Through ["M"]; reb.End ["A"]]
         let pref2 = reb.End ["A"]
-        [reb.Build pb.True 1 pref1; reb.Build pb.True 2 pref2]
+        [reb.Build (Route.top pb) 1 pref1; reb.Build (Route.top pb) 2 pref2]
 
     let rDatacenterLarge3 (pb: Route.PredicateBuilder) (reb: Regex.REBuilder) =
         let pref1 = reb.Inter [reb.Through ["M"]; reb.End ["A"]]
         let pref2 = reb.Inter [reb.Through ["N"]; reb.End ["A"]]
         let pref3 = reb.End ["A"]
-        [reb.Build pb.True 1 pref1; reb.Build pb.True 2 pref2; reb.Build pb.True 3 pref3]
+        [reb.Build (Route.top pb) 1 pref1; reb.Build (Route.top pb) 2 pref2; reb.Build (Route.top pb) 3 pref3]
 
     let rBrokenTriangle1 (pb: Route.PredicateBuilder) (reb: Regex.REBuilder) =
         let pref1 = reb.Union [reb.Path ["C"; "A"; "E"; "D"]; reb.Path ["A"; "B"; "D"]]
-        [reb.Build pb.True 1 pref1]
+        [reb.Build (Route.top pb) 1 pref1]
 
     let rBigDipper1 (pb: Route.PredicateBuilder) (reb: Regex.REBuilder) =
         let op1 = reb.Path ["C"; "A"; "E"; "D"]
         let op2 = reb.Path ["A"; "E"; "D"]
         let op3 = reb.Path ["A"; "D"]
         let pref1 = reb.Union [op1; op2; op3]
-        [reb.Build pb.True 1 pref1]
+        [reb.Build (Route.top pb) 1 pref1]
 
     let rBadGadget1 (pb: Route.PredicateBuilder) (reb: Regex.REBuilder) =
         let op1 = reb.Path ["A"; "C"; "D"]
@@ -1814,7 +1819,7 @@ module Test =
         let op5 = reb.Path ["B"; "D"]
         let op6 = reb.Path ["C"; "D"]
         let pref2 = reb.Union [op4; op5; op6]
-        [reb.Build pb.True 1 pref1; reb.Build pb.True 2 pref2]
+        [reb.Build (Route.top pb) 1 pref1; reb.Build (Route.top pb) 2 pref2]
 
     let rBadGadget2 (pb: Route.PredicateBuilder) (reb: Regex.REBuilder) =
         let op1 = reb.Path ["A"; "C"; "D"]
@@ -1824,7 +1829,7 @@ module Test =
         let op5 = reb.Path ["B"; "D"]
         let op6 = reb.Path ["C"; "D"]
         let pref1 = reb.Union [op1; op2; op3; op4; op5; op6]
-        [reb.Build pb.True 1 pref1]
+        [reb.Build (Route.top pb) 1 pref1]
 
     let rSeesaw1 (pb: Route.PredicateBuilder) (reb: Regex.REBuilder) = 
         let op1 = reb.Path ["A"; "X"; "N"; "M"]
@@ -1833,17 +1838,17 @@ module Test =
         let op4 = reb.Path ["X"; "O"; "M"]
         let pref1 = reb.Union [op1; op2; op3; op4]
         let pref2 = reb.Path ["X"; "N"; "M"]
-        [reb.Build pb.True 1 pref1; reb.Build pb.True 2 pref2]
+        [reb.Build (Route.top pb) 1 pref1; reb.Build (Route.top pb) 2 pref2]
 
     let rStretchingManWAN1 (pb: Route.PredicateBuilder) (reb: Regex.REBuilder) = 
         let pref1 = reb.Concat [reb.Star reb.Outside; reb.Loc "A"; reb.Star reb.Inside; reb.Loc "Y"]
         let pref2 = reb.Concat [reb.Star reb.Outside; reb.Loc "B"; reb.Star reb.Inside; reb.Outside]
-        [reb.Build pb.True 1 pref1; reb.Build pb.True 2 pref2]
+        [reb.Build (Route.top pb) 1 pref1; reb.Build (Route.top pb) 2 pref2]
 
     let rStretchingManWAN2 (pb: Route.PredicateBuilder) (reb: Regex.REBuilder) = 
         let pref1 = reb.Concat [reb.Outside; reb.Loc "A"; reb.Star reb.Inside; reb.Loc "Y"]
         let pref2 = reb.Concat [reb.Outside; reb.Loc "B"; reb.Star reb.Inside; reb.Outside]
-        [reb.Build pb.True 1 pref1; reb.Build pb.True 2 pref2]
+        [reb.Build (Route.top pb) 1 pref1; reb.Build (Route.top pb) 2 pref2]
 
     let rStretchingManWAN3 (pb: Route.PredicateBuilder) (reb: Regex.REBuilder) = 
         let pref1 = 
@@ -1852,21 +1857,21 @@ module Test =
                 reb.Loc "A"; reb.Star reb.Inside; 
                 reb.Loc "Y"; reb.Star reb.Outside; 
                 reb.Loc "ASChina" ]
-        [reb.Build pb.True 1 pref1]
+        [reb.Build (Route.top pb) 1 pref1]
 
     let rStretchingManWAN4 (pb: Route.PredicateBuilder) (reb: Regex.REBuilder) = 
         let pref1 = reb.Concat [reb.Loc "W"; reb.Loc "A"; reb.Loc "C"; reb.Loc "D"; reb.Outside]
         let pref2 = reb.Concat [reb.Loc "W"; reb.Loc "B"; reb.Internal(); reb.Outside]
-        [reb.Build pb.True 1 pref1; reb.Build pb.True 2 pref2]
+        [reb.Build (Route.top pb) 1 pref1; reb.Build (Route.top pb) 2 pref2]
 
     let rPinCushionWAN1 (pb: Route.PredicateBuilder) (reb: Regex.REBuilder) =
         let pref1 = reb.Concat [reb.Loc "W"; reb.Internal(); reb.Loc "Y"]
         let pref2 = reb.Concat [reb.Loc "X"; reb.Internal(); reb.Loc "Z"]
-        [reb.Build pb.True 1 pref1; reb.Build pb.True 2 pref2]
+        [reb.Build (Route.top pb) 1 pref1; reb.Build (Route.top pb) 2 pref2]
 
     let rBackboneWAN1 (pb: Route.PredicateBuilder) (reb: Regex.REBuilder) =
         let pref1 = reb.End(["A"])
-        [reb.Build pb.True 1 pref1]
+        [reb.Build (Route.top pb) 1 pref1]
 
     let tests (settings: Args.T) = 
         let controlIn = settings.UseMed || settings.UsePrepending
@@ -2168,7 +2173,7 @@ module Test =
         let pol = reb.End ["A"]
         let aggs = Map.add "X" [(Route.Prefix(10, 0, 0, 0, 31, Route.Range(31,32)), Seq.ofList ["PEER"])] Map.empty
         let aggs = Map.add "Y" [(Route.Prefix(10, 0, 0, 0, 31, Route.Range(31,32)), Seq.ofList["PEER"])] aggs
-        let res = compileToIR "" 0 (pb.Prefix <| Route.Prefix(10, 0, 0, 0, 32)) None aggs reb [reb.Build pb.True 1 pol]
+        let res = compileToIR "" 0 (Route.prefix pb <| Route.Prefix(10, 0, 0, 0, 32)) None aggs reb [reb.Build (Route.top pb) 1 pol]
         match res with
         | Err _ -> failed ()
         | Ok(res) -> 
@@ -2201,7 +2206,7 @@ module Test =
                 failed ()
                 logInfo(0, msg)
             else
-                let pred = pb.True
+                let pred = Route.top pb
                 match compileToIR (settings.DebugDir + test.Name) 0 pred None Map.empty reb built with 
                 | Err(x) ->
                     if (Option.isSome test.Receive || 
@@ -2250,8 +2255,8 @@ module Test =
                                 let msg = sprintf "[Failed]: (%s) - %s should prefer %s to %s but did not" test.Name x a b
                                 logInfo(0, msg)
                         if fail 
-                        then failed ()
-                        else passed ()
+                          then failed ()
+                          else passed ()
         printfn "%s" border
 
     let run () =

@@ -87,6 +87,7 @@ type HashCons = struct
           | _ -> failwith "cannot compare values of different types"
 end 
 
+
 /// Multi-terminal Bdd node. We store prefix len ranges in 
 /// the leaves, which is more efficient than encoding 
 /// the range directly in binary.
@@ -175,7 +176,6 @@ type BddBuilder(order : Var -> Var -> int) =
 /// Helper bitwise operations for manipulating prefixes
 /// so they can be stored in a compact integer, but manipulated
 /// in dot notation x1.x2.x3.x4/s[lo..hi]
-
 module Bitwise = 
 
     let inline shr x bits = if bits >= 32 then 0 else x >>> bits
@@ -198,7 +198,7 @@ module Bitwise =
 
 
 /// Simple wrapper class for 32 bit prefixes with a convenience 
-/// constructor that will read from dot notation string
+/// constructor that will read from dot notation string.
 
 [<StructuralEquality; StructuralComparison>]
 type Prefix = struct 
@@ -206,38 +206,45 @@ type Prefix = struct
     val Slash: int
     val Range: Range
     val IsExact: bool
+    val IsTemplate: bool
+    val Name: string
 
-    internal new(bits,s) = {Bits = bits; Slash = s; Range = Range(s,s); IsExact = true}
-    internal new(bits,s,r) = {Bits = bits; Slash = s; Range = r; IsExact = false}
-    new(a,b,c,d,s) = {Bits = Bitwise.fromDotted(a,b,c,d); Slash=s; Range = Range(s,s); IsExact = true}
-    new(a,b,c,d,s,r) = {Bits = Bitwise.fromDotted(a,b,c,d); Slash=s; Range = r; IsExact = false}
+    internal new(bits,s) = {Bits = bits; Slash = s; Range = Range(s,s); IsExact = true; IsTemplate=false; Name=""}
+    internal new(bits,s,r) = {Bits = bits; Slash = s; Range = r; IsExact = false; IsTemplate=false; Name=""}
+    new(a,b,c,d,s) = {Bits = Bitwise.fromDotted(a,b,c,d); Slash=s; Range = Range(s,s); IsExact = true; IsTemplate=false; Name=""}
+    new(a,b,c,d,s,r) = {Bits = Bitwise.fromDotted(a,b,c,d); Slash=s; Range = r; IsExact = false; IsTemplate=false; Name=""}
+    new(n) = {Bits = 0; Slash = 0; Range = Range(-1,-1); IsExact = false; IsTemplate = true; Name = n}
          
     override v.ToString() = 
-        let (a,b,c,d) = Bitwise.toDotted v.Bits
-        let r = v.Range
-        if v.IsExact 
-            then sprintf "%d.%d.%d.%d/%d" a b c d v.Slash 
-            else sprintf "%d.%d.%d.%d/%d ge %d le %d" a b c d v.Slash r.Lo r.Hi 
+        if v.IsTemplate then sprintf "%s" v.Name
+        else
+            let (a,b,c,d) = Bitwise.toDotted v.Bits
+            let r = v.Range
+            if v.IsExact 
+                then sprintf "%d.%d.%d.%d/%d" a b c d v.Slash 
+                else sprintf "%d.%d.%d.%d/%d ge %d le %d" a b c d v.Slash r.Lo r.Hi 
 
     static member True = Prefix(0,0,0,0, 0, Range.Full) 
     static member False = Prefix(0,0,0,0, 0, Range.Empty)
 end
 
 
-/// Predicate is just a wrapper around the root Bdd node
-type Predicate = Predicate of HashCons
+/// Predicate is either an abstract or concrete value
+type Predicate = 
+    | TemplatePred of Set<string>
+    | ConcretePred of HashCons
 
-/// Traffic classifier matches an individual prefix and positive + negative communities
+
+/// Traffic classifier matches an individual prefix and positive / negative communities
 type TrafficClassifier = 
     | TrafficClassifier of (Prefix * Set<string>)
-
     override x.ToString() = 
         let (TrafficClassifier(p,cts)) = x
         let comms = Set.fold (fun acc ct -> if acc <> "" then acc + "," + ct else ct) "" cts
         let comms = Set.fold (fun acc ct -> if acc <> "" then acc + ",!" + ct else "!" + ct) comms cts
         if cts.IsEmpty 
-        then sprintf "%s" (string p)
-        else sprintf "%s, {%s}" (string p) comms
+            then sprintf "%s" (string p)
+            else sprintf "%s, {%s}" (string p) comms
 
 
 /// Predicate builder class to encapsulate the Bdd data structure 
@@ -332,7 +339,7 @@ type PredicateBuilder() =
                 let res = !idxVar
                 idxVar := !idxVar - 1 
                 res
-        Predicate(bdd.Var(idx))
+        bdd.Var(idx)
 
     /// Return the bdd representing a prefix x1.x2.x3.x4/s[lo..hi]
     member __.Prefix (p: Prefix) =
@@ -343,7 +350,7 @@ type PredicateBuilder() =
                     if Bitwise.get p.Bits i 
                     then acc <- bdd.And(acc, bdd.Var(i))
                     else acc <- bdd.And(acc, bdd.Var(i) |> bdd.Not)
-            Predicate(acc)
+            acc
         )
 
     /// Return the bdd representing a match on the community c
@@ -355,25 +362,25 @@ type PredicateBuilder() =
         lock obj (fun () -> addForString topoToIdxMap idxToTopoMap l nextTopoIdx)
 
     /// The predicate matching any route announcement
-    member __.True = Predicate(bdd.True)
+    member __.True = bdd.True
 
     /// The predicate matching no route announcements
-    member __.False = Predicate(bdd.False)
+    member __.False = bdd.False
 
     /// The predicate matching both x and y
-    member __.And(Predicate x, Predicate y) = lock obj (fun () -> Predicate(bdd.And(x,y)))
+    member __.And(x, y) = lock obj (fun () -> bdd.And(x,y))
 
     /// The predicate matching either x or y
-    member __.Or(Predicate x, Predicate y) = lock obj (fun () -> Predicate(bdd.Or(x,y)))
+    member __.Or(x, y) = lock obj (fun () -> bdd.Or(x,y))
 
     /// The predicate not matching x
-    member __.Not(Predicate x) = lock obj (fun () -> Predicate(bdd.Not(x)))
+    member __.Not(x) = lock obj (fun () -> bdd.Not(x))
 
     /// Check if one predicate implies the other
-    member __.Implies(Predicate x, Predicate y) = lock obj (fun () -> bdd.Implies(x,y))
+    member __.Implies(x, y) = lock obj (fun () -> bdd.Implies(x,y))
 
     /// Convert the Bdd representation of a predicate to a prioritized list of matches
-    member __.TrafficClassifiers(Predicate p) : TrafficClassifier list =
+    member __.TrafficClassifiers(p) : TrafficClassifier list =
         let acc = ref []
         let aux ts fs (r : Range) =
             if not r.IsEmpty then  
@@ -402,6 +409,88 @@ type PredicateBuilder() =
             then sprintf "%s" (string ex)
             else sprintf "%s or ..." (string ex)
 
+
+/// Create a template variable
+let inline templateVar r = TemplatePred (Set.singleton r)
+
+
+/// Check if a predicate is abstract
+let inline isTemplate x = 
+  match x with 
+  | TemplatePred _ -> true 
+  | ConcretePred _ -> false
+
+
+/// True representation
+let inline top (pb: PredicateBuilder) = ConcretePred(pb.True)
+
+
+/// False representation
+let inline bot (pb: PredicateBuilder) = ConcretePred(pb.False)
+
+
+/// Prefix representation
+let inline prefix (pb: PredicateBuilder) p = ConcretePred(pb.Prefix p)
+
+
+/// Community representation
+let inline community (pb: PredicateBuilder) c = ConcretePred(pb.Community c)
+
+
+/// Topology location representation
+let inline location (pb: PredicateBuilder) l = ConcretePred(pb.Location l)
+
+
+/// Get concrete value
+let inline getConcrete (x: Predicate) = 
+    match x with 
+    | TemplatePred _ -> failwith "Invariant violation: getConcrete"
+    | ConcretePred p -> p
+
+
+/// Conjunction of two predicates
+let conj (pb: PredicateBuilder) (x: Predicate) (y: Predicate) = 
+  match x, y with
+  | TemplatePred r1, TemplatePred r2 -> 
+        let n = Set.intersect r1 r2 
+        if Set.isEmpty n then ConcretePred(pb.False) else TemplatePred n
+  | TemplatePred _, ConcretePred v -> if v = pb.True then x else ConcretePred(pb.False) 
+  | ConcretePred v, TemplatePred _ -> if v = pb.True then y else ConcretePred(pb.False) 
+  | ConcretePred x, ConcretePred y -> ConcretePred(pb.And(x,y))
+
+
+/// Disjunction of two predicates
+let disj (pb: PredicateBuilder) (x: Predicate) (y: Predicate) = 
+    match x, y with
+    | TemplatePred r1, TemplatePred r2 -> TemplatePred (Set.union r1 r2)
+    | TemplatePred _, ConcretePred v -> if v = pb.True then ConcretePred(pb.True) else x
+    | ConcretePred v, TemplatePred _ -> if v = pb.True then ConcretePred(pb.True) else y 
+    | ConcretePred x, ConcretePred y -> ConcretePred(pb.Or(x,y))
+
+
+/// Test for prefix superset
+let isMoreGeneralPrefixOf (pb: PredicateBuilder) (x: Prefix) (y: Prefix) = 
+    if x.IsTemplate || y.IsTemplate then true 
+    else pb.Implies(pb.Prefix y, pb.Prefix x)
+
+
+/// Traffic Classifiers of a predicate
+let trafficClassifiers (pb: PredicateBuilder) (x: Predicate) = 
+    match x with 
+    | ConcretePred p -> pb.TrafficClassifiers p
+    | TemplatePred rs -> 
+        Set.fold (fun acc r -> TrafficClassifier(Prefix(r), Set.empty) :: acc) [] rs
+
+
+// Simplify printing to a string 
+let toString (pb: PredicateBuilder) (x: Predicate) = 
+    let aux acc r =
+        let x = "$" + r + "$"
+        if acc = "" then x else acc + " or " + x
+    match x with 
+    | TemplatePred rs -> Set.fold aux "" rs
+    | ConcretePred p -> pb.ToString(p)
+    
 
 /// Unit tests for the Bdd data structure 
 /// Ensures basic logic properties hold and 

@@ -26,6 +26,7 @@ and Node =
     | OrExpr of Expr * Expr
     | AndExpr of Expr * Expr
     | NotExpr of Expr
+    | TemplateVar of Ident option * Ident
     | PrefixLiteral of int * int * int * int * int option
     | CommunityLiteral of int * int
     | Asn of int
@@ -40,7 +41,6 @@ type Type =
     | PredicateType
     | IntType
     | BlockType
-
     override this.ToString() = 
         match this with
         | LinkType -> "Links"
@@ -56,7 +56,6 @@ type Value =
     | LinkValue
     | IntValue
     | LocValue
-
     override this.ToString() = 
         match this with
         | PrefixValue -> "Prefix"
@@ -93,11 +92,14 @@ let paramInfo =
          ("maxroutes", [IntValue; LinkValue]);
          ("longest_path", [IntValue; LocValue]) ]
 
+
 let builtInLocs = 
     Set.ofList ["in"; "out"]
 
+
 let builtInSingle = 
     Set.add "drop" builtInLocs
+
 
 let builtInRes = 
     Set.ofList 
@@ -106,12 +108,22 @@ let builtInRes =
          "through"; "avoid"; "internal"; 
          "any"; "drop"; "in"; "out"]
 
+
 let builtInConstraints = 
     Set.ofList 
         ["aggregate"; "tag"; 
          "maxroutes"; "longest_path"]
 
+
 let builtIns = Set.union builtInRes builtInConstraints
+
+
+let templateTypes =
+    Map.ofList 
+        [("prefix", PredicateType); 
+         ("router", LocType); 
+         ("aggregateIP", PredicateType)]
+
 
 (* Helper functions for traversing an AST expression 
    and applying a user-defined function f at each node *)
@@ -127,7 +139,9 @@ let rec iter f (e: Expr) =
     | AndExpr (e1, e2) -> iter f e1; iter f e2
     | NotExpr e1 -> iter f e1
     | True | False | PrefixLiteral _ | CommunityLiteral _ | IntLiteral _ | Asn _ -> ()
+    | TemplateVar(ido, id) -> ()
     | Ident (id, args) -> List.iter f args
+
 
 let iterAllExpr (ast: T) e f =
     Map.iter (fun name (_,_,e) -> 
@@ -135,6 +149,7 @@ let iterAllExpr (ast: T) e f =
     iter f e
     List.iter (fun (id, es) -> 
         List.iter (iter f) es) ast.CConstraints
+
 
 (* Pretty printing of error and warning messages. 
    When errors occur on a single line, display the line 
@@ -247,24 +262,30 @@ module Message =
    Keep track of seen expansions to prevent recursive definitions.
    The position of the new, expanded block is set to the old expression. *)
 
-let substitute (ast: T) (e: Expr) : Expr = 
+let substitute (ast: T) (e: Expr) : Expr =  
     let rec aux defs seen e : Expr =
         match e.Node with
-        | BlockExpr es -> {Pos=e.Pos;Node=BlockExpr (List.map (fun (e1,e2) -> (aux defs seen e1, aux defs seen e2)) es)}
-        | LinkExpr (e1, e2) -> {Pos=e.Pos;Node=LinkExpr (aux defs seen e1, aux defs seen e2)}
-        | DiffExpr (e1, e2) -> {Pos=e.Pos;Node=DiffExpr (aux defs seen e1, aux defs seen e2)}
-        | ShrExpr (e1, e2) -> {Pos=e.Pos;Node=ShrExpr (aux defs seen e1, aux defs seen e2)}
-        | OrExpr (e1, e2) -> {Pos=e.Pos;Node=OrExpr (aux defs seen e1, aux defs seen e2)}
-        | AndExpr (e1, e2) -> {Pos=e.Pos;Node=AndExpr (aux defs seen e1, aux defs seen e2)}
+        | BlockExpr es -> {Pos=e.Pos; Node=BlockExpr (List.map (fun (e1,e2) -> (aux defs seen e1, aux defs seen e2)) es)}
+        | LinkExpr (e1, e2) -> {Pos=e.Pos; Node=LinkExpr (aux defs seen e1, aux defs seen e2)}
+        | DiffExpr (e1, e2) -> {Pos=e.Pos; Node=DiffExpr (aux defs seen e1, aux defs seen e2)}
+        | ShrExpr (e1, e2) -> {Pos=e.Pos; Node=ShrExpr (aux defs seen e1, aux defs seen e2)}
+        | OrExpr (e1, e2) -> {Pos=e.Pos; Node=OrExpr (aux defs seen e1, aux defs seen e2)}
+        | AndExpr (e1, e2) -> {Pos=e.Pos; Node=AndExpr (aux defs seen e1, aux defs seen e2)}
         | NotExpr e1 -> {Pos=e.Pos;Node=NotExpr (aux defs seen e1)}
         | True | False | PrefixLiteral _ | CommunityLiteral _ | IntLiteral _ | Asn _ -> e
+        | TemplateVar(ido,name) ->
+            match ido with 
+            | None -> e
+            | Some id ->
+                if ast.TopoInfo.InternalNames.Contains id.Name then e 
+                else Message.errorAst ast (sprintf "Invalid template variable name %s" id.Name) id.Pos
         | Ident (id,es) ->
             if Set.contains id.Name seen then 
                 Message.errorAst ast (sprintf "Recursive definition of %s" id.Name) id.Pos
             match Map.tryFind id.Name defs with
             | None ->
                 if builtInSingle.Contains id.Name then e
-                elif builtInRes.Contains id.Name then {Pos=e.Pos;Node=Ident(id, List.map (aux defs seen) es)}
+                elif builtInRes.Contains id.Name then {Pos=e.Pos; Node=Ident(id, List.map (aux defs seen) es)}
                 else Message.errorAst ast (sprintf "Unbound identifier '%s'" id.Name) id.Pos
             | Some (_,ids,e1) -> 
                 let req, prov = List.length ids, List.length es
@@ -277,6 +298,7 @@ let substitute (ast: T) (e: Expr) : Expr =
                 aux defs' (Set.add id.Name seen) e1
     aux ast.Defs Set.empty e
 
+
 (* Test well-formedness of an expression. 
    Ensures expressions are of the proper type, 
    that prefixes and links are valid, and 
@@ -287,6 +309,7 @@ let inline adjustBits bits =
     | None -> 32
     | Some b -> b
 
+
 let wellFormedPrefix ast pos (a,b,c,d,bits) =
     let bits = adjustBits bits
     if (a > 255 || b > 255 || c > 255 || d > 255 || (bits > 32)) then
@@ -296,11 +319,13 @@ let wellFormedPrefix ast pos (a,b,c,d,bits) =
             sprintf "must match [0-255].[0-255].[0-255].[0-255]/[0-32]"
         Message.errorAst ast msg pos
 
+
 let typeMsg (expected: Type list) (t1: Type) = 
     let t = Util.List.joinBy " or " (List.map string expected)
     sprintf "Invalid type, expected %s, but got %s" 
         (string t)
         (string t1)
+
 
 let typeMsg2 (expected: Type list) (t1: Type) (t2: Type) = 
     let t = Util.List.joinBy " or " (List.map string expected)
@@ -309,7 +334,9 @@ let typeMsg2 (expected: Type list) (t1: Type) (t2: Type) =
         (string t1)
         (string t2)
 
+
 let wellFormed ast (e: Expr) : Type =
+    let settings = Args.getSettings ()
     let rec aux block e =
         match e.Node with
         | BlockExpr es -> 
@@ -369,6 +396,15 @@ let wellFormed ast (e: Expr) : Type =
         | True _ | False _ | CommunityLiteral _ -> PredicateType
         | IntLiteral _ -> IntType
         | Asn _ -> LocType
+        | TemplateVar(ido,id) ->
+            if not settings.IsAbstract then
+                let msg = 
+                    sprintf "Template variable: $%s$ detected, but abstract compilation "  id.Name +
+                    sprintf "is not enabled. Use the -abstract:on flag to enable abstract compilation"
+                Message.errorAst ast msg id.Pos
+            match Map.tryFind id.Name templateTypes with 
+            | None -> Message.errorAst ast (sprintf "Invalid template variable: $%s$" id.Name) id.Pos
+            | Some typ -> typ
         | Ident (id, args) ->
             if builtInConstraints.Contains id.Name then
                 let msg = sprintf "Invalid control constraint '%s' found in expression" id.Name
@@ -384,6 +420,7 @@ let wellFormed ast (e: Expr) : Type =
             else aux block (substitute ast e)
     aux false e
    
+
 (* Given an expression, which is known to be a regex, 
    recursively push the preferences to the top level.
    Assumes blocks have already been expanded. *)
@@ -416,6 +453,16 @@ and mergeSingle ast e x op =
         let msg = sprintf "Invalid use of preferences with %s" op
         Message.errorAst ast msg e.Pos
     else [e]
+
+
+let getAsnForTemplateVar ast (id) = 
+    match Map.tryFind id.Name ast.Defs with 
+    | None -> failwith "Invariant violation"
+    | Some (_,_,e) ->
+        match e.Node with
+        | Asn i -> string i
+        | _ -> failwith "Invariant violation"
+
 
 (* Construct an actual regular expression from an 
    expression with regex type. Expands built-in 
@@ -453,26 +500,38 @@ let rec buildRegex (ast: T) (reb: Regex.REBuilder) (r: Expr) : Regex.LazyT =
         | "in" -> ignore (checkParams id 0 args); reb.Inside 
         | "out" -> ignore (checkParams id 0 args);  reb.Outside
         | _ -> Util.unreachable ()
-    | ShrExpr(e1,e2) -> 
-        error (sprintf "Preferences in built-in constraint currently not handled")
-    | _ -> Util.unreachable ()
+    | ShrExpr(e1,e2) -> error (sprintf "Preferences in built-in constraint currently not handled") 
+    | TemplateVar(ido,id) ->
+        match ido with 
+        | None ->
+            let msg = sprintf "Template router variable %s is not bound to an abstract router" id.Name
+            Message.errorAst ast msg r.Pos 
+        | Some x -> reb.Loc (getAsnForTemplateVar ast x)
+    | BlockExpr _ | LinkExpr _ | IntLiteral _ 
+    | CommunityLiteral _ | PrefixLiteral _ | False | True -> Util.unreachable ()
+
 
 (* Build a concrete predicate from an expression
    that is known the have predicate type *)
 
 let rec buildPredicate (pb: PredicateBuilder) (e: Expr) : Predicate = 
     match e.Node with 
-    | True -> pb.True
-    | False -> pb.False
-    | AndExpr(a,b) -> pb.And(buildPredicate pb a, buildPredicate pb b)
-    | OrExpr(a,b) -> pb.Or (buildPredicate pb a, buildPredicate pb b)
-    | NotExpr a -> pb.Not(buildPredicate pb a)
+    | True -> Route.top pb
+    | False -> Route.bot pb
+    | AndExpr(a,b) -> Route.conj pb (buildPredicate pb a) (buildPredicate pb b)
+    | OrExpr(a,b) -> Route.disj pb (buildPredicate pb a) (buildPredicate pb b)
     | PrefixLiteral (a,b,c,d,bits) ->
         let bits = adjustBits bits
         let p = Prefix(a,b,c,d,bits,Range(bits,32))
-        pb.Prefix p
-    | CommunityLiteral (x,y) -> pb.Community (string x + ":" + string y)
-    | _ -> Util.unreachable ()
+        Route.prefix pb p
+    | CommunityLiteral (x,y) -> Route.community pb (string x + ":" + string y)
+    | TemplateVar(ido,id) -> 
+        match ido with 
+        | None -> Route.templateVar (sprintf "global.$%s$" id.Name)
+        | Some x -> Route.templateVar (sprintf "%s.$%s$" x.Name id.Name)
+    | BlockExpr _ | DiffExpr _ | IntLiteral _ | NotExpr _
+    | LinkExpr _ | ShrExpr _ | Ident _ | Asn _ -> Util.unreachable ()
+
 
 (* Helper getter functions for expressions
    where the kind of value is known *)
@@ -482,20 +541,24 @@ let inline getPrefix x =
     | PrefixLiteral (a,b,c,d,bits) -> (a,b,c,d,bits)
     | _ -> Util.unreachable ()
 
+
 let inline getLinks x = 
     match x with 
     | LinkExpr(x,y) -> (x,y)
     | _ -> Util.unreachable ()
+
 
 let inline getInt x = 
     match x with 
     | IntLiteral i -> i 
     | _ -> Util.unreachable ()
 
+
 let inline getComm x = 
     match x with 
     | CommunityLiteral (a,b) -> (a,b)
     | _ -> Util.unreachable ()
+
 
 (* Build the control constraints
    and extract concrete parameter values *)
@@ -523,6 +586,7 @@ let rec wellFormedCCs ast id args argsOrig =
             | _, _, _ -> 
                 let msg = sprintf "Expected parameter %d of %s to be a %s value" i id.Name (string y)
                 Message.errorAst ast msg origE.Pos
+
 
 let buildCConstraint ast (cc: Ident * Expr list) =
     let reb = Regex.REBuilder(ast.TopoInfo.Graph) 
@@ -562,9 +626,11 @@ let buildCConstraint ast (cc: Ident * Expr list) =
         CLongestPath (i, Option.get locs)
     | _ -> Util.unreachable ()
 
+
 let makeControlConstraints ast : CConstraint list = 
     List.map (buildCConstraint ast) ast.CConstraints
  
+
 (* Compiler warnings for a variety of common mistakes. 
    Unused definitions or parameters not starting with '_',
    TODO: unused aggregates, etc. *)
@@ -574,6 +640,7 @@ let inline getUsed seen e =
     | Ident(id, _) -> 
         seen := Set.add id.Name !seen
     | _ -> ()
+
 
 let warnUnusedDefs ast e =
     let used = ref Set.empty
@@ -587,6 +654,7 @@ let warnUnusedDefs ast e =
         if notMain && notUnder && notUsed && notRouter then
             let msg = sprintf "Unused definition of '%s'" id
             Message.warningAst ast msg p) defs
+
 
 let warnUnusedParams (ast: T) = 
     Map.iter (fun (id:string) (_,ps,e) ->
@@ -603,10 +671,12 @@ let warnUnused (ast: T) (main: Expr) : unit =
     warnUnusedDefs ast main
     warnUnusedParams ast
 
+
 let inline getAsns asns e =
     match e.Node with
     | Asn i -> asns := Set.add (e,i) !asns
     | _ -> ()
+
 
 let warnRawAsn (ast: T) =
     let rawAsns = ref Set.empty
@@ -626,9 +696,11 @@ let warnRawAsn (ast: T) =
             Message.warningAst ast msg e.Pos
         | None -> ()
 
+
 let inline buildPrefix ast (a,b,c,d,bits) =
     let bits = adjustBits bits
     Prefix(a,b,c,d,bits,Range(bits,32))
+
 
 let inline getPrefixes ast pfxs e =
     match e.Node with
@@ -637,6 +709,7 @@ let inline getPrefixes ast pfxs e =
         let pfx = buildPrefix ast (a,b,c,d,bits)
         pfxs := Set.add pfx !pfxs
     | _ -> ()
+
 
 let warnUnusedAggregates (ast:T) (pb: PredicateBuilder) e =
     let inline isPfxFor agg p =
@@ -657,23 +730,70 @@ let warnUnusedAggregates (ast:T) (pb: PredicateBuilder) e =
                     Message.warningAst ast msg e.Pos
             | _ -> ()
 
+
+let findTemplateViolations (ast:T) e = 
+    let preds = ref Set.empty
+    let regexes = ref Set.empty
+
+    let isTemplatePred e = 
+        match e.Node with
+        | TemplateVar(ido,id) ->
+            match ido with 
+            | None -> preds := Set.add "global" !preds
+            | Some x -> preds := Set.add x.Name !preds
+        | _ -> ()
+
+    let isTemplateRegex e =
+        match e.Node with 
+        | Ident(i, [{Node=TemplateVar(ido,id)}]) when i.Name = "end" ->
+            match ido with 
+            | None -> regexes := Set.add "global" !regexes
+            | Some x -> regexes := Set.add x.Name !regexes
+        | _ -> ()
+
+    let aux e =
+        match e.Node with
+        | BlockExpr es -> 
+            for (pred,res) in es do 
+                preds := Set.empty
+                regexes := Set.empty
+                iter isTemplatePred pred
+                iter isTemplateRegex res
+                if Set.count !preds > 1 then
+                    let msg = sprintf "Multiple template variables in a given match: %s" (Util.Set.toString !preds) 
+                    Message.errorAst ast msg pred.Pos
+                if Set.count !regexes > 1 then 
+                    let msg = sprintf "Multiple template variables in a given constraint: %s" (Util.Set.toString !regexes)
+                    Message.errorAst ast msg pred.Pos
+                if !preds <> !regexes then 
+                    let msg = sprintf "Non-matching template parents on both sides of expression"
+                    Message.errorAst ast msg pred.Pos
+        | _ -> ()
+
+    iter aux e
+
+
 (* Get all the concrete locations that are originated syntactically
    at some point in the policy. This will be used to catch accidental
    Misconfigurations that originate from all locations *)
 
-let inline getEndLocs ast locs e = 
+let inline getEndLocs (ast: T) locs e = 
     match e.Node with
     | Ident(id, [e]) when id.Name = "end" || id.Name = "originate" -> 
         iter (fun e' -> 
             match e'.Node with 
             | Asn i -> locs := Set.add (string i) !locs
+            | TemplateVar(Some id, _) -> 
+                locs := Set.add (getAsnForTemplateVar ast id) !locs
             | _ -> () ) e
     | _ -> ()
+
 
 let inline originationLocations (ast: T) (e: Expr) : Set<string> =
     let locs = ref Set.empty 
     iter (getEndLocs ast locs) e
     !locs
+
 
 let inline orginationLocationsList (ast: T) (es: Expr list) : Set<string> =
     let inline addLocs acc e = 
@@ -690,48 +810,64 @@ type BinOp =
     | OUnion 
     | ODifference
 
+
 let applyOp r1 r2 op = 
     match op with
     | OInter -> AndExpr(r1,r2)
     | OUnion -> OrExpr(r1,r2)
     | ODifference -> DiffExpr(r1,r2)
 
+
 let checkBlock ast (pb: PredicateBuilder) e (pcs: (Predicate * _) list) =
     let mutable remaining = pb.True
     let mutable matched = pb.False
+    let mutable matchedVars = Set.empty
     for (pred, es) in pcs do
-        let p = pb.And(pred, remaining)
-        remaining <- pb.And(remaining, pb.Not p)
-        let p' = pb.Or(pred, matched)
-        if p' = matched then
-            let str = pb.ToString(p')
-            warning (sprintf "Dead prefix match for %s will never apply" str)
-        matched <- p'
+        match pred with 
+        | TemplatePred rs -> 
+            if Set.isEmpty (Set.difference rs matchedVars) then 
+                warning (sprintf "Dead prefix match for %s will never apply" (Route.toString pb pred))
+            matchedVars <- Set.union rs matchedVars
+        | ConcretePred p ->
+            remaining <- pb.And(remaining, pb.Not (pb.And(p, remaining)))
+            let p' = pb.Or(p, matched)
+            if p' = matched then
+                warning (sprintf "Dead prefix match for %s will never apply" (Route.toString pb pred))
+            matched <- p'
     if remaining <> pb.False then
         // let s = Predicate.example remaining
         // let msg = sprintf "Incomplete prefixes in block. An example of a prefix that is not matched: %s" s
         // Message.warningAst ast msg e.Pos
         let e = pcs |> List.head |> snd |> List.head
         // TODO: what is the right thing here?
-        pcs @ [(pb.True, [ {Pos=e.Pos; Node=Ident ({Pos=e.Pos;Name="any"}, [])} ])]
+        pcs @ [(Route.top pb, [ {Pos=e.Pos; Node=Ident ({Pos=e.Pos;Name="any"}, [])} ])]
     else pcs
+
 
 let combineBlocks (pb: PredicateBuilder) pos pcs1 pcs2 (op: BinOp) =
     let mutable combined = []
     let mutable rollingPred = pb.False
+    let mutable rollingVars = Set.empty
     for (ps, res) in pcs1 do 
         for (ps', res') in pcs2 do
-            let comb = pb.And(ps, ps')
-            let notAbove = pb.And(comb, (pb.Not rollingPred))
-            if notAbove <> pb.False then
-                rollingPred <- pb.Or(rollingPred, comb)
+            let comb = Route.conj pb ps ps'
+            let change = 
+                match comb with 
+                | TemplatePred rs -> Set.isEmpty (Set.difference rs rollingVars) |> not
+                | ConcretePred p -> pb.And(p, (pb.Not rollingPred)) <> pb.False
+            if change then
+                match comb with 
+                | TemplatePred rs -> rollingVars <- Set.union rs rollingVars
+                | ConcretePred p -> rollingPred <- pb.Or(rollingPred, p)
                 let both = (comb, applyOp res res' op)
                 combined <- both :: combined
     List.rev combined
     |> List.map (fun (pred,n) -> pred, {Pos=pos; Node=n})
 
+
 let inline collapsePrefs pos (es: Expr list) : Expr =
     Util.List.fold1 (fun e1 e2 -> {Pos=pos; Node=ShrExpr (e1,e2)}) es
+
 
 let rec expandBlocks ast (pb: PredicateBuilder) (e: Expr) : (Predicate * Expr) list = 
     match e.Node with
@@ -743,6 +879,7 @@ let rec expandBlocks ast (pb: PredicateBuilder) (e: Expr) : (Predicate * Expr) l
         |> checkBlock ast pb e
         |> List.map (fun (p,es) -> (p, collapsePrefs e.Pos es))
     | _ -> Util.unreachable ()
+
 
 let addTopoDefinitions (ast: T) : T =
     let asnDefs = 
@@ -756,6 +893,7 @@ let addTopoDefinitions (ast: T) : T =
             Message.errorAst ast msg p)
     {ast with Defs = defs}
 
+
 (* Given the AST and the topology, check well-formedness
    and produce the top-level, merged path constraints. *)
 
@@ -765,6 +903,7 @@ type PolInfo =
      Policy: PolicyPair list;
      CConstraints: CConstraint list;
      OrigLocs: Map<Predicate, Set<string>>}
+
 
 let makePolicyPairs (ast: T) =
     // Map topology names to as numbers
@@ -803,6 +942,7 @@ let makePolicyPairs (ast: T) =
                 (p, reb, res) ) topLevel
         (ast, polPairs, !origLocs, pb)
     | _ -> error (sprintf "Main policy not defined, use define main = ...")
+
 
 let build ast = 
     let ast, polPairs, origLocs, pb = makePolicyPairs ast
