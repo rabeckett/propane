@@ -124,11 +124,15 @@ let getGarbageStates (auto: Regex.Automaton) =
     Set.difference selfLoops auto.F
 
 
+let inline uniqueNeighbors canOriginate topo (t: Topology.Node) = 
+    (if t.Typ = Topology.Start then canOriginate else Topology.neighbors topo t) |> Set.ofSeq
+
+
 let buildFromAutomata (topo: Topology.T) (autos : Regex.Automaton array) : T =
     if autos.Length > 31 then 
         error (sprintf "Propane does not currently support more than 31 preferences")
     if not (Topology.isWellFormed topo) then
-        error (sprintf "Invalid topology. Topology must be weakly connected.")
+        error (sprintf "Invalid topology. Topology must be connected.")
     let unqTopo = Set.ofSeq (Topology.vertices topo)
     let transitions = getTransitions autos
     let garbage = Array.map getGarbageStates autos
@@ -142,11 +146,9 @@ let buildFromAutomata (topo: Topology.T) (autos : Regex.Automaton array) : T =
     while todo.Count > 0 do
         let currState = todo.Dequeue()
         let t = currState.TNode
-        let adj = 
-            if t.Typ = Topology.Start 
-            then Seq.filter Topology.canOriginateTraffic unqTopo 
-            else Topology.neighbors topo t
-        let adj = if t.Typ = Topology.Unknown then Seq.append (Seq.singleton t) adj else adj
+        let canOrigin = Seq.filter Topology.canOriginateTraffic unqTopo 
+        let adj = uniqueNeighbors canOrigin topo t
+        let adj = if t.Typ = Topology.Unknown then Set.add t adj else adj
         for c in adj do
             let dead = ref true
             let nextInfo = Array.init autos.Length (fun i ->
@@ -156,8 +158,8 @@ let buildFromAutomata (topo: Topology.T) (autos : Regex.Automaton array) : T =
                     dead := false
                 let accept =
                     if (Topology.canOriginateTraffic c) && (Set.contains newState g.F) 
-                    then Bitset32.singleton (i+1)
-                    else Bitset32.empty
+                        then Bitset32.singleton (i+1)
+                        else Bitset32.empty
                 newState, accept)
             let nextStates, nextAccept = Array.unzip nextInfo
             let accept = Array.fold Bitset32.union Bitset32.empty nextAccept
@@ -508,30 +510,30 @@ module Minimize =
         cg.Graph.RemoveVertexIf (fun v -> toDelNodes.Contains v) |> ignore
           
     let minimize (idx: int) (cg: T) =
-        let settings = Args.getSettings () 
-        if settings.IsAbstract then cg 
-        else
-            logInfo(idx, sprintf "Node count: %d" cg.Graph.VertexCount)
-            let inline count cg = 
-                cg.Graph.VertexCount + cg.Graph.EdgeCount
-            let inline prune () = 
-                removeNodesThatCantReachEnd cg
-                logInfo(idx, sprintf "Node count (cant reach end): %d" cg.Graph.VertexCount)
-                removeRedundantExternalNodes cg
-                logInfo(idx, sprintf "Node count (redundant external nodes): %d" cg.Graph.VertexCount)
-                removeConnectionsToOutStar cg
-                logInfo(idx, sprintf "Node count (connections to out*): %d" cg.Graph.VertexCount)
+        let settings = Args.getSettings ()
+        let isConcrete = not settings.IsAbstract
+        logInfo(idx, sprintf "Node count: %d" cg.Graph.VertexCount)
+        let inline count cg = 
+            cg.Graph.VertexCount + cg.Graph.EdgeCount
+        let inline prune () = 
+            removeNodesThatCantReachEnd cg
+            logInfo(idx, sprintf "Node count (cant reach end): %d" cg.Graph.VertexCount)
+            removeRedundantExternalNodes cg
+            logInfo(idx, sprintf "Node count (redundant external nodes): %d" cg.Graph.VertexCount)
+            removeConnectionsToOutStar cg
+            logInfo(idx, sprintf "Node count (connections to out*): %d" cg.Graph.VertexCount)
+            if isConcrete then
                 removeDominated cg
                 logInfo(idx, sprintf "Node count (remove dominated): %d" cg.Graph.VertexCount)
-                removeNodesThatStartCantReach cg
-                logInfo(idx, sprintf "Node count (start cant reach): %d" cg.Graph.VertexCount)
-            let mutable sum = count cg
-            prune() 
-            while count cg <> sum do
-                sum <- count cg
-                prune ()
-            logInfo(idx, sprintf "Node count - after O3: %d" cg.Graph.VertexCount)
-            cg
+            removeNodesThatStartCantReach cg
+            logInfo(idx, sprintf "Node count (start cant reach): %d" cg.Graph.VertexCount)
+        let mutable sum = count cg
+        prune() 
+        while count cg <> sum do
+            sum <- count cg
+            prune ()
+        logInfo(idx, sprintf "Node count - after O3: %d" cg.Graph.VertexCount)
+        cg
 
 
 module Consistency = 

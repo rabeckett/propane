@@ -485,8 +485,7 @@ let trafficClassifiers (pb: PredicateBuilder) (x: Predicate) =
 // Simplify printing to a string 
 let toString (pb: PredicateBuilder) (x: Predicate) = 
     let aux acc r =
-        let x = "$" + r + "$"
-        if acc = "" then x else acc + " or " + x
+        if acc = "" then r else acc + " or " + r
     match x with 
     | TemplatePred rs -> Set.fold aux "" rs
     | ConcretePred p -> pb.ToString(p)

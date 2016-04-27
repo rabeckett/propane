@@ -366,7 +366,9 @@ type REBuilder(topo: Topology.T) =
         Topology.addVertices t [unknown]
         for v in Topology.vertices t do
             if Topology.isOutside v then 
-                Topology.addEdgesUndirected t [(v,unknown)]
+                if v = unknown 
+                    then Topology.addEdgesDirected t [(v,v)]
+                    else Topology.addEdgesUndirected t [(v,unknown)]
         t
 
     let isInternal l = inside.Contains l

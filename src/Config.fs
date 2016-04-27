@@ -230,10 +230,74 @@ module Quagga =
       string sb
 
 
+module Template = 
+
+  let output sb (rc: RouterConfiguration) : string = 
+      bprintf sb "router bgp %s.$router$\n" rc.Name
+
+      // owned networks
+      for n in rc.Networks do 
+          bprintf sb "  network %s\n" n
+
+      // peer networks
+      for pc in rc.PeerConfigurations do 
+          bprintf sb "  neighbor %s.%s.$peerIP$ remote-as %s\n" rc.Name pc.Peer pc.Peer 
+      for pc in rc.PeerConfigurations do 
+          match pc.InFilter with 
+          | None -> () 
+          | Some f -> bprintf sb "  neighbor %s.%s.$peerIP$ route-map %s in\n" rc.Name pc.Peer f
+          match pc.OutFilter with 
+          | None -> () 
+          | Some f -> bprintf sb "  neighbor %s.%s.$peerIP$ route-map %s out\n" rc.Name pc.Peer f
+      bprintf sb "!\n"
+
+      // prefix lists
+      for pl in rc.PrefixLists do 
+          bprintf sb "ip prefix-list %s %s %s\n" pl.Name (Quagga.stringOfKind pl.Kind) pl.Prefix
+      bprintf sb "!\n"
+
+      // community lists
+      for cl in rc.CommunityLists do 
+          bprintf sb "ip community-list standard %s %s " cl.Name (Quagga.stringOfKind cl.Kind)
+          for c in cl.Values do
+              bprintf sb "%s " c
+          bprintf sb "\n"
+      bprintf sb "!\n"
+
+      // as path lists
+      for al in rc.AsPathLists do 
+          bprintf sb "ip as-path access-list %s %s %s\n" al.Name (Quagga.stringOfKind al.Kind) al.Regex  // name should be a number
+      bprintf sb "!\n"
+
+      // route maps
+      for rm in rc.RouteMaps do 
+          bprintf sb "route-map %s permit %d\n" rm.Name rm.Priority
+          let pol = Quagga.lookupPolicyList rm.PolicyList rc.PolicyLists
+          Quagga.writePolList sb pol
+          let lp = rm.SetLocalPref
+          if lp <> null then 
+              bprintf sb "  set local-preference %d\n" lp.Value
+          let dc = rm.DeleteCommunity 
+          if dc <> null then
+              bprintf sb "  set comm-list %s delete\n" dc.Value
+          for c in rm.SetCommunity do  
+              bprintf sb "  set community additive %s\n" c.Value
+          bprintf sb "!\n"
+
+      string sb
+
+
 let generate(nc: NetworkConfiguration, outDir: string) =
+    let settings = Args.getSettings ()
     let sep = string System.IO.Path.DirectorySeparatorChar
     for kv in nc.RouterConfigurations do 
-        let file = outDir + sep + kv.Key + ".quagga"
-        let sb = System.Text.StringBuilder()
-        let str = Quagga.output sb kv.Value 
-        System.IO.File.WriteAllText(file, str)
+        if settings.IsAbstract then 
+            let file = outDir + sep + kv.Key + ".template"
+            let sb = System.Text.StringBuilder()
+            let str = Template.output sb kv.Value 
+            System.IO.File.WriteAllText(file, str)
+        else
+            let file = outDir + sep + kv.Key + ".quagga"
+            let sb = System.Text.StringBuilder()
+            let str = Quagga.output sb kv.Value 
+            System.IO.File.WriteAllText(file, str)

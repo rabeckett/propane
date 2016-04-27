@@ -81,9 +81,9 @@ let main argv =
             System.IO.File.WriteAllText(irfile, Abgp.format res.Abgp)
             // Get low-level representation of network config
             let nc = Abgp.toConfig res.Abgp
-            // write Quagga files
-            let quaggaDir = out + sep + "quagga"
-            let dir = System.IO.Directory.CreateDirectory(quaggaDir)
+            // Generate output
+            let outDir = if settings.IsAbstract then out + sep + "template" else out + sep + "quagga"
+            let dir = System.IO.Directory.CreateDirectory(outDir)
             dir.Create()
-            Config.generate(nc, quaggaDir)
+            Config.generate(nc, outDir)
     0

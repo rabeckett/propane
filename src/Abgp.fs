@@ -1615,22 +1615,16 @@ let toConfig (abgp: T) =
         for peer in allPeers do
             let export = Map.tryFind peer peerExportMap
             let routerIp, peerIp = ti.IpMap.[(rname, peer)]
-            let peerName, rIp, pIp =
-                if settings.IsAbstract then
-                    let loc = Topology.router peer ti
-                    let name = Topology.router rname ti
-                    (loc, sprintf "%s.$routerIP$" name, sprintf "%s.%s.$peerIP$" name loc)
-                else (peer, routerIp, peerIp)
-            peerMap.[peerName] <- PeerConfig(peerName, rIp, pIp, Some "rm-in", export)
+            let peerName = 
+                if settings.IsAbstract 
+                    then Topology.router peer ti 
+                    else peer
+            peerMap.[peerName] <- PeerConfig(peerName, routerIp, peerIp, Some "rm-in", export)
 
         // create the complete configuration for this router
-        let routerName = Topology.router rname ti
-        let name = 
-            if settings.IsAbstract 
-            then routerName + ".$router$"
-            else rname
+        let name = if settings.IsAbstract then Topology.router rname ti else rname
         let routerConfig = RouterConfiguration(name, origins, pfxLists, asLists, cLists, polLists, rMaps, List(peerMap.Values))
-        networkConfig.[routerName] <- routerConfig
+        networkConfig.[name] <- routerConfig
 
     Config.NetworkConfiguration(networkConfig)
 
