@@ -410,6 +410,10 @@ type PredicateBuilder() =
             else sprintf "%s or ..." (string ex)
 
 
+/// Globally unique predicate builder to ensure hash consing uniqueness
+let pb = PredicateBuilder()
+
+
 /// Create a template variable
 let inline templateVar r = TemplatePred (Set.singleton r)
 
@@ -422,23 +426,23 @@ let inline isTemplate x =
 
 
 /// True representation
-let inline top (pb: PredicateBuilder) = ConcretePred(pb.True)
+let top = ConcretePred(pb.True)
 
 
 /// False representation
-let inline bot (pb: PredicateBuilder) = ConcretePred(pb.False)
+let bot = ConcretePred(pb.False)
 
 
 /// Prefix representation
-let inline prefix (pb: PredicateBuilder) p = ConcretePred(pb.Prefix p)
+let inline prefix p = ConcretePred(pb.Prefix p)
 
 
 /// Community representation
-let inline community (pb: PredicateBuilder) c = ConcretePred(pb.Community c)
+let inline community c = ConcretePred(pb.Community c)
 
 
 /// Topology location representation
-let inline location (pb: PredicateBuilder) l = ConcretePred(pb.Location l)
+let inline location l = ConcretePred(pb.Location l)
 
 
 /// Get concrete value
@@ -449,7 +453,7 @@ let inline getConcrete (x: Predicate) =
 
 
 /// Conjunction of two predicates
-let conj (pb: PredicateBuilder) (x: Predicate) (y: Predicate) = 
+let conj (x: Predicate) (y: Predicate) = 
   match x, y with
   | TemplatePred r1, TemplatePred r2 -> 
         let n = Set.intersect r1 r2 
@@ -460,7 +464,7 @@ let conj (pb: PredicateBuilder) (x: Predicate) (y: Predicate) =
 
 
 /// Disjunction of two predicates
-let disj (pb: PredicateBuilder) (x: Predicate) (y: Predicate) = 
+let disj (x: Predicate) (y: Predicate) = 
     match x, y with
     | TemplatePred r1, TemplatePred r2 -> TemplatePred (Set.union r1 r2)
     | TemplatePred _, ConcretePred v -> if v = pb.True then ConcretePred(pb.True) else x
@@ -469,13 +473,13 @@ let disj (pb: PredicateBuilder) (x: Predicate) (y: Predicate) =
 
 
 /// Test for prefix superset
-let mightApplyTo (pb: PredicateBuilder) (x: Prefix) (y: Prefix) = 
+let mightApplyTo (x: Prefix) (y: Prefix) = 
     if x.IsTemplate || y.IsTemplate then true 
     else pb.Implies(pb.Prefix y, pb.Prefix x)
 
 
 /// Traffic Classifiers of a predicate
-let trafficClassifiers (pb: PredicateBuilder) (x: Predicate) = 
+let trafficClassifiers (x: Predicate) = 
     match x with 
     | ConcretePred p -> pb.TrafficClassifiers p
     | TemplatePred rs -> 
@@ -483,7 +487,7 @@ let trafficClassifiers (pb: PredicateBuilder) (x: Predicate) =
 
 
 // Simplify printing to a string 
-let toString (pb: PredicateBuilder) (x: Predicate) = 
+let toString (x: Predicate) = 
     let aux acc r =
         if acc = "" then r else acc + " or " + r
     match x with 

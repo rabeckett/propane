@@ -51,7 +51,6 @@ type CConstraint =
 
 type PolInfo =
     {Ast: T;
-     PredBuilder: PredicateBuilder;
      Policy: PolicyPair list;
      CConstraints: CConstraint list;
      OrigLocs: Map<Predicate, Set<string>>}
