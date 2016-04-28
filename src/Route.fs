@@ -469,7 +469,7 @@ let disj (pb: PredicateBuilder) (x: Predicate) (y: Predicate) =
 
 
 /// Test for prefix superset
-let isMoreGeneralPrefixOf (pb: PredicateBuilder) (x: Prefix) (y: Prefix) = 
+let mightApplyTo (pb: PredicateBuilder) (x: Prefix) (y: Prefix) = 
     if x.IsTemplate || y.IsTemplate then true 
     else pb.Implies(pb.Prefix y, pb.Prefix x)
 

@@ -118,11 +118,7 @@ let builtInConstraints =
 let builtIns = Set.union builtInRes builtInConstraints
 
 
-let templateTypes =
-    Map.ofList 
-        [("prefix", PredicateType); 
-         ("router", LocType); 
-         ("aggregateIP", PredicateType)]
+let routerTemplate = "router"
 
 
 (* Helper functions for traversing an AST expression 
@@ -409,9 +405,9 @@ let wellFormed ast (e: Expr) : Type =
                     sprintf "Template variable: $%s$ detected, but abstract compilation "  id.Name +
                     sprintf "is not enabled. Use the -abstract:on flag to enable abstract compilation"
                 Message.errorAst ast msg id.Pos
-            match Map.tryFind id.Name templateTypes with 
-            | None -> Message.errorAst ast (sprintf "Invalid template variable: $%s$" id.Name) id.Pos
-            | Some typ -> typ
+            if id.Name = routerTemplate 
+                then LocType 
+                else PredicateType
         | Ident (id, args) ->
             if builtInConstraints.Contains id.Name then
                 let msg = sprintf "Invalid control constraint '%s' found in expression" id.Name
@@ -545,7 +541,13 @@ let rec buildPredicate (pb: PredicateBuilder) (e: Expr) : Predicate =
 
 let inline getPrefix x = 
     match x with 
-    | PrefixLiteral (a,b,c,d,bits) -> (a,b,c,d,bits)
+    | PrefixLiteral (a,b,c,d,bits) -> 
+        let bits = adjustBits bits
+        Prefix(a,b,c,d,bits,Range(bits,32))
+    | TemplateVar(ido,id) ->
+        match ido with 
+        | None -> Prefix(sprintf "$%s$" id.Name)
+        | Some x -> Prefix(sprintf "%s.$%s$" x.Name id.Name)
     | _ -> Util.unreachable ()
 
 
@@ -585,11 +587,12 @@ let rec wellFormedCCs ast id args argsOrig =
         for (x,origE,y) in List.zip3 args argsOrig typs do 
             i <- i + 1
             match wellFormed ast x, x.Node, y with
-            | PredicateType _, PrefixLiteral _, PrefixValue -> ()
-            | PredicateType, CommunityLiteral _, CommunityValue -> ()
             | LinkType, LinkExpr _, LinkValue -> ()
             | IntType, IntLiteral _, IntValue -> ()
             | LocType, _, LocValue -> ()
+            | PredicateType _, PrefixLiteral _, PrefixValue -> ()
+            | PredicateType, TemplateVar(_,_), PrefixValue -> ()
+            | PredicateType, CommunityLiteral _, CommunityValue -> ()
             | _, _, _ -> 
                 let msg = sprintf "Expected parameter %d of %s to be a %s value" i id.Name (string y)
                 Message.errorAst ast msg origE.Pos
@@ -600,23 +603,19 @@ let buildCConstraint ast (cc: Ident * Expr list) =
     let (id, argsOrig) = cc
     let args = List.map (fun e -> substitute ast e) argsOrig
     wellFormedCCs ast id args argsOrig
-    let inline prefix x = 
-        let (a,b,c,d,bits) as p = getPrefix x
-        let bits = adjustBits bits
-        Prefix(a,b,c,d,bits,Range(bits,32))
     let inline getLinkLocations (x,y) =
         let xs = reb.SingleLocations (buildRegex ast reb x) |> Option.get
         let ys = reb.SingleLocations (buildRegex ast reb y) |> Option.get
         (xs,ys)
     match id.Name with
     | "aggregate" ->
-        let p = prefix (List.head args).Node
+        let p = getPrefix (List.head args).Node
         let (x,y) = getLinks (List.item 1 args).Node
         let (xs,ys) = getLinkLocations (x,y)
         CAggregate (p, xs, ys)
     | "tag" -> 
         let (a,b) = getComm (List.head args).Node
-        let p = prefix (List.item 1 args).Node
+        let p = getPrefix (List.item 1 args).Node
         let (x,y) = getLinks (List.item 2 args).Node
         let (xs,ys) = getLinkLocations (x,y)
         let str = (string a) + ":" + (string b)
@@ -713,14 +712,17 @@ let inline getPrefixes ast pfxs e =
     match e.Node with
     | PrefixLiteral (a,b,c,d,bits) ->
         wellFormedPrefix ast e.Pos (a,b,c,d,bits)
-        let pfx = buildPrefix ast (a,b,c,d,bits)
+        let pfx = getPrefix e.Node
+        pfxs := Set.add pfx !pfxs
+    | TemplateVar(_,id) when id.Name <> routerTemplate ->
+        let pfx = getPrefix e.Node
         pfxs := Set.add pfx !pfxs
     | _ -> ()
 
 
 let warnUnusedAggregates (ast:T) (pb: PredicateBuilder) e =
-    let inline isPfxFor agg p =
-        p <> agg && Route.isMoreGeneralPrefixOf pb agg p
+    let inline isPfxFor p1 p2 =
+        p1 <> p2 && Route.mightApplyTo pb p1 p2
     let prefixes = ref Set.empty 
     iter (getPrefixes ast prefixes) e
     for (id, es) in ast.CConstraints do 
@@ -729,10 +731,10 @@ let warnUnusedAggregates (ast:T) (pb: PredicateBuilder) e =
             match e.Node with
             | PrefixLiteral (a,b,c,d,bits) ->
                 wellFormedPrefix ast e.Pos (a,b,c,d,bits)
-                let pfx = buildPrefix ast (a,b,c,d,bits)
+                let pfx = getPrefix e.Node // buildPrefix ast (a,b,c,d,bits)
                 if not (Set.exists (isPfxFor pfx) !prefixes) then 
-                    let msg = 
-                        sprintf "The aggregate prefix %s does not summarize any " (string pfx) +
+                    let msg =
+                        sprintf "The prefix %s does not apply to any " (string pfx) +
                         sprintf "specific prefix used in the policy."
                     Message.warningAst ast msg e.Pos
             | _ -> ()
@@ -741,23 +743,23 @@ let warnUnusedAggregates (ast:T) (pb: PredicateBuilder) e =
 let findTemplateViolations (ast:T) e = 
     let preds = ref Set.empty
     let regexes = ref Set.empty
-    let tRouterCount = ref 0
+    let referenced = ref Set.empty
+
+    let inline add ido set = 
+        match ido with 
+        | None -> set := Set.add "global" !set
+        | Some x -> set := Set.add x.Name !set
 
     let isTemplatePred e = 
         match e.Node with
-        | TemplateVar(ido,id) ->
-            match ido with 
-            | None -> preds := Set.add "global" !preds
-            | Some x -> preds := Set.add x.Name !preds
+        | TemplateVar(ido,id) -> add ido preds
         | _ -> ()
 
     let isTemplateRegex e =
         match e.Node with 
-        | Ident(i, [{Node=TemplateVar(ido,id)}]) when i.Name = "end" || i.Name = "originate" ->
-            match ido with 
-            | None -> regexes := Set.add "global" !regexes
-            | Some x -> regexes := Set.add x.Name !regexes
-        | TemplateVar(_,_) -> incr tRouterCount 
+        | Ident(i, [{Node=TemplateVar(ido,id)}]) when i.Name = "end" || i.Name = "originate" -> 
+            add ido regexes
+        | TemplateVar(ido,_) -> add ido referenced
         | _ -> ()
 
     let aux e =
@@ -766,35 +768,33 @@ let findTemplateViolations (ast:T) e =
             for (pred,res) in es do 
                 preds := Set.empty
                 regexes := Set.empty
-                tRouterCount := 0
+                referenced := Set.empty
 
                 iter isTemplatePred pred
                 iter isTemplateRegex res
 
-                if Set.count !preds > 1 then
-                    let msg = 
-                        sprintf "Only a single prefix template variable is allowed " + 
-                        sprintf "in a given match, but %s are used" (Util.Set.toString !preds) 
-                    Message.errorAst ast msg pred.Pos
-                if Set.count !regexes > 1 then 
-                    let msg = 
-                        sprintf "Only a single router template variable in allowed " + 
-                        sprintf "a given constraint, but %s are used" (Util.Set.toString !regexes)
-                    Message.errorAst ast msg res.Pos
-                if !tRouterCount <> Set.count !regexes then 
-                    let msg = 
-                        sprintf "A single router template variable must be used, " + 
-                        sprintf "and only in the end/originate constraint"
-                    Message.errorAst ast msg res.Pos
-                if Set.count !preds <> !tRouterCount then 
-                    let msg = 
-                        sprintf "Different number of template variables in expression: " + 
-                        sprintf "left had %d, but right had %d" (Set.count !preds) (Set.count !regexes)
-                    Message.errorAst ast msg (Message.range pred.Pos res.Pos)
-                if !preds <> !regexes then 
-                    let msg = 
-                        sprintf "Non-matching template namespace on both sides of expression"
-                    Message.errorAst ast msg pred.Pos
+                let count = Set.count !referenced
+
+                if count > 0 then 
+                    if count > 1 then 
+                        let msg = 
+                            sprintf "Only a single router template variable may be used, " + 
+                            sprintf "and only in the end/originate constraint"
+                        Message.errorAst ast msg res.Pos
+                    if Set.count !regexes <> count then 
+                        let msg = 
+                            sprintf "Template router variables must only appear " + 
+                            sprintf "directly in end/originate constraint"
+                        Message.errorAst ast msg pred.Pos
+                    if Set.count !preds <> count then 
+                        let msg = 
+                            sprintf "Different number of template variables in expression: " + 
+                            sprintf "left had %d, but right had %d" (Set.count !preds) (Set.count !regexes)
+                        Message.errorAst ast msg (Message.range pred.Pos res.Pos)
+                    if !preds <> !regexes then 
+                        let msg = 
+                            sprintf "Non-matching template namespace on both sides of expression"
+                        Message.errorAst ast msg pred.Pos
         | _ -> ()
 
     iter aux e

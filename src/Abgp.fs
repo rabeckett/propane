@@ -1071,8 +1071,8 @@ let getMinAggregateFailures (cg: CGraph.T) (pb: Route.PredicateBuilder) (pred: R
     let pairs = ref None
     for (Route.TrafficClassifier(p,_)) in prefixes do
         aggInfo |> Map.iter (fun aggRouter aggs ->
-            let relevantAggs = List.filter (fun (prefix, _) -> Route.isMoreGeneralPrefixOf pb prefix p) aggs
-            if not relevantAggs.IsEmpty then 
+            let relevantAggs = List.filter (fun (prefix, _) -> Route.mightApplyTo pb prefix p) aggs
+            if not relevantAggs.IsEmpty then
                 let rAgg, _ = relevantAggs.Head
                 match CGraph.Failure.disconnectLocs cg originators aggRouter with 
                 | None -> () 
