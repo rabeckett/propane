@@ -113,8 +113,9 @@ let getGarbageStates (auto: Regex.Automaton) =
         let k = kv.Key
         let v = kv.Value 
         let c = Set.count v
-        if c = 1 && Set.minElement v = k then Some k 
-        else None 
+        if c = 1 && Set.minElement v = k 
+            then Some k 
+            else None 
     let selfLoops = 
         Map.fold (fun acc (x,_) y  ->
             let existing = Util.Map.getOrDefault x Set.empty acc

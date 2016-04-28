@@ -136,16 +136,17 @@ let rec iter f (e: Expr) =
     | DiffExpr (e1, e2)  
     | ShrExpr (e1, e2) 
     | OrExpr (e1, e2) 
-    | AndExpr (e1, e2) -> iter f e1; iter f e2
+    | AndExpr (e1, e2) -> 
+        iter f e1
+        iter f e2
     | NotExpr e1 -> iter f e1
+    | Ident (id, args) -> List.iter (iter f) args
     | True | False | PrefixLiteral _ | CommunityLiteral _ | IntLiteral _ | Asn _ -> ()
-    | TemplateVar(ido, id) -> ()
-    | Ident (id, args) -> List.iter f args
+    | TemplateVar(_,_) -> ()
 
 
 let iterAllExpr (ast: T) e f =
-    Map.iter (fun name (_,_,e) -> 
-        iter f e) ast.Defs
+    Map.iter (fun name (_,_,e) -> iter f e) ast.Defs
     iter f e
     List.iter (fun (id, es) -> 
         List.iter (iter f) es) ast.CConstraints
@@ -177,6 +178,12 @@ module Message =
     let maxLineMsg = 3
 
     let obj = new Object()
+
+    let range (x: Position) (y: Position) = 
+        {SLine = x.SLine; 
+         SCol = x.SCol; 
+         ELine = y.ELine; 
+         ECol = y.ECol}
 
     let inline count (c: char) (s: string) = 
         s.Split(c).Length - 1
@@ -713,7 +720,7 @@ let inline getPrefixes ast pfxs e =
 
 let warnUnusedAggregates (ast:T) (pb: PredicateBuilder) e =
     let inline isPfxFor agg p =
-        p <> agg && pb.Implies(pb.Prefix p, pb.Prefix agg)
+        p <> agg && Route.isMoreGeneralPrefixOf pb agg p
     let prefixes = ref Set.empty 
     iter (getPrefixes ast prefixes) e
     for (id, es) in ast.CConstraints do 
@@ -734,6 +741,7 @@ let warnUnusedAggregates (ast:T) (pb: PredicateBuilder) e =
 let findTemplateViolations (ast:T) e = 
     let preds = ref Set.empty
     let regexes = ref Set.empty
+    let tRouterCount = ref 0
 
     let isTemplatePred e = 
         match e.Node with
@@ -745,10 +753,11 @@ let findTemplateViolations (ast:T) e =
 
     let isTemplateRegex e =
         match e.Node with 
-        | Ident(i, [{Node=TemplateVar(ido,id)}]) when i.Name = "end" ->
+        | Ident(i, [{Node=TemplateVar(ido,id)}]) when i.Name = "end" || i.Name = "originate" ->
             match ido with 
             | None -> regexes := Set.add "global" !regexes
             | Some x -> regexes := Set.add x.Name !regexes
+        | TemplateVar(_,_) -> incr tRouterCount 
         | _ -> ()
 
     let aux e =
@@ -757,16 +766,34 @@ let findTemplateViolations (ast:T) e =
             for (pred,res) in es do 
                 preds := Set.empty
                 regexes := Set.empty
+                tRouterCount := 0
+
                 iter isTemplatePred pred
                 iter isTemplateRegex res
+
                 if Set.count !preds > 1 then
-                    let msg = sprintf "Multiple template variables in a given match: %s" (Util.Set.toString !preds) 
+                    let msg = 
+                        sprintf "Only a single prefix template variable is allowed " + 
+                        sprintf "in a given match, but %s are used" (Util.Set.toString !preds) 
                     Message.errorAst ast msg pred.Pos
                 if Set.count !regexes > 1 then 
-                    let msg = sprintf "Multiple template variables in a given constraint: %s" (Util.Set.toString !regexes)
-                    Message.errorAst ast msg pred.Pos
+                    let msg = 
+                        sprintf "Only a single router template variable in allowed " + 
+                        sprintf "a given constraint, but %s are used" (Util.Set.toString !regexes)
+                    Message.errorAst ast msg res.Pos
+                if !tRouterCount <> Set.count !regexes then 
+                    let msg = 
+                        sprintf "A single router template variable must be used, " + 
+                        sprintf "and only in the end/originate constraint"
+                    Message.errorAst ast msg res.Pos
+                if Set.count !preds <> !tRouterCount then 
+                    let msg = 
+                        sprintf "Different number of template variables in expression: " + 
+                        sprintf "left had %d, but right had %d" (Set.count !preds) (Set.count !regexes)
+                    Message.errorAst ast msg (Message.range pred.Pos res.Pos)
                 if !preds <> !regexes then 
-                    let msg = sprintf "Non-matching template parents on both sides of expression"
+                    let msg = 
+                        sprintf "Non-matching template namespace on both sides of expression"
                     Message.errorAst ast msg pred.Pos
         | _ -> ()
 
@@ -906,32 +933,40 @@ type PolInfo =
 
 
 let makePolicyPairs (ast: T) =
-    // Map topology names to as numbers
     let ast = addTopoDefinitions ast
-    // Ensure main is defined
+
     match Map.tryFind "main" ast.Defs with 
     | Some (_,[],e) ->
         let pb = PredicateBuilder()
-        // Find unused definitions
+
+        // Simple syntactic lints
         warnUnused ast e
-        // Warn when using raw asn for a named router
         warnRawAsn ast
-        // Expand all definitions to get a concrete expr
+
+        // Substitute away all definitions
         let e = substitute ast e
-        // Ensure the expr type checks
+
+        // Warn when templates are used in an invalid way
+        findTemplateViolations ast e
+
+        // Type check the resulting expression
         let t = wellFormed ast e
         match t with
         | BlockType -> ()
         | _ -> Message.errorAst ast (typeMsg [BlockType] t) e.Pos
-        // Check for unused aggregates given the final expr e
+
+        // Warn about aggregates that do not summarize a specific prefix
         warnUnusedAggregates ast pb e
+
         // Expand all blocks, pushing preferences to the top of the expr
         let topLevel = 
             expandBlocks ast pb e 
             |> List.map (fun (p,e) -> (p, pushPrefsToTop ast e))
+        
         // Get all syntactically specified origination points
         let origLocs = ref Map.empty
-        // Build concrete regexes from top-level block expr
+
+        // Build pairs of (predicate, regexes)
         let polPairs = 
             List.map (fun (p : Predicate, res) ->
                 let locs = orginationLocationsList ast res
