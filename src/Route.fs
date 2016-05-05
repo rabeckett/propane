@@ -209,11 +209,45 @@ type Prefix = struct
     val IsTemplate: bool
     val Name: string
 
-    internal new(bits,s) = {Bits = bits; Slash = s; Range = Range(s,s); IsExact = true; IsTemplate=false; Name=""}
-    internal new(bits,s,r) = {Bits = bits; Slash = s; Range = r; IsExact = false; IsTemplate=false; Name=""}
-    new(a,b,c,d,s) = {Bits = Bitwise.fromDotted(a,b,c,d); Slash=s; Range = Range(s,s); IsExact = true; IsTemplate=false; Name=""}
-    new(a,b,c,d,s,r) = {Bits = Bitwise.fromDotted(a,b,c,d); Slash=s; Range = r; IsExact = false; IsTemplate=false; Name=""}
-    new(n) = {Bits = 0; Slash = 0; Range = Range(-1,-1); IsExact = false; IsTemplate = true; Name = n}
+    internal new(bits,s) = 
+        {Bits = bits; 
+         Slash = s; 
+         Range = Range(s,s); 
+         IsExact = true; 
+         IsTemplate=false; 
+         Name=""}
+
+    internal new(bits,s,r) = 
+        {Bits = bits; 
+         Slash = s; 
+         Range = r; 
+         IsExact = false; 
+         IsTemplate=false; 
+         Name=""}
+
+    new(a,b,c,d,s) = 
+        {Bits = Bitwise.fromDotted(a,b,c,d); 
+         Slash=s; 
+         Range = Range(s,s); 
+         IsExact = true; 
+         IsTemplate=false; 
+         Name=""}
+
+    new(a,b,c,d,s,r) = 
+        {Bits = Bitwise.fromDotted(a,b,c,d); 
+         Slash=s; 
+         Range = r; 
+         IsExact = false; 
+         IsTemplate=false; 
+         Name=""}
+
+    new(n) = 
+        {Bits = 0; 
+         Slash = 0; 
+         Range = Range(-1,-1); 
+         IsExact = false; 
+         IsTemplate = true; 
+         Name = n}
          
     override v.ToString() = 
         if v.IsTemplate then sprintf "%s" v.Name

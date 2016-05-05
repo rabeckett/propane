@@ -41,6 +41,7 @@ let buildDefinitions defs : Ast.Definitions =
     ) Map.empty defs
 %}
 
+
 %start start
 %type <Ast.Definitions * Ast.ControlConstraints> start
 

@@ -15,7 +15,6 @@ type T =
     | Union of T list
     | Negate of T
     | Star of T
-
     override this.ToString() =
         let addParens s = "(" + s + ")"
         match this with 
@@ -28,12 +27,12 @@ type T =
         | Negate r -> "!(" + r.ToString() + ")"
         | Star r -> (r.ToString() |> addParens) + "*"
 
+
 type Automaton =
     {q0: int;
      Q: Set<int>; 
      F: Set<int>;
      trans: Map<int*Set<string>, int>}
-
      override this.ToString() =
         let header = "=======================\n"
         let states = sprintf "States: %s\n" (Util.Set.toString this.Q)
@@ -46,6 +45,7 @@ type Automaton =
         let trans = sprintf "Transitions:\n%s" trans
         sprintf "%s%s%s%s%s%s" header states init final trans header
 
+
 let rec rev re = 
     match re with 
     | Empty | Epsilon | Locs _ -> re
@@ -54,6 +54,7 @@ let rec rev re =
     | Union rs -> Union (List.map rev rs)
     | Negate r -> Negate (rev r)
     | Star r -> Star (rev r)
+
 
 let rec insertOrdered rs r = 
     match rs with 
@@ -64,11 +65,13 @@ let rec insertOrdered rs r =
         elif cmp = 0 then rs
         else rhd::(insertOrdered rtl r)
 
+
 let rec insertOrderedAll dups rs1 rs2 = 
     match rs2 with 
     | [] -> rs1
     | hd::tl -> 
         insertOrderedAll dups (insertOrdered rs1 hd) tl
+
 
 let empty = Empty 
 
@@ -78,6 +81,7 @@ let locs s = Locs s
 
 let loc s = Locs (Set.singleton s)
 
+
 let star r = 
     match r with 
     | Star _ -> r
@@ -85,11 +89,13 @@ let star r =
     | Empty -> Epsilon
     | _ -> Star r
 
+
 let negate alphabet r = 
     match r with 
     | Negate _ -> r
     | Locs s -> Locs (Set.difference alphabet s)
     | _ -> Negate r
+
 
 let rec concat r1 r2 = 
     match r1, r2 with
@@ -102,10 +108,12 @@ let rec concat r1 r2 =
     | _, Concat rs -> Concat (r1::rs)
     | _, _ -> concat (Concat [r1]) r2
 
+
 let concatAll res =
     match res with 
     | [] -> Empty
     | _ -> Util.List.fold1 concat res
+
 
 (* TODO: negate empty == alphabet check for locs *)
 let rec inter r1 r2 = 
@@ -120,10 +128,12 @@ let rec inter r1 r2 =
     | _, Inter rs -> Inter (insertOrdered rs r1)
     | _, _ -> inter (Inter [r1]) r2
 
+
 let interAll res = 
     match res with 
     | [] -> Empty
     | _ -> Util.List.fold1 inter res
+
 
 let rec union r1 r2 =
     if r1 = r2 then r1 else
@@ -145,7 +155,6 @@ let rec union r1 r2 =
     | Epsilon, Concat [Star y1; y2] when y1 = y2 -> star y2
     | Concat [y1; Star y2], Epsilon when y1 = y2 -> star y2
     | Concat [y1; Star y2], Epsilon when y1 = y2 -> star y2 *)
-
     | _, Empty -> r1
     | Empty, _ -> r2
     | _, Negate Empty -> r2 
@@ -156,10 +165,12 @@ let rec union r1 r2 =
     | _, Union rs -> Union (insertOrdered rs r1)
     | _, _ -> union (Union [r1]) r2
 
+
 let unionAll res = 
     match res with 
     | [] -> Empty
     | _ -> Util.List.fold1 union res
+
 
 let rec nullable r = 
     match r with 
@@ -176,10 +187,12 @@ let rec nullable r =
         | Empty -> epsilon
         | _ -> empty 
 
+
 let conserv r s =
     seq {for x in r do
             for y in s do 
                 yield Set.intersect x y} |> Set.ofSeq
+
 
 let rec dclasses alphabet r =
     match r with 
@@ -201,6 +214,7 @@ let rec dclasses alphabet r =
     | Star r -> dclasses alphabet r 
     | Negate r -> dclasses alphabet r
 
+
 let rec derivative alphabet a r = 
     match r with 
     | Epsilon | Empty -> empty
@@ -219,6 +233,7 @@ let rec derivative alphabet a r =
     | Negate r' -> negate alphabet (derivative alphabet a r')
     | Star r' -> concat (derivative alphabet a r') r
 
+
 let rec goto alphabet q (Q,trans) S = 
     let c = Set.minElement S
     let qc = derivative alphabet c q 
@@ -233,6 +248,7 @@ and explore alphabet Q trans q =
     let charClasses = Set.remove Set.empty (dclasses alphabet q)
     Set.fold (goto alphabet q) (Q,trans) charClasses
 
+
 let indexStates (q0, Q, F, trans) =
     let aQ = Set.toArray Q
     let mutable Q' = Set.empty
@@ -245,12 +261,14 @@ let indexStates (q0, Q, F, trans) =
     let trans' = Map.fold (fun acc (re,c) v -> Map.add (idxMap.[re],c) idxMap.[v] acc) Map.empty trans
     (q0', Q', F', trans')
 
+
 let makeDFA alphabet r = 
     let q0 = r
     let (Q, trans) = explore alphabet (Set.singleton q0) Map.empty q0
     let F = Set.filter (fun q -> nullable q = epsilon) Q
     let (q0', Q', F', trans') = indexStates (q0, Q, F, trans)
     {q0=q0'; Q=Q'; F=F'; trans=trans'}
+
 
 type LazyT =
     | LIn
@@ -263,6 +281,7 @@ type LazyT =
     | LUnion of LazyT list
     | LNegate of LazyT
     | LStar of LazyT
+
 
 let singleLocations (topo: Topology.T) r =
     let (ain, aout) = Topology.alphabet topo
@@ -285,12 +304,14 @@ let singleLocations (topo: Topology.T) r =
         | _ -> None
     inner r
 
+
 let getAlphabet (topo: Topology.T) = 
     let (inStates, outStates) = Topology.alphabet topo
     let inside = Set.map (fun (s: Topology.Node) -> s.Loc) inStates
     let outside = Set.map (fun (s: Topology.Node) -> s.Loc) outStates
     let alphabet = Set.union inside outside
     (inside, outside, alphabet)
+
 
 let emptinessAux dfa start = 
     let transitions = 
@@ -323,8 +344,10 @@ let emptinessAux dfa start =
         Some path
     else None
 
+
 let emptiness (dfa: Automaton) : (string list) option =
     emptinessAux dfa dfa.q0
+
 
 let startingLocs (dfa: Automaton) : Set<string> =
     let transitions = 

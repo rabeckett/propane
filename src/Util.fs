@@ -58,6 +58,19 @@ module Profile =
         (ret, s.ElapsedMilliseconds)
 
 
+module File = 
+
+    let sep = string System.IO.Path.DirectorySeparatorChar
+
+    let writeFileWithExtension dir ext text = 
+        let file = dir + "." + ext
+        System.IO.File.WriteAllText(file, text)
+
+    let createDir path = 
+        let dir = System.IO.Directory.CreateDirectory(path)
+        dir.Create()
+
+
 module List = 
 
     let inline fold f b ls = 
@@ -127,7 +140,7 @@ module Dictionary =
     let inline map f (d: Dictionary<_,_>) =
         let acc = Dictionary(d.Count)
         for kv in d do 
-            acc.[kv.Key] <- f kv.Value
+            acc.[kv.Key] <- f kv.Key kv.Value
         acc
 
     let inline filter f (d: Dictionary<_,_>) =

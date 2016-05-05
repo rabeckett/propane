@@ -25,10 +25,10 @@ type T =
 /// yet do not want to make a copy of the graph every time
 type Direction = Up | Down
 
-/// Make a shallow copy of the graph. Does not clone node values.
+/// Make a shallow-ish copy of the graph. Does not clone node values.
 val copyGraph: T -> T
 
-/// Make a shallow copy of the graph, and reverses all edges
+/// Make a shallow-ish copy of the graph, and reverses all edges
 val copyReverseGraph: T -> T
 
 /// Constructs a new, product automaton from the topology and a collection 
@@ -96,7 +96,7 @@ module Minimize =
     /// Get rid of nodes that can originate traffic but aren't accepting
     val delMissingSuffixPaths: T -> T
 
-    /// Fixpoint removal of nodes and edges, including nodes not on any simple path
+    /// Remove nodes and edges not relevant to the BGP decision process
     val minimize: int -> T -> T
 
 

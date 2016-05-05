@@ -1,10 +1,11 @@
-define PL1 = 2.0.1.0/24
-define PL2 = 2.0.2.0/24
-define PG1 = 1.0.0.0/24
-define PG2 = 1.0.1.0/24
-define PG  = 1.0.0.0/16
+define PL1 = 1.0.0.0/24
+define PL2 = 1.0.1.0/24
+define PG1 = 2.0.0.0/24
+define PG2 = 2.0.1.0/24
 
 define Peer = {Peer1, Peer2}
+
+define transit(X,Y) = enter(X) and exit(Y)
 
 define routing = {
 	PG1 => end(A),
@@ -18,18 +19,12 @@ define locality = {
 	PL1 or PL2 => always(in)
 }
 
-define transit(X,Y) = enter(X) and exit(Y)
-
 define notransit = {
 	true => not transit(Peer, Peer)
 }
 
-define badstuff = {
-	true => drop
-}
-
-define main = routing and locality and notransit # and badstuff
+define main = routing and locality and notransit
 
 control {
-	aggregate(PG, in -> out)
+	aggregate(2.0.0.0/16, in -> out)
 }

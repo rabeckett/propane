@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<topology>
+  <node internal="true" can-originate="true" name="T0"></node>
+  <node internal="true" can-originate="false" name="T1"></node>
+  <node internal="true" can-originate="false" name="T2"></node>
+  <node internal="false" can-originate="true" name="Peer1"></node>
+  <node internal="false" can-originate="true" name="Peer2"></node>
+  
+  <edge source="T0" target="T1" directed="false"></edge>
+  <edge source="T1" target="T2" directed="false"></edge>
+  <edge source="T2" target="Peer1" directed="false"></edge>
+  <edge source="T2" target="Peer2" directed="false"></edge>
+</topology>

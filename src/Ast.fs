@@ -458,7 +458,7 @@ and mergeSingle ast e x op =
     else [e]
 
 
-let getAsnForTemplateVar ast (id) = 
+let getAsnForTemplateVar ast (id) =
     match Map.tryFind id.Name ast.Defs with 
     | None -> failwith "Invariant violation"
     | Some (_,_,e) ->

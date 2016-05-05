@@ -5,6 +5,7 @@ open Util.Debug
 open Util.Format
 open System
 
+
 let runUnitTests () = 
     writeFormatted (header "Running unit tests ")
     Topology.Test.run () 
@@ -12,7 +13,9 @@ let runUnitTests () =
     //Predicate.Test.run ()
     Abgp.Test.run ()
 
+
 let total xs = xs |> Array.map float |> Array.sum
+
 
 let displayStats (stats: Abgp.Stats) = 
     printfn ""
@@ -22,6 +25,7 @@ let displayStats (stats: Abgp.Stats) =
     printfn "Total Generate Config time (sec):  %f" (total stats.PerPrefixGenTimes / 1000.0)
     printfn "Total Config Min time (sec):       %f" (float stats.MinTime / 1000.0)
     printfn ""
+
 
 [<EntryPoint>] 
 let main argv =
@@ -64,7 +68,9 @@ let main argv =
                     sprintf "It may be possible to disconnect the prefix %s at location %s from the " (string p) x +
                     sprintf "aggregate prefix %s at %s after %d failures. " (string agg) y (i+1) +
                     sprintf "Consider using the -failures:n flag to specify a tolerable failure level."
-                if warn then warning msg else error msg
+                if warn 
+                    then warning msg 
+                    else error msg
         | _ -> ()
 
         if settings.Stats then 
@@ -73,17 +79,18 @@ let main argv =
         match settings.OutFile with
         | None -> ()
         | Some out ->
-            let dir = System.IO.Directory.CreateDirectory(out)
-            dir.Create()
-            let sep = string System.IO.Path.DirectorySeparatorChar
-            // write IR file
-            let irfile = out + sep + out + ".ir"
-            System.IO.File.WriteAllText(irfile, Abgp.format res.Abgp)
-            // Get low-level representation of network config
+            File.createDir out
+            File.writeFileWithExtension out "ir" (Abgp.format res.Abgp)
+
+            // Get the low-level configurations
             let nc = Abgp.toConfig res.Abgp
-            // Generate output
-            let outDir = if settings.IsAbstract then out + sep + "template" else out + sep + "quagga"
-            let dir = System.IO.Directory.CreateDirectory(outDir)
-            dir.Create()
-            Config.generate(nc, outDir)
+
+            let ext = if settings.IsAbstract then "template" else "quagga"
+            let outDir = out + File.sep + ext
+
+            File.createDir outDir
+            for kv in Config.generate nc do
+                let name = kv.Key 
+                let config = kv.Value 
+                File.writeFileWithExtension (outDir + File.sep + name) ext config
     0

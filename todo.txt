@@ -9,3 +9,6 @@ add syntax for building ranges of ASes (e.g., as[101-500])
 
 add syntax + support for IP V6
 add syntax + support for different prefix matches (e.g., pfx[8..24], need BDD?)
+
+When preferences can be equal, don't force an ordering (helps multipath)
+Allow preferences in constraints by using Regex.LazyT

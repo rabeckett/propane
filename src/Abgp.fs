@@ -1420,7 +1420,6 @@ let peerPol ti asPathMap asPathLists (als: List<_>) alID (p: Peer) =
         createAsPathList(Config.Kind.Permit, asPathMap, asPathLists, als, alID, regexMatch)
 
 
-
 let matchAllPeers ti (peers: Set<string>) = 
     let str = 
         Set.fold (fun acc p -> 

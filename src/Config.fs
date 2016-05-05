@@ -287,17 +287,10 @@ module Template =
       string sb
 
 
-let generate(nc: NetworkConfiguration, outDir: string) =
+let generate (nc: NetworkConfiguration) =
     let settings = Args.getSettings ()
-    let sep = string System.IO.Path.DirectorySeparatorChar
-    for kv in nc.RouterConfigurations do 
-        if settings.IsAbstract then 
-            let file = outDir + sep + kv.Key + ".template"
-            let sb = System.Text.StringBuilder()
-            let str = Template.output sb kv.Value 
-            System.IO.File.WriteAllText(file, str)
-        else
-            let file = outDir + sep + kv.Key + ".quagga"
-            let sb = System.Text.StringBuilder()
-            let str = Quagga.output sb kv.Value 
-            System.IO.File.WriteAllText(file, str)
+    nc.RouterConfigurations |> Util.Dictionary.map (fun name rc ->
+        let sb = System.Text.StringBuilder()
+        if settings.IsAbstract 
+            then Template.output sb rc
+            else Quagga.output sb rc)

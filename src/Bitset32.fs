@@ -2,12 +2,6 @@
 
 open LanguagePrimitives
 
-(*
-[<Struct>]
-type Foo = 
-    val Data: int
-    static member inline blah(x:Foo, y:Foo) = ""
-*)
 
 [<Measure>]
 type B
