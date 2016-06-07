@@ -1,0 +1,195 @@
+\begin{thebibliography}{10}
+
+\bibitem{fattree}
+M.~Al-Fares, A.~Loukissas, and A.~Vahdat.
+\newblock A scalable, commodity data center network architecture.
+\newblock In {\em SIGCOMM}, 2008.
+
+\bibitem{RFC2622}
+C.~Alaettinoglu, C.~Villamizar, E.~Gerich, D.~Kessens, D.~Meyer, T.~Bates,
+  D.~Karrenberg, and M.~Terpstra.
+\newblock Routing policy specification language (rpsl).
+\newblock RFC 2622, RFC Editor, June 1999.
+
+\bibitem{netkat}
+C.~J. Anderson, N.~Foster, A.~Guha, J.-B. Jeannin, D.~Kozen, C.~Schlesinger,
+  and D.~Walker.
+\newblock {NetKAT}: Semantic foundations for networks.
+\newblock In {\em {POPL}}, January 2014.
+
+\bibitem{time-warner}
+M.~Anderson.
+\newblock Time warner cable says outages largely resolved, August 2014.
+
+\bibitem{onos}
+P.~Berde, M.~Gerola, J.~Hart, Y.~Higuchi, M.~Kobayashi, T.~Koide, B.~Lantz,
+  B.~O'Connor, P.~Radoslavov, W.~Snow, et~al.
+\newblock {ONOS}: towards an open, distributed {SDN} {OS}.
+\newblock In {\em Proceedings of the third workshop on Hot topics in software
+  defined networking}, pages 1--6. ACM, 2014.
+
+\bibitem{bgpmon}
+News and press | {BGP}mon.
+\newblock \url{http://www.bgpmon.net/news-and-events/}.
+\newblock Retrieved 2016-01-26.
+
+\bibitem{RFC6020}
+M.~Bjorklund.
+\newblock Yang - a data modeling language for the network configuration
+  protocol (netconf).
+\newblock RFC 6020, RFC Editor, October 2010.
+\newblock \url{http://www.rfc-editor.org/rfc/rfc6020.txt}.
+
+\bibitem{ethane}
+M.~Casado, M.~J. Freedman, J.~Pettit, J.~Luo, N.~McKeown, and S.~Shenker.
+\newblock Ethane: Taking control of the enterprise.
+\newblock In {\em SIGCOMM}, 2007.
+
+\bibitem{RFC6241}
+R.~Enns, M.~Bjorklund, J.~Schoenwaelder, and A.~Bierman.
+\newblock Network configuration protocol (netconf).
+\newblock RFC 6241, RFC Editor, June 2011.
+\newblock \url{http://www.rfc-editor.org/rfc/rfc6241.txt}.
+
+\bibitem{feamster:thesis}
+N.~Feamster.
+\newblock {\em Proactive Techniques for Correct and Predictable Internet
+  Routing}.
+\newblock PhD thesis, Massachusetts Institute of Technology, 2005.
+
+\bibitem{feamster+:rcc}
+N.~Feamster and H.~Balakrishnan.
+\newblock Detecting {BGP} configuration faults with static analysis.
+\newblock In {\em NSDI}, 2005.
+
+\bibitem{igp-correctness2}
+N.~Feamster, J.~Winick, and J.~Rexford.
+\newblock A model of bgp routing for network engineering.
+\newblock In {\em in Proc. ACM SIGMETRICS}, 2004.
+
+\bibitem{batfish}
+A.~Fogel, S.~Fung, L.~Pedrosa, M.~Walraed-Sullivan, R.~Govindan, R.~Mahajan,
+  and T.~Millstein.
+\newblock A general approach to network configuration analysis.
+\newblock In {\em NSDI}, 2015.
+
+\bibitem{sdn-languages}
+N.~Foster, M.~J. Freedman, A.~Guha, R.~Harrison, N.~P. Katta, C.~Monsanto,
+  J.~Reich, M.~Reitblatt, J.~Rexford, C.~Schlesinger, A.~Story, and D.~Walker.
+\newblock Languages for software-defined networks.
+\newblock {\em IEEE Communications Magazine}, 51(2):128--134, 2013.
+
+\bibitem{regex-complexity}
+W.~Gelade and F.~Neven.
+\newblock Succinctness of the complement and intersection of regular
+  expressions.
+\newblock 2008.
+
+\bibitem{dc-failure-study}
+P.~Gill, N.~Jain, and N.~Nagappan.
+\newblock Understanding network failures in data centers: Measurement,
+  analysis, and implications.
+\newblock In {\em SIGCOMM}, 2011.
+
+\bibitem{igp-correctness1}
+T.~G. Griffin and G.~Wilfong.
+\newblock On the correctness of ibgp configuration.
+\newblock In {\em SIGCOMM}, 2002.
+
+\bibitem{hatch}
+Hatch -- create and share configurations.
+\newblock \url{http://www.hatchconfigs.com/}.
+\newblock Retrieved 2016-01-26.
+
+\bibitem{bgp-in-dc}
+P.~Lapukhov, A.~Premji, and J.~Mitchell.
+\newblock Use of {BGP} for routing in large-scale data centers.
+\newblock Internet draft, 2015.
+
+\bibitem{route-aggregation}
+F.~Le, G.~G. Xie, and H.~Zhang.
+\newblock On route aggregation.
+\newblock In {\em CoNEXT}, 2011.
+
+\bibitem{tarjan-dominance}
+T.~Lengauer and R.~Tarjan.
+\newblock A fast algorithm for finding dominators in a flowgraph.
+\newblock In {\em ACM Trans. Program. Lang. Syst.}, January 1979.
+
+\bibitem{mahajan+:bgp-misconfiguration}
+R.~Mahajan, D.~Wetherall, and T.~Anderson.
+\newblock Understanding {BGP} misconfiguration.
+\newblock In {\em SIGCOMM}, pages 3--16, 2002.
+
+\bibitem{fang}
+A.~Mayer, A.~Wool, and E.~Ziskind.
+\newblock Fang: A firewall analysis engine.
+\newblock In {\em {IEEE} Symposium on Security and Privacy}, pages 177--187,
+  2000.
+
+\bibitem{mccauley2013extending}
+J.~McCauley, A.~Panda, M.~Casado, T.~Koponen, and S.~Shenker.
+\newblock Extending sdn to large-scale networks.
+\newblock In {\em Open Networking Summit}, 2013.
+
+\bibitem{narain:lisa05}
+S.~Narain.
+\newblock Network configuration management via model finding.
+\newblock In {\em Proceedings of the 19th Conference on Systems
+  Administration}, pages 155--168, 2005.
+
+\bibitem{narain+:configassure}
+S.~Narain, G.~Levin, S.~Malik, and V.~Kaul.
+\newblock Declarative infrastructure configuration synthesis and debugging.
+\newblock {\em Journal of Network Systems Management}, 16(3):235--258, 2008.
+
+\bibitem{ipassure}
+S.~Narain, R.~Talpade, and G.~Levin.
+\newblock {\em Guide to Reliable Internet Services and Applications}, chapter
+  Chapter on Network Configuration Validation.
+\newblock Springer, 2010.
+
+\bibitem{queries}
+S.~Narayana, J.~Rexford, and D.~Walker.
+\newblock Compiling path queries in software-defined networks.
+\newblock In {\em {HotSDN}}, pages 181--186, 2014.
+
+\bibitem{margrave}
+T.~Nelson, C.~Barratt, D.~J. Dougherty, K.~Fisler, and S.~Krishnamurthi.
+\newblock The margrave tool for firewall analysis.
+\newblock In {\em {USENIX} Large Installation System Administration
+  Conference}, 2010.
+
+\bibitem{regex-derivatives}
+S.~Owens, J.~Reppy, and A.~Turon.
+\newblock Regular-expression derivatives re-examined.
+\newblock In {\em J. Funct. Program.}, March 2009.
+
+\bibitem{fattire}
+M.~Reitblatt, M.~Canini, N.~Foster, and A.~Guha.
+\newblock {FatTire}: Declarative fault tolerance for software defined networks.
+\newblock In {\em HotSDN}, 2013.
+
+\bibitem{foster:merlin}
+R.~Soul{\'{e}}, S.~Basu, P.~J. Marandi, F.~Pedone, R.~Kleinberg, E.~G. Sirer,
+  and N.~Foster.
+\newblock Merlin: {A} language for provisioning network resources.
+\newblock {\em CoRR}, abs/1407.1199, 2014.
+
+\bibitem{thwack}
+configuration templates | thwack.
+\newblock
+  \url{https://thwack.solarwinds.com/search.jspa?q=configuration+templates}.
+\newblock Retrieved 2016-01-26.
+
+\bibitem{bagpipe}
+K.~Weitz, D.~Woos, E.~Torlak, M.~D. Ernst, A.~Krishnamurthy, and Z.~Tatlock.
+\newblock Getting started with {Bagpipe}.
+\newblock \url{http://www.konne.me/bagpipe/started.html}, 2015.
+
+\bibitem{lumeta}
+A.~Wool.
+\newblock Architecting the lumeta firewall analyzer.
+\newblock In {\em {USENIX} Security Symposium}, 2001.
+
+\end{thebibliography}
