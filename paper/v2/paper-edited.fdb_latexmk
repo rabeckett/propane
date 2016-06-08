@@ -1,13 +1,13 @@
 # Fdb version 3
-["bibtex paper-edited"] 1465328943 "paper-edited.aux" "paper-edited.bbl" "paper-edited" 1465328946
+["bibtex paper-edited"] 1465399764 "paper-edited.aux" "paper-edited.bbl" "paper-edited" 1465400027
   "/usr/local/texlive/2015/texmf-dist/bibtex/bst/base/abbrv.bst" 1292289607 20329 b5fed53e10044d0f8112183785c759b1 ""
-  "paper-edited.aux" 1465328946 10244 6db739dc8596bfc22f0b34d1e370b301 ""
+  "paper-edited.aux" 1465400026 10246 a15377af9de911b6ef52dc30e5c82ef3 ""
   "paper-edited.bcf" 0 -1 0 ""
   "references.bib" 1455935612 31449 91424d8e421dd56ec9a1ffdcc81455b5 ""
   (generated)
-  "paper-edited.blg"
   "paper-edited.bbl"
-["pdflatex"] 1465328943 "paper-edited.tex" "paper-edited.pdf" "paper-edited" 1465328946
+  "paper-edited.blg"
+["pdflatex"] 1465400024 "paper-edited.tex" "paper-edited.pdf" "paper-edited" 1465400027
   "./figures/aggregation.png" 1455935612 105551 7c70ab97184b5172e470fdf4bbfade25 ""
   "./figures/compilation-times-backbone.png" 1455935612 88700 957f5cb639f209b2c66f40e62f47bade ""
   "./figures/compilation-times-dc.png" 1455935612 77096 4a58bf8b9185ddf9327a8f77eb08e7ee ""
@@ -230,11 +230,11 @@
   "figures/pipeline.png" 1455935612 67013 27f2985509b085136b2230f3cd171833 ""
   "figures/productgraph.png" 1455935612 105951 5351f4ef7dd7966d1b629eb8e9797df6 ""
   "figures/topology.png" 1455935612 54480 812a77fcc7ee51d7eacbcc74180a79ac ""
-  "paper-edited.aux" 1465328946 10244 6db739dc8596bfc22f0b34d1e370b301 ""
-  "paper-edited.bbl" 1465328943 6670 3f4ec1c27cfd787b5a2cd9c2f8f5e75e "bibtex paper-edited"
-  "paper-edited.tex" 1465328932 121739 d704a78ed4ee9ed393988d8d88a8c092 ""
+  "paper-edited.aux" 1465400026 10246 a15377af9de911b6ef52dc30e5c82ef3 ""
+  "paper-edited.bbl" 1465399764 6670 3f4ec1c27cfd787b5a2cd9c2f8f5e75e "bibtex paper-edited"
+  "paper-edited.tex" 1465400019 122745 8c1f4842398250ce836f921813a579f4 ""
   "sig-alternate-10pt.cls" 1455935612 59031 dc09dddd80ab1c853e5e42fd7369f8c9 ""
   (generated)
-  "paper-edited.log"
   "paper-edited.aux"
+  "paper-edited.log"
   "paper-edited.pdf"

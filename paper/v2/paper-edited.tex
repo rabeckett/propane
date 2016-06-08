@@ -634,8 +634,8 @@ of declarations.
 %major elements of any \sysname specification:  \emph{prefixes},
 %\emph{paths} and \emph{policies}.
 For example, to begin specification of the backbone
-network from the previous section, we first express the idea that for routes leading to our customer,
-we prefer using \CD{R1} over \CD{R2} (policy P3 from Figure~\ref{fig:example1}):
+network from the previous section, we first express the idea that 
+we prefer that traffic leave the network through \CD{R1} over \CD{R2} (to \CD{Cust}) over \CD{Peer} over \CD{Prov} (policy P3 from Figure~\ref{fig:example1}):
 %\begin{lstlisting}[mathescape=true]
 %define ExitCust = $exit(R_1 \gg R_2)$
 %\end{lstlisting}
@@ -647,15 +647,12 @@ all paths (and only those paths) for which traffic exits our network
 through either router \CD{R1}, router \CD{R2}, \CD{Peer}, or \CD{Prov}.  
 The paths that exit through \CD{R1}
 are preferred (\Prefer) to those that exit through \CD{R2}, which are preferred to those that 
-leave through \CD{Peer} and so then \CD{Prov}.  As we
+leave through \CD{Peer} and then \CD{Prov}.  As we
 describe in the next section, the \Exit\ predicate, as well as other
 path predicates used later in this section, is simply a shorthand for 
 a particular regular expression over paths that is expressible in our policy
-language.
-
-% DAVE CONVERSIONS
-% C_{pfx} ===> PCust
-% I_{pfx} ===> PInternal
+language. The preference operator (\Prefer) is flexible and can be used between constraints as well as among individual routers. For example, the above constraint could have been written equivalently as 
+\Exit(\CD{R1}) \Prefer \ldots \Prefer ~\Exit(\CD{Prov})
 
 To associate ranked paths with
 one or more prefixes, we define a \sysname \emph{policy}.
@@ -669,11 +666,11 @@ customer prefixes.
 %and \CD{PInt} for our internal prefixes.
 In the following code, ranked paths are associated with
 customer prefixes,
-and all other prefixes (\CD{true}).\footnote{Policy statements are processed in
+and all other prefixes (\CD{true}). Policy statements are processed in
 order with earlier policy statements taking precedence over later
-policy statements.  Hence, when the prefix predicate \True{} follows
+policy statements. Hence, when the predicate \True{} follows
 the statement involving \CD{PCust}, it is interpreted as
-\CD{\True{} \AND{} \NOT{}PCust}.}
+\CD{\True{} \AND{} \NOT{}PCust}.
 
 %% \begin{lstlisting}[mathescape=true]
 %% define Routing = {
@@ -697,7 +694,7 @@ restricts traffic destined to known customer prefixes (\CD{PCust}) to only follo
 %a backup route (\CD{\End(Cust)}) is defined that admits traffic along
 %any path (including those through other networks) that ends at the customer.
 %Line 3 states that traffic for internal prefixes must end in our network, and is otherwise unconstrained.
-Line 3 applies to any other traffic, and allows the traffic to leave through any direct neighbor with the usual preferences of \CD{R1} over \CD{R2} over \CD{Peer} over \CD{Prov}. To summarize our progress, the \CD{Routing} policy
+Line 3 applies to any other traffic not matching \CD{PCust} and allows the traffic to leave through any direct neighbor with the usual preferences of \CD{R1} over \CD{R2} over \CD{Peer} over \CD{Prov}. To summarize our progress, the \CD{Routing} policy
 implements P1, P3, and P4 from Figure~\ref{fig:example1}.
 
 Since by default routing allows transit traffic (\EG, traffic entering from
@@ -710,7 +707,7 @@ First, we create reusable abstractions for describing traffic that transits our 
 \Define cust-transit(X,Y) = \Later(X) \AND \Later(Y)
 \end{code}
 \noindent
-Here we define transit traffic between $X$ and $Y$ as traffic that enters the network through $X$ or $Y$ and then leaves the network through $X$ or $Y$. Similarly, we define customer transit for customer $X$ and provider $Y$ as traffic that later goes through both $X$ and $Y$ after leaving our network. Using these two new abstractions, we can now implement policies P2 and P5 with the following constraint.
+Here we define transit traffic between groups of neighbors $X$ and $Y$ as traffic that enters the network through some neighbor in $X$ or $Y$ and then leaves the network through some neighbor in either $X$ or $Y$. Similarly, we define customer transit for customer $X$ and provider $Y$ as traffic that later goes through both $X$ and $Y$ after leaving our network. Using these two new abstractions, we can now implement policies P2 and P5 with the following constraint.
 
 \begin{code}
 \Define NoTrans = 
@@ -718,7 +715,8 @@ Here we define transit traffic between $X$ and $Y$ as traffic that enters the ne
            \NOT{}cust-transit(Cust,Prov)\}
 \end{code}
 \noindent
-The \CD{NoTrans} constraint above requires that all traffic not follow a path that transits the network between \CD{Peer} and \CD{Prov}. Additionally, it prevents traffic from ever following paths that leave our network and later pass through both \CD{Prov} and \CD{Cust}.  To implement both \CD{Routing}
+The \CD{NoTrans} constraint above requires that all traffic not follow a path that transits the network between \CD{Peer} and \CD{Prov}.
+Additionally, it prevents traffic from ever following paths that leave our network and later go through both \CD{Prov} and \CD{Cust}.  To implement both \CD{Routing}
 and \CD{NoTrans} simultaneously, we simply conjoin them: \CD{Routing \AND{} NoTrans}.
 %
 %% \begin{lstlisting}[mathescape=true]
@@ -727,7 +725,7 @@ and \CD{NoTrans} simultaneously, we simply conjoin them: \CD{Routing \AND{} NoTr
 %
 These constraints capture the entire policy. From them, \sysname will generate per-device import and export filters, local preferences,
 MED attributes, and community tags to ensure that the policy is
-implemented correctly under all failure cases.
+implemented correctly under all failures.
 
 \subsection{Example 2: The Data Center}
 
@@ -762,8 +760,8 @@ In English: traffic for prefix \CD{PG1} is only allowed to follow paths that
 end at router \CD{A}; traffic matching \CD{PG2},
 but not \CD{PG1}, must
 end at router \CD{B}; and so on.
-Any traffic destined for a prefix that not a part of the data center should be allowed to leave the data center and end at some external location.
-The special keyword \Out{} represents any location outside the user's network, and the keyword \In{} represents any location inside the network.
+Any traffic destined for a prefix that not a part of the data center should be allowed to leave the data center and end at some external location, which is otherwise unconstrained.
+The special keyword \Out{} here matches any location outside the user's network, while the keyword \In{} will match any location inside the network.
 For the second constraint, we can define another policy:
 
 %% \begin{lstlisting}[mathescape=true]
@@ -793,8 +791,8 @@ inside the data center.
 
 As in the backbone example, we can logically conjoin these constraints
 to specify the network-wide policy.
-In addition to constraints on the shape of paths,
-\sysname allows the operator to specify constraints on the BGP control plane.
+However, in addition to constraints on the shape of paths,
+\sysname allows the operator to specify constraints on the BGP control plane itself.
 For instance, a constraint on aggregation is included to ensure that
 aggregation for global prefixes is performed from
 locations inside (\In) the network to locations outside (\Out). 
@@ -807,9 +805,7 @@ when advertised outside the datacenter.
 Ownership \AND{} Locality \AND{} \Agg(PG, \In \Link \Out)
 \end{code}
 
-As before, once \sysname compiles the policy, it is guaranteed to be policy-compliant under all possible failure scenarios. In addition, \sysname will efficiently find a lower bound on the number of failures required to create an aggregation-induced black hole.
-%It can efficiently determine a lower bound on the number of failures necessary to black hole traffic given the user's policy, topology, and placement of specific aggregates.
-
+Once \sysname compiles the policy, it is guaranteed to be compliant under all possible failure scenarios, modulo aggregation black holes (which are unavoidable in general). In the presence of aggregation, the \sysname compiler will also efficiently find a lower bound on the number of failures required to create an aggregation-induced black hole.
 
 
 %%%%OLD TEXT BELOW
@@ -928,7 +924,7 @@ The front-end (FE) of \sysname simplifies operators' task of describing preferre
   \vspace{-1em}
 \end{figure}
 
-We handle these challenges by breaking compilation into multiple stages and developing efficient algorithms for each (See Figure~\ref{fig:pipeline}). The first stage of the pipeline involves simple rewriting rules and substitutions from the FE to the core Regular Intermediate Representation (RIR). Policies in RIR are checked for well-formedness (\EG, never constraining traffic that does not enter the network), before being combined with the network topology to obtain the Product Graph Intermediate Representation (PGIR). The PGIR is a data representation that compactly captures the flow of BGP announcements subject to the policy and topology restrictions. We develop efficient algorithms that operate over the PGIR to ensure policy compliance under failures, avoid BGP instability, and prevent aggregation-induced black holes. Once the compiler determines that the PGIR is safe, it translates it to an abstract BGP (ABGP) representation. Vendor-specific adaptors to translate from ABGP to concrete device configurations or to integrate with an existing template-based system are easily added. The \sysname compiler currently generates Quagga configurations by default. 
+We handle these challenges by breaking compilation into multiple stages and developing efficient algorithms for each (See Figure~\ref{fig:pipeline}). The first stage of the pipeline involves simple rewriting rules and substitutions from the FE to the core Regular Intermediate Representation (RIR). Policies in RIR are checked for well-formedness (\EG, never constraining traffic that does not enter the network), before being combined with the network topology to obtain the Product Graph Intermediate Representation (PGIR). The PGIR is a data representation that compactly captures the flow of BGP announcements subject to the policy and topology restrictions. We develop efficient algorithms that operate over the PGIR to ensure policy compliance under failures, avoid BGP instability, and prevent aggregation-induced black holes. Once the compiler determines that the PGIR is safe, it translates it to an abstract BGP (ABGP) representation. Vendor-specific adaptors to translate from ABGP to concrete device configurations or to integrate with an existing template-based system are easily added. The \sysname compiler currently generates Quagga router configurations by default. 
 
 \subsection{Regular IR (RIR)}
 \label{sec:rir}
@@ -950,14 +946,13 @@ We handle these challenges by breaking compilation into multiple stages and deve
 
      pol     &::=& p_1, \dots, p_n & \textit{constraints} \\
      p       &::=& t \hspace{.3em} \Path \hspace{.3em} r_1 \Prefer \dots \Prefer r_m & \textit{preferences} \\
-     x       &::=& a.b.c.d/n & \textit{prefix} \\
-     c       &::=& \cdots & \textit{community value} \\
+     x       &::=& d.d.d.d/d & \textit{prefix} \\
      t       &::=& \True & \textit{true} \\
          &\BNFALT& \NOT t & \textit{negation} \\
          &\BNFALT& t_1 \OR{} t_2 & \textit{disjunction} \\
          &\BNFALT& t_1 \AND{} t_2 & \textit{conjunction} \\
          &\BNFALT& \textit{prefix} = x & \textit{prefix test} \\
-         &\BNFALT& \textit{comm} = c & \textit{community test} \\
+         &\BNFALT& \textit{comm} = d & \textit{community test} \\
      r       &::=& n & \textit{AS number} \\
          &\BNFALT& \emptyset & \textit{empty set} \\
          &\BNFALT& \In & \textit{internal loc} \\
@@ -965,8 +960,8 @@ We handle these challenges by breaking compilation into multiple stages and deve
          &\BNFALT& r_1 \cup r_2 & \textit{union} \\
          &\BNFALT& r_1 \cap r_2 & \textit{intersection} \\
          &\BNFALT& r_1 \cdot r_2 & \textit{concatenation} \\
-         &\BNFALT& \NOT(r) & \textit{path negation} \\
-         &\BNFALT& r^* & \textit{repetition} \\
+         &\BNFALT& \NOT r & \textit{path negation} \\
+         &\BNFALT& r^* & \textit{iteration} \\
      l       &::=& r_1 \rightarrow r_2 & \textit{link pairs} \\
      cc     &::=& agg(x, l) \BNFALT tag(c, t, l) & \textit{control constraints} \\
   \end{array} \]
@@ -1016,15 +1011,14 @@ We handle these challenges by breaking compilation into multiple stages and deve
 
 \para{Syntax}
 The \sysname FE is just a thin layer atop a core, regular-expression language (RIR) for describing preference-based path constraints. 
-Figure~\ref{fig:rir-syntax} shows the RIR syntax. A policy consists of one or more constraints, each of which have a test on the type of route, and a corresponding set of preferred regular paths. Regular paths are regular expressions where the base characters are abstract locations---either a router or an AS. Special \In{} and \Out{} symbols refer to any internal or external location respectively. In addition, $\Sigma$ refers to any symbol. We also use other standard abbreviations
-for regular expressions such as $r^+$, which is simply syntactic sugar for $r \cdot r^*$, a sequence of one or more occurrences of $r$, when appropriate.
+Figure~\ref{fig:rir-syntax} shows the RIR syntax. A policy consists of one or more constraints, each of which have a test on the type of route, and a corresponding set of preferred regular paths. Regular paths are regular expressions where the base characters are abstract locations---either a router or an AS. Special \In{} and \Out{} symbols refer to any internal or external location respectively. In addition, $\Sigma$ refers to any symbol. We also use the standard regular expressions abbreviation $r^+$ to stand for $r \cdot r^*$, a sequence of one or more occurrences of $r$. Predicates ($t$) consist of logical boolean connectives (and, or, not) as well as tests that match a particular prefix (or group of prefixes) and tests for route advertisments with a particular community value (i.e., an integer value associated with a path). 
 %% For example, the constraint
 %% \[(\textit{prefix}=74.3.28.0/24) \Link \\
 %% (as200 \cdot \In^+) \Prefer (as100 \cdot \In^+)
 %% \]
 %% describes a more-preferred set of paths for traffic announced by a prefix no less specific than \CD{74.125.28.0/24}, which starts at AS 200, before entering and staying inside the user's network to get to the destination, and a less-preferred set of paths that start at AS 100 and are otherwise the same. The plus operator $\In^+$ stands for $\In \cdot \In^*$, at least one internal hop. Tests over route types use standard boolean connectives, and can refer to both prefixes and route community values.
 
-\sysname also supports constraints purely on the control-plane behavior of BGP. For example, prefix aggregation is an important optimization to reduce routing table size and churn in practice. 
+\sysname also supports constraints purely on the control-plane behavior of BGP. For example, prefix aggregation is an important optimization to reduce routing table size and churn in practice. A constraint of the form $agg(x,l)$ tells the compiler to perform aggregation for prefix $x$ across all links described by $l$. It is also often useful to be able to add community tags to exported routes in BGP (e.g., to communicate non-standard information to peers). A constraint of the form $tag(c,t,l)$ adds community tag $c$ for any prefixes matching $t$ across links $l$.
 %% Aggregation, for example, from internal to external locations, is specified using the same regular syntax as before:
 %% $$\Agg(128.17.0.0/16, \In \Link \Out)$$
 %% where the expression $\In \Link Out$ refers to control messages flowing from any internal to any external location.

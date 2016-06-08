@@ -1,7 +1,7 @@
 \documentclass{sig-alternate-10pt}
 %DIF LATEXDIFF DIFFERENCE FILE
 %DIF DEL paper.tex          Tue Jun  7 10:15:16 2016
-%DIF ADD paper-edited.tex   Tue Jun  7 16:14:21 2016
+%DIF ADD paper-edited.tex   Wed Jun  8 10:45:54 2016
 
 \usepackage{amsmath}
 \usepackage{amssymb}
@@ -658,8 +658,9 @@ of declarations.
 %major elements of any \sysname specification:  \emph{prefixes},
 %\emph{paths} and \emph{policies}.
 For example, to begin specification of the backbone
-network from the previous section, we first express the idea that for routes leading to our customer,
-we prefer using \CD{R1} over \CD{R2} (policy P3 from Figure~\ref{fig:example1}):
+network from the previous section, we first express the idea that 
+\DIFdelbegin \DIFdel{for routes leading to our customer,
+we prefer using }\DIFdelend \DIFaddbegin \DIFadd{we prefer that traffic leave the network through }\DIFaddend \CD{R1} over \CD{R2} (\DIFaddbegin \DIFadd{to }\CD{Cust}\DIFadd{) over }\CD{Peer} \DIFadd{over }\CD{Prov} \DIFadd{(}\DIFaddend policy P3 from Figure~\ref{fig:example1}):
 %\begin{lstlisting}[mathescape=true]
 %define ExitCust = $exit(R_1 \gg R_2)$
 %\end{lstlisting}
@@ -675,17 +676,21 @@ all paths (and only those paths) for which traffic exits our network
 through either router \CD{R1}\DIFdelbegin \DIFdel{or }\DIFdelend \DIFaddbegin \DIFadd{, router }\DIFaddend \CD{R2}\DIFaddbegin \DIFadd{, }\CD{Peer}\DIFadd{, or }\CD{Prov}\DIFaddend .  
 The paths that exit through \CD{R1}
 are preferred (\Prefer) to those that exit through \CD{R2}\DIFaddbegin \DIFadd{, which are preferred to those that 
-leave through }\CD{Peer} \DIFadd{and so then }\CD{Prov}\DIFaddend .  As we
+leave through }\CD{Peer} \DIFadd{and then }\CD{Prov}\DIFaddend .  As we
 describe in the next section, the \Exit\ predicate, as well as other
 path predicates used later in this section, is simply a shorthand for 
 a particular regular expression over paths that is expressible in our policy
-language.
+language. \DIFaddbegin \DIFadd{The preference operator (\Prefer) is flexible and can be used between constraints as well as among individual routers. For example, the above constraint could have been written equivalently as 
+}\Exit\DIFadd{(}\CD{R1}\DIFadd{) \Prefer \ldots \Prefer ~}\Exit\DIFadd{(}\CD{Prov}\DIFadd{)
+}\DIFaddend 
 
-% DAVE CONVERSIONS
-% C_{pfx} ===> PCust
-% I_{pfx} ===> PInternal
+%DIF <  DAVE CONVERSIONS
+%DIF <  C_{pfx} ===> PCust
+%DIF <  I_{pfx} ===> PInternal
+\DIFdelbegin %DIFDELCMD < 
 
-To associate ranked paths with
+%DIFDELCMD < %%%
+\DIFdelend To associate ranked paths with
 one or more prefixes, we define a \sysname \emph{policy}.
 Within a policy, statements with the form $t$\Path$p$
 associate the prefixes defined by the predicate $t$ with the set of
@@ -700,13 +705,23 @@ customer prefixes\DIFdelbegin \DIFdel{and }%DIFDELCMD < \CD{PInt} %%%
 }\DIFaddend In the following code, ranked paths are associated with
 customer prefixes,
 \DIFdelbegin \DIFdel{internal prefixes,
-}\DIFdelend and all other prefixes (\CD{true}).\footnote{Policy statements are processed in
+}\DIFdelend and all other prefixes (\CD{true}). \DIFdelbegin \footnote{\DIFdel{Policy statements are processed in
 order with earlier policy statements taking precedence over later
-policy statements.  Hence, when the prefix predicate \True{} follows
-\DIFdelbegin \DIFdel{statements }\DIFdelend \DIFaddbegin \DIFadd{the statement }\DIFaddend involving \CD{PCust}\DIFdelbegin \DIFdel{and }%DIFDELCMD < \CD{PInt}%%%
-\DIFdelend , it is interpreted as
-\DIFdelbegin %DIFDELCMD < \CD{\True{} \AND{} \NOT{}PCust \AND{} \NOT{}PInt}%%%
-\DIFdelend \DIFaddbegin \CD{\True{} \AND{} \NOT{}PCust}\DIFaddend .}
+policy statements.  Hence, when the prefix predicate }%DIFDELCMD < \True{} %%%
+\DIFdel{follows
+statements involving }%DIFDELCMD < \CD{PCust} %%%
+\DIFdel{and }%DIFDELCMD < \CD{PInt}%%%
+\DIFdel{, it is interpreted as
+}%DIFDELCMD < \CD{\True{} \AND{} \NOT{}PCust \AND{} \NOT{}PInt}%%%
+\DIFdel{.}}
+%DIFAUXCMD
+\addtocounter{footnote}{-1}%DIFAUXCMD
+\DIFdelend \DIFaddbegin \DIFadd{Policy statements are processed in
+order with earlier policy statements taking precedence over later
+policy statements. Hence, when the predicate }\True{} \DIFadd{follows
+the statement involving }\CD{PCust}\DIFadd{, it is interpreted as
+}\CD{\True{} \AND{} \NOT{}PCust}\DIFadd{.
+}\DIFaddend 
 
 %% \begin{lstlisting}[mathescape=true]
 %% define Routing = {
@@ -751,7 +766,7 @@ The special keyword }%DIFDELCMD < \In{} %%%
 inside the user's network and the keyword }%DIFDELCMD < \Out{} %%%
 \DIFdel{represents any location
 outside the user's network.
-Line 4 }\DIFdelend applies to any other traffic, and allows \DIFdelbegin \DIFdel{any routes that leave through a peer with a preference for customers over peers over providers}\DIFdelend \DIFaddbegin \DIFadd{the traffic to leave through any direct neighbor with the usual preferences of }\CD{R1} \DIFadd{over }\CD{R2} \DIFadd{over }\CD{Peer} \DIFadd{over }\CD{Prov}\DIFaddend . To summarize our progress, the \CD{Routing} policy
+Line 4 }\DIFdelend applies to any other traffic \DIFdelbegin \DIFdel{, and allows any routes that leave through a peer with a preference for customers over peers over providers}\DIFdelend \DIFaddbegin \DIFadd{not matching }\CD{PCust} \DIFadd{and allows the traffic to leave through any direct neighbor with the usual preferences of }\CD{R1} \DIFadd{over }\CD{R2} \DIFadd{over }\CD{Peer} \DIFadd{over }\CD{Prov}\DIFaddend . To summarize our progress, the \CD{Routing} policy
 implements P1, P3, and P4 from Figure~\ref{fig:example1}.
 
 Since by default routing allows transit traffic (\EG, traffic entering from
@@ -771,7 +786,7 @@ disjunction (\OR) and negation (\NOT) of constraints.
 \Define cust-transit(X,Y) = \Later(X) \AND \Later(Y)
 \end{code}
 \noindent
-\DIFadd{Here we define transit traffic between $X$ and $Y$ as traffic that enters the network through $X$ or $Y$ and then leaves the network through $X$ or $Y$. Similarly, we define customer transit for customer $X$ and provider $Y$ as traffic that later goes through both $X$ and $Y$ after leaving our network. Using these two new abstractions, we can now implement policies P2 and P5 with the following constraint.
+\DIFadd{Here we define transit traffic between groups of neighbors $X$ and $Y$ as traffic that enters the network through some neighbor in $X$ or $Y$ and then leaves the network through some neighbor in either $X$ or $Y$. Similarly, we define customer transit for customer $X$ and provider $Y$ as traffic that later goes through both $X$ and $Y$ after leaving our network. Using these two new abstractions, we can now implement policies P2 and P5 with the following constraint.
 }\DIFaddend 
 
 %DIF < % define NoTransit = {
@@ -791,7 +806,8 @@ disjunction (\OR) and negation (\NOT) of constraints.
            \NOT{}cust-transit(Cust,Prov)\}
 \end{code}
 \DIFaddend \noindent
-The \CD{NoTrans} constraint above \DIFdelbegin \DIFdel{says that for any prefix, traffic should never both enter and exit the network from }\DIFdelend \DIFaddbegin \DIFadd{requires that all traffic not follow a path that transits the network between }\DIFaddend \CD{Peer} \DIFdelbegin \DIFdel{or }\DIFdelend \DIFaddbegin \DIFadd{and }\DIFaddend \CD{Prov}. \DIFdelbegin \DIFdel{Similarly }\DIFdelend \DIFaddbegin \DIFadd{Additionally, }\DIFaddend it prevents traffic from ever following paths that leave our network and later \DIFdelbegin \DIFdel{passing }\DIFdelend \DIFaddbegin \DIFadd{pass }\DIFaddend through both \CD{Prov} and \CD{Cust}.  To implement both \CD{Routing}
+The \CD{NoTrans} constraint above \DIFdelbegin \DIFdel{says that for any prefix, traffic should never both enter and exit the network from }\DIFdelend \DIFaddbegin \DIFadd{requires that all traffic not follow a path that transits the network between }\DIFaddend \CD{Peer} \DIFdelbegin \DIFdel{or }\DIFdelend \DIFaddbegin \DIFadd{and }\DIFaddend \CD{Prov}.
+\DIFdelbegin \DIFdel{Similarly }\DIFdelend \DIFaddbegin \DIFadd{Additionally, }\DIFaddend it prevents traffic from ever following paths that leave our network and later \DIFdelbegin \DIFdel{passing }\DIFdelend \DIFaddbegin \DIFadd{go }\DIFaddend through both \CD{Prov} and \CD{Cust}.  To implement both \CD{Routing}
 and \CD{NoTrans} simultaneously, we simply conjoin them: \CD{Routing \AND{} NoTrans}.
 %
 %% \begin{lstlisting}[mathescape=true]
@@ -800,7 +816,7 @@ and \CD{NoTrans} simultaneously, we simply conjoin them: \CD{Routing \AND{} NoTr
 %
 These constraints capture the entire policy. From them, \sysname will generate per-device import and export filters, local preferences,
 MED attributes, and community tags to ensure that the policy is
-implemented correctly under all failure cases.
+implemented correctly under all \DIFdelbegin \DIFdel{failure cases}\DIFdelend \DIFaddbegin \DIFadd{failures}\DIFaddend .
 
 \subsection{Example 2: The Data Center}
 

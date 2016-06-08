@@ -307,7 +307,6 @@ INPUT ./figures/example2.png
 INPUT /usr/local/texlive/2015/texmf-dist/fonts/vf/adobe/courier/pcrr8t.vf
 INPUT /usr/local/texlive/2015/texmf-dist/fonts/tfm/adobe/courier/pcrr8r.tfm
 INPUT /usr/local/texlive/2015/texmf-dist/fonts/tfm/adobe/courier/pcrb8t.tfm
-INPUT /usr/local/texlive/2015/texmf-dist/fonts/tfm/adobe/courier/pcrr8t.tfm
 INPUT /usr/local/texlive/2015/texmf-dist/fonts/vf/adobe/courier/pcrb8t.vf
 INPUT /usr/local/texlive/2015/texmf-dist/fonts/tfm/adobe/courier/pcrb8r.tfm
 INPUT /usr/local/texlive/2015/texmf-dist/fonts/vf/adobe/courier/pcrr8t.vf
@@ -345,13 +344,13 @@ INPUT ./figures/compilation-times-dc.png
 INPUT figures/compilation-times-backbone.png
 INPUT ./figures/compilation-times-backbone.png
 INPUT ./figures/compilation-times-backbone.png
+INPUT /usr/local/texlive/2015/texmf-dist/fonts/vf/adobe/times/ptmr8t.vf
 INPUT figures/config-compression-dc.png
 INPUT ./figures/config-compression-dc.png
 INPUT ./figures/config-compression-dc.png
 INPUT figures/config-compression-backbone.png
 INPUT ./figures/config-compression-backbone.png
 INPUT ./figures/config-compression-backbone.png
-INPUT /usr/local/texlive/2015/texmf-dist/fonts/vf/adobe/times/ptmr8t.vf
 INPUT figures/aggregation.png
 INPUT ./figures/aggregation.png
 INPUT ./figures/aggregation.png
