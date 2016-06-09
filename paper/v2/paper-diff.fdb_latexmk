@@ -1,13 +1,13 @@
 # Fdb version 3
-["bibtex paper-diff"] 1465485536 "paper-diff.aux" "paper-diff.bbl" "paper-diff" 1465485539
+["bibtex paper-diff"] 1465504284 "paper-diff.aux" "paper-diff.bbl" "paper-diff" 1465504286
   "/usr/local/texlive/2015/texmf-dist/bibtex/bst/base/abbrv.bst" 1292289607 20329 b5fed53e10044d0f8112183785c759b1 ""
-  "paper-diff.aux" 1465485539 15854 94e16bb8c06cb134c9344179f530a2a6 ""
+  "paper-diff.aux" 1465504286 15752 a3ceffc6811eb5719455e3f44795dfab ""
   "paper-diff.bcf" 0 -1 0 ""
   "references.bib" 1455935612 31449 91424d8e421dd56ec9a1ffdcc81455b5 ""
   (generated)
   "paper-diff.bbl"
   "paper-diff.blg"
-["pdflatex"] 1465485537 "paper-diff.tex" "paper-diff.pdf" "paper-diff" 1465485539
+["pdflatex"] 1465504284 "paper-diff.tex" "paper-diff.pdf" "paper-diff" 1465504286
   "./figures/aggregation.png" 1455935612 105551 7c70ab97184b5172e470fdf4bbfade25 ""
   "./figures/compilation-times-backbone.png" 1455935612 88700 957f5cb639f209b2c66f40e62f47bade ""
   "./figures/compilation-times-dc.png" 1455935612 77096 4a58bf8b9185ddf9327a8f77eb08e7ee ""
@@ -234,11 +234,11 @@
   "figures/productgraph.png" 1455935612 105951 5351f4ef7dd7966d1b629eb8e9797df6 ""
   "figures/topology.png" 1455935612 54480 812a77fcc7ee51d7eacbcc74180a79ac ""
   "figures/unimplementable.png" 1465479869 80189 c0a6212da8735cac53d54cbc52ba71f4 ""
-  "paper-diff.aux" 1465485539 15854 94e16bb8c06cb134c9344179f530a2a6 ""
-  "paper-diff.bbl" 1465485537 6670 3f4ec1c27cfd787b5a2cd9c2f8f5e75e "bibtex paper-diff"
-  "paper-diff.tex" 1465485534 149159 8f7ee8c186bafad44f5caa302ef910f5 ""
+  "paper-diff.aux" 1465504286 15752 a3ceffc6811eb5719455e3f44795dfab ""
+  "paper-diff.bbl" 1465504284 6670 3f4ec1c27cfd787b5a2cd9c2f8f5e75e "bibtex paper-diff"
+  "paper-diff.tex" 1465504280 155552 4982e7d53d564723a26a1c6b1f0a4fda ""
   "sig-alternate-10pt.cls" 1455935612 59031 dc09dddd80ab1c853e5e42fd7369f8c9 ""
   (generated)
-  "paper-diff.pdf"
   "paper-diff.log"
   "paper-diff.aux"
+  "paper-diff.pdf"

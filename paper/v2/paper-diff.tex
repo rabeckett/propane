@@ -1,7 +1,7 @@
 \documentclass{sig-alternate-10pt}
 %DIF LATEXDIFF DIFFERENCE FILE
 %DIF DEL paper.tex          Tue Jun  7 10:15:16 2016
-%DIF ADD paper-edited.tex   Thu Jun  9 11:18:36 2016
+%DIF ADD paper-edited.tex   Thu Jun  9 16:23:28 2016
 
 \usepackage{amsmath}
 \usepackage{amssymb}
@@ -1452,7 +1452,8 @@ Additionally, we add edges from the start node $s$ to any $v = (x, a_1, \dots, a
 %
 The preference function $P$ for node $v = (x, a_1, \dots, a_m)$ is defined as $P(v) = \set{i~\vert~a_i \in F_i} $. That is, it records which preferences are achieved from each policy automaton for every node in the product construction.
 %
-Finally, there is an edge from each node in the PGIR such that $P(v) \neq \emptyset$ to the special end node $e$.
+Finally, there is an edge from each node in the PGIR such that $P(v) \neq \emptyset$ to the special end node $e$. \DIFaddbegin \DIFadd{We say that $x \leq_{rank} y$ if either $P(x) = P(y) = \emptyset$ or $min ~ P(x) \leq min ~ P(y)$, which simply states that paths that end at PGIR node $x$ are better than (lower rank) than paths that end at $y$.
+}\DIFaddend 
 
 
 Intuitively, PGIR tracks which states of each automaton the policy is in as route announcements move between routers.
@@ -1551,36 +1552,61 @@ To implement path preferences in routing, BGP uses local preferences on a per-de
 
 \DIFdelbegin \DIFdel{The more challenging case is when a topology location occurs in mutliple contexts in the PGIR. }\DIFdelend \DIFaddbegin \DIFadd{The problem of deciding local preferences for each router is closely reflected in the structure of the PGIR. In particular, whenever a given router appears in multiple different contexts in the PGIR (i.e., as multiple PGIR nodes), then the compiler must decide which context to prefer.
 %DIF > 
-}\DIFaddend For example, in \DIFdelbegin \DIFdel{the }\DIFdelend \DIFaddbegin \DIFadd{our }\DIFaddend compilation example from Figure~\ref{fig:example-compilation}, the topology node $C$ can receive an \DIFdelbegin \DIFdel{announcement }\DIFdelend \DIFaddbegin \DIFadd{advertisement }\DIFaddend from $E$ \DIFdelbegin \DIFdel{and later achieve the backup path, }\DIFdelend \DIFaddbegin \DIFadd{in one context }\DIFaddend or it can receive an \DIFdelbegin \DIFdel{announcement }\DIFdelend \DIFaddbegin \DIFadd{advertisement }\DIFaddend from its neighbor $D$ \DIFdelbegin \DIFdel{and later achieve either the primary or backup path. Is it safe for $C$ to prefer its neighbor $D$ over its other neighbor $E$? The important observation is that, if $C$ prefers $D$, then it is never worse off---it will always achieve at least as good a path as if it had choosen $E$}\DIFdelend \DIFaddbegin \DIFadd{in a different context. The compiler's task is to determine a }\emph{\DIFadd{total ordering}} \DIFadd{of contexts for each router in the topology, which reflects the relative preference of advertisements received in that context}\DIFaddend . For example, \DIFdelbegin \DIFdel{suppose $C$ chooses a route from $D$, but cannot achieve its primary path because the $A$ -- $W$ link has failed. In this case, the advertisement from $C$ will still be sent along towards the ultimate backup location $W$. Since the }\DIFdelend \DIFaddbegin \DIFadd{if the compiler determines that context }\DIFaddend $(C,3,2)$ \DIFdelbegin \DIFdel{node has the same one-step and two-step next hops as node }\DIFdelend \DIFaddbegin \DIFadd{is preferred $(<)$ to context }\DIFaddend $(C,-,2)$\DIFdelbegin \DIFdel{in the product graph, no possible failure will prevent a route advertisment from reaching $(W,-,4)$ that wouldn't have otherwise prevented it if $C$ had choosen }\DIFdelend \DIFaddbegin \DIFadd{, then $C$ will need to prefer advertisements heard from }\DIFaddend $E$ \DIFaddbegin \DIFadd{over $D$}\DIFaddend .
+}\DIFaddend For example, in \DIFdelbegin \DIFdel{the }\DIFdelend \DIFaddbegin \DIFadd{our }\DIFaddend compilation example from Figure~\ref{fig:example-compilation}, the topology node $C$ can receive an \DIFdelbegin \DIFdel{announcement }\DIFdelend \DIFaddbegin \DIFadd{advertisement }\DIFaddend from $E$ \DIFdelbegin \DIFdel{and later achieve the backup path, }\DIFdelend \DIFaddbegin \DIFadd{in context $(C,-,2)$ }\DIFaddend or it can receive an \DIFdelbegin \DIFdel{announcement }\DIFdelend \DIFaddbegin \DIFadd{advertisement }\DIFaddend from its neighbor $D$ \DIFdelbegin \DIFdel{and later achieve either the primary or backup path. 
+Is it safe for $C$ to prefer its neighbor }\DIFdelend \DIFaddbegin \DIFadd{in context $(C,3,2)$. 
+%DIF > 
+The compiler's task is to determine a }\emph{\DIFadd{total ordering}} \DIFadd{of contexts for each router in the topology, which reflects the relative preference of advertisements received in each context. For example, if the compiler determines that context $(C,3,2)$ is preferred to context $(C,-,2)$, written as $(C,3,2) < (C,-,2)$, then $C$ will prefer advertisements heard from }\DIFaddend $D$ over \DIFdelbegin \DIFdel{its other neighbor }\DIFdelend $E$\DIFdelbegin \DIFdel{? The important observation is that , if $C$ prefers $D$, then it is never worse off---it will always achieve }\DIFdelend \DIFaddbegin \DIFadd{.
+}
 
-\DIFaddbegin \para{Regret Freedom}
+\para{Regret-free Preferences}
 
+\DIFadd{How should the compiler determine a total ordering of PGIR contexts for each router in a way that is }\emph{\DIFadd{sound}} \DIFadd{and }\emph{\DIFadd{complete}} \DIFadd{under all possible failures? To this end, we introduce }\emph{\DIFadd{regret-free}} \DIFadd{preferences, a sufficient condition for correctness motivated by the observations from our previous example. Intuitively, preferences are }\emph{\DIFadd{regret-free}} \DIFadd{if, whevever some router $r$ prefers an advertisement $X$ over another $Y$, there is always some policy-compliant path to each final (advertisement) destination that is }\DIFaddend at least as good \DIFdelbegin \DIFdel{a path as }\DIFdelend \DIFaddbegin \DIFadd{as any path }\DIFaddend if it had \DIFdelbegin \DIFdel{choosen $E$.
+For example, suppose $C$ chooses a route from $D$, but cannot achieve its primary path because the $A$ -- $W$ link has failed. In this case, the advertisement from $C$ will still be sent along towards the ultimate backup location $W$. Since the $(C,3,2)$ node has the same one-step and two-step next hops as node $(C,-,2)$ in the product graph, no possible failure will prevent a route advertisment from reaching $(W,-,4)$ that wouldn't have otherwise prevented it if $C$ had choosen $E$. 
+}\DIFdelend \DIFaddbegin \DIFadd{accepted $Y$ instead.
+}\DIFaddend 
+
+\DIFdelbegin \DIFdel{In general, ensuring that an individual router's preferences respect the policy under all possible failures is hard, and enumerating all failures is intractable. We thus adopt a conservative analysis based on the observations above. The high-level idea is to order each PGIR node according to a }\textit{\DIFdel{can prefer}} %DIFAUXCMD
+\DIFdel{relation. For example, node $(C,3,2)$ can be preferred to node $(C,-,2)$, but not the other way around. Intuitively, a node }\DIFdelend \DIFaddbegin \DIFadd{We now explain this property more formally in terms of the structure of the PGIR. We use the notation $path(s,d)$ to say that there exists a path in the PGIR from $s$ to $d$. 
+%DIF > 
+Preferences (for the PGIR) are }\emph{\DIFadd{regret-free}} \DIFadd{if, given (i) any combination of failed topology links}\footnote{\DIFadd{Note that a single failure in the topology may correspond to zero or more failed nodes/edges in the PGIR}}\DIFadd{, (ii) a fixed topology (advertisement) destination $d$, and (iii) two contexts $N_1 < N_2$, then whever there exists a $d'$ such that $loc(d') = d$ and $path(N_2,d')$, then there exists a $d''$ such that $loc(d'') = d$ and $path(N_1,d'')$ with $d'' \leq_{rank} d'$.
+%DIF > 
+The property simply says that if router $N$ prefers context }\DIFaddend $N_1$ \DIFdelbegin \DIFdel{can be preferred to another node }\DIFdelend \DIFaddbegin \DIFadd{to }\DIFaddend $N_2$\DIFdelbegin \DIFdel{when, for each preference }\DIFdelend \DIFaddbegin \DIFadd{, then any time there is a path from }\DIFaddend $N_2$ \DIFdelbegin \DIFdel{might achieve, there is a better preference that }\DIFdelend \DIFaddbegin \DIFadd{to some destination $d$, then there exists a better (lower ranked) path from }\DIFaddend $N_1$ \DIFdelbegin \DIFdel{will achieve regardless of failures. Formally this means that $N_1$ can be preferred to $N_2$ when:
+}\DIFdelend \DIFaddbegin \DIFadd{to destination $d$. 
+}\DIFaddend %
+\DIFdelbegin \begin{displaymath}\DIFdel{\forall i, \exists j, j \leq i \wedge protect(G_j, N_1, G_i, N_2)}\end{displaymath}
+%DIFAUXCMD
+%DIF < 
+\DIFdel{where }\textit{\DIFdel{protect}} %DIFAUXCMD
+\DIFdel{means that, from $N_1$ on the product graph restricted to nodes that can potentially achieve preference $j$ or better, }\DIFdelend \DIFaddbegin \DIFadd{For example, the compilation example in Figure~\ref{fig:example-compilation}, a choice for $C$ to prefer context $(C,3,2)$ to $(C,-,2)$ would be regret-free, since }\DIFaddend there is always \DIFaddbegin \DIFadd{at least as good }\DIFaddend a path to \DIFdelbegin \DIFdel{each ending location whenever this is a path from $N_2$ restricted to $G_i$. }\DIFdelend \DIFaddbegin \DIFadd{destination $W$ regardless of failures. 
+}\DIFaddend 
+
+
+
+\DIFaddbegin \para{A Preference Inference Algorithm}
 
 %DIF > For example, in our compilation example from Figure~\ref{fig:example-compilation}, the topology node $C$ can receive an announcement from $E$ and later achieve the backup path, or it can receive an announcement from its neighbor $D$ and later achieve either the primary or backup path. Is it safe for $C$ to prefer its neighbor $D$ over its other neighbor $E$? The important observation is that, if $C$ prefers $D$, then it is never worse off---it will always achieve at least as good a path as if it had choosen $E$.
 %DIF > For example, suppose $C$ chooses a route from $D$, but cannot achieve its primary path because the $A$ -- $W$ link has failed. In this case, the advertisement from $C$ will still be sent along towards the ultimate backup location $W$. Since the $(C,3,2)$ node has the same one-step and two-step next hops as node $(C,-,2)$ in the product graph, no possible failure will prevent a route advertisment from reaching $(W,-,4)$ that wouldn't have otherwise prevented it if $C$ had choosen $E$.
 
-\DIFaddend In general, ensuring that an individual router's preferences respect the policy under all possible failures is hard, and enumerating all failures is intractable. We thus adopt a conservative analysis based on the observations above. The high-level idea is to order each PGIR node according to a \textit{can prefer} relation. For example, node $(C,3,2)$ can be preferred to node $(C,-,2)$, but not the other way around. Intuitively, a node $N_1$ can be preferred to another node $N_2$ when, for each preference $N_2$ might achieve, there is a better preference that $N_1$ will achieve regardless of failures. Formally this means that $N_1$ can be preferred to $N_2$ when:
-%
-$$\forall i, \exists j, j \leq i \wedge protect(G_j, N_1, G_i, N_2)$$
-%
-where \textit{protect} means that, from $N_1$ on the product graph restricted to nodes that can potentially achieve preference $j$ or better, 
-there is always a path to each ending location whenever this is a path from $N_2$ restricted to $G_i$.
+\DIFadd{Clearly searching for }\emph{\DIFadd{regret-free}} \DIFadd{preferences by enumerating all possible combinations of failures and preference orderings is intractable. We thus adopt a conservative analysis that we found to be highly-effective in practice. The idea is to search for regret-free preferences while also refining the search when possible by taking into account information about where advertisements must have already traversed. 
+}
 
-\begin{algorithm}[t!]
+\DIFaddend \begin{algorithm}[t!]
 \caption{Failure Protection}
 \label{alg:failures}
 \begin{algorithmic}[1]
-\Procedure{Protect($G_1$, $N_1$, $G_2$, $N_2$)}{}
-  \If {$loc(N_1) \neq loc(N_2)$} \Return false
+\DIFdelbegin %DIFDELCMD < \Procedure{Protect($G_1$, $N_1$, $G_2$, $N_2$)}{}
+%DIFDELCMD <   %%%
+\DIFdelend \DIFaddbegin \Procedure{Protect($G$, $N_1$, $N_2$)}{}
+  \DIFaddend \If {$loc(N_1) \neq loc(N_2)$} \Return false
   \EndIf
   \State $q \gets Queue()$
   \State $q.Enqueue (N_1, N_2)$
   \While {$!q.Empty()$}
     \State $(n_1,n_2) \gets q.Dequeue()$
-    \For {$x$ in adj($G_2$, $n_2$)}
-      \If {\big($\exists y \in$ adj($G_1$,$n_1$), shadows $x$\big) \textbf{or} \\  
-            \hspace{5.2em} \big($\exists y \in$ $G_1$, dominates $n_1$, shadows $x$\big)}
-        \If {$(x,y)$ not marked}
+    \For {$x$ in adj(\DIFdelbegin \DIFdel{$G_2$}\DIFdelend \DIFaddbegin \DIFadd{$G$}\DIFaddend , $n_2$)}
+      \If {\big($\exists y \in$ adj(\DIFdelbegin \DIFdel{$G_1$}\DIFdelend \DIFaddbegin \DIFadd{$G$}\DIFaddend ,$n_1$), shadows $x$\big) \textbf{or} \\  
+            \hspace{5.2em} \big($\exists y \in$ \DIFdelbegin \DIFdel{$G_1$}\DIFdelend \DIFaddbegin \DIFadd{$G$}\DIFaddend , dominates $n_1$, shadows $x$\big)}
+        \If {$(x,y)$ not marked \DIFaddbegin \DIFadd{$\wedge$ $x \leq_{rank} y$}\DIFaddend }
           \State {mark $(x,y)$ as seen}
           \State $q.Enqueue(x,y)$
         \EndIf
@@ -1593,16 +1619,26 @@ there is always a path to each ending location whenever this is a path from $N_2
 \end{algorithmic}
 \end{algorithm}
 
-Algorithm~\ref{alg:failures} defines what it means for one node to \textit{protect} against the failures of another. It walks from nodes $N_1$ and $N_2$ in $G_j$ and $G_i$ respectively, and ensures that for every \textit{step} $N_2$ can take to some new topology location, $N_1$ can, at the very least, take an equivalent step. 
-When there is no equivalent step, the algorithm checks to see if there is an equivalent dominator (a topology location the advertisement must have passed through earlier) that can protect against failures instead.
-Thus any time $N_2$ can get to a final location for preference $i$, $N_1$ can get to at least the same final locations for a better preference $j$. The algorithm terminates since the number of related states $(x,y)$ that can be expolored is finite.
+\DIFaddbegin \DIFadd{The analysis determines that context $N_1 < N_2$ if $N_1$ }\textit{\DIFadd{protects}} \DIFadd{against the failures of $N_2$.
+%DIF > 
+}\DIFaddend Algorithm~\ref{alg:failures} defines what it means for one node to \textit{protect} against the failures of another. \DIFdelbegin \DIFdel{It }\DIFdelend \DIFaddbegin \DIFadd{The algorithm }\DIFaddend walks from nodes $N_1$ and $N_2$ \DIFdelbegin \DIFdel{in $G_j$ and $G_i$ respectively, and }\DIFdelend \DIFaddbegin \DIFadd{and }\DIFaddend ensures that for every \textit{step} $N_2$ can take to some new topology location, $N_1$ can, at the very least, take an equivalent step. 
+%DIF > 
+When there is no equivalent step, the algorithm \DIFaddbegin \DIFadd{attempts to take into account where the advertisement must have already traversed to have arrived at $N_1$. In particular, it }\DIFaddend checks to see if there is an equivalent dominator (a topology location the advertisement must have passed through earlier) that can protect against failures instead.
+\DIFdelbegin \DIFdel{Thus any time }\DIFdelend \DIFaddbegin 
 
-For each router in the topology, local preferences are now obtained by  sorting the corresponding PGIR nodes according to the \textit{can prefer} relation. If two nodes are incomparable, the compiler rejects the policy as unimplementable.
+\DIFadd{By repeating this process, we are ensured that any time $N$ receives an advertisement in both context }\DIFaddend $N_2$ \DIFdelbegin \DIFdel{can get to a final location for preference $i$}\DIFdelend \DIFaddbegin \DIFadd{and $N_1$}\DIFaddend , \DIFaddbegin \DIFadd{$N$ can safely prefer }\DIFaddend $N_1$\DIFdelbegin \DIFdel{can get to at least the same final locations for a better preference $j$. The algorithm }\DIFdelend \DIFaddbegin \DIFadd{, knowing that BGP will obtain end-to-end paths which are at least as good as it would have if $N$ had preferred $N_2$. Algorithm~\ref{alg:failures} }\DIFaddend terminates since the number of related states $(x,y)$ that can be \DIFdelbegin \DIFdel{expolored }\DIFdelend \DIFaddbegin \DIFadd{explored }\DIFaddend is finite.
+
+For each router in the topology, local preferences are now obtained by sorting the corresponding PGIR \DIFdelbegin \DIFdel{nodes }\DIFdelend \DIFaddbegin \DIFadd{contexts }\DIFaddend according to the \DIFdelbegin \textit{\DIFdel{can prefer}} %DIFAUXCMD
+\DIFdelend \DIFaddbegin \DIFadd{$(<)$ }\DIFaddend relation. If two nodes are incomparable, \DIFaddbegin \DIFadd{then }\DIFaddend the compiler rejects the policy as unimplementable.
 
 \para{Avoiding Loops}
 
-The checks for failure safety described above overlook one critical point: Paths for a higher preference might not exist due to loops. To avoid this situation, the compiler checks that, when node $x$ protects against failures for node $y$, its does so without using any nodes that shadow another node that appears ``above'' $x$ in the PGIR. 
-%It is fine however, to reuse the same nodes that appear above $x$, since any path that went through another node $z$ to get to $x$, but then looped through $z$ again, would be obtainable from $z$ itself.
+The checks for failure safety described above overlook one critical point: \DIFdelbegin \DIFdel{Paths for a higher preference might not exist }\DIFdelend \DIFaddbegin \DIFadd{A better (lower rank) path might not be available after some router $N$ }\DIFaddend due to loops. To avoid this situation, the compiler checks that, \DIFdelbegin \DIFdel{when node $x$ protects against failures for node $y$, its does so without using any nodes that shadow another node that }\DIFdelend \DIFaddbegin \DIFadd{any time some context $N_1$ }\DIFaddend appears ``above'' \DIFdelbegin \DIFdel{$x$ }\DIFdelend \DIFaddbegin \DIFadd{(i.e., can reach) $N_2$ }\DIFaddend in the PGIR\DIFdelbegin \DIFdel{. 
+}\DIFdelend \DIFaddbegin \DIFadd{, then $N_1$ must be strictly preferred to $N_2$. The idea is that anytime $N_2$ is not available to use because the advertisement already went through $N_1$, it ultimately does not matter since $N_1$ will result in strictly better end-to-end paths.
+}
+
+
+\DIFaddend %It is fine however, to reuse the same nodes that appear above $x$, since any path that went through another node $z$ to get to $x$, but then looped through $z$ again, would be obtainable from $z$ itself.
 %even if the analysis determines that a node $x$ protects against failures of another node $y$, it may be tricked into thinking $x$ has a particular path that will actually be discarded by BGP's loop prevention mechanism due to locations previously traversed before arriving at $x$. To avoid this situation, the compiler conservatively checks that $x$ protects against $y$ without using any nodes that shadow another node that appears above $x$ in the PGIR (i.e., nodes reachable from $x$ in $G_j^R$). It is fine however, to reuse the same nodes that appear above $x$, since any path that went through another node $z$ to get to $x$, but then looped through $z$ again, would be obtainable from $z$ itself.
 
 \para{Aggregation-Induced Black Holes}
@@ -1734,7 +1770,7 @@ After configuration generation, the compiler further processes the ABGP policy, 
 \section{Implementation}
 \label{sec:implementation}
 
-We have written a prototype compiler for \sysname that is implemented in roughly 5500 lines of F\# code. The compiler includes command-line flags for enabling or disabling the use of the BGP MED attribute, AS path prepending, the no-export community, as well as for ensuring at least k-failure safety for user-specified aggregates. Since each prefix has a separate routing policy, the \sysname compiler is able to compile each routing policy in parallel. The current compiler produces only ABGP policies, which can be incorporated into an existing template-based system, for example by mixing the \sysname configuration with other configuration components, or by generating vendor-specific configurations.
+We have written a prototype compiler for \sysname that is implemented in roughly \DIFdelbegin \DIFdel{5500 }\DIFdelend \DIFaddbegin \DIFadd{6700 }\DIFaddend lines of F\# code. The compiler includes command-line flags for enabling or disabling the use of the BGP MED attribute, AS path prepending, \DIFaddbegin \DIFadd{anycast, }\DIFaddend the no-export community, as well as for ensuring at least k-failure safety for user-specified aggregates. Since each prefix has a separate routing policy, the \sysname compiler is able to compile each routing policy in parallel. \DIFdelbegin \DIFdel{The current compiler produces only ABGP policies, which can be incorporated }\DIFdelend \DIFaddbegin \DIFadd{Currently }\sysname \DIFadd{supports generating Quagga router configurations out of the box. Users can also easily add new vendor-specific adaptors to translate from ABGP to other router configurations, or to incorporate the compiler }\DIFaddend into an existing template-based system, for example by mixing the \sysname configuration with other configuration components\DIFdelbegin \DIFdel{, or by generating vendor-specific configurations}\DIFdelend .
 
 \DIFdelbegin %DIFDELCMD < \para{PG construction}
 %DIFDELCMD < %%%
@@ -1751,7 +1787,7 @@ Rather than construct the product graph in full, our implementation prevents exp
 
 \para{Failure Safety}
 
-When computing local preferences and failure safety, as described in Section~\ref{sec:compilation}, the compiler performs memoization of the \textit{protect} function. That is, whenever for two states $n_1$ and $n_2$ we compute $protect(G_j, n_1, G_i, n_2)$, if the function evaluates to $true$, then each of the intermediate related states $x$ and $y$ must also satisfy $protect(G_j, x, G_i, y)$. Memoizing these states significantly cuts down the amount of work that needs to be in the common case.
+When computing local preferences and failure safety, as described in Section~\ref{sec:compilation}, the compiler performs memoization of the \textit{protect} function. That is, whenever for two states \DIFdelbegin \DIFdel{$n_1$ and $n_2$ we compute $protect(G_j, n_1, G_i, n_2)$}\DIFdelend \DIFaddbegin \DIFadd{$N_1$ and $N_2$ we compute $protect(G, N_1, N_2)$}\DIFaddend , if the function evaluates to $true$, then each of the intermediate related states $x$ and $y$ must also satisfy \DIFdelbegin \DIFdel{$protect(G_j, x, G_i, y)$}\DIFdelend \DIFaddbegin \DIFadd{$protect(G, x, y)$}\DIFaddend . Memoizing these states \DIFdelbegin \DIFdel{significantly cuts down }\DIFdelend \DIFaddbegin \DIFadd{dramatically reduces }\DIFaddend the amount of work \DIFdelbegin \DIFdel{that needs to be }\DIFdelend \DIFaddbegin \DIFadd{performed to find preferences }\DIFaddend in the common case.
 
 \para{Configuration generation}
 
@@ -1793,7 +1829,7 @@ The naive code generation algorithm described in Section~\ref{sec:compilation} i
   \vspace{-1em}
 \end{figure}
 
-\DIFaddend We apply \sysname on real policies for backbone and data center networks. Our mains goals are to evaluate if its front-end is expressive enough for real-world policies and the time the compiler takes to generate router configurations.
+\DIFaddend We apply \sysname on real policies for backbone and data center networks. Our \DIFdelbegin \DIFdel{mains }\DIFdelend \DIFaddbegin \DIFadd{main }\DIFaddend goals are to evaluate if its front-end is expressive enough for real-world policies and the time the compiler takes to generate router configurations.
 
 \subsection{Networks studied}
 
@@ -1803,7 +1839,6 @@ The networks have the type of policies that we outline earlier (\S\ref{sec:motiv
 
 All routers in the datacenter network run BGP using a private AS number and peer with each other and with the backbone network over eBGP. The routers aggregate prefixes when announcing them to the backbone network, they keep some prefixes internal, and attach communities for some other prefixes that should not traverse beyond the geographic region. They also have policies by which some prefixes should not be announced beyond a certain tier in the datacenter hierarchy.
 
-
 \DIFdelbegin %DIFDELCMD < \begin{figure}
 %DIFDELCMD <   \subcaptionbox{Data center}
 %DIFDELCMD <     {\includegraphics[width=.49\columnwidth]{figures/config-compression-dc.png}}
@@ -1812,10 +1847,18 @@ All routers in the datacenter network run BGP using a private AS number and peer
 %DIFDELCMD <   \caption{Configuration minimization. \label{fig:config-min}}
 %DIFDELCMD <   \vspace{-1em}
 %DIFDELCMD < \end{figure}
-%DIFDELCMD < 
-
 %DIFDELCMD < %%%
-\DIFdelend \subsection{Expressiveness}
+\DIFdelend \DIFaddbegin \begin{figure}[t!]
+  \subcaptionbox{Data center}
+    {\includegraphics[width=.49\columnwidth]{figures/config-compression-dc.png}}
+  \subcaptionbox{Backbone network}
+    {\includegraphics[width=.49\columnwidth]{figures/config-compression-backbone.png}} \\
+  \caption{Configuration minimization. \label{fig:config-min}}
+  \vspace{-1em}
+\end{figure}
+\DIFaddend 
+
+\subsection{Expressiveness}
 
 We found that we could translate all network policies to \sysname. We verified with the operators that our translation preserved intended semantics.\footnote{Not intended as a scientific test, but we also asked the two operators if they would find it easy to express their policies in \sysname. The data center operator said that he found the language intuitive. The backbone operator said that formalizing the policy in \sysname seemed equally easy or difficult as formalizing in RPSL~\cite{RFC2622}, but he appreciated that he would have to do it only once for the whole network (not per-router) and did not have to manually compute various local preferences, import-export filters, and MEDs.} We found that the data center policies were correctly translated. For the backbone network, the operator mentioned an additional policy that was not present in the English document, which we added later.
 
@@ -1866,16 +1909,8 @@ Total compilation for the largest data center is less than 9 minutes total. Unli
 
 %
 
-\DIFaddbegin \begin{figure}[t!]
-  \subcaptionbox{Data center}
-    {\includegraphics[width=.49\columnwidth]{figures/config-compression-dc.png}}
-  \subcaptionbox{Backbone network}
-    {\includegraphics[width=.49\columnwidth]{figures/config-compression-backbone.png}} \\
-  \caption{Configuration minimization. \label{fig:config-min}}
-  \vspace{-1em}
-\end{figure}
 
-\DIFaddend \subsection{Configuration size}
+\subsection{Configuration size}
 
 Figure~\ref{fig:config-min} shows the size of the compiled ABGP policies as a function of the topology size. The naive translation of PGIR to ABGP outlined in \S\ref{sec:compilation} generates extremely large ABGP policies by default. To offset this, the compiler performs ABGP configuration minimization both during and after the PGIR to ABGP translation phase.
 %Such minimization is useful for limiting the computational expense of matching routes on BGP routers, reducing the number of forwarding entries in routers in certain cases, and making configurations more readable for humans.
@@ -1999,16 +2034,15 @@ as opposed to using logic programming and SAT-based model-finding.
 \DIFaddbegin 
 
 
-\section{\DIFadd{Future Work}}
-
-\DIFadd{There are a number of possible directions for future work in programming distributed control planes. One option would be to integrate a model of the environment into the compiler. For example, many ASes make use of informal peering agreements (e.g., tagging routes with certain communities) to enable a wider range of policies. A compiler with this information, could automatically derive routes conforming to these agreements. 
+%DIF > \section{Future Work}
 %DIF > 
-Another direction would be to perform policy verification at the level of centralized language. There has been great deal of work on verification of the data plane, but much less so on control plane verification. The }\sysname \DIFadd{language provides a high-level abstraction of the control plane, which could be amenable to verification or checking equivalence of policies. For example, an operator could check if adding aggregation at various points in the network as an optimization ever changes routing behavior. The automata-based representation of the product graph may lend itself well to this kinds of analysis.
+%DIF > There are a number of possible directions for future work in programming distributed control planes. One option would be to integrate a model of the environment into the compiler. For example, many ASes make use of informal peering agreements (e.g., tagging routes with certain communities) to enable a wider range of policies. A compiler with this information, could automatically derive routes conforming to these agreements. 
 %DIF > 
-While we target BGP in this paper as a distributed backend for }\sysname \DIFadd{due to its expressiveness, scalability, and uniformity, it should be possible to use other protocols to achieve different types of routing policies (e.g., OSPF). In particular, one could potentially combine different distributed routing protocols through route redistribution to achieve a larger variety of policies.
+%DIF > Another direction would be to perform policy verification at the level of centralized language. There has been great deal of work on verification of the data plane, but much less so on control plane verification. The \sysname language provides a high-level abstraction of the control plane, which could be amenable to verification or checking equivalence of policies. For example, an operator could check if adding aggregation at various points in the network as an optimization ever changes routing behavior. The automata-based representation of the product graph may lend itself well to this kinds of analysis.
 %DIF > 
-Another possible future direction is automate AS-wide load balancing for BGP. Load-balancing with BGP across external ASes is difficult since there are few mechanisms at the operators disposal. However BGP policies can artificially prepend to the AS path to increases its length, and influence peer decisions. The product graph representation describes, not only which neighbors routers should prefer, but also which neighbors it is indifferent towards. Thus the compiler knowns when it can safely perform load-balancing across different neighbors.
-}
+%DIF > While we target BGP in this paper as a distributed backend for \sysname due to its expressiveness, scalability, and uniformity, it should be possible to use other protocols to achieve different types of routing policies (e.g., OSPF). In particular, one could potentially combine different distributed routing protocols through route redistribution to achieve a larger variety of policies.
+%DIF > 
+%DIF > Another possible future direction is automate AS-wide load balancing for BGP. Load-balancing with BGP across external ASes is difficult since there are few mechanisms at the operators disposal. However BGP policies can artificially prepend to the AS path to increases its length, and influence peer decisions. The product graph representation describes, not only which neighbors routers should prefer, but also which neighbors it is indifferent towards. Thus the compiler knowns when it can safely perform load-balancing across different neighbors.
 
 
 
