@@ -1,13 +1,13 @@
 # Fdb version 3
-["bibtex paper-edited"] 1465496401 "paper-edited.aux" "paper-edited.bbl" "paper-edited" 1465496584
+["bibtex paper-edited"] 1465502826 "paper-edited.aux" "paper-edited.bbl" "paper-edited" 1465503316
   "/usr/local/texlive/2015/texmf-dist/bibtex/bst/base/abbrv.bst" 1292289607 20329 b5fed53e10044d0f8112183785c759b1 ""
-  "paper-edited.aux" 1465496584 15433 3857f2d6b2c0fe1a521547a6817ac5f8 ""
+  "paper-edited.aux" 1465503316 15356 11a8e79402fe16352669d9e5a4bd2f76 ""
   "paper-edited.bcf" 0 -1 0 ""
   "references.bib" 1455935612 31449 91424d8e421dd56ec9a1ffdcc81455b5 ""
   (generated)
   "paper-edited.bbl"
   "paper-edited.blg"
-["pdflatex"] 1465496581 "paper-edited.tex" "paper-edited.pdf" "paper-edited" 1465496584
+["pdflatex"] 1465503314 "paper-edited.tex" "paper-edited.pdf" "paper-edited" 1465503316
   "./figures/aggregation.png" 1455935612 105551 7c70ab97184b5172e470fdf4bbfade25 ""
   "./figures/compilation-times-backbone.png" 1455935612 88700 957f5cb639f209b2c66f40e62f47bade ""
   "./figures/compilation-times-dc.png" 1455935612 77096 4a58bf8b9185ddf9327a8f77eb08e7ee ""
@@ -231,11 +231,11 @@
   "figures/productgraph.png" 1455935612 105951 5351f4ef7dd7966d1b629eb8e9797df6 ""
   "figures/topology.png" 1455935612 54480 812a77fcc7ee51d7eacbcc74180a79ac ""
   "figures/unimplementable.png" 1465479869 80189 c0a6212da8735cac53d54cbc52ba71f4 ""
-  "paper-edited.aux" 1465496584 15433 3857f2d6b2c0fe1a521547a6817ac5f8 ""
-  "paper-edited.bbl" 1465496401 6670 3f4ec1c27cfd787b5a2cd9c2f8f5e75e "bibtex paper-edited"
-  "paper-edited.tex" 1465496580 126577 3bcf07d2d4ab311cafb46a8a4de17fee ""
+  "paper-edited.aux" 1465503316 15356 11a8e79402fe16352669d9e5a4bd2f76 ""
+  "paper-edited.bbl" 1465502826 6670 3f4ec1c27cfd787b5a2cd9c2f8f5e75e "bibtex paper-edited"
+  "paper-edited.tex" 1465503312 126829 2416b72e53f483266a3f668b3604ca49 ""
   "sig-alternate-10pt.cls" 1455935612 59031 dc09dddd80ab1c853e5e42fd7369f8c9 ""
   (generated)
   "paper-edited.aux"
-  "paper-edited.log"
   "paper-edited.pdf"
+  "paper-edited.log"
