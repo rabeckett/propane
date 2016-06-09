@@ -550,9 +550,7 @@ module Consistency =
     type CacheEntry = struct 
         val X: int 
         val Y: int
-        val I: int
-        val J: int
-        new(x,y,i,j) = {X=x; Y=y; I=i; J=j}
+        new(x,y) = {X=x; Y=y}
     end
 
     type Node = struct 
@@ -565,34 +563,39 @@ module Consistency =
         | Yes of HashSet<Node>
         | No
 
-    let protect (idx: int) (doms: Domination.DominationTree) (cg1,n1) (cg2,n2) : ProtectResult = 
+    let protect (idx: int) (doms: Domination.DominationTree) cg n1 n2 : ProtectResult = 
         if loc n1 <> loc n2 then No else
         let q = Queue()
         let seen = HashSet()
-        let init = Node(n1,n2)
-        q.Enqueue init
-        ignore(seen.Add init)
-        let inline add x' y' = 
-            let n' = Node(x',y')
-            if not (seen.Contains n') then 
-                ignore (seen.Add n')
-                q.Enqueue n'
-        let mutable counterEx = None
-        while q.Count > 0 && Option.isNone counterEx do
+        let counterEx = ref None
+        // add nodes if preserves the preference relation
+        let inline add x' y' (x,y) = 
+            match Bitset32.minimum x'.Accept, Bitset32.minimum y'.Accept with
+            | None, Some _
+            | Some _, None -> counterEx := Some (x,y)
+            | Some i, Some j when i > j -> counterEx := Some (x,y)
+            | _,_ ->
+                let n' = Node(x',y')
+                if not (seen.Contains n') then 
+                    ignore (seen.Add n')
+                    q.Enqueue n'
+        // add initial node
+        add n1 n2 (n1,n2)
+        while q.Count > 0 && Option.isNone !counterEx do
             let n = q.Dequeue()
             let x = n.More 
             let y = n.Less 
-            let nsx = neighbors cg1 x |> Seq.fold (fun acc x -> Map.add (loc x) x acc) Map.empty
-            let nsy = neighbors cg2 y
+            let nsx = neighbors cg x |> Seq.fold (fun acc x -> Map.add (loc x) x acc) Map.empty
+            let nsy = neighbors cg y
             for y' in nsy do 
                 match Map.tryFind (loc y') nsx with
                 | None ->
-                    let inline relevantDom x' = loc x' = loc y' && cg1.Graph.ContainsVertex x'
+                    let inline relevantDom x' = loc x' = loc y' && cg.Graph.ContainsVertex x'
                     match doms.TryIsDominatedBy(x, relevantDom) with
-                    | None -> counterEx <- Some (x,y)
-                    | Some x' ->  add x' y'
-                | Some x' -> add x' y'
-        match counterEx with 
+                    | None -> counterEx := Some (x,y)
+                    | Some x' -> add x' y' (x,y)
+                | Some x' -> add x' y' (x,y)
+        match !counterEx with 
         | None -> Yes seen
         | Some cex -> No
 
@@ -631,26 +634,19 @@ module Consistency =
                     mustPrefer.[d] <- below
             mustPrefer
 
-    let simulate idx cg (cache: HashSet<_>) (doms: Domination.DominationTree) restrict (x,y) (i,j) =
-        let ce = CacheEntry(x.Id,y.Id,i,j)
+    let simulate idx cg (cache: HashSet<_>) (doms: Domination.DominationTree) (x,y) =
+        let ce = CacheEntry(x.Id,y.Id)
         if cache.Contains ce then true else
-        let restrict_i = Map.find i restrict
-        let restrict_j = Map.find j restrict
-        if not (restrict_i.Graph.ContainsVertex x) then false
-        else if not (restrict_j.Graph.ContainsVertex y) then true
-        else
-            match protect idx doms (restrict_i, x) (restrict_j, y) with 
-            | No -> false
-            | Yes related -> 
-                for n in related do 
-                    let ce = CacheEntry(n.More.Id, n.Less.Id, i, j)
-                    ignore (cache.Add ce)
-                true
+        match protect idx doms cg x y with 
+        | No -> false
+        | Yes related -> 
+            for n in related do 
+                let ce = CacheEntry(n.More.Id, n.Less.Id)
+                ignore (cache.Add ce)
+            true
 
-    let isPreferred idx cg cache doms restrict (x,y) (reachX, reachY) =
-        let subsumes i j = simulate idx cg cache doms restrict (x,y) (i,j)
-        Set.forall (fun j -> 
-            (Set.exists (fun i' -> i' <= j && subsumes i' j) reachX) ) reachY
+    let isPreferred idx cg cache doms (x,y) =
+        simulate idx cg cache doms (x,y)
 
     let checkIncomparableNodes (g: Constraints) edges = 
         for x in g.Vertices do
@@ -667,29 +663,11 @@ module Consistency =
         removeUnconstrainedEdges g edges
         g.TopologicalSort ()
 
-    let getReachabilityMap (cg:T) =
-        let ret = Dictionary()
-        let prefs = preferences cg
-        let getNodesWithPref i =
-            let copy = copyGraph cg
-            copy.Graph.RemoveEdgeIf (fun e -> 
-                e.Target = copy.End && not (Bitset32.contains i e.Source.Accept)) |> ignore
-            let reach = Reachable.dfs copy copy.End Up
-            for v in reach do 
-                let mutable value = Set.empty 
-                if ret.TryGetValue(v, &value) then 
-                    ret.[v] <- Set.add i value 
-                else ret.[v] <- Set.singleton i
-        Bitset32.iter getNodesWithPref prefs    
-        ret
-
-    let addPrefConstraints idx cg cache doms (g: Constraints) r mustPrefer nodes reachMap =
+    let addPrefConstraints idx cg cache doms (g: Constraints) mustPrefer nodes =
         let mutable edges = Set.empty
         for x in nodes do
             for y in nodes do
-                let reachX = (reachMap: Dictionary<_,_>).[x]
-                let reachY = (reachMap: Dictionary<_,_>).[y]
-                if x <> y && (isPreferred idx cg cache doms r (x,y) (reachX,reachY)) then
+                if x <> y && (isPreferred idx cg cache doms (x,y)) then
                     logInfo (idx, sprintf "  %s is preferred to %s" (string x) (string y))
                     edges <- Set.add (x,y) edges
                     g.AddEdge (Edge(x, y)) |> ignore
@@ -700,49 +678,37 @@ module Consistency =
                     logInfo (idx, sprintf "  %s is NOT preferred to %s" (string x) (string y))
         g, edges
 
-    let encodeConstraints idx cache doms (cg, reachMap) mustPrefer r nodes =
+    let encodeConstraints idx cache doms cg mustPrefer nodes =
         let g = BidirectionalGraph<CgState ,Edge<CgState>>()
         for n in nodes do 
             g.AddVertex n |> ignore
-        addPrefConstraints idx cg cache doms g r mustPrefer nodes reachMap
+        addPrefConstraints idx cg cache doms g mustPrefer nodes
 
-    let findPrefAssignment idx cache doms r (cg, reachMap) mustPrefer nodes = 
-        let g, edges = encodeConstraints idx cache doms (cg, reachMap) mustPrefer r nodes
+    let findPrefAssignment idx cache doms cg mustPrefer nodes = 
+        let g, edges = encodeConstraints idx cache doms cg mustPrefer nodes
         getOrdering g edges
 
-    let addForLabel idx cache doms ain r (cg, reachMap) mustPrefer (map: Dictionary<_,_>) l =
+    let addForLabel idx cache doms ain cg mustPrefer (map: Dictionary<_,_>) l =
         if Set.contains l ain then
             if not (map.ContainsKey(l)) then 
                 let nodes = Seq.filter (fun v -> loc v = l) cg.Graph.Vertices
-                map.[l] <- findPrefAssignment idx cache doms r (cg, reachMap) mustPrefer nodes
+                map.[l] <- findPrefAssignment idx cache doms cg mustPrefer nodes
         else map.[l] <- Seq.empty
         map
 
-    let restrictedGraphs cg prefs =
-        let inline aux acc i =
-            let r = restrict cg i 
-            Minimize.removeNodesThatCantReachEnd r
-            r.Graph.RemoveEdgeIf (fun e -> isOutside e.Source && isOutside e.Target) |> ignore
-            r.Graph.RemoveEdgeIf (fun e -> not (isRealNode e.Source) || not (isRealNode e.Target) ) |> ignore
-            Map.add i r acc
-        Bitset32.fold aux Map.empty prefs
 
-    let findOrdering idx cg pi outName : Result<Ordering, CounterExample> =
+    let findOrdering idx cg : Result<Ordering, CounterExample> =
         try
             let mustPrefer = getHardPreferences cg
-            let prefs = preferences cg 
-            let rs = restrictedGraphs cg prefs
-            let reachMap = getReachabilityMap cg
             let (ain, _) = Topology.alphabet cg.Topo
             let ain = Set.map (fun (v: Topology.Node) -> v.Loc) ain
             let doms = Domination.dominators cg cg.Start Down
             let cache = HashSet()
-            debug (fun () -> Map.iter (fun i g -> generatePNG g pi (outName + "-min-restricted" + string i)) rs)
             let labels =
                 cg.Graph.Vertices
                 |> Seq.choose (fun v -> if Topology.isTopoNode v.Node then Some (loc v) else None)
                 |> Set.ofSeq
-            try Ok(Set.fold (addForLabel idx cache doms ain rs (cg, reachMap) mustPrefer) (Dictionary()) labels)
+            try Ok(Set.fold (addForLabel idx cache doms ain cg mustPrefer) (Dictionary()) labels)
             with ConsistencyException(x,y) -> Err((x,y) )
         with SimplePathException(x,y) -> Err(x,y)
 

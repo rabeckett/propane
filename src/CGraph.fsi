@@ -112,7 +112,7 @@ module Consistency =
 
     /// Conservative check if the BGP routers can make local decisions not knowing about failures
     /// Takes an optional file name for debugging intermediate information
-    val findOrderingConservative: (int -> T -> Ast.PolInfo option -> string -> Result<Ordering, CounterExample>)
+    val findOrderingConservative: (int -> T -> Result<Ordering, CounterExample>)
 
  
 module ToRegex = 

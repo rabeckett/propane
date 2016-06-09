@@ -1,7 +1,7 @@
 \documentclass{sig-alternate-10pt}
 %DIF LATEXDIFF DIFFERENCE FILE
 %DIF DEL paper.tex          Tue Jun  7 10:15:16 2016
-%DIF ADD paper-edited.tex   Wed Jun  8 10:45:54 2016
+%DIF ADD paper-edited.tex   Thu Jun  9 11:18:36 2016
 
 \usepackage{amsmath}
 \usepackage{amssymb}
@@ -21,11 +21,13 @@
 \usepackage{subcaption}
 %\usepackage{geometry}
 
-%DIF 21a21-22
+%DIF 21a21
 \usepackage{balance} %DIF > 
- %DIF > 
 %DIF -------
 
+%DIF 22a23
+ %DIF > 
+%DIF -------
 \definecolor{princetonorange}{RGB}{255,143,0}
 \definecolor{tmlblue}{RGB}{0,58,120}  % tmlblue == Toronto Maple Leafs Blue!
 
@@ -57,7 +59,11 @@
 \newcommand{\Link}{\texttt{->}}
 \newcommand{\Agg}{\KW{agg}}
 \newcommand{\Any}{\KW{any}}
-\newcommand{\None}{\KW{none}}
+%DIF 53c55
+%DIF < \newcommand{\None}{\KW{none}}
+%DIF -------
+\newcommand{\None}{\KW{drop}} %DIF > 
+%DIF -------
 \newcommand{\In}{\KW{in}}
 \newcommand{\Out}{\KW{out}}
 \newcommand{\AND}{\texttt{\&}}
@@ -524,7 +530,16 @@ This decomposition is not always straightforward and ensuring policy-compliance 
 %policies can be specified using our new language \sysname.
 %The next section describes how to automatically compile this specification to device-level policies.
 
-\subsection{Example 1:  The Backbone}
+\DIFaddbegin \begin{figure}[t!]
+  \centering
+  \includegraphics[width=\columnwidth]{figures/example1}
+  \caption{Creating router-level policies is difficult.}
+  \label{fig:example1}
+  \vspace{-1em}
+\end{figure}
+
+
+\DIFaddend \subsection{Example 1:  The Backbone}
 
 Consider the backbone network in Figure~\ref{fig:example1}. It has
 three neighbors, a customer \CD{Cust}, a peer \CD{Peer}, and a provider \CD{Prov}. The policy of this network is shown on the right. It prefers the neighbors in a certain order (P1) and does not want to act as a transit between \CD{Peer} and \CD{Prov} (P2). It prefers to exchange traffic with \CD{Cust} over \CD{R1} rather than \CD{R2} because \CD{R1} is cheaper (P3). To guard against another AS "hijacking" prefixes owned by \CD{Cust}, \DIFdelbegin \DIFdel{it }\DIFdelend \DIFaddbegin \DIFadd{the network }\DIFaddend only sends traffic to \DIFdelbegin \DIFdel{them }\DIFdelend \DIFaddbegin \DIFadd{a neighbor }\DIFaddend if \CD{Cust} is on the AS path (P4). Finally, to guard against \CD{Cust} accidentally becoming a transit for \CD{Prov}, it does not use \CD{Cust} for traffic that will later traverse \CD{Prov} (P5).
@@ -547,16 +562,18 @@ Templates help to an extent by keeping preference and community values consisten
 %\sysname lets operators express such policies easily and intuitively. It then automatically generates per-device import and export filters, local preferences, MED attributes, and community tags to ensure that the policy is implemented correctly under all failure scenarios.
 
 
-\begin{figure}[t!]
-  \centering
-  \includegraphics[width=\columnwidth]{figures/example1}
-  \caption{Creating router-level policies is difficult.}
-  \label{fig:example1}
-  \vspace{-1em}
-\end{figure}
 
+\DIFdelbegin %DIFDELCMD < \begin{figure}[t!]
+%DIFDELCMD <   \centering
+%DIFDELCMD <   \includegraphics[width=\columnwidth]{figures/example1}
+%DIFDELCMD <   \caption{Creating router-level policies is difficult.}
+%DIFDELCMD <   \label{fig:example1}
+%DIFDELCMD <   \vspace{-1em}
+%DIFDELCMD < \end{figure}
+%DIFDELCMD < 
 
-\subsection{Example 2:  The Data Center}
+%DIFDELCMD < %%%
+\DIFdelend \subsection{Example 2:  The Data Center}
 
  While configuring policies for a fully functional network is difficult, ensuring policy compliance in the face of failures can be almost impossible. Consider the data center network in Figure~\ref{fig:example2} with routers organized as a fat tree and running BGP.\footnote{For scale and policy flexibility, data center networks increasingly use BGP internally, with a private AS number per router~\cite{bgp-in-dc}.} The network has two clusters, one with services that should be reachable globally and one with services that should be accessible only internally. This policy is enabled by using non-overlapping address space in the two clusters and ensuring that only the address space for the global services is announced externally. Further, to reduce the number of prefixes that are announced externally, the global space is aggregated into a less-specific prefix \CD{PG}. The semantics of aggregation is that the aggregate prefix is announced as long as the router has a path to at least one sub-prefix.
 
@@ -851,8 +868,9 @@ In English: traffic for prefix \CD{PG1} is only allowed to follow paths that
 end at router \CD{A}; traffic matching \CD{PG2},
 but not \CD{PG1}, must
 end at router \CD{B}; and so on.
-Any traffic destined for a prefix that not a part of the data center should be allowed to leave the data center and end at some external location.
-\DIFaddbegin \DIFadd{The special keyword }\Out{} \DIFadd{represents any location outside the user's network, and the keyword }\In{} \DIFadd{represents any location inside the network.
+Any traffic destined for a prefix that not a part of the data center should be allowed to leave the data center and end at some external location\DIFdelbegin \DIFdel{.
+}\DIFdelend \DIFaddbegin \DIFadd{, which is otherwise unconstrained.
+The special keyword }\Out{} \DIFadd{here matches any location outside the user's network, while the keyword }\In{} \DIFadd{will match any location inside the network.
 }\DIFaddend For the second constraint, we can define another policy:
 
 %% \begin{lstlisting}[mathescape=true]
@@ -882,8 +900,8 @@ inside the data center.
 
 As in the backbone example, we can logically conjoin these constraints
 to specify the network-wide policy.
-In addition to constraints on the shape of paths,
-\sysname allows the operator to specify constraints on the BGP control plane.
+\DIFdelbegin \DIFdel{In }\DIFdelend \DIFaddbegin \DIFadd{However, in }\DIFaddend addition to constraints on the shape of paths,
+\sysname allows the operator to specify constraints on the BGP control plane \DIFaddbegin \DIFadd{itself}\DIFaddend .
 For instance, a constraint on aggregation is included to ensure that
 aggregation for global prefixes is performed from
 locations inside (\In) the network to locations outside (\Out). 
@@ -896,9 +914,10 @@ when advertised outside the datacenter.
 Ownership \AND{} Locality \AND{} \Agg(PG, \In \Link \Out)
 \end{code}
 
-As before, once \sysname compiles the policy, it is guaranteed to \DIFdelbegin \DIFdel{hold }\DIFdelend \DIFaddbegin \DIFadd{be policy-compliant }\DIFaddend under all possible failure scenarios. \DIFaddbegin \DIFadd{In addition, }\DIFaddend \sysname \DIFdelbegin \DIFdel{also ensures safety against }\DIFdelend \DIFaddbegin \DIFadd{will efficiently find a lower bound on the number of failures required to create an }\DIFaddend aggregation-induced black \DIFdelbegin \DIFdel{holes}\DIFdelend \DIFaddbegin \DIFadd{hole}\DIFaddend .
-%It can efficiently determine a lower bound on the number of failures necessary to black hole traffic given the user's policy, topology, and placement of specific aggregates.
-
+\DIFdelbegin \DIFdel{As before, once }\DIFdelend \DIFaddbegin \DIFadd{Once }\DIFaddend \sysname compiles the policy, it is guaranteed to \DIFdelbegin \DIFdel{hold }\DIFdelend \DIFaddbegin \DIFadd{remain compliant }\DIFaddend under all possible failure scenarios\DIFdelbegin \DIFdel{. }\DIFdelend \DIFaddbegin \DIFadd{, modulo any aggregation-induced black holes. In the presence of aggregation, the }\DIFaddend \sysname \DIFdelbegin \DIFdel{also ensures safety against }\DIFdelend \DIFaddbegin \DIFadd{compiler will also efficiently find a lower bound on the number of failures required to create an }\DIFaddend aggregation-induced black \DIFdelbegin \DIFdel{holes.
+%DIF < It can efficiently determine a lower bound on the number of failures necessary to black hole traffic given the user's policy, topology, and placement of specific aggregates.
+}\DIFdelend \DIFaddbegin \DIFadd{hole.
+}\DIFaddend 
 
 
 %%%%OLD TEXT BELOW
@@ -1017,19 +1036,104 @@ The front-end (FE) of \sysname simplifies operators' task of describing preferre
   \vspace{-1em}
 \end{figure}
 
-We handle these challenges by breaking compilation into multiple stages and developing efficient algorithms for each (See Figure~\ref{fig:pipeline}). The first stage of the pipeline involves simple rewriting rules and substitutions from the FE to the core Regular Intermediate Representation (RIR). Policies in RIR are checked for well-formedness (\EG, never constraining traffic that does not enter the network), before being combined with the network topology to obtain the Product Graph Intermediate Representation (PGIR). The PGIR is a data representation that compactly captures the flow of BGP announcements subject to the policy and topology restrictions. We develop efficient algorithms that operate over the PGIR to ensure policy compliance under failures, avoid BGP instability, and prevent aggregation-induced black holes. Once the compiler determines that the PGIR is safe, it translates it to an abstract BGP (ABGP) representation. Vendor-specific adaptors to translate from ABGP to concrete device configurations \DIFaddbegin \DIFadd{or to integrate with an existing template-based system }\DIFaddend are easily added\DIFdelbegin \DIFdel{to generate concrete configurations }\DIFdelend \DIFaddbegin \DIFadd{. The }\sysname \DIFadd{compiler currently generates Quagga configurations by default}\DIFaddend . 
+We handle these challenges by breaking compilation into multiple stages and developing efficient algorithms for each (See Figure~\ref{fig:pipeline}). The first stage of the pipeline involves simple rewriting rules and substitutions from the FE to the core Regular Intermediate Representation (RIR). Policies in RIR are checked for well-formedness (\EG, never constraining traffic that does not enter the network), before being combined with the network topology to obtain the Product Graph Intermediate Representation (PGIR). The PGIR is a data representation that compactly captures the flow of BGP announcements subject to the policy and topology restrictions. We develop efficient algorithms that operate over the PGIR to ensure policy compliance under failures, avoid BGP instability, and prevent aggregation-induced black holes. Once the compiler determines that the PGIR is safe, it translates it to an abstract BGP (ABGP) representation. Vendor-specific adaptors to translate from ABGP to concrete device configurations \DIFaddbegin \DIFadd{or to integrate with an existing template-based system }\DIFaddend are easily added\DIFdelbegin \DIFdel{to generate concrete configurations }\DIFdelend \DIFaddbegin \DIFadd{. The }\sysname \DIFadd{compiler currently generates Quagga router configurations by default}\DIFaddend . 
 
-\subsection{Regular IR (RIR)}
-\label{sec:rir}
+\DIFdelbegin \subsection{\DIFdel{Regular IR (RIR)}}
+%DIFAUXCMD
+\addtocounter{subsection}{-1}%DIFAUXCMD
+%DIFDELCMD < \label{sec:rir}
+%DIFDELCMD < 
 
-%Regular expressions are an expressive formalism that have been used extensively for describing paths through graphs~\cite{bib:todo}, with applications to networks~\cite{bib:todo}. Our regular expression language differs from others by allowing operators to describe preferences between paths.
+%DIFDELCMD < %%%
+%DIF < Regular expressions are an expressive formalism that have been used extensively for describing paths through graphs~\cite{bib:todo}, with applications to networks~\cite{bib:todo}. Our regular expression language differs from others by allowing operators to describe preferences between paths.
+%DIFDELCMD < 
 
-% grammar
+%DIFDELCMD < %%%
+\DIFdelend % grammar
 \newcommand{\BNFALT}{\;\;|\;\;}
 \newcommand{\hdr}[2]{\flushleft \chdr{\hspace{5mm}#1}{#2}}
 \newcommand{\chdr}[2]{\textbf{#1} {#2} \\ \centering}
 
-\begin{figure*}\small
+\DIFdelbegin %DIFDELCMD < \begin{figure*}\small
+%DIFDELCMD <   \begin{minipage}[t]{.45\linewidth}
+%DIFDELCMD <   \hdr{\large Syntax}{}
+%DIFDELCMD <   \vspace*{-1\baselineskip}
+%DIFDELCMD <   %
+%DIFDELCMD <   \[ \begin{array}{rclr}
+%DIFDELCMD <     \hline
+%DIFDELCMD < 
+
+%DIFDELCMD <      pol     &::=& p_1, \dots, p_n & \textit{constraints} \\
+%DIFDELCMD <      p       &::=& t \hspace{.3em} \Path \hspace{.3em} r_1 \Prefer \dots \Prefer r_m & \textit{preferences} \\
+%DIFDELCMD <      x       &::=& a.b.c.d/n & \textit{prefix} \\
+%DIFDELCMD <      c       &::=& \cdots & \textit{community value} \\
+%DIFDELCMD <      t       &::=& \True & \textit{true} \\
+%DIFDELCMD <          &\BNFALT& \NOT t & \textit{negation} \\
+%DIFDELCMD <          &\BNFALT& t_1 \OR{} t_2 & \textit{disjunction} \\
+%DIFDELCMD <          &\BNFALT& t_1 \AND{} t_2 & \textit{conjunction} \\
+%DIFDELCMD <          &\BNFALT& \textit{prefix} = x & \textit{prefix test} \\
+%DIFDELCMD <          &\BNFALT& \textit{comm} = c & \textit{community test} \\
+%DIFDELCMD <      r       &::=& n & \textit{AS number} \\
+%DIFDELCMD <          &\BNFALT& \emptyset & \textit{empty set} \\
+%DIFDELCMD <          &\BNFALT& \In & \textit{internal loc} \\
+%DIFDELCMD <          &\BNFALT& \Out & \textit{external loc} \\
+%DIFDELCMD <          &\BNFALT& r_1 \cup r_2 & \textit{union} \\
+%DIFDELCMD <          &\BNFALT& r_1 \cap r_2 & \textit{intersection} \\
+%DIFDELCMD <          &\BNFALT& r_1 \cdot r_2 & \textit{concatenation} \\
+%DIFDELCMD <          &\BNFALT& \NOT(r) & \textit{path negation} \\
+%DIFDELCMD <          &\BNFALT& r^* & \textit{repetition} \\
+%DIFDELCMD <      l       &::=& r_1 \rightarrow r_2 & \textit{link pairs} \\
+%DIFDELCMD <      cc     &::=& agg(x, l) \BNFALT tag(c, t, l) & \textit{control constraints} \\
+%DIFDELCMD <   \end{array} \]
+%DIFDELCMD < 
+
+%DIFDELCMD <   \end{minipage}
+%DIFDELCMD <   %
+%DIFDELCMD <   ~~
+%DIFDELCMD <   \vrule
+%DIFDELCMD <   ~~
+%DIFDELCMD <   %
+%DIFDELCMD <   \begin{minipage}[t]{.5\linewidth}\small
+%DIFDELCMD <   \hdr{\large Propane Expansions}{}
+%DIFDELCMD <   \vspace*{-1\baselineskip}
+%DIFDELCMD <   %
+%DIFDELCMD <   \[\begin{array}{rcl}
+%DIFDELCMD <     \hline
+%DIFDELCMD <     \Any           & = & \Out^* \cdot \In^+ \cdot \Out^* \\
+%DIFDELCMD <     \None          & = & \emptyset \\
+%DIFDELCMD <     \Internal      & = & \In^+ \\
+%DIFDELCMD <     \Only(X)       & = & \Any \cap X^* \\
+%DIFDELCMD <     \Never(X)      & = & \Any \cap (!X)^* \\
+%DIFDELCMD <     \Through(X)    & = & \Out^* \cdot \In^* \cdot X \cdot \In^* \cdot \Out^* \\
+%DIFDELCMD <     \Later(X)      & = & \Out^* \cdot (X \cap \Out) \cdot \Out^* \cdot \In^+ \cdot \Out^* \\
+%DIFDELCMD <     \Before(X)     & = & \Out^* \cdot \In^+ \cdot \Out^* \cdot (X \cap \Out) \cdot \Out^* \\
+%DIFDELCMD <     \End(X)        & = & \Any \cap (\Sigma^* \cdot X) \\
+%DIFDELCMD <     \Start(X)      & = & \Any \cap (X \cdot \Sigma^*) \\
+%DIFDELCMD <     \Exit(X)       & = & (\Out^* \cdot \In^* \cdot (X \cap \In) \cdot \Out \cdot \Out^*) \cup \\
+%DIFDELCMD <                   &        & (\Out^* \cdot \In^+ \cdot (X \cap \Out) \cdot \Out^*) \\
+%DIFDELCMD <     \Enter(X)      & = & (\Out^* \cdot \Out \cdot (X \cap \In) \cdot \In^* \cdot \Out^*) \cup \\
+%DIFDELCMD <                   &        & (\Out^* \cdot (X \cap \Out) \cdot \In^+ \cdot \Out^*) \\
+%DIFDELCMD <     \LinkKW(X,Y)     & = & \Any \cap (\Sigma^* \cdot X \cdot Y \cdot \Sigma^*) \\
+%DIFDELCMD <     \PathKW(\vec{X}) & = & \Any \cap (\Sigma^* \cdot X_1 \dots X_n \cdot \Sigma^*) \\
+%DIFDELCMD <     \Novalley(\vec{X}) & = & \Any ~ \cap \\
+%DIFDELCMD <                   &   & \NOT\PathKW(X_2,X_1,X_2) ~ \cap \dots \cap \\
+%DIFDELCMD <                   &   & \NOT\PathKW(X_n,X_{n-1},X_n) \\
+%DIFDELCMD <   \end{array} \]
+%DIFDELCMD < 
+
+%DIFDELCMD <   \end{minipage}
+%DIFDELCMD < 
+
+%DIFDELCMD <   \hrulefill
+%DIFDELCMD < 
+
+%DIFDELCMD <   \caption{Regular Intermediate Language (RIL) syntax (left), and
+%DIFDELCMD <            Propane language expansions (right).}
+%DIFDELCMD <   \label{fig:rir-syntax}
+%DIFDELCMD <   \vspace{-1em}
+%DIFDELCMD < \end{figure*}
+%DIFDELCMD < %%%
+\DIFdelend \DIFaddbegin \begin{figure*}\small
   \begin{minipage}[t]{.45\linewidth}
   \hdr{\large Syntax}{}
   \vspace*{-1\baselineskip}
@@ -1039,14 +1143,13 @@ We handle these challenges by breaking compilation into multiple stages and deve
 
      pol     &::=& p_1, \dots, p_n & \textit{constraints} \\
      p       &::=& t \hspace{.3em} \Path \hspace{.3em} r_1 \Prefer \dots \Prefer r_m & \textit{preferences} \\
-     x       &::=& a.b.c.d/n & \textit{prefix} \\
-     c       &::=& \cdots & \textit{community value} \\
+     x       &::=& d.d.d.d/d & \textit{prefix} \\
      t       &::=& \True & \textit{true} \\
          &\BNFALT& \NOT t & \textit{negation} \\
          &\BNFALT& t_1 \OR{} t_2 & \textit{disjunction} \\
          &\BNFALT& t_1 \AND{} t_2 & \textit{conjunction} \\
          &\BNFALT& \textit{prefix} = x & \textit{prefix test} \\
-         &\BNFALT& \textit{comm} = c & \textit{community test} \\
+         &\BNFALT& \textit{comm} = d & \textit{community test} \\
      r       &::=& n & \textit{AS number} \\
          &\BNFALT& \emptyset & \textit{empty set} \\
          &\BNFALT& \In & \textit{internal loc} \\
@@ -1054,8 +1157,8 @@ We handle these challenges by breaking compilation into multiple stages and deve
          &\BNFALT& r_1 \cup r_2 & \textit{union} \\
          &\BNFALT& r_1 \cap r_2 & \textit{intersection} \\
          &\BNFALT& r_1 \cdot r_2 & \textit{concatenation} \\
-         &\BNFALT& \NOT(r) & \textit{path negation} \\
-         &\BNFALT& r^* & \textit{repetition} \\
+         &\BNFALT& \NOT r & \textit{path negation} \\
+         &\BNFALT& r^* & \textit{iteration} \\
      l       &::=& r_1 \rightarrow r_2 & \textit{link pairs} \\
      cc     &::=& agg(x, l) \BNFALT tag(c, t, l) & \textit{control constraints} \\
   \end{array} \]
@@ -1100,21 +1203,25 @@ We handle these challenges by breaking compilation into multiple stages and deve
   \caption{Regular Intermediate Language (RIL) syntax (left), and
            Propane language expansions (right).}
   \label{fig:rir-syntax}
-  \vspace{-1em}
+  %\vspace{-1em}
 \end{figure*}
+\DIFaddend 
 
-\para{Syntax}
+\DIFaddbegin \subsection{\DIFadd{Regular IR (RIR)}}
+\label{sec:rir}
+
+\DIFaddend \para{Syntax}
 The \sysname FE is just a thin layer atop a core, regular-expression language (RIR) for describing preference-based path constraints. 
-Figure~\ref{fig:rir-syntax} shows the RIR syntax. A policy consists of one or more constraints, each of which have a test on the type of route, and a corresponding set of preferred regular paths. Regular paths are regular expressions where the base characters are abstract locations---either a router or an AS. Special \In{} and \Out{} symbols refer to any internal or external location respectively. In addition, $\Sigma$ refers to any symbol. We also use other standard abbreviations
-for regular expressions such as $r^+$, \DIFaddbegin \DIFadd{which is simply syntactic sugar for $r \cdot r^*$, }\DIFaddend a sequence of one or more occurrences of $r$, when appropriate.
-%% For example, the constraint
+Figure~\ref{fig:rir-syntax} shows the RIR syntax. A policy consists of one or more constraints, each of which have a test on the type of route, and a corresponding set of preferred regular paths. Regular paths are regular expressions where the base characters are abstract locations---either a router or an AS. Special \In{} and \Out{} symbols refer to any internal or external location respectively. In addition, $\Sigma$ refers to any symbol. We also use \DIFdelbegin \DIFdel{other standard abbreviations
+for regular expressions such as }\DIFdelend \DIFaddbegin \DIFadd{the standard regular expressions abbreviation }\DIFaddend $r^+$ \DIFaddbegin \DIFadd{to stand for $r \cdot r^*$}\DIFaddend , a sequence of one or more occurrences of $r$\DIFdelbegin \DIFdel{, when appropriate.}\DIFdelend \DIFaddbegin \DIFadd{. Predicates ($t$) consist of logical boolean connectives (and, or, not) as well as tests that match a particular prefix (or group of prefixes) and tests for route advertisments with a particular community value (i.e., an integer value associated with a path). 
+}\DIFaddend %% For example, the constraint
 %% \[(\textit{prefix}=74.3.28.0/24) \Link \\
 %% (as200 \cdot \In^+) \Prefer (as100 \cdot \In^+)
 %% \]
 %% describes a more-preferred set of paths for traffic announced by a prefix no less specific than \CD{74.125.28.0/24}, which starts at AS 200, before entering and staying inside the user's network to get to the destination, and a less-preferred set of paths that start at AS 100 and are otherwise the same. The plus operator $\In^+$ stands for $\In \cdot \In^*$, at least one internal hop. Tests over route types use standard boolean connectives, and can refer to both prefixes and route community values.
 
-\sysname also supports constraints purely on the control-plane behavior of BGP. For example, prefix aggregation is an important optimization to reduce routing table size and churn in practice. 
-%% Aggregation, for example, from internal to external locations, is specified using the same regular syntax as before:
+\sysname also supports constraints purely on the control-plane behavior of BGP. For example, prefix aggregation is an important optimization to reduce routing table size and churn in practice. \DIFaddbegin \DIFadd{A constraint of the form $agg(x,l)$ tells the compiler to perform aggregation for prefix $x$ across all links described by $l$. It is also often useful to be able to add community tags to exported routes in BGP (e.g., to communicate non-standard information to peers). A constraint of the form $tag(c,t,l)$ adds community tag $c$ for any prefixes matching $t$ across links $l$.
+}\DIFaddend %% Aggregation, for example, from internal to external locations, is specified using the same regular syntax as before:
 %% $$\Agg(128.17.0.0/16, \In \Link \Out)$$
 %% where the expression $\In \Link Out$ refers to control messages flowing from any internal to any external location.
 We list only the route aggregation and community tagging constraints in Figure~\ref{fig:rir-syntax}, but we also support other constraints such as limiting the maximum number of routes allowed between ASes, or enabling BGP multipath.
@@ -1131,12 +1238,13 @@ The set of ranked paths depends on which paths are valid in the topology, and th
 
 \para{Propane FE to RIR}
 
-The main differences between the FE and RIR are: $i)$ FE allows the programmer to specify constraints using a series of (modular) definitions, and combine them later, $ii)$ FE provides high-level names that abstract sets of routes and groups of prefixes/neighbors, and $iii)$ FE allows the preference operator to be used more flexibly.
+The \DIFaddbegin \DIFadd{first step in compilation is to reduce the }\sysname \DIFadd{front-end language (FE) to the simpler, regular intermediate representation (RIR) from Figure~\ref{fig:rir-syntax}.
+The }\DIFaddend main differences between the FE and RIR are: $i)$ FE allows the programmer to specify constraints using a series of (modular) definitions, and combine them later, $ii)$ FE provides high-level names that abstract sets of routes and groups of prefixes/neighbors, and $iii)$ FE allows the preference operator to be used more flexibly.
 
-A key constraint when translating FE to RIR is to ensure that all specified routes are well-formed. In particular, each regular path constraint $r$ must satisfy $r \subseteq \Out^* \cdot \In^+ \cdot \Out^*$. This ensures that the user only control traffic that goes through the user's network at some point, and that such traffic does not loop back multiple times to the user network.
+A key constraint when translating FE to RIR is to ensure that all specified routes are well-formed. In particular, each regular path constraint $r$ must satisfy $r \subseteq \Out^* \cdot \In^+ \cdot \Out^*$. This ensures that \DIFdelbegin \DIFdel{the user }\DIFdelend \DIFaddbegin \DIFadd{users }\DIFaddend only control traffic that goes through \DIFdelbegin \DIFdel{the user's }\DIFdelend \DIFaddbegin \DIFadd{their }\DIFaddend network at some point, and that such traffic does not loop back multiple times \DIFdelbegin \DIFdel{to the user }\DIFdelend \DIFaddbegin \DIFadd{through their }\DIFaddend network.
 
-The translation from \sysname to RIR is based on a set of rewriting rules.
-The first step merges separate constraints. It takes the cross product of per-prefix constraints, where logical conjunction ($a \AND b$) is replaced by intersection on regular constraints ($a \Intersect b$), logical disjunction is replaced by union, and logical negation ($\NOT a$) is replaced by ($\Any \cap \NOT(a)$), where $\Any$ ensures the routes are well-formed.
+The translation from \sysname \DIFaddbegin \DIFadd{FE }\DIFaddend to RIR is based on a set of rewriting rules.
+The first step merges separate constraints. It takes the cross product of per-prefix constraints, where logical conjunction ($a \AND b$) is replaced by intersection on regular constraints ($a \Intersect b$), logical disjunction is replaced by union, and logical negation ($\NOT a$) is replaced by \DIFaddbegin \DIFadd{path negation }\DIFaddend ($\Any \cap \NOT(a)$)\DIFdelbegin \DIFdel{, where }\DIFdelend \DIFaddbegin \DIFadd{. The additional constraint }\DIFaddend $\Any$ ensures the routes are well-formed \DIFaddbegin \DIFadd{by restricting the paths to only those that go through the user's network}\DIFaddend .
 %
 For example, in the data center configuration from \S\ref{sec:propane}, combining the \CD{Locality} and \CD{Ownership} policies results in the following RIR:
 
@@ -1165,16 +1273,88 @@ The next step rewrites the high-level constraints such as \textit{enter} accordi
 \end{array}
 \]
 %
-where $\odot$ stands for an arbitrary regular binary operator. Preferences nested under a unary operator, \textit{star} or \textit{negation}, are flagged by the compiler as invalid policies.
+where $\odot$ stands for an arbitrary regular binary operator\DIFaddbegin \DIFadd{, and $x$ is a policy with a single preference}\DIFaddend . Preferences nested under a unary operator \DIFaddbegin \DIFadd{(i.e.}\DIFaddend , \textit{star} or \textit{negation}\DIFdelbegin \DIFdel{, }\DIFdelend \DIFaddbegin \DIFadd{) }\DIFaddend are flagged by the compiler as invalid policies.
 
 
 
-\subsection{Product Graph IR}
 
-\newcommand{\state}[4]{\node[state,#3](#1)[#4]{#2};}
+
+\DIFdelbegin \subsection{\DIFdel{Product Graph IR}}
+%DIFAUXCMD
+\addtocounter{subsection}{-1}%DIFAUXCMD
+%DIFDELCMD < 
+
+%DIFDELCMD < %%%
+\DIFdelend \newcommand{\state}[4]{\node[state,#3](#1)[#4]{#2};}
 \newcommand{\transition}[4]{\path[->] (#1) edge [#4] node {#3} (#2);}
 
-\begin{figure*}
+\DIFdelbegin %DIFDELCMD < \begin{figure*}
+%DIFDELCMD <   \begin{minipage}[t]{.5\linewidth}
+%DIFDELCMD <   
+
+%DIFDELCMD <   \hdr{\large Topology}{}
+%DIFDELCMD <   \vspace*{-2\baselineskip}
+%DIFDELCMD < 
+
+%DIFDELCMD <   \includegraphics[width=.6\columnwidth]{figures/topology}
+%DIFDELCMD < 
+
+%DIFDELCMD <   \hdr{\large Policy Automata}{}
+%DIFDELCMD <   \vspace*{-0.5\baselineskip}
+%DIFDELCMD < 
+
+%DIFDELCMD <   \begin{tikzpicture}[>=stealth',shorten >=1pt,auto,node distance=1.4cm,minimum size=1cm]
+%DIFDELCMD <     \state{0}{$0$}{              }{}
+%DIFDELCMD <     \state{1}{$1$}{right of=0}{}
+%DIFDELCMD <     \state{2}{$2$}{right of=1}{}
+%DIFDELCMD <     \state{3}{$3$}{right of=2}{}
+%DIFDELCMD <     \state{4}{$4$}{right of=3}{}
+%DIFDELCMD <     \state{5}{$5$}{right of=4}{accepting}
+%DIFDELCMD <     \transition{0}{1}{out}{}
+%DIFDELCMD <     \transition{1}{2}{D}{}
+%DIFDELCMD <     \transition{2}{3}{C}{}
+%DIFDELCMD <     \transition{3}{4}{A}{}
+%DIFDELCMD <     \transition{4}{5}{W}{}
+%DIFDELCMD <   \end{tikzpicture}
+%DIFDELCMD < 
+
+%DIFDELCMD <   \begin{tikzpicture}[>=stealth',shorten >=1pt,auto,node distance=1.6cm]
+%DIFDELCMD <     \state{0}{$0$}{              }{}
+%DIFDELCMD <     \state{1}{$1$}{right of=0}{}
+%DIFDELCMD <     \state{2}{$2$}{right of=1}{}
+%DIFDELCMD <     \state{3}{$3$}{right of=2}{}
+%DIFDELCMD <     \state{4}{$4$}{right of=3}{accepting}
+%DIFDELCMD <     \transition{0}{1}{out}{}
+%DIFDELCMD <     \transition{1}{2}{in}{}
+%DIFDELCMD <     \transition{2}{2}{A,C,D,E}{loop above}
+%DIFDELCMD <     \transition{2}{3}{B}{}
+%DIFDELCMD <     \transition{3}{3}{B}{loop above}
+%DIFDELCMD <     \transition{3}{2}{A,C,D,E}{bend left}
+%DIFDELCMD <     \transition{3}{4}{W}{}
+%DIFDELCMD <   \end{tikzpicture}
+%DIFDELCMD <   \end{minipage}
+%DIFDELCMD <   %
+%DIFDELCMD <   ~~
+%DIFDELCMD <   ~~
+%DIFDELCMD <   %
+%DIFDELCMD <   \begin{minipage}[t]{.5\linewidth}
+%DIFDELCMD <   \hdr{\large Product Graph IR}{}
+%DIFDELCMD <   \vspace*{-1\baselineskip}
+%DIFDELCMD <   %
+%DIFDELCMD <   \includegraphics[width=.65\columnwidth]{figures/productgraph}
+%DIFDELCMD <   \end{minipage}
+%DIFDELCMD < 
+
+%DIFDELCMD <   \hrulefill
+%DIFDELCMD <   \vspace*{.4em}
+%DIFDELCMD < 
+
+%DIFDELCMD <   \caption{Example Product Graph IR construction for policy: $(\CD{W} \cdot \CD{A} \cdot \CD{C} \cdot \CD{D} \cdot \Out) \Prefer (\CD{W} \cdot \CD{B} \cdot \In^+ \cdot \Out)$.}
+%DIFDELCMD <   \label{fig:example-compilation}
+%DIFDELCMD <   \vspace{-1em}
+%DIFDELCMD < \end{figure*}
+%DIFDELCMD < %%%
+\DIFdelend \DIFaddbegin \begin{figure*}
   \begin{minipage}[t]{.5\linewidth}
 
   \hdr{\large Topology}{}
@@ -1230,30 +1410,37 @@ where $\odot$ stands for an arbitrary regular binary operator. Preferences neste
 
   \caption{Example Product Graph IR construction for policy: $(\CD{W} \cdot \CD{A} \cdot \CD{C} \cdot \CD{D} \cdot \Out) \Prefer (\CD{W} \cdot \CD{B} \cdot \In^+ \cdot \Out)$.}
   \label{fig:example-compilation}
-  \vspace{-1em}
+  %\vspace{-1em}
 \end{figure*}
+\DIFaddend 
 
-Now that the user policy exists in a simplified form, we must consider topology. In particular, we want a compact representation that describes all the possible ways BGP route announcements can flow through the network subject to the policy and topology constraints. Our PGIR captures these dependencies by ``intersecting" each of the regular automata corresponding to the RIR path preferences, and the topology. Paths through the PGIR correspond to real paths through the topology that satisfy the user constraints.
+
+\DIFaddbegin \subsection{\DIFadd{Product Graph IR}}
+
+\DIFaddend Now that the user policy exists in a simplified form, we must consider \DIFaddbegin \DIFadd{the }\DIFaddend topology. In particular, we want a compact representation that describes all the possible ways BGP route announcements can flow through the network subject to the policy and topology constraints. Our PGIR captures these dependencies by ``intersecting" each of the regular automata corresponding to the RIR path preferences, and the topology. Paths through the PGIR correspond to real paths through the topology that satisfy the user constraints.
 
 %Finding paths through a graph subject to regular constraints has been studied extensively in the database literature~\ref{bib:todo}, and has been applied to networks in the past~\ref{bib:todo}.
 
 \para{Formal definition}
 
 % Formally define automata
-The RIR policy is an ordered sequence of regular expressions $r_1 \Prefer \dots \Prefer r_j$. While paths talk about the direction traffic flows through the network, to implement the policy with BGP we are concerned about the way control-plane information is disseminated (i.e., route announcements flowing in the opposite direction). To capture this idea, for each regular expression $r_i$, we construct a deterministic finite state machine on the reversed regular expression. Each automaton is a tuple: ($\Sigma, Q_i, F_i, q_{0_i}, \sigma_i$). The alphabet $\Sigma$ consists of all all abstraction locations (routers or ASes), $Q_i$ is the set of states for automaton i, $F_i$ is the set of final states, $q_{0_i}$ is the initial state, and $\sigma_i \colon Q_i \times \Sigma \rightarrow Q_i$ is the state transition function.
+The RIR policy is an ordered sequence of regular expressions $r_1 \Prefer \dots \Prefer r_j$. While paths talk about the direction traffic flows through the network, to implement the policy with BGP we are concerned about the way control-plane information is disseminated (i.e., route announcements flowing in the opposite direction). To capture this idea, for each regular expression $r_i$, we construct a deterministic finite state machine on the reversed regular expression. Each automaton \DIFaddbegin \DIFadd{for the reversed regular expression of $r_i$ }\DIFaddend is a tuple: ($\Sigma, Q_i, F_i, q_{0_i}, \sigma_i$). The alphabet $\Sigma$ consists of all \DIFdelbegin \DIFdel{all }\DIFdelend abstraction locations (routers or ASes), $Q_i$ is the set of states for automaton i, $F_i$ is the set of final states, $q_{0_i}$ is the initial state, and $\sigma_i \colon Q_i \times \Sigma \rightarrow Q_i$ is the state transition function.
 %
 % Formally define topology
-The topology is represented as a graph ($V, E$), which consists of a set of vertices $V$, and a set of directed edges $E \colon 2^{V \times V}$.
+The topology is represented as a graph ($V, E$), which consists of a set of vertices $V$, and a set of directed edges \DIFdelbegin \DIFdel{$E \colon 2^{V \times V}$}\DIFdelend \DIFaddbegin \DIFadd{$E \colon V \times V$}\DIFaddend .
 %
 % Formally define product graph
 The combined PGIR is a tuple: ($V'$, $E'$, $s$, $e$, $P$) with
 vertices $V' \colon V \times Q_1 \times \dots \times Q_j$,
-edges $E' \colon 2^{V' \times V'}$,
+edges \DIFdelbegin \DIFdel{$E' \colon 2^{V' \times V'}$}\DIFdelend \DIFaddbegin \DIFadd{$E' \colon V' \times V'$}\DIFaddend ,
 a unique starting vertex $s$,
 a unique ending vertex $e$,
-and a preference function $P \colon V \rightarrow 2^{\set{1, \dots, j}}$ , which maps nodes in the product graph to a set of preference ranks.
-For a vertex $v' = (v, \dots) \in V'$, we say $loc(v') = v$. 
-Two nodes $x$ and $y$ \emph{shadow} each other in the product graph when $x \in V'$ and $y \in V'$ and $loc(x) = loc(y)$ but $x \neq y$. That is, $x$ and $y$ shadow each other when they are different nodes in the PGIR that represent the same topology location.
+and a preference function \DIFdelbegin \DIFdel{$P \colon V \rightarrow 2^{\set{1, \dots, j}}$ }\DIFdelend \DIFaddbegin \DIFadd{$P \colon V' \rightarrow 2^{\set{1, \dots, j}}$ }\DIFaddend , which maps nodes in the product graph to a set of preference ranks.
+For a \DIFaddbegin \DIFadd{PGIR }\DIFaddend vertex $v' = (v, \dots) \in V'$, we say $loc(v') = v$\DIFaddbegin \DIFadd{, which indicates that the corresponding topology location for $v'$ is $v$}\DIFaddend . 
+Two nodes $x$ and $y$ \emph{shadow} each other in the product graph when $x \in V'$ and $y \in V'$ and $loc(x) = loc(y)$\DIFdelbegin \DIFdel{but $x \neq y$.
+That is, $x$ and $y$ shadow each other when they are different nodes in the PGIR that represent the same topology location.
+}\DIFdelend \DIFaddbegin \DIFadd{.
+}\DIFaddend 
 
 \para{From RIR To PGIR}
 
@@ -1270,18 +1457,18 @@ Finally, there is an edge from each node in the PGIR such that $P(v) \neq \empty
 
 Intuitively, PGIR tracks which states of each automaton the policy is in as route announcements move between routers.
 %
-Consider the topology in Figure~\ref{fig:example-compilation}. Suppose we want a primary route from W that enters the network from $A$, and utilizes the A--C and C--D links. We also want a backup route that enters from $B$, and utilizes the B--C link, but is otherwise unconstrained. For simplicity, we assume that the route can end in either $X$, $Y$, or $Z$. The RIR for the policy is:
+Consider the topology in Figure~\ref{fig:example-compilation}. Suppose we want a primary route from \DIFdelbegin \DIFdel{W that enters the network from }\DIFdelend \DIFaddbegin \DIFadd{neighbor W that allows traffic to enter the network at }\DIFaddend $A$, and \DIFdelbegin \DIFdel{utilizes the A--C and }\DIFdelend \DIFaddbegin \DIFadd{utilize the }\DIFaddend C--D \DIFdelbegin \DIFdel{links. We also want a backuproute that enters }\DIFdelend \DIFaddbegin \DIFadd{link before leaving the network (through $X$ or $Y$). As a backup, we also want to allow traffic to enter the network }\DIFaddend from $B$, \DIFdelbegin \DIFdel{and utilizes the B--C link , but is otherwise unconstrained}\DIFdelend \DIFaddbegin \DIFadd{in which case the traffic can also utilize the C--E link before leaving the network}\DIFaddend . For simplicity, we assume that the route \DIFdelbegin \DIFdel{can end }\DIFdelend \DIFaddbegin \DIFadd{ends }\DIFaddend in either $X$, $Y$, or $Z$. The RIR for the policy \DIFdelbegin \DIFdel{is}\DIFdelend \DIFaddbegin \DIFadd{could be written as}\DIFaddend :
 %
 $$(\CD{W} \cdot \CD{A} \cdot \CD{C} \cdot \CD{D} \cdot \Out) \Prefer (\CD{W} \cdot \CD{B} \cdot \In^+ \cdot \Out)$$
 %
 Figure~\ref{fig:example-compilation} shows the policy automata for each regular expression preference. Since we are interested in the flow of control messages, the automata match backwards.
 %
-The figure also shows the PGIR after intersecting the topology and policy automata. Every path in it corresponds to a concrete path in the topology. In particular, every path through the PGIR that ends at a node $v$ such that the preference function $P(v) = \set{i_1, \dots, i_m}$ is non-empty, is a valid topological path that satisfies the policy constraints and results in a particular path with preferences $i_1$ through $i_m$.
+The figure also shows the PGIR after intersecting the topology and policy automata. Every path in \DIFdelbegin \DIFdel{it }\DIFdelend \DIFaddbegin \DIFadd{the PGIR }\DIFaddend corresponds to a concrete path in the topology. In particular, every path through the PGIR that ends at a node $v$ such that the preference function $P(v) = \set{i_1, \dots, i_m}$ is non-empty, is a valid topological path that satisfies the policy constraints and results in a particular path with preferences $i_1$ through $i_m$.
 %
-For example, the path $X \cdot D \cdot C \cdot A \cdot W$ is a valid path in the topology that BGP route announcements might take, which would lead to obtaining the most prefered preference $1$.
+For example, the path $X \cdot D \cdot C \cdot A \cdot W$ is a valid path in the topology that BGP route announcements might take, which would lead to obtaining \DIFaddbegin \DIFadd{a path with }\DIFaddend the most prefered preference \DIFaddbegin \DIFadd{of }\DIFaddend $1$.
 BGP control messages can start from peer X, which would match the $\Out$ transition from both automata, leading to state $1$ in the first automaton, and state $1$ in the second automaton. This is reflected in the product graph by the node with state $(X,1,1)$. From here, if X were to advertise this route to D, it would result in the path $D \cdot X$, which would lead to state $2$ in the first automaton, and state $2$ in the second automaton, and so on.
 %
-The ``--" state indicates the corresponding automaton can not accept the current path or any extension of it. Since node $(W,5,-)$ is in an accepting state for the first automata, it indicates this path has preference 1.
+The ``--" state indicates the corresponding automaton can not accept the current path or any extension of it. Since node $(W,5,-)$ is in an accepting state for the first automata, it indicates \DIFaddbegin \DIFadd{that }\DIFaddend this path has preference 1.
 
 \para{Minimization}
 
@@ -1293,10 +1480,22 @@ For example, in Figure~\ref{fig:example-compilation}, the path $W \cdot A \cdot 
 It often improves the precision of the failure-safety analysis to eliminate cases that are not possible due to loops. 
 %For example, if we can safely remove a PGIR edge, then we do not have to consider what happens when the edge has failed.
 We use graph dominators~\cite{tarjan-dominance} as a cheap approximation for removing many nodes and edges in the PGIR that are never on any \emph{simple} (loop free) path between the start and end nodes.
-In the PGIR, a node $x$ dominates a node $y$ if $x$ appears on every path leading to $y$ from the start node.
-%We can safely remove any PGIR node or edge as long as it never appears on any \emph{simple} path from the \textit{start} node to the \emph{end} node. 
-For example, node $(W,1,1)$ in Figure~\ref{fig:example-compilation} is never on a simple path to the end node since it must go through another $W$ in either case.
-Colored nodes and dashed edges are removed after minimization since they are irrelvant to the BGP decision process.
+In the PGIR, a node $x$ dominates a node $y$ if $x$ appears on every path leading \DIFaddbegin \DIFadd{from the start node }\DIFaddend to $y$\DIFdelbegin \DIFdel{from the start node.
+}\DIFdelend \DIFaddbegin \DIFadd{. Similarly, a node $x$ post-dominates a node $y$ in the PGIR if $x$ appears on every path from $y$ to the end node.
+We can safely remove nodes and edges in the PGIR when any of the following conditions hold, where $x$, $x'$ and $y$, $y'$ refer to PGIR nodes that shadow each other:
+}\begin{itemize}
+\setlength{\itemsep}{1pt}
+\setlength{\parskip}{0pt}
+\setlength{\parsep}{0pt}
+\item \DIFadd{Remove $x$ if it is not reachable from the start node
+}\item \DIFadd{Remove $x$ if it can not reach the end node
+}\item \DIFadd{Remove $x$ if it is (post-)dominated by some $x'$
+}\item \DIFadd{Remove edge ($x$, $y$) if $y$ is post-dominated by some $x'$
+}\item \DIFadd{Remove edge ($x$, $y$) if $x$ is dominated by some $y'$
+}\end{itemize}
+\DIFaddend %We can safely remove any PGIR node or edge as long as it never appears on any \emph{simple} path from the \textit{start} node to the \emph{end} node. 
+For example, node $(W,1,1)$ in Figure~\ref{fig:example-compilation} \DIFaddbegin \DIFadd{can be removed since it }\DIFaddend is never on a simple path to the end node \DIFdelbegin \DIFdel{since it must go through another $W$ in either case. }\DIFdelend \DIFaddbegin \DIFadd{because it must always go through node $(W,-,4)$. That is, node $(W,-,4)$ post-dominates node $(W,1,1)$. We repeatly apply the above minimizations to the PGIR until no further minimization is possible.
+}\DIFaddend Colored nodes and dashed edges \DIFaddbegin \DIFadd{in Figure~\ref{fig:example-compilation} }\DIFaddend are removed after minimization since they are irrelvant to the BGP decision process.
 %
 %Although fully minimizing this graph is an NP-complete problem,  a simple and efficient algorithm based on graph dominators achieves largely the same effect, greatly simplifying the failure safety analysis.
 
@@ -1311,25 +1510,56 @@ Colored nodes and dashed edges are removed after minimization since they are irr
 %
 %Repeated application of the above rules leads to removing the colored nodes and dashed lines in Figure~\ref{fig:example-compilation}.
 
-\para{Failure Safety}
+\DIFdelbegin %DIFDELCMD < \para{Failure Safety}
+%DIFDELCMD < %%%
+\DIFdelend \DIFaddbegin \subsection{\DIFadd{Failure Analysis}}
+\DIFaddend 
 
-To implement path preferences in routing, BGP uses local preferences on a per-device basis. However, the distributed nature of BGP makes setting preferences locally to achieve a network-route routing policy difficult, particularly in the presence of failures. For example, imagine an extremely simple policy for the topology in Figure~\ref{fig:example-compilation}, which says to prefer one route over another:
+To implement path preferences in routing, BGP uses local preferences on a per-device basis. However, the distributed nature of BGP makes setting preferences locally to achieve a network-route routing policy difficult\DIFdelbegin \DIFdel{, particularly }\DIFdelend \DIFaddbegin \DIFadd{. This task becomes even more challenging }\DIFaddend in the presence of failures \DIFdelbegin \DIFdel{. For example, imagine an extremely }\DIFdelend \DIFaddbegin \DIFadd{since routers running BGP lack a global view of the network and thus cannot make dynamic routing decisions based on the which network elements are up or down.
+}
+
+\para{An illustrative example}
+
+\DIFadd{To demonstrate the difficulty of generating device-local preferences, consider the }\DIFaddend simple policy for the topology in Figure~\DIFdelbegin \DIFdel{\ref{fig:example-compilation}}\DIFdelend \DIFaddbegin \DIFadd{\ref{fig:unimplementable}}\DIFaddend , which says to prefer \DIFdelbegin \DIFdel{one route over another}\DIFdelend \DIFaddbegin \DIFadd{the top path over the bottom path}\DIFaddend :
 %
-$(\CD{W} \cdot \CD{A} \cdot \CD{C} \cdot \CD{D}) \Prefer (\CD{W} \cdot \CD{B} \cdot \CD{C} \cdot \CD{E})$.
+\DIFdelbegin \DIFdel{$(\CD{W} \cdot \CD{A} \cdot \CD{C} \cdot \CD{D}) \Prefer (\CD{W} \cdot \CD{B} \cdot \CD{C} \cdot \CD{E})$}\DIFdelend \DIFaddbegin \DIFadd{$(\CD{A} \cdot \CD{B} \cdot \CD{D} \cdot \CD{E} \cdot \CD{G})  \Prefer (\CD{A} \cdot \CD{C} \cdot \CD{D} \cdot \CD{F} \cdot \CD{G})$}\DIFaddend .
 %
+\DIFdelbegin %DIFDELCMD < 
 
-How could such a policy be implemented in BGP? Suppose we set the local preference at router $C$ to prefer $D$ over $E$, and use the BGP MED attribute to influence $W$ to prefer $A$ over $B$. This might work as expected under normal conditions, however, if the A -- C link fails, then suddenly $C$ has made the wrong decision. Traffic will now follow the
-$W \cdot B \cdot C \cdot D$ path, even though this path was not specified by the policy. This is a violation of \emph{soundness}: The distributed implementation has used a route not specified by the policy. To make matters worse, the second preference $W \cdot B \cdot C \cdot E$ is available in the network but not being used. This is a violation of \emph{completeness}: A path for the best possible route available exists in the network but is not being used by the distributed implementation.
-We could solve the first problem by filtering routes that go through $D$ at $B$, however, we can not fix the second problem---$C$ has made the wrong choice. In fact, this policy can not be implemented in BGP in a way that is policy compliant under all failures.
+%DIFDELCMD < %%%
+\DIFdelend How could such a policy be implemented in BGP? Suppose we set the local \DIFdelbegin \DIFdel{preference at router $C$ to prefer }\DIFdelend \DIFaddbegin \DIFadd{preferences to have }\DIFaddend $D$ \DIFdelbegin \DIFdel{over }\DIFdelend \DIFaddbegin \DIFadd{prefer }\DIFaddend $E$ \DIFdelbegin \DIFdel{, and use the BGP MED attribute to influence $W$ to prefer $A$ }\DIFdelend over \DIFaddbegin \DIFadd{$F$, and have $A$ prefer }\DIFaddend $B$ \DIFdelbegin \DIFdel{. This might work }\DIFdelend \DIFaddbegin \DIFadd{over $C$. This works }\DIFaddend as expected under normal conditions, however, if the \DIFdelbegin \DIFdel{A -- C }\DIFdelend \DIFaddbegin \DIFadd{B--D }\DIFaddend link fails, then suddenly \DIFdelbegin \DIFdel{$C$ }\DIFdelend \DIFaddbegin \DIFadd{$D$ }\DIFaddend has made the wrong decision \DIFaddbegin \DIFadd{by preferring $E$}\DIFaddend . Traffic will now follow the
+\DIFdelbegin \DIFdel{$W \cdot B \cdot C \cdot D$ }\DIFdelend \DIFaddbegin \DIFadd{$A \cdot C \cdot D \cdot E \cdot G$ }\DIFaddend path, even though this path was not \DIFdelbegin \DIFdel{specified }\DIFdelend \DIFaddbegin \DIFadd{allowed }\DIFaddend by the policy. This is a violation of \emph{soundness}: The distributed implementation has used a route not specified by the policy. To make matters worse, the second preference \DIFdelbegin \DIFdel{$W \cdot B \cdot C \cdot E$ }\DIFdelend \DIFaddbegin \DIFadd{$A \cdot C \cdot D \cdot F \cdot G$ }\DIFaddend is available in the network but not being used. This is a violation of \emph{completeness}: A path for the best possible route available exists in the network but is not being used by the distributed implementation. 
+\DIFdelbegin \DIFdel{We could solve the first problem by filtering routes that go through $D$ at $B$, however , we can not fix the second problem---}\DIFdelend \DIFaddbegin 
 
-%and can not get either the primary or backup route specified, despite the fact that the $W \cdot B \cdot C \cdot E$ path is available in the network.
+\DIFadd{The soundness violation could be fixed by tagging and filtering route advertisements appropriately to have }\DIFaddend $C$ \DIFdelbegin \DIFdel{has made the wrong choice}\DIFdelend \DIFaddbegin \DIFadd{reject routes that went through $E$, however the completeness violation can not be fixed}\DIFaddend . In fact, this policy can not be implemented in BGP in a way that is policy compliant under all failures. \DIFaddbegin \DIFadd{The problem is that $D$ might "regret" its choice depending on what failures have occurred downstream.  
+}\DIFaddend 
 
-At a first cut, any time a router must make a decision locally between several route options, there is the possibility it might choose incorrectly. The PGIR captures this notion of choice precisely. For example, router $D$ in Figure~\ref{fig:example-compilation} appears only once in the PGIR, possibly receiving announcements from $X$ or $Y$. However, regardless of whether $D$ chooses a route from $X$ or $Y$, the set of paths allowed by the policy after going through $D$ will be the same in either case. This remains true despite any failures that might have occurred in the network. Thus $D$ can safely prefer $X$ and $Y$ equally.
+%DIF < and can not get either the primary or backup route specified, despite the fact that the $W \cdot B \cdot C \cdot E$ path is available in the network.
+\DIFaddbegin \begin{figure}[t!]
+  \centering
+  \includegraphics[width=.8\columnwidth]{figures/unimplementable}
+  \caption{Example topology for which the \sysname policy: $(\CD{A} \cdot \CD{B} \cdot \CD{D} \cdot \CD{E} \cdot \CD{G}) \Prefer (\CD{A} \cdot \CD{C} \cdot \CD{D} \cdot \CD{F} \cdot \CD{G})$ is unimplementable in BGP under arbitrary failures.}
+  \label{fig:unimplementable}
+  %\vspace{-1em}
+\end{figure}
+\DIFaddend 
 
-The more challenging case is when a topology location occurs in mutliple contexts in the PGIR. For example, in the compilation example from Figure~\ref{fig:example-compilation}, the topology node $C$ can receive an announcement from $E$ and later achieve the backup path, or it can receive an announcement from its neighbor $D$ and later achieve either the primary or backup path. Is it safe for $C$ to prefer its neighbor $D$ over its other neighbor $E$? The important observation is that, if $C$ prefers $D$, then it is never worse off---it will always achieve at least as good a path as if it had choosen $E$.
-For example, suppose $C$ chooses a route from $D$, but cannot achieve its primary path because the $A$ -- $W$ link has failed. In this case, the advertisement from $C$ will still be sent along towards the ultimate backup location $W$. Since the $(C,3,2)$ node has the same one-step and two-step next hops as node $(C,-,2)$ in the product graph, no possible failure will prevent a route advertisment from reaching $(W,-,4)$ that wouldn't have otherwise prevented it if $C$ had choosen $E$.
 
-In general, ensuring that an individual router's preferences respect the policy under all possible failures is hard, and enumerating all failures is intractable. We thus adopt a conservative analysis based on the observations above. The high-level idea is to order each PGIR node according to a \textit{can prefer} relation. For example, node $(C,3,2)$ can be preferred to node $(C,-,2)$, but not the other way around. Intuitively, a node $N_1$ can be preferred to another node $N_2$ when, for each preference $N_2$ might achieve, there is a better preference that $N_1$ will achieve regardless of failures. Formally this means that $N_1$ can be preferred to $N_2$ when:
+\DIFdelbegin \DIFdel{At a first cut, any time a router must make a decision locally between several route options, there is the possibility it might choose incorrectly. The PGIR captures this notion of choice precisely. For example, router $D$ in Figure~\ref{fig:example-compilation} appears only once in the PGIR, possibly receiving announcements from $X$ or $Y$.However, regardless of whether $D$ chooses a route from $X$ or $Y$, the set of paths allowed by the policy after going through $D$ will be the same in either case. This remains true despite any failures that might have occurred in the network. Thus $D$ can safely prefer$X$ and $Y$ equally.
+}\DIFdelend \DIFaddbegin \para{Problem Formulation}
+\DIFaddend 
+
+\DIFdelbegin \DIFdel{The more challenging case is when a topology location occurs in mutliple contexts in the PGIR. }\DIFdelend \DIFaddbegin \DIFadd{The problem of deciding local preferences for each router is closely reflected in the structure of the PGIR. In particular, whenever a given router appears in multiple different contexts in the PGIR (i.e., as multiple PGIR nodes), then the compiler must decide which context to prefer.
+%DIF > 
+}\DIFaddend For example, in \DIFdelbegin \DIFdel{the }\DIFdelend \DIFaddbegin \DIFadd{our }\DIFaddend compilation example from Figure~\ref{fig:example-compilation}, the topology node $C$ can receive an \DIFdelbegin \DIFdel{announcement }\DIFdelend \DIFaddbegin \DIFadd{advertisement }\DIFaddend from $E$ \DIFdelbegin \DIFdel{and later achieve the backup path, }\DIFdelend \DIFaddbegin \DIFadd{in one context }\DIFaddend or it can receive an \DIFdelbegin \DIFdel{announcement }\DIFdelend \DIFaddbegin \DIFadd{advertisement }\DIFaddend from its neighbor $D$ \DIFdelbegin \DIFdel{and later achieve either the primary or backup path. Is it safe for $C$ to prefer its neighbor $D$ over its other neighbor $E$? The important observation is that, if $C$ prefers $D$, then it is never worse off---it will always achieve at least as good a path as if it had choosen $E$}\DIFdelend \DIFaddbegin \DIFadd{in a different context. The compiler's task is to determine a }\emph{\DIFadd{total ordering}} \DIFadd{of contexts for each router in the topology, which reflects the relative preference of advertisements received in that context}\DIFaddend . For example, \DIFdelbegin \DIFdel{suppose $C$ chooses a route from $D$, but cannot achieve its primary path because the $A$ -- $W$ link has failed. In this case, the advertisement from $C$ will still be sent along towards the ultimate backup location $W$. Since the }\DIFdelend \DIFaddbegin \DIFadd{if the compiler determines that context }\DIFaddend $(C,3,2)$ \DIFdelbegin \DIFdel{node has the same one-step and two-step next hops as node }\DIFdelend \DIFaddbegin \DIFadd{is preferred $(<)$ to context }\DIFaddend $(C,-,2)$\DIFdelbegin \DIFdel{in the product graph, no possible failure will prevent a route advertisment from reaching $(W,-,4)$ that wouldn't have otherwise prevented it if $C$ had choosen }\DIFdelend \DIFaddbegin \DIFadd{, then $C$ will need to prefer advertisements heard from }\DIFaddend $E$ \DIFaddbegin \DIFadd{over $D$}\DIFaddend .
+
+\DIFaddbegin \para{Regret Freedom}
+
+
+%DIF > For example, in our compilation example from Figure~\ref{fig:example-compilation}, the topology node $C$ can receive an announcement from $E$ and later achieve the backup path, or it can receive an announcement from its neighbor $D$ and later achieve either the primary or backup path. Is it safe for $C$ to prefer its neighbor $D$ over its other neighbor $E$? The important observation is that, if $C$ prefers $D$, then it is never worse off---it will always achieve at least as good a path as if it had choosen $E$.
+%DIF > For example, suppose $C$ chooses a route from $D$, but cannot achieve its primary path because the $A$ -- $W$ link has failed. In this case, the advertisement from $C$ will still be sent along towards the ultimate backup location $W$. Since the $(C,3,2)$ node has the same one-step and two-step next hops as node $(C,-,2)$ in the product graph, no possible failure will prevent a route advertisment from reaching $(W,-,4)$ that wouldn't have otherwise prevented it if $C$ had choosen $E$.
+
+\DIFaddend In general, ensuring that an individual router's preferences respect the policy under all possible failures is hard, and enumerating all failures is intractable. We thus adopt a conservative analysis based on the observations above. The high-level idea is to order each PGIR node according to a \textit{can prefer} relation. For example, node $(C,3,2)$ can be preferred to node $(C,-,2)$, but not the other way around. Intuitively, a node $N_1$ can be preferred to another node $N_2$ when, for each preference $N_2$ might achieve, there is a better preference that $N_1$ will achieve regardless of failures. Formally this means that $N_1$ can be preferred to $N_2$ when:
 %
 $$\forall i, \exists j, j \leq i \wedge protect(G_j, N_1, G_i, N_2)$$
 %
@@ -1506,7 +1736,10 @@ After configuration generation, the compiler further processes the ABGP policy, 
 
 We have written a prototype compiler for \sysname that is implemented in roughly 5500 lines of F\# code. The compiler includes command-line flags for enabling or disabling the use of the BGP MED attribute, AS path prepending, the no-export community, as well as for ensuring at least k-failure safety for user-specified aggregates. Since each prefix has a separate routing policy, the \sysname compiler is able to compile each routing policy in parallel. The current compiler produces only ABGP policies, which can be incorporated into an existing template-based system, for example by mixing the \sysname configuration with other configuration components, or by generating vendor-specific configurations.
 
-\para{PG construction}
+\DIFdelbegin %DIFDELCMD < \para{PG construction}
+%DIFDELCMD < %%%
+\DIFdelend \DIFaddbegin \para{PGIR construction}
+\DIFaddend 
 
 Constructing automata for extended regular expressions (regular expressions including negation and intersection) are known to have high complexity~\cite{regex-complexity}. The \sysname compiler uses regular expressions derivatives~\cite{regex-derivatives} with character classes to construct deterministic automata for extended regular expressions over large alphabets efficiently. Since regular expressions are defined over a finite alphabet, and since much of the AS topology is unknown, we set the alphabet to include all uniquely referenced external ASes in the policy. Similarly, to model the unknown external AS topology beyond immediate peers, we include a special topology node to represent any unknown location.
 %
@@ -1536,7 +1769,22 @@ The naive code generation algorithm described in Section~\ref{sec:compilation} i
 %
 %=====================================================
 
-\begin{figure}
+
+\DIFdelbegin %DIFDELCMD < \begin{figure}
+%DIFDELCMD <   \subcaptionbox{Data center}
+%DIFDELCMD <     {\includegraphics[width=.49\columnwidth]{figures/compilation-times-dc.png}}
+%DIFDELCMD <   \subcaptionbox{Backbone network}
+%DIFDELCMD <     {\includegraphics[width=.49\columnwidth]{figures/compilation-times-backbone.png}} \\
+%DIFDELCMD <   \caption{Compilation time. \label{fig:compilation-times}}
+%DIFDELCMD <   \vspace{-1em}
+%DIFDELCMD < \end{figure}
+%DIFDELCMD < 
+
+%DIFDELCMD < %%%
+\DIFdelend \section{Evaluation}
+\label{sec:evaluation}
+
+\DIFaddbegin \begin{figure}
   \subcaptionbox{Data center}
     {\includegraphics[width=.49\columnwidth]{figures/compilation-times-dc.png}}
   \subcaptionbox{Backbone network}
@@ -1545,10 +1793,7 @@ The naive code generation algorithm described in Section~\ref{sec:compilation} i
   \vspace{-1em}
 \end{figure}
 
-\section{Evaluation}
-\label{sec:evaluation}
-
-We apply \sysname on real policies for backbone and data center networks. Our mains goals are to evaluate if its front-end is expressive enough for real-world policies and the time the compiler takes to generate router configurations.
+\DIFaddend We apply \sysname on real policies for backbone and data center networks. Our mains goals are to evaluate if its front-end is expressive enough for real-world policies and the time the compiler takes to generate router configurations.
 
 \subsection{Networks studied}
 
@@ -1558,20 +1803,24 @@ The networks have the type of policies that we outline earlier (\S\ref{sec:motiv
 
 All routers in the datacenter network run BGP using a private AS number and peer with each other and with the backbone network over eBGP. The routers aggregate prefixes when announcing them to the backbone network, they keep some prefixes internal, and attach communities for some other prefixes that should not traverse beyond the geographic region. They also have policies by which some prefixes should not be announced beyond a certain tier in the datacenter hierarchy.
 
-\begin{figure}
-  \subcaptionbox{Data center}
-    {\includegraphics[width=.49\columnwidth]{figures/config-compression-dc.png}}
-  \subcaptionbox{Backbone network}
-    {\includegraphics[width=.49\columnwidth]{figures/config-compression-backbone.png}} \\
-  \caption{Configuration minimization. \label{fig:config-min}}
-  \vspace{-1em}
-\end{figure}
 
-\subsection{Expressiveness}
+\DIFdelbegin %DIFDELCMD < \begin{figure}
+%DIFDELCMD <   \subcaptionbox{Data center}
+%DIFDELCMD <     {\includegraphics[width=.49\columnwidth]{figures/config-compression-dc.png}}
+%DIFDELCMD <   \subcaptionbox{Backbone network}
+%DIFDELCMD <     {\includegraphics[width=.49\columnwidth]{figures/config-compression-backbone.png}} \\
+%DIFDELCMD <   \caption{Configuration minimization. \label{fig:config-min}}
+%DIFDELCMD <   \vspace{-1em}
+%DIFDELCMD < \end{figure}
+%DIFDELCMD < 
+
+%DIFDELCMD < %%%
+\DIFdelend \subsection{Expressiveness}
 
 We found that we could translate all network policies to \sysname. We verified with the operators that our translation preserved intended semantics.\footnote{Not intended as a scientific test, but we also asked the two operators if they would find it easy to express their policies in \sysname. The data center operator said that he found the language intuitive. The backbone operator said that formalizing the policy in \sysname seemed equally easy or difficult as formalizing in RPSL~\cite{RFC2622}, but he appreciated that he would have to do it only once for the whole network (not per-router) and did not have to manually compute various local preferences, import-export filters, and MEDs.} We found that the data center policies were correctly translated. For the backbone network, the operator mentioned an additional policy that was not present in the English document, which we added later.
 
 Not counting the lines for various definitions like prefix and customer groups or for prefix ownership constraints, which we cannot reveal because of confidentiality concerns, the \sysname policies were 43 lines for the backbone network and 31 lines for the data center networks.
+
 
 \subsection{Compilation time}
 
@@ -1617,8 +1866,16 @@ Total compilation for the largest data center is less than 9 minutes total. Unli
 
 %
 
+\DIFaddbegin \begin{figure}[t!]
+  \subcaptionbox{Data center}
+    {\includegraphics[width=.49\columnwidth]{figures/config-compression-dc.png}}
+  \subcaptionbox{Backbone network}
+    {\includegraphics[width=.49\columnwidth]{figures/config-compression-backbone.png}} \\
+  \caption{Configuration minimization. \label{fig:config-min}}
+  \vspace{-1em}
+\end{figure}
 
-\subsection{Configuration size}
+\DIFaddend \subsection{Configuration size}
 
 Figure~\ref{fig:config-min} shows the size of the compiled ABGP policies as a function of the topology size. The naive translation of PGIR to ABGP outlined in \S\ref{sec:compilation} generates extremely large ABGP policies by default. To offset this, the compiler performs ABGP configuration minimization both during and after the PGIR to ABGP translation phase.
 %Such minimization is useful for limiting the computational expense of matching routes on BGP routers, reducing the number of forwarding entries in routers in certain cases, and making configurations more readable for humans.
@@ -1729,17 +1986,17 @@ as opposed to using logic programming and SAT-based model-finding.
 %We also believe the high-level, centralized nature of \sysname policies
 %has the benefit of making configurations
 %easier to understand and maintain.
-\DIFaddbegin 
 
 
 
-%DIF > =====================================================
-%DIF > 
-%DIF > 
+%=====================================================
+%
+%
 %DIF >   **Future Work**
 %DIF > 
 %DIF > 
 %DIF > =====================================================
+\DIFaddbegin 
 
 
 \section{\DIFadd{Future Work}}
@@ -1751,15 +2008,15 @@ Another direction would be to perform policy verification at the level of centra
 While we target BGP in this paper as a distributed backend for }\sysname \DIFadd{due to its expressiveness, scalability, and uniformity, it should be possible to use other protocols to achieve different types of routing policies (e.g., OSPF). In particular, one could potentially combine different distributed routing protocols through route redistribution to achieve a larger variety of policies.
 %DIF > 
 Another possible future direction is automate AS-wide load balancing for BGP. Load-balancing with BGP across external ASes is difficult since there are few mechanisms at the operators disposal. However BGP policies can artificially prepend to the AS path to increases its length, and influence peer decisions. The product graph representation describes, not only which neighbors routers should prefer, but also which neighbors it is indifferent towards. Thus the compiler knowns when it can safely perform load-balancing across different neighbors.
-}\DIFaddend 
+}
 
 
 
 
-%=====================================================
-%
-%
-%  **Conclusions**
+%DIF > =====================================================
+%DIF > 
+%DIF > 
+\DIFaddend %  **Conclusions**
 %
 %
 %=====================================================
@@ -1806,27 +2063,62 @@ For example, imagine we use the data center example from \S\ref{sec:motivation},
 \CD{PG1} \Path \text{ }\End(\CD{A}), where \CD{PG1} falls under the \CD{PG} aggregate. Figure~\ref{fig:aggregation-safety} shows the network topology and a simplified PGIR. Since the compiler knows an aggregate will be placed at $X$, and it knows that, the route for \CD{PG1} will originate at $A$, we can compute the number of failures it would take to disconnect $A$ from $X$. We could remove the $A$--$D$--$X$ path first. We would then need to remove any other $A$--$D$ or $D$--$X$ links from the PGIR, though in this case there are none. Next, we could remove the links along the $A$--$C$--$X$ path, repeating the process. Because $A$ is then disconnected from $X$, the compiler knowns that 2 is a lower bound on the number of failures for aggregation safety for prefix \CD{PG1}. This process is repeated for other aggregation locations (e.g., $Y$).
 
 
-\subsection{Propane Properties}
+\DIFdelbegin \subsection{\DIFdel{Propane Properties}}
+%DIFAUXCMD
+\addtocounter{subsection}{-1}%DIFAUXCMD
+%DIFDELCMD < 
 
-\newtheorem{prop}{Proposition}[section]
+%DIFDELCMD < \newtheorem{prop}{Proposition}[section]
+%DIFDELCMD < 
 
+%DIFDELCMD < %%%
+\DIFdelend %DIF > \subsection{Propane Properties}
+%DIF > 
+%DIF > \newtheorem{prop}{Proposition}[section]
+%DIF > 
 %Here we investigate the correctness and expressiveness properties of \sysname. We are mainly concerned with answering the following questions: (1) does the distributed, compiled policy faithfully implement the user's policy regardless of failures? (2) Are the resulting BGP configurations stable?, and (3) what polcies are or are not expressible in \sysname?
+\DIFdelbegin %DIFDELCMD < 
 
+%DIFDELCMD < %%%
+\DIFdelend %DIF > 
 %If \sysname compiles a user policy to a distributed implementation, then that distributed implementation faithfully meets the centralized policy's semantics under any failure scenario. We are primarily concerned with the steady state: that is, what happens after (if) the routing protocol converges. We argue that \sysname is correct by breaking down the claim:
+\DIFdelbegin %DIFDELCMD < 
 
-\begin{prop}
-BGP configurations for internal routers produced by \sysname will be stable. 
-\end{prop}
+%DIFDELCMD < \begin{prop}
+%DIFDELCMD < %%%
+\DIFdel{BGP configurations for internal routers produced by }%DIFDELCMD < \sysname %%%
+\DIFdel{will be stable. 
+}%DIFDELCMD < \end{prop}
+%DIFDELCMD < 
 
-\begin{prop}
-BGP configurations produced by \sysname are \textit{Sound} with respect to the policy: That is, any route traffic takes in the network, is a valid route specified by the policy.
-\end{prop}
-%
+%DIFDELCMD < \begin{prop}
+%DIFDELCMD < %%%
+\DIFdel{BGP configurations produced by }%DIFDELCMD < \sysname %%%
+\DIFdel{are }\textit{\DIFdel{Sound}} %DIFAUXCMD
+\DIFdel{with respect to the policy: That is, any route traffic takes in the network, is a valid route specified by the policy.
+}%DIFDELCMD < \end{prop}
+%DIFDELCMD < %%%
+\DIFdelend %
+%DIF > \begin{prop}
+%DIF > BGP configurations for internal routers produced by \sysname will be stable. 
+%DIF > \end{prop}
+%DIF > 
+%DIF > \begin{prop}
+%DIF > BGP configurations produced by \sysname are \textit{Sound} with respect to the policy: That is, any route traffic takes in the network, is a valid route specified by the policy.
+%DIF > \end{prop}
+%DIF > 
 %The Soundness claim follows directly from compilation of the product graph. Since every path through the product graph (from start to end) must match the user's policy, and since the compiled configurations use communities to ensure only valid routes through the product graph are used, the resulting BGP configurations are Sound. 
 %
-\begin{prop}
-BGP configurations produced by \sysname are \textit{Complete}: That is, the distributed implementation always obtains a most preferred route between two nodes when the corresponding path exists in the network.
-\end{prop}
+\DIFdelbegin %DIFDELCMD < \begin{prop}
+%DIFDELCMD < %%%
+\DIFdel{BGP configurations produced by }%DIFDELCMD < \sysname %%%
+\DIFdel{are }\textit{\DIFdel{Complete}}%DIFAUXCMD
+\DIFdel{: That is, the distributed implementation always obtains a most preferred route between two nodes when the corresponding path exists in the network.
+}%DIFDELCMD < \end{prop}
+%DIFDELCMD < %%%
+\DIFdelend %DIF > \begin{prop}
+%DIF > BGP configurations produced by \sysname are \textit{Complete}: That is, the distributed implementation always obtains a most preferred route between two nodes when the corresponding path exists in the network.
+%DIF > \end{prop}
 %
 %The argument for completeness is as follows: Assume the most preferred path that exists in the network is between two nodes $X$ and $Y$.  This means there is a valid path in the product graph corresponding to this path, and which is available in the network. 
 %Assume we are unable to achieve this route in the network. To not achieve this path means that some router along the advertisement route from $Y$ to $X$ preferred to accept an advertisement from another peer instead. This implies that router that makes the ``wrong'' choice appears as a separate node in the product graph. However, from our failure safety check, we know that the other, more-preferred node must have a superset of the paths to accepting states as the less preferred node (from which it stole the route) for at least as good of a final preference. The argument then proceeds by induction on the path length - there are only a finite number of such stealings that can occur, each of which will ultimately still result in a route advertisement reaching $X$ along a most preferred path.

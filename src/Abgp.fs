@@ -1130,7 +1130,7 @@ let compileToIR fullName idx pred (polInfo: Ast.PolInfo option) aggInfo (reb: Re
         let k = getMinAggregateFailures cg pred aggInfo
 
         // check that there is a valid ordering for BGP preferences to ensure compliance
-        let (ordering, orderTime) = Profile.time (Consistency.findOrderingConservative idx cg polInfo) fullName
+        let (ordering, orderTime) = Profile.time (Consistency.findOrderingConservative idx) cg
         match ordering with
         | Ok ord ->
             let config, configTime = Profile.time (genConfig cg pred ord) inExports
