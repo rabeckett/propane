@@ -716,7 +716,7 @@ Here we define transit traffic between groups of neighbors $X$ and $Y$ as traffi
            \NOT{}cust-transit(Cust,Prov)\}
 \end{code}
 \noindent
-The \CD{NoTrans} constraint above requires that all traffic not follow a path that transits the network between \CD{Peer} and \CD{Prov}.
+The \CD{NoTrans} constraint requires that all traffic not follow a path that transits the network between \CD{Peer} and \CD{Prov}.
 Additionally, it prevents traffic from ever following paths that leave our network and later go through both \CD{Prov} and \CD{Cust}.  To implement both \CD{Routing}
 and \CD{NoTrans} simultaneously, we simply conjoin them: \CD{Routing \AND{} NoTrans}.
 %
@@ -1173,7 +1173,7 @@ Additionally, we add edges from the start node $s$ to any $v = (x, a_1, \dots, a
 %
 The preference function $P$ for node $v = (x, a_1, \dots, a_m)$ is defined as $P(v) = \set{i~\vert~a_i \in F_i} $. That is, it records which preferences are achieved from each policy automaton for every node in the product construction.
 %
-Finally, there is an edge from each node in the PGIR such that $P(v) \neq \emptyset$ to the special end node $e$. We say that $x \leq_{rank} y$ if either $P(x) = P(y) = \emptyset$ or $min ~ P(x) \leq min ~ P(y)$, which simply states that paths that end at PGIR node $x$ are better than (lower rank) than paths that end at $y$.
+Finally, there is an edge from each node in the PGIR such that $P(v) \neq \emptyset$ to the special end node $e$. We write $(x \leq_{rank} y)$ if either $P(x) = P(y) = \emptyset$ or $min ~ P(x) \leq min ~ P(y)$, which means that paths ending at PGIR node $x$ are better than (lower rank) than paths that ending at $y$.
 
 
 Intuitively, PGIR tracks which states of each automaton the policy is in as route announcements move between routers.
@@ -1186,7 +1186,7 @@ Figure~\ref{fig:example-compilation} shows the policy automata for each regular 
 %
 The figure also shows the PGIR after intersecting the topology and policy automata. Every path in the PGIR corresponds to a concrete path in the topology. In particular, every path through the PGIR that ends at a node $v$ such that the preference function $P(v) = \set{i_1, \dots, i_m}$ is non-empty, is a valid topological path that satisfies the policy constraints and results in a particular path with preferences $i_1$ through $i_m$.
 %
-For example, the path $X \cdot D \cdot C \cdot A \cdot W$ is a valid path in the topology that BGP route announcements might take, which would lead to obtaining a path with the most prefered preference of $1$.
+For example, the path $X \cdot D \cdot C \cdot A \cdot W$ is a valid path in the topology that BGP route announcements might take, which would lead to obtaining a path with the lowest (best) rank of $1$.
 BGP control messages can start from peer X, which would match the $\Out$ transition from both automata, leading to state $1$ in the first automaton, and state $1$ in the second automaton. This is reflected in the product graph by the node with state $(X,1,1)$. From here, if X were to advertise this route to D, it would result in the path $D \cdot X$, which would lead to state $2$ in the first automaton, and state $2$ in the second automaton, and so on.
 %
 The ``--" state indicates the corresponding automaton can not accept the current path or any extension of it. Since node $(W,5,-)$ is in an accepting state for the first automata, it indicates that this path has preference 1.
@@ -1232,7 +1232,7 @@ Colored nodes and dashed edges in Figure~\ref{fig:example-compilation} are remov
 
 \subsection{Failure Analysis}
 
-To implement path preferences in routing, BGP uses local preferences on a per-device basis. However, the distributed nature of BGP makes setting preferences locally to achieve a network-route routing policy difficult. This task becomes even more challenging in the presence of failures since routers running BGP lack a global view of the network and thus cannot make dynamic routing decisions based on the which network elements are up or down.
+To implement path preferences in routing, BGP uses local preferences on a per-device basis. However, the distributed nature of BGP makes setting preferences locally to achieve a network-route routing policy difficult. This task becomes even more challenging in the presence of failures since routers running BGP lack a global view of the network.
 
 \para{An illustrative example}
 
@@ -1242,8 +1242,8 @@ $(\CD{A} \cdot \CD{B} \cdot \CD{D} \cdot \CD{E} \cdot \CD{G})  \Prefer (\CD{A} \
 %
 How could such a policy be implemented in BGP? Suppose we set the local preferences to have $D$ prefer $E$ over $F$, and have $A$ prefer $B$ over $C$. This works as expected under normal conditions, however, if the B--D link fails, then suddenly $D$ has made the wrong decision by preferring $E$. Traffic will now follow the
 $A \cdot C \cdot D \cdot E \cdot G$ path, even though this path was not allowed by the policy. This is a violation of \emph{soundness}: The distributed implementation has used a route not specified by the policy. To make matters worse, the second preference $A \cdot C \cdot D \cdot F \cdot G$ is available in the network but not being used. This is a violation of \emph{completeness}: A path for the best possible route available exists in the network but is not being used by the distributed implementation. 
-
-The soundness violation could be fixed by tagging and filtering route advertisements appropriately to have $C$ reject routes that went through $E$, however the completeness violation can not be fixed. In fact, this policy can not be implemented in BGP in a way that is policy compliant under all failures. The problem is that $D$ might "regret" its choice depending on what failures have occurred downstream.  
+%
+The soundness violation could be fixed by tagging and filtering route advertisements appropriately so that $C$ rejects routes that go through $E$, however the completeness violation can not be fixed. In fact, this policy can not be implemented in BGP in a way that is policy compliant under all failures.
 
 \begin{figure}[t!]
   \centering
@@ -1258,21 +1258,22 @@ The soundness violation could be fixed by tagging and filtering route advertisem
 
 The problem of deciding local preferences for each router is closely reflected in the structure of the PGIR. In particular, whenever a given router appears in multiple different contexts in the PGIR (i.e., as multiple PGIR nodes), then the compiler must decide which context to prefer.
 %
-For example, in our compilation example from Figure~\ref{fig:example-compilation}, the topology node $C$ can receive an advertisement from $E$ in context $(C,-,2)$ or it can receive an advertisement from its neighbor $D$ in context $(C,3,2)$. 
+In our compilation example from Figure~\ref{fig:example-compilation}, the topology node $C$ can receive an advertisement from $E$ in context $(C,-,2)$ or it can receive an advertisement from its neighbor $D$ in context $(C,3,2)$. 
 %
-The compiler's task is to determine a \emph{total ordering} of contexts for each router in the topology, which reflects the relative preference of advertisements received in each context. For example, if the compiler determines that context $(C,3,2)$ is preferred to context $(C,-,2)$, written as $(C,3,2) < (C,-,2)$, then $C$ will prefer advertisements heard from $D$ over $E$.
+The compiler's task is to determine a \emph{total ordering} of contexts for each router in the topology, which reflects the relative preference of advertisements received in each context. For example, if the compiler determines that, for router $C$, context $(C,3,2)$ is preferred to context $(C,-,2)$, written as $(C,3,2) <_{pref} (C,-,2)$, then this means that $C$ will prefer advertisements heard from $D$ (with tag $(2,2)$) over $E$ (with tag $(-,2)$). Section~\ref{sec:abgp} discusses our encoding of preferences and filters in more detail.
 
 \para{Regret-free Preferences}
 
-How should the compiler determine a total ordering of PGIR contexts for each router in a way that is \emph{sound} and \emph{complete} under all possible failures? To this end, we introduce \emph{regret-free} preferences, a sufficient condition for correctness motivated by the observations from our previous example. Intuitively, preferences are \emph{regret-free} if, whevever some router $r$ prefers an advertisement $X$ over another $Y$, there is always some policy-compliant path to each final (advertisement) destination that is at least as good as any path if it had accepted $Y$ instead.
+A natural question then is how the compiler should order PGIR contexts for each router in a way that is both \emph{sound} and \emph{complete} under all possible failures? To this end, we introduce the notion of \emph{regret-free} preferences, which is motivated by the observations from the example in Figure~\ref{fig:unimplementable}. Preferences are \emph{regret-free} if, whevever some router $r$ prefers an advertisement $X$ over another $Y$, there is always some policy-compliant path to each final (advertisement) destination $d$ that is at least as good $(\leq_{rank})$ as any possible path to $d$ if it had accepted $Y$ instead. In other words, the preference of $X$ over $Y$ at $r$ is regret-free if we are never worse off by choosing $X$.
+%
+In the compilation example from Figure~\ref{fig:example-compilation}, the choice for $C$ to prefer context $(C,3,2)$ to $(C,-,2)$ is regret-free, since there will always be at least as good a path to destination $W$ regardless of any failures that might occur in the network. 
 
-We now explain this property more formally in terms of the structure of the PGIR. We use the notation $path(s,d)$ to say that there exists a path in the PGIR from $s$ to $d$. 
+%We now explain this property more formally in terms of the structure of the PGIR. We use the notation $path(s,d)$ to say that there exists a path in the PGIR from $s$ to $d$. 
 %
-Preferences (for the PGIR) are \emph{regret-free} if, given (i) any combination of failed topology links\footnote{Note that a single failure in the topology may correspond to zero or more failed nodes/edges in the PGIR}, (ii) a fixed topology (advertisement) destination $d$, and (iii) two contexts $N_1 < N_2$, then whever there exists a $d'$ such that $loc(d') = d$ and $path(N_2,d')$, then there exists a $d''$ such that $loc(d'') = d$ and $path(N_1,d'')$ with $d'' \leq_{rank} d'$.
+%Preferences (for the PGIR) are \emph{regret-free} if, given (i) any combination of failed topology links\footnote{Note that a single failure in the topology may correspond to zero or more failed nodes/edges in the PGIR}, (ii) a fixed topology (advertisement) destination $d$, and (iii) two contexts $N_1 < N_2$, then whever there exists a $d'$ such that $loc(d') = d$ and $path(N_2,d')$, then there exists a $d''$ such that $loc(d'') = d$ and $path(N_1,d'')$ with $d'' \leq_{rank} d'$.
 %
-The property simply says that if router $N$ prefers context $N_1$ to $N_2$, then any time there is a path from $N_2$ to some destination $d$, then there exists a better (lower ranked) path from $N_1$ to destination $d$. 
+%The property simply says that if router $N$ prefers context $N_1$ to $N_2$, then any time there is a path from $N_2$ to some destination $d$, then there exists a better (lower ranked) path from $N_1$ to destination $d$. 
 %
-For example, the compilation example in Figure~\ref{fig:example-compilation}, a choice for $C$ to prefer context $(C,3,2)$ to $(C,-,2)$ would be regret-free, since there is always at least as good a path to destination $W$ regardless of failures. 
 
 
 
@@ -1281,13 +1282,13 @@ For example, the compilation example in Figure~\ref{fig:example-compilation}, a 
 %For example, in our compilation example from Figure~\ref{fig:example-compilation}, the topology node $C$ can receive an announcement from $E$ and later achieve the backup path, or it can receive an announcement from its neighbor $D$ and later achieve either the primary or backup path. Is it safe for $C$ to prefer its neighbor $D$ over its other neighbor $E$? The important observation is that, if $C$ prefers $D$, then it is never worse off---it will always achieve at least as good a path as if it had choosen $E$.
 %For example, suppose $C$ chooses a route from $D$, but cannot achieve its primary path because the $A$ -- $W$ link has failed. In this case, the advertisement from $C$ will still be sent along towards the ultimate backup location $W$. Since the $(C,3,2)$ node has the same one-step and two-step next hops as node $(C,-,2)$ in the product graph, no possible failure will prevent a route advertisment from reaching $(W,-,4)$ that wouldn't have otherwise prevented it if $C$ had choosen $E$.
 
-Clearly searching for \emph{regret-free} preferences by enumerating all possible combinations of failures and preference orderings is intractable. We thus adopt a conservative analysis that we found to be highly-effective in practice. The idea is to search for regret-free preferences while also refining the search when possible by taking into account information about where advertisements must have already traversed. 
+Searching for \emph{regret-free} preferences in general is hard, and clearly enumerating all possible combinations of failures and preference orderings is intractable. We thus adopt a conservative analysis that we found to be both effective and efficient in practice. The idea is to search for regret-free preferences by comparing the set of paths available after accepting advertisments in two different PGIR contexts $N_1$ and $N_2$ while refining the comparison when necessary by taking into account information about where advertisements must have already traversed the network before arriving at $N_1$ or $N_2$.
 
 \begin{algorithm}[t!]
 \caption{Failure Protection}
 \label{alg:failures}
 \begin{algorithmic}[1]
-\Procedure{Protect($G$, $N_1$, $N_2$)}{}
+\Procedure{Regret-free($G$, $N_1$, $N_2$)}{}
   \If {$loc(N_1) \neq loc(N_2)$} \Return false
   \EndIf
   \State $q \gets Queue()$
@@ -1313,19 +1314,14 @@ Clearly searching for \emph{regret-free} preferences by enumerating all possible
 \end{algorithmic}
 \end{algorithm}
 
-The analysis determines that context $N_1 < N_2$ if $N_1$ \textit{protects} against the failures of $N_2$.
-%
-Algorithm~\ref{alg:failures} defines what it means for one node to \textit{protect} against the failures of another. The algorithm walks from nodes $N_1$ and $N_2$ and ensures that for every \textit{step} $N_2$ can take to some new topology location, $N_1$ can, at the very least, take an equivalent step. 
-%
-When there is no equivalent step, the algorithm attempts to take into account where the advertisement must have already traversed to have arrived at $N_1$. In particular, it checks to see if there is an equivalent dominator (a topology location the advertisement must have passed through earlier) that can protect against failures instead.
 
-By repeating this process, we are ensured that any time $N$ receives an advertisement in both context $N_2$ and $N_1$, $N$ can safely prefer $N_1$, knowing that BGP will obtain end-to-end paths which are at least as good as it would have if $N$ had preferred $N_2$. Algorithm~\ref{alg:failures} terminates since the number of related states $(x,y)$ that can be explored is finite.
+Algorithm~\ref{alg:failures} checks whether one context can be preferred to another ($N_1 <_{pref} N_2$). The algorithm walks from nodes $N_1$ and $N_2$ and ensures that for every \textit{step} $N_2$ can take to some new topology location, $N_1$ can, at the very least, also take a step to an equivalent topology location. When there is no such equivalent step, the algorithm attempts to take into account where the advertisement must have already traversed. In particular, it checks to see if there is an equivalent dominator (a topology location the advertisement must have passed through earlier) and walks from this new node instead. Algorithm~\ref{alg:failures} terminates since the number of related states $(x,y)$ that can be explored is finite.
 
-For each router in the topology, local preferences are now obtained by sorting the corresponding PGIR contexts according to the $(<)$ relation. If two nodes are incomparable, then the compiler rejects the policy as unimplementable.
+For each router in the topology, local preferences are now obtained by sorting the corresponding PGIR contexts according to the $(<_{pref})$ relation. If two nodes are incomparable, then the compiler rejects the policy as unimplementable.
 
 \para{Avoiding Loops}
 
-The checks for failure safety described above overlook one critical point: A better (lower rank) path might not be available after some router $N$ due to loops. To avoid this situation, the compiler checks that, any time some context $N_1$ appears ``above'' (i.e., can reach) $N_2$ in the PGIR, then $N_1$ must be strictly preferred to $N_2$. The idea is that anytime $N_2$ is not available to use because the advertisement already went through $N_1$, it ultimately does not matter since $N_1$ will result in strictly better end-to-end paths.
+The checks for failure safety described above overlook one critical point: A better (lower rank) path might not be available due to loops. To avoid this situation, the compiler checks that, any time some context $N_1$ appears ``above'' (i.e., can reach) $N_2$ in the PGIR, then $N_1$ must be strictly preferred to $N_2$. The idea is that anytime $N_2$ is not usable because the advertisement already went through $N_1$, it ultimately does not matter since $N$ has a regret-free preference for $N_1$ anyway.
 
 
 %It is fine however, to reuse the same nodes that appear above $x$, since any path that went through another node $z$ to get to $x$, but then looped through $z$ again, would be obtainable from $z$ itself.
@@ -1333,7 +1329,12 @@ The checks for failure safety described above overlook one critical point: A bet
 
 \para{Aggregation-Induced Black Holes}
 Because the \sysname compiler has the complete user policy and topology, it is also able to efficiently check that aggregates do not black hole traffic for up to $k$ failures. The algorithm for aggregation failure safety is detailed in Section~\ref{sec:black-holes} of the appendix.
+
+
+
 \subsection{Abstract BGP}
+\label{sec:abgp}
+
 
 %\begin{figure}[t!]
 %\centering

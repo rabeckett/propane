@@ -1,7 +1,7 @@
 \documentclass{sig-alternate-10pt}
 %DIF LATEXDIFF DIFFERENCE FILE
 %DIF DEL paper.tex          Tue Jun  7 10:15:16 2016
-%DIF ADD paper-edited.tex   Thu Jun  9 16:23:28 2016
+%DIF ADD paper-edited.tex   Thu Jun  9 17:37:43 2016
 
 \usepackage{amsmath}
 \usepackage{amssymb}
@@ -1603,10 +1603,13 @@ The property simply says that if router $N$ prefers context }\DIFaddend $N_1$ \D
   \State $q.Enqueue (N_1, N_2)$
   \While {$!q.Empty()$}
     \State $(n_1,n_2) \gets q.Dequeue()$
-    \For {$x$ in adj(\DIFdelbegin \DIFdel{$G_2$}\DIFdelend \DIFaddbegin \DIFadd{$G$}\DIFaddend , $n_2$)}
+    \DIFaddbegin \If {\DIFadd{$n_1 \nleq_{rank} n_2$}} 
+      \Return \DIFadd{false
+    }\EndIf
+    \DIFaddend \For {$x$ in adj(\DIFdelbegin \DIFdel{$G_2$}\DIFdelend \DIFaddbegin \DIFadd{$G$}\DIFaddend , $n_2$)}
       \If {\big($\exists y \in$ adj(\DIFdelbegin \DIFdel{$G_1$}\DIFdelend \DIFaddbegin \DIFadd{$G$}\DIFaddend ,$n_1$), shadows $x$\big) \textbf{or} \\  
             \hspace{5.2em} \big($\exists y \in$ \DIFdelbegin \DIFdel{$G_1$}\DIFdelend \DIFaddbegin \DIFadd{$G$}\DIFaddend , dominates $n_1$, shadows $x$\big)}
-        \If {$(x,y)$ not marked \DIFaddbegin \DIFadd{$\wedge$ $x \leq_{rank} y$}\DIFaddend }
+        \If {$(x,y)$ not marked}
           \State {mark $(x,y)$ as seen}
           \State $q.Enqueue(x,y)$
         \EndIf
@@ -1692,7 +1695,7 @@ The final stage of our compiler translates policies from PGIR to a vendor-neutra
 
 \para{From PGIR to ABGP}
 
-Once we have the ordering on node preferences in the PGIR from the failure safety analysis, the translation to ABGP is straightforward. The idea is to encode the state of the automaton using BGP community values. Each router will match based on its peer and a community value corresponding to the state of the PGIR, and then update the state before exporting to the neighbors permitted by the PGIR. For example, router $A$ in Figure~\ref{fig:example-compilation} will allow an announcement from $C$ with a community value for state $(3,2)$ (and deny anything else). If it sees such an announcement, it will remove the old community value, and add a new one for state $(4,2)$ before exporting it to $W$.
+Once we have the ordering on node preferences in the PGIR from the failure safety analysis, the translation to ABGP is straightforward. The idea is to encode the state of the \DIFdelbegin \DIFdel{automaton }\DIFdelend \DIFaddbegin \DIFadd{automata }\DIFaddend using BGP community values. Each router will match based on its peer and a community value corresponding to the state of the PGIR, and then update the state before exporting to the neighbors permitted by the PGIR. For example, router $A$ in Figure~\ref{fig:example-compilation} will allow an announcement from $C$ with a community value for state $(3,2)$ (and deny anything else). If it sees such an announcement, it will remove the old community value, and add a new one for state $(4,2)$ before exporting it to $W$.
 
 To ensure preferred paths are always obtained, for each router $r$ in the topology, the compiler sets a higher local preference for neighbors of a more-preferred node for $r$ in the PGIR. For example, $C$ will prefer an advertisement from $D$ in state $(2,2)$ over an advertisement from $E$ in state $(-,2)$.
 
@@ -1791,8 +1794,7 @@ When computing local preferences and failure safety, as described in Section~\re
 
 \para{Configuration generation}
 
-The naive code generation algorithm described in Section~\ref{sec:compilation} is extremely memory inefficient since it generates a separate match-export pair for every unique in edge/out edge pair for every node in the product graph before minimization. Our implementation performs partial minimization during generation by recognizing common cases where there is no restriction on exporting to or importing from neighbors.
-
+The naive code generation algorithm described in Section~\ref{sec:compilation} is extremely memory inefficient since it generates a separate match-export pair for every unique in edge/out edge pair for every node in the product graph before minimization. Our implementation performs partial minimization during generation by recognizing common cases \DIFdelbegin \DIFdel{where }\DIFdelend \DIFaddbegin \DIFadd{like when }\DIFaddend there is no restriction on exporting to or importing from neighbors.
 
 
 
@@ -1862,7 +1864,8 @@ All routers in the datacenter network run BGP using a private AS number and peer
 
 We found that we could translate all network policies to \sysname. We verified with the operators that our translation preserved intended semantics.\footnote{Not intended as a scientific test, but we also asked the two operators if they would find it easy to express their policies in \sysname. The data center operator said that he found the language intuitive. The backbone operator said that formalizing the policy in \sysname seemed equally easy or difficult as formalizing in RPSL~\cite{RFC2622}, but he appreciated that he would have to do it only once for the whole network (not per-router) and did not have to manually compute various local preferences, import-export filters, and MEDs.} We found that the data center policies were correctly translated. For the backbone network, the operator mentioned an additional policy that was not present in the English document, which we added later.
 
-Not counting the lines for various definitions like prefix and customer groups or for prefix ownership constraints, which we cannot reveal because of confidentiality concerns, the \sysname policies were 43 lines for the backbone network and 31 lines for the data center networks.
+Not counting the lines for various definitions like prefix and customer groups or for prefix ownership constraints, which we cannot reveal because of confidentiality concerns, the \DIFdelbegin %DIFDELCMD < \sysname %%%
+\DIFdel{policies }\DIFdelend \DIFaddbegin \DIFadd{routing policies for }\sysname \DIFaddend were 43 lines for the backbone network and 31 lines for the data center networks.
 
 
 \subsection{Compilation time}
@@ -1901,13 +1904,16 @@ For the backbone network, the internal topology does not matter since all router
 
 All experiments are run on an 8 core, 3.6 GHz Intel Xeon processor running Windows 7.
 %
-Figure~\ref{fig:compilation-times} shows the compilation times for data centers (a), and backbone networks (b) of different sizes. For both policies, we measure the mean compilation time per prefix since the compiler operates on each prefix in parallel. At their largest sizes, the per-prefix compilation time is roughly 10 seconds for the data center network and 45 seconds for the backbone network.
+Figure~\ref{fig:compilation-times} shows the compilation times for data centers (a), and backbone networks (b) of different sizes. For both policies, we measure the mean compilation time per prefix \DIFaddbegin \DIFadd{predicate }\DIFaddend since the compiler operates on each prefix \DIFaddbegin \DIFadd{predicate }\DIFaddend in parallel. \DIFaddbegin \DIFadd{Note that a single predicate can describe many prefixes, for example by matching on a disjunction of prefixes. }\DIFaddend At their largest sizes, the \DIFdelbegin \DIFdel{per-prefix }\DIFdelend \DIFaddbegin \DIFadd{per-predicate }\DIFaddend compilation time is roughly 10 seconds for the data center network and 45 seconds for the backbone network.
 
 %From the break down of the time by compilation phase, we see that no single compilation phase dominates the running time of the compiler. However, construction and minimization of the product graph take the most time.
 
 Total compilation for the largest data center is less than 9 minutes total. Unlike the data center policy, the number of prefixes for the backbone policy remains relatively fixed as the topology size increases. Compilation for the largest backbone network, takes less than 3 minutes total. The inclusion of more preferences in the backbone policy increases the size of the PGIR, which leads to PGIR construction and minimization taking proportionally more time.
 
-%
+\DIFaddbegin \DIFadd{In both examples, we observe that our safety analysis algorithm for finding preferences is highly efficient, taking only a small fraction of the total running time. PGIR minimization is proportionally the most expensive compilation phase, however minimization can be capped after a certain number of iterations for larger networks if necessary. Both the backbone and data center networks policies we considered can be successfully compiled without minimization.
+}
+
+\DIFaddend %
 
 
 \subsection{Configuration size}
