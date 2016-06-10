@@ -258,7 +258,7 @@ for network operators.  As a result, configurations that work
 correctly in failure-free environments have nonetheless been found to violate key
 network-wide properties when failures occur~\cite{batfish}.
 
-To reduce configuration errors, many practitioners have a adopted a template-based
+To reduce configuration errors, many practitioners have adopted a template-based
 approach~\cite{hatch,thwack}, in which common tasks are captured as parameterized templates.
 %
 %More powerful still are systems like
@@ -356,7 +356,7 @@ control plane.
 
 The BGP configurations produced by our compiler are
 guaranteed to be policy-compliant in the face of
-{\em arbitrary} failures.\footnote{In this paper we assume that BGP is the only control plane protocol running in the network or the other protocols are correctly configured and do not have adverse interactions with BGP~\cite{igp-correctness1,igp-correctness2}.} This does not mean that the implementation is always
+{\em arbitrary} failures.\footnote{In this paper we assume that either BGP is the only control plane protocol running in the network or the other protocols are correctly configured and do not have adverse interactions with BGP~\cite{igp-correctness1,igp-correctness2}.} This does not mean that the implementation is always
 able to send traffic to its ultimate destination
 (\EG in the case of a network partition), but rather that it always respects the
 centralized policy, which may include dropping traffic when there is no route.
@@ -531,7 +531,7 @@ Templates help to an extent by keeping preference and community values consisten
 
 \subsection{Example 2:  The Data Center}
 
- While configuring policies for a fully functional network is difficult, ensuring policy compliance in the face of failures can be almost impossible. Consider the data center network in Figure~\ref{fig:example2} with routers organized as a fat tree and running BGP.\footnote{For scale and policy flexibility, data center networks increasingly use BGP internally, with a private AS number per router~\cite{bgp-in-dc}.} The network has two clusters, one with services that should be reachable globally and one with services that should be accessible only internally. This policy is enabled by using non-overlapping address space in the two clusters and ensuring that only the address space for the global services is announced externally. Further, to reduce the number of prefixes that are announced externally, the global space is aggregated into a less-specific prefix \CD{PG}. The semantics of aggregation is that the aggregate prefix is announced as long as the router has a path to at least one sub-prefix.
+ While configuring policies for a fully functional network is difficult, ensuring policy compliance in the face of failures can be almost impossible. Consider the data center network in Figure~\ref{fig:example2} with routers organized as a fat tree and running BGP.\footnote{For scale and policy flexibility, data center networks increasingly use BGP internally, with a private AS number per router~\cite{bgp-in-dc}.} The network has two clusters, one with services that should be reachable globally and one with services that should be accessible only internally. This policy is enabled by using non-overlapping address spaces in the two clusters and ensuring that only the address space for the global services is announced externally. Further, to reduce the number of prefixes that are announced externally, the global space is aggregated into a less-specific prefix \CD{PG}. The semantics of aggregation is that the aggregate prefix is announced as long as the router has a path to at least one sub-prefix.
 
 The operator may decide that a simple way to implement the policy is to have X and Y: $i)$ not export externally what they hear from G and H, routers that belong to the local services cluster; and $ii)$ announce what they hear from routers C and D and aggregate to \CD{PG} if an announcement is subset of \CD{PG}. This implementation is appealing because X and Y do not need to be made aware of which prefixes are global versus local and IP address assignment can be done independently (e.g., new prefixes can be assigned to local services without updating router configurations).
 
