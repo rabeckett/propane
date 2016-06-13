@@ -1358,6 +1358,8 @@ The number of PGIR paths that we are able to remove is a lower bound on the numb
 For example, recall the data center example from \S\ref{sec:motivation}, with the policy: 
 \CD{PG1} \Path \text{ }\End(\CD{A}), where \CD{PG1} falls under the \CD{PG} aggregate. Figure~\ref{fig:aggregation-safety} shows the simplified PGIR. Since the compiler knows aggregation will occur at $X$, and it knows that the \CD{PG1} prefix will originate at $A$, we can compute the number of failures it would take to disconnect $A$ from $X$. We could remove the $A$--$D$--$X$ path first. We would then need to remove any other $A$--$D$ or $D$--$X$ links from the PGIR (in this case none). Next, we could remove the links along the $A$--$C$--$X$ path, repeating the process. Because $A$ is then disconnected from $X$, the compiler knowns that 2 is a lower bound on the number of failures for aggregation safety for prefix \CD{PG1}. This process is repeated for other aggregation locations (e.g., $Y$).
 
+
+
 \para{Policy Safety}
 
 Even when programming the network centrally, it is possible for operators to make mistakes and write incorrect policies.
