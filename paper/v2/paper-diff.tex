@@ -1,7 +1,7 @@
 \documentclass{sig-alternate-10pt}
 %DIF LATEXDIFF DIFFERENCE FILE
-%DIF DEL paper.tex          Tue Jun  7 10:15:16 2016
-%DIF ADD paper-edited.tex   Fri Jun 10 10:34:33 2016
+%DIF DEL paper.tex          Sun Jun 12 14:41:28 2016
+%DIF ADD paper-edited.tex   Sun Jun 12 21:52:59 2016
 
 \usepackage{amsmath}
 \usepackage{amssymb}
@@ -290,7 +290,7 @@ for network operators.  As a result, configurations that work
 correctly in failure-free environments have nonetheless been found to violate key
 network-wide properties when failures occur~\cite{batfish}.
 
-To reduce configuration errors, many practitioners have a adopted a template-based
+To reduce configuration errors, many practitioners have \DIFaddbegin \DIFadd{a }\DIFaddend adopted a template-based
 approach~\cite{hatch,thwack}, in which common tasks are captured as parameterized templates.
 %
 %More powerful still are systems like
@@ -363,7 +363,7 @@ the network, across several devices internally, and then out again. This design
 choice allows users to specify preferences about both external and internal
 routes in the exact same way.
 In addition, we augment the algebra
-of regular expressions to directly support a notion of {\em preferences} and provide a semantics in terms of sets of ranked paths. The preferences indicate fail-over behaviors:  among all specified paths that are still available,
+of regular expressions to \DIFdelbegin \DIFdel{directly }\DIFdelend support a notion of {\em preferences} and provide a semantics in terms of sets of ranked paths. The preferences indicate fail-over behaviors:  among all specified paths that are still available,
 the system guarantees that the distributed implementation will always use the highest-ranked ones.
 Although we target a distributed implementation, the language is more general and could potentially be used in an SDN context.
 
@@ -389,7 +389,7 @@ control plane.
 
 The BGP configurations produced by our compiler are
 guaranteed to be policy-compliant in the face of
-{\em arbitrary} failures.\footnote{In this paper we assume that BGP is the only control plane protocol running in the network or the other protocols are correctly configured and do not have adverse interactions with BGP~\cite{igp-correctness1,igp-correctness2}.} This does not mean that the implementation is always
+{\em arbitrary} failures.\footnote{In this paper we assume that \DIFdelbegin \DIFdel{either }\DIFdelend BGP is the only control plane protocol running in the network or the other protocols are correctly configured and do not have adverse interactions with BGP~\cite{igp-correctness1,igp-correctness2}.} This does not mean that the implementation is always
 able to send traffic to its ultimate destination
 (\EG in the case of a network partition), but rather that it always respects the
 centralized policy, which may include dropping traffic when there is no route.
@@ -525,7 +525,7 @@ The combination of arbitrary import and export filters and route selection polic
 %Operators today generate the BGP configuration of individual devices based on intended policy. 
 When generating BGP configurations, whether fully manually or aided by templates, the operators face the challenge of decomposing network-wide policies
 into appropriate device-level policies.
-This decomposition is not always straightforward and ensuring policy-compliance is tricky, especially in the face of failures. We illustrate this point using two examples based on policies that we have seen in practice. The next section shows how \sysname allows operators to directly express these policies. 
+This decomposition is not always straightforward and ensuring policy-compliance is tricky, especially in the face of failures. We illustrate this point using two examples based on policies that we have seen in practice. The next section shows how \sysname allows operators to \DIFdelbegin \DIFdel{directly }\DIFdelend express these policies \DIFaddbegin \DIFadd{directly}\DIFaddend . 
 %the ease with which the
 %policies can be specified using our new language \sysname.
 %The next section describes how to automatically compile this specification to device-level policies.
@@ -547,7 +547,7 @@ three neighbors, a customer \CD{Cust}, a peer \CD{Peer}, and a provider \CD{Prov
 To implement P1 of the policy, the operators must compute and assign
 local preferences such that preferences at \CD{Cust}-facing interfaces
 $>$ \CD{Peer}-facing interfaces $>$ \CD{Prov}-facing interfaces. At
-the same time, to satisfy P3 the preference at \CD{R2}'s
+the same time, to satisfy P3\DIFaddbegin \DIFadd{, }\DIFaddend the preference at \CD{R2}'s
 \CD{Cust}-facing interface should be lower than that at
 \CD{R1}. Implementing P3 properly will require MEDs to be appropriately configured \DIFaddbegin \DIFadd{on }\CD{R1} \DIFadd{and }\CD{R2}\DIFaddend . 
 To implement P2, the operators can assign communities that
@@ -575,7 +575,7 @@ Templates help to an extent by keeping preference and community values consisten
 %DIFDELCMD < %%%
 \DIFdelend \subsection{Example 2:  The Data Center}
 
- While configuring policies for a fully functional network is difficult, ensuring policy compliance in the face of failures can be almost impossible. Consider the data center network in Figure~\ref{fig:example2} with routers organized as a fat tree and running BGP.\footnote{For scale and policy flexibility, data center networks increasingly use BGP internally, with a private AS number per router~\cite{bgp-in-dc}.} The network has two clusters, one with services that should be reachable globally and one with services that should be accessible only internally. This policy is enabled by using non-overlapping address space in the two clusters and ensuring that only the address space for the global services is announced externally. Further, to reduce the number of prefixes that are announced externally, the global space is aggregated into a less-specific prefix \CD{PG}. The semantics of aggregation is that the aggregate prefix is announced as long as the router has a path to at least one sub-prefix.
+ While configuring policies for a fully functional network is difficult, ensuring policy compliance in the face of failures can be almost impossible. Consider the data center network in Figure~\ref{fig:example2} with routers organized as a fat tree and running BGP.\footnote{For scale and policy flexibility, data center networks increasingly use BGP internally, with a private AS number per router~\cite{bgp-in-dc}.} The network has two clusters, one with services that should be reachable globally and one with services that should be accessible only internally. This policy is enabled by using non-overlapping address \DIFdelbegin \DIFdel{spaces }\DIFdelend \DIFaddbegin \DIFadd{space }\DIFaddend in the two clusters and ensuring that only the address space for the global services is announced externally. Further, to reduce the number of prefixes that are announced externally, the global space is aggregated into a less-specific prefix \CD{PG}. The semantics of aggregation is that the aggregate prefix is announced as long as the router has a path to at least one sub-prefix.
 
 The operator may decide that a simple way to implement the policy is to have X and Y: $i)$ not export externally what they hear from G and H, routers that belong to the local services cluster; and $ii)$ announce what they hear from routers C and D and aggregate to \CD{PG} if an announcement is subset of \CD{PG}. This implementation is appealing because X and Y do not need to be made aware of which prefixes are global versus local and IP address assignment can be done independently (e.g., new prefixes can be assigned to local services without updating router configurations).
 
@@ -709,8 +709,9 @@ language. \DIFaddbegin \DIFadd{The preference operator (\Prefer) is flexible and
 %DIFDELCMD < %%%
 \DIFdelend To associate ranked paths with
 one or more prefixes, we define a \sysname \emph{policy}.
-Within a policy, statements with the form $t$\Path$p$
-associate the prefixes defined by the predicate $t$ with the set of
+Within a policy, statements with the form \DIFdelbegin \DIFdel{$t$\Path$p$
+}\DIFdelend \DIFaddbegin \DIFadd{$t\;$\Path$\;p$
+}\DIFaddend associate the prefixes defined by the predicate $t$ with the set of
 ranked paths defined by the path expression $p$.  In general,
 prefix predicates can be defined by arbitrary boolean combinations
 (and, or, not) of concrete prefixes and community tags.  Here,
@@ -786,7 +787,7 @@ outside the user's network.
 Line 4 }\DIFdelend applies to any other traffic \DIFdelbegin \DIFdel{, and allows any routes that leave through a peer with a preference for customers over peers over providers}\DIFdelend \DIFaddbegin \DIFadd{not matching }\CD{PCust} \DIFadd{and allows the traffic to leave through any direct neighbor with the usual preferences of }\CD{R1} \DIFadd{over }\CD{R2} \DIFadd{over }\CD{Peer} \DIFadd{over }\CD{Prov}\DIFaddend . To summarize our progress, the \CD{Routing} policy
 implements P1, P3, and P4 from Figure~\ref{fig:example1}.
 
-Since by default routing allows transit traffic (\EG, traffic entering from
+Since\DIFdelbegin \DIFdel{by default }\DIFdelend \DIFaddbegin \DIFadd{, by default, }\DIFaddend routing allows transit traffic (\EG, traffic entering from
 \CD{Peer} and leaving through \CD{Prov}), we separately define a
 policy to enforce P2 and P5 from Figure~\ref{fig:example1}, using conjunction (\AND),
 disjunction (\OR) and negation (\NOT) of constraints. 
@@ -1036,7 +1037,10 @@ The front-end (FE) of \sysname simplifies operators' task of describing preferre
   \vspace{-1em}
 \end{figure}
 
-We handle these challenges by breaking compilation into multiple stages and developing efficient algorithms for each (See Figure~\ref{fig:pipeline}). The first stage of the pipeline involves simple rewriting rules and substitutions from the FE to the core Regular Intermediate Representation (RIR). Policies in RIR are checked for well-formedness (\EG, never constraining traffic that does not enter the network), before being combined with the network topology to obtain the Product Graph Intermediate Representation (PGIR). The PGIR is a data representation that compactly captures the flow of BGP announcements subject to the policy and topology restrictions. We develop efficient algorithms that operate over the PGIR to ensure policy compliance under failures, avoid BGP instability, and prevent aggregation-induced black holes. Once the compiler determines that the PGIR is safe, it translates it to an abstract BGP (ABGP) representation. Vendor-specific adaptors to translate from ABGP to concrete device configurations \DIFaddbegin \DIFadd{or to integrate with an existing template-based system }\DIFaddend are easily added\DIFdelbegin \DIFdel{to generate concrete configurations }\DIFdelend \DIFaddbegin \DIFadd{. The }\sysname \DIFadd{compiler currently generates Quagga router configurations by default}\DIFaddend . 
+We handle these challenges by breaking compilation into multiple stages \DIFaddbegin \DIFadd{(see Figure~\ref{fig:pipeline}), }\DIFaddend and developing efficient algorithms for \DIFdelbegin \DIFdel{each (See Figure~\ref{fig:pipeline})}\DIFdelend \DIFaddbegin \DIFadd{the translation between each stage}\DIFaddend . The first stage of the pipeline involves simple rewriting rules and substitutions from the FE to the core Regular Intermediate Representation (RIR). Policies in RIR are checked for well-formedness (\EG, never constraining traffic that does not enter the network), before being combined with the network topology to obtain the Product Graph Intermediate Representation (PGIR). The PGIR is a data representation that compactly captures the flow of BGP announcements subject to the policy and topology restrictions. We develop efficient algorithms that operate over the PGIR to ensure policy compliance under failures, avoid BGP instability, and prevent aggregation-induced black holes. Once the compiler determines that the PGIR is safe, it translates it to an abstract BGP (ABGP) representation. \DIFdelbegin \DIFdel{Vendor-specific adaptors to translate from ABGP to concrete device
+configurations are easily added to generate concrete configurations }\DIFdelend \DIFaddbegin \DIFadd{ABGP can then be translated into various vendor-specific device
+configurations as needed. The }\sysname \DIFadd{compiler currently generates 
+Quagga router configurations from ABGP}\DIFaddend . 
 
 \DIFdelbegin \subsection{\DIFdel{Regular IR (RIR)}}
 %DIFAUXCMD
@@ -1634,7 +1638,7 @@ For each router in the topology, local preferences are now obtained by sorting t
 
 \para{Avoiding Loops}
 
-The checks for failure safety described above overlook one critical point: \DIFdelbegin \DIFdel{Paths for a higher preference might not exist }\DIFdelend \DIFaddbegin \DIFadd{A better (lower rank) path might not be available }\DIFaddend due to loops \DIFaddbegin \DIFadd{that are rejected by BGP}\DIFaddend . To avoid this situation, the compiler checks that, \DIFdelbegin \DIFdel{when node $x$ protects against failures for node $y$, its does so without using any nodes that shadow another node that }\DIFdelend \DIFaddbegin \DIFadd{any time some context $N_1$ }\DIFaddend appears ``above'' \DIFdelbegin \DIFdel{$x$ }\DIFdelend \DIFaddbegin \DIFadd{(i.e., can reach) $N_2$ }\DIFaddend in the PGIR\DIFdelbegin \DIFdel{. 
+The checks for failure safety described above \DIFdelbegin \DIFdel{overlook }\DIFdelend \DIFaddbegin \DIFadd{overlooked }\DIFaddend one critical point: \DIFdelbegin \DIFdel{Paths for a higher preference might not exist }\DIFdelend \DIFaddbegin \DIFadd{A better (lower rank) path might not be available }\DIFaddend due to loops \DIFaddbegin \DIFadd{that are rejected by BGP}\DIFaddend . To avoid this situation, the compiler checks that, \DIFdelbegin \DIFdel{when node $x$ protects against failures for node $y$, its does so without using any nodes that shadow another node that }\DIFdelend \DIFaddbegin \DIFadd{any time some context $N_1$ }\DIFaddend appears ``above'' \DIFdelbegin \DIFdel{$x$ }\DIFdelend \DIFaddbegin \DIFadd{(i.e., can reach) $N_2$ }\DIFaddend in the PGIR\DIFdelbegin \DIFdel{. 
 }\DIFdelend \DIFaddbegin \DIFadd{, then $N_1$ must be strictly preferred to $N_2$. The idea is that anytime $N_2$ is not usable because the advertisement already went through $N_1$, it ultimately does not matter since $N$ has a regret-free preference for $N_1$ anyway.
 }
 
@@ -1644,7 +1648,7 @@ The checks for failure safety described above overlook one critical point: \DIFd
 
 \DIFdelbegin %DIFDELCMD < \para{Aggregation-Induced Black Holes}
 %DIFDELCMD < %%%
-\DIFdelend \DIFaddbegin \subsection{\DIFadd{More Safety}}
+\DIFdelend \DIFaddbegin \subsection{\DIFadd{Additional Safety Checks}}
 
 \para{Aggregation Safety}
 \label{sec:agg-safety}
@@ -1662,15 +1666,16 @@ The checks for failure safety described above overlook one critical point: \DIFd
 }\DIFaddend Because the \sysname compiler has the complete user policy and topology \DIFaddbegin \DIFadd{encoded in the PGIR}\DIFaddend , it is \DIFdelbegin \DIFdel{also }\DIFdelend able to efficiently check that aggregates do not black hole traffic for up to $k$ failures.
 \DIFdelbegin \DIFdel{The algorithm for aggregation failure safety is detailed in Section~\ref{sec:black-holes} of the appendix. }\DIFdelend \DIFaddbegin 
 
-\DIFadd{We frame the aggregation problem as a problem of connectivity in the PGIR. Specifically, for each prefix that falls under an aggregate, we find a lower bound on the number of failures required to  disconnect where the prefix originates from where it is aggregated. The difficulty is that the same links in the topology can appear in multiple places in the PGIR. 
+\DIFadd{We frame the aggregation problem as a problem of connectivity in the PGIR. Specifically, for each prefix that falls under an aggregate, we find a lower bound on the number of failures required to disconnect the prefix origin from its aggregation point. The difficulty is that the same links in the topology can appear in multiple places in the PGIR. 
 %DIF > 
 %DIF > 
-We adopt the following simple strategy to lower bound the number of failures: $i)$ Pick a random start-to-end path in PGIR, $ii)$ remove all edges in the PGIR for the set of topological edges chosen, and $iii)$ repeat until no such path exists.
+We adopt the following simple strategy to find a lower bound on 
+the number of failures: $i)$ Pick a random start-to-end path in PGIR, $ii)$ remove all edges in the PGIR for the set of topological edges chosen, and $iii)$ repeat until no such path exists.
 The number of PGIR paths that we are able to remove is a lower bound on the number of failures required to disconnect the prefix from its aggregate. 
 }
 
 \DIFadd{For example, recall the data center example from \S\ref{sec:motivation}, with the policy: 
-}\CD{PG1} \DIFadd{\Path \text{ }}\End\DIFadd{(}\CD{A}\DIFadd{), where }\CD{PG1} \DIFadd{falls under the }\CD{PG} \DIFadd{aggregate. Figure~\ref{fig:aggregation-safety} shows the network topology simplified PGIR. Since the compiler knows aggregation will occur at $X$, and it knows that the }\CD{PG1} \DIFadd{prefix will originate at $A$, we can compute the number of failures it would take to disconnect $A$ from $X$. We could remove the $A$--$D$--$X$ path first. We would then need to remove any other $A$--$D$ or $D$--$X$ links from the PGIR (in this case none). Next, we could remove the links along the $A$--$C$--$X$ path, repeating the process. Because $A$ is then disconnected from $X$, the compiler knowns that 2 is a lower bound on the number of failures for aggregation safety for prefix }\CD{PG1}\DIFadd{. This process is repeated for other aggregation locations (e.g., $Y$).
+}\CD{PG1} \DIFadd{\Path \text{ }}\End\DIFadd{(}\CD{A}\DIFadd{), where }\CD{PG1} \DIFadd{falls under the }\CD{PG} \DIFadd{aggregate. Figure~\ref{fig:aggregation-safety} shows the network topology simplified PGIR. Since the compiler knows aggregation will occur at $X$, and it knows that the }\CD{PG1} \DIFadd{prefix will originate at $A$, we can compute the number of failures it would take to disconnect $A$ from $X$. We could remove the $A$--$D$--$X$ path first. We would then need to remove any other $A$--$D$ or $D$--$X$ links from the PGIR (in this case none). Next, we could remove the links along the $A$--$C$--$X$ path, repeating the process. Because $A$ is then disconnected from $X$, the compiler knows that 2 is a lower bound on the number of failures for aggregation safety for prefix }\CD{PG1}\DIFadd{. This process is repeated for other aggregation locations (e.g., $Y$).
 }
 
 \para{Policy Safety}
