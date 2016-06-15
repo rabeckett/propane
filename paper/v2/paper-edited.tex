@@ -1,4 +1,5 @@
-\documentclass{sig-alternate-10pt}
+%\documentclass{sig-alternate-10pt}
+\documentclass[10pt]{sigalternate052015}
 
 \usepackage{amsmath}
 \usepackage{amssymb}
@@ -114,14 +115,6 @@ David Walker\\
 
 \maketitle
 
-%\category{CR-number}{subcategory}{third-level}
-%% general terms are not compulsory anymore,
-%% you may leave them out
-%\terms
-%term1, term2
-%\keywords
-%keyword1, keyword2
-
 
 
 %=====================================================
@@ -209,6 +202,22 @@ We use \sysname to specify and compile the configurations of real
 data center and backbone networks.  We show that, despite its strong guarantees, it scales to topologies with hundreds to thousands of routers.
 
 
+%=====================================================
+%
+%
+%  **Keywords**
+%
+%
+%=====================================================
+
+
+\category{CR-number}{subcategory}{third-level}
+%% general terms are not compulsory anymore,
+%% you may leave them out
+\terms
+term1, term2
+\keywords
+Propane, BGP, Synthesis, Compilation
 
 
 %=====================================================
@@ -531,14 +540,6 @@ small example network manually; devising correct configurations for real network
 Templates help to an extent by keeping preference and community values consistent across routers, but operators must still do much of the conceptually difficult work manually. 
 %\sysname lets operators express such policies easily and intuitively. It then automatically generates per-device import and export filters, local preferences, MED attributes, and community tags to ensure that the policy is implemented correctly under all failure scenarios.
 
-
-
-\subsection{Example 2:  The Data Center}
-
- While configuring policies for a fully functional network is difficult, ensuring policy compliance in the face of failures can be almost impossible. Consider the data center network in Figure~\ref{fig:example2} with routers organized as a fat tree and running BGP.\footnote{For scale and policy flexibility, data center networks increasingly use BGP internally, with a private AS number per router~\cite{bgp-in-dc}.} The network has two clusters, one with services that should be reachable globally and one with services that should be accessible only internally. This policy is enabled by using non-overlapping address space in the two clusters and ensuring that only the address space for the global services is announced externally. Further, to reduce the number of prefixes that are announced externally, the global space is aggregated into a less-specific prefix \CD{PG}. The semantics of aggregation is that the aggregate prefix is announced as long as the router has a path to at least one sub-prefix.
-
-The operator may decide that a simple way to implement the policy is to have X and Y: $i)$ not export externally what they hear from G and H, routers that belong to the local services cluster; and $ii)$ announce what they hear from routers C and D and aggregate to \CD{PG} if an announcement is subset of \CD{PG}. This implementation is appealing because X and Y do not need to be made aware of which prefixes are global versus local and IP address assignment can be done independently (e.g., new prefixes can be assigned to local services without updating router configurations).
-
 \begin{figure}[t!]
   \centering
   \includegraphics[width=\columnwidth]{figures/example2}
@@ -546,6 +547,13 @@ The operator may decide that a simple way to implement the policy is to have X a
   \label{fig:example2}
   \vspace{-1em}
 \end{figure}
+
+\subsection{Example 2:  The Data Center}
+
+ While configuring policies for a fully functional network is difficult, ensuring policy compliance in the face of failures can be almost impossible. Consider the data center network in Figure~\ref{fig:example2} with routers organized as a fat tree and running BGP.\footnote{For scale and policy flexibility, data center networks increasingly use BGP internally, with a private AS number per router~\cite{bgp-in-dc}.} The network has two clusters, one with services that should be reachable globally and one with services that should be accessible only internally. This policy is enabled by using non-overlapping address space in the two clusters and ensuring that only the address space for the global services is announced externally. Further, to reduce the number of prefixes that are announced externally, the global space is aggregated into a less-specific prefix \CD{PG}. The semantics of aggregation is that the aggregate prefix is announced as long as the router has a path to at least one sub-prefix.
+
+The operator may decide that a simple way to implement the policy is to have X and Y: $i)$ not export externally what they hear from G and H, routers that belong to the local services cluster; and $ii)$ announce what they hear from routers C and D and aggregate to \CD{PG} if an announcement is subset of \CD{PG}. This implementation is appealing because X and Y do not need to be made aware of which prefixes are global versus local and IP address assignment can be done independently (e.g., new prefixes can be assigned to local services without updating router configurations).
+
 
 However, this implementation does not have the right behavior in the face of failures. Suppose links X--G and X--H fail. Then, X will hear announcements for \CD{PL*} from C and D, having traversed from G and H to Y to C and D. Per policy implementation, X will start "leaking" these prefixes externally. Depending on the rationale for local services, this leak could impact security (e.g., if the services are sensitive) or availability (e.g., if the \CD{PL*} prefixes are used for other services outside of the data center). This problem does not manifest without failures because then X has and prefers paths to \CD{PL*} through G and H since they are shorter. A similar problem will happen if links Y--G and Y--H fail.
 %\footnote{A different problem occurs when links X--C and X--D (or Y--C and Y--D) fail. X (Y) may stop announcing the global prefixes because they would be heard through G and H.}
@@ -925,18 +933,14 @@ The front-end (FE) of \sysname simplifies operators' task of describing preferre
   \vspace{-1em}
 \end{figure}
 
-We handle these challenges by breaking compilation into multiple stages (see Figure~\ref{fig:pipeline}), and developing efficient algorithms for the translation between each stage. The first stage of the pipeline involves simple rewriting rules and substitutions from the FE to the core Regular Intermediate Representation (RIR). Policies in RIR are checked for well-formedness (\EG, never constraining traffic that does not enter the network), before being combined with the network topology to obtain the Product Graph Intermediate Representation (PGIR). The PGIR is a data representation that compactly captures the flow of BGP announcements subject to the policy and topology restrictions. We develop efficient algorithms that operate over the PGIR to ensure policy compliance under failures, avoid BGP instability, and prevent aggregation-induced black holes. Once the compiler determines that the PGIR is safe, it translates it to an abstract BGP (ABGP) representation. ABGP can then be translated into various vendor-specific device
-configurations as needed. The \sysname compiler currently generates 
-Quagga router configurations from ABGP. 
-
 % grammar
 \newcommand{\BNFALT}{\;\;|\;\;}
 \newcommand{\hdr}[2]{\flushleft \chdr{\hspace{5mm}#1}{#2}}
 \newcommand{\chdr}[2]{\textbf{#1} {#2} \\ \centering}
 
-\begin{figure*}\small
+\begin{figure*}[t]\small
   \begin{minipage}[t]{.45\linewidth}
-  \hdr{\large Syntax}{}
+  \hdr{Syntax}{}
   \vspace*{-1\baselineskip}
   %
   \[ \begin{array}{rclr}
@@ -971,7 +975,7 @@ Quagga router configurations from ABGP.
   ~~
   %
   \begin{minipage}[t]{.5\linewidth}\small
-  \hdr{\large Propane Expansions}{}
+  \hdr{Propane Expansions}{}
   \vspace*{-1\baselineskip}
   %
   \[\begin{array}{rcl}
@@ -1009,6 +1013,11 @@ Quagga router configurations from ABGP.
 
 \subsection{Regular IR (RIR)}
 \label{sec:rir}
+
+We handle these challenges by breaking compilation into multiple stages (see Figure~\ref{fig:pipeline}), and developing efficient algorithms for the translation between each stage. The first stage of the pipeline involves simple rewriting rules and substitutions from the FE to the core Regular Intermediate Representation (RIR). Policies in RIR are checked for well-formedness (\EG, never constraining traffic that does not enter the network), before being combined with the network topology to obtain the Product Graph Intermediate Representation (PGIR). The PGIR is a data representation that compactly captures the flow of BGP announcements subject to the policy and topology restrictions. We develop efficient algorithms that operate over the PGIR to ensure policy compliance under failures, avoid BGP instability, and prevent aggregation-induced black holes. Once the compiler determines that the PGIR is safe, it translates it to an abstract BGP (ABGP) representation. ABGP can then be translated into various vendor-specific device
+configurations as needed. The \sysname compiler currently generates 
+Quagga router configurations from ABGP. 
+
 
 \para{Syntax}
 The \sysname FE is just a thin layer atop a core, regular-expression language (RIR) for describing preference-based path constraints. 
@@ -1084,12 +1093,12 @@ where $\odot$ stands for an arbitrary regular binary operator, and $x$ is a poli
 \begin{figure*}
   \begin{minipage}[t]{.5\linewidth}
   
-  \hdr{\large Topology}{}
+  \hdr{Topology}{}
   \vspace*{-2\baselineskip}
 
   \includegraphics[width=.6\columnwidth]{figures/topology}
 
-  \hdr{\large Policy Automata}{}
+  \hdr{Policy Automata}{}
   \vspace*{-0.5\baselineskip}
 
   \begin{tikzpicture}[>=stealth',shorten >=1pt,auto,node distance=1.4cm,minimum size=1cm]
@@ -1126,7 +1135,7 @@ where $\odot$ stands for an arbitrary regular binary operator, and $x$ is a poli
   ~~
   %
   \begin{minipage}[t]{.5\linewidth}
-  \hdr{\large Product Graph IR}{}
+  \hdr{Product Graph IR}{}
   \vspace*{-1\baselineskip}
   %
   \includegraphics[width=.65\columnwidth]{figures/productgraph}
@@ -1419,7 +1428,8 @@ The final stage of our compiler translates policies from PGIR to a vendor-neutra
 \begin{code}
   \Router{A}
     Match \PEER=C, \COMM=(3,2)
-      Export \COMM \Arrow (4,2), \MED \Arrow 80, \PEER \Arrow W
+      Export \COMM \Arrow (4,2), 
+             \MED \Arrow 80, \PEER \Arrow W
   \Router{B}
     Match \PEER = C, \COMM = (-,2)
       Export \COMM \Arrow (-,3), \COMM \Arrow \text{noexport},
