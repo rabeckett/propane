@@ -1,7 +1,12 @@
-\documentclass{sig-alternate-10pt}
+%DIF 1c1-2
 %DIF LATEXDIFF DIFFERENCE FILE
 %DIF DEL paper.tex          Fri Jun 10 11:03:48 2016
-%DIF ADD paper-edited.tex   Mon Jun 13 12:39:03 2016
+%DIF ADD paper-edited.tex   Tue Jun 14 18:22:47 2016
+%DIF < \documentclass{sig-alternate-10pt}
+%DIF -------
+%\documentclass{sig-alternate-10pt} %DIF > 
+\documentclass[10pt]{sigalternate052015} %DIF > 
+%DIF -------
 
 \usepackage{amsmath}
 \usepackage{amssymb}
@@ -21,11 +26,11 @@
 \usepackage{subcaption}
 %\usepackage{geometry}
 
-%DIF 21a21
+%DIF 21a22
 \usepackage{balance} %DIF > 
 %DIF -------
 
-%DIF 22a23
+%DIF 22a24
  %DIF > 
 %DIF -------
 \definecolor{princetonorange}{RGB}{255,143,0}
@@ -59,7 +64,7 @@
 \newcommand{\Link}{\texttt{->}}
 \newcommand{\Agg}{\KW{agg}}
 \newcommand{\Any}{\KW{any}}
-%DIF 53c55
+%DIF 53c56
 %DIF < \newcommand{\None}{\KW{none}}
 %DIF -------
 \newcommand{\None}{\KW{drop}} %DIF > 
@@ -111,7 +116,14 @@
 
 \begin{document}
 
-\special{papersize=8.5in,11in}
+\DIFaddbegin \setcopyright{acmcopyright}
+\conferenceinfo{SIGCOMM '16}{August 22--26, 2016, Florianopolis, Brazil}
+
+
+
+
+
+\DIFaddend \special{papersize=8.5in,11in}
 \setlength{\pdfpageheight}{\paperheight}
 \setlength{\pdfpagewidth}{\paperwidth}
 
@@ -144,17 +156,19 @@ David Walker\\
 
 \maketitle
 
-%\category{CR-number}{subcategory}{third-level}
-%% general terms are not compulsory anymore,
-%% you may leave them out
-%\terms
-%term1, term2
-%\keywords
-%keyword1, keyword2
 
 
+%DIF < \category{CR-number}{subcategory}{third-level}
+%DIF < % general terms are not compulsory anymore,
+%DIF < % you may leave them out
+%DIF < \terms
+%DIF < term1, term2
+%DIF < \keywords
+%DIF < keyword1, keyword2
+\DIFdelbegin %DIFDELCMD < 
 
-%=====================================================
+%DIFDELCMD < %%%
+\DIFdelend %=====================================================
 %
 %
 %  **Abstract**
@@ -239,12 +253,48 @@ We use \sysname to specify and compile the configurations of real
 data center and backbone networks.  We show that, despite its strong guarantees, it scales to topologies with hundreds \DIFaddbegin \DIFadd{to thousands }\DIFaddend of routers.
 
 
-
-
 %=====================================================
 %
 %
-%  **Introduction**
+%DIF >   **Keywords**
+%DIF > 
+%DIF > 
+%DIF > =====================================================
+\DIFaddbegin 
+
+%DIF > \category{CR-number}{subcategory}{third-level}
+
+\begin{CCSXML}
+\DIFadd{<ccs2012>
+<concept>
+<concept_id>10003033.10003068.10003073.10003075</concept_id>
+<concept_desc>Networks~Network control algorithms</concept_desc>
+<concept_significance>300</concept_significance>
+</concept>
+<concept>
+<concept_id>10011007.10011006.10011050.10011017</concept_id>
+<concept_desc>Software and its engineering~Domain specific languages</concept_desc>
+<concept_significance>300</concept_significance>
+</concept>
+</ccs2012>
+}\end{CCSXML}
+
+\ccsdesc[300]{Networks~Network control algorithms}
+\ccsdesc[300]{Software and its engineering~Domain specific languages}
+
+\printccsdesc
+
+\keywords{Propane; Domain-specific Language; BGP; Synthesis; Compilation; Fault tolerance}
+
+%DIF > % general terms are not compulsory anymore,
+%DIF > % you may leave them out
+%DIF > \terms Network Programming Language, Distributed Program Synthesis
+%DIF > \keywords Propane Language, BGP, Synthesis, Compilation
+
+%DIF > =====================================================
+%DIF > 
+%DIF > 
+\DIFaddend %  **Introduction**
 %
 %
 %=====================================================
@@ -561,8 +611,6 @@ small example network manually; devising correct configurations for real network
 Templates help to an extent by keeping preference and community values consistent across routers, but operators must still do much of the conceptually difficult work manually. 
 %\sysname lets operators express such policies easily and intuitively. It then automatically generates per-device import and export filters, local preferences, MED attributes, and community tags to ensure that the policy is implemented correctly under all failure scenarios.
 
-
-
 \DIFdelbegin %DIFDELCMD < \begin{figure}[t!]
 %DIFDELCMD <   \centering
 %DIFDELCMD <   \includegraphics[width=\columnwidth]{figures/example1}
@@ -570,24 +618,34 @@ Templates help to an extent by keeping preference and community values consisten
 %DIFDELCMD <   \label{fig:example1}
 %DIFDELCMD <   \vspace{-1em}
 %DIFDELCMD < \end{figure}
-%DIFDELCMD < 
-
 %DIFDELCMD < %%%
-\DIFdelend \subsection{Example 2:  The Data Center}
-
- While configuring policies for a fully functional network is difficult, ensuring policy compliance in the face of failures can be almost impossible. Consider the data center network in Figure~\ref{fig:example2} with routers organized as a fat tree and running BGP.\footnote{For scale and policy flexibility, data center networks increasingly use BGP internally, with a private AS number per router~\cite{bgp-in-dc}.} The network has two clusters, one with services that should be reachable globally and one with services that should be accessible only internally. This policy is enabled by using non-overlapping address \DIFdelbegin \DIFdel{spaces }\DIFdelend \DIFaddbegin \DIFadd{space }\DIFaddend in the two clusters and ensuring that only the address space for the global services is announced externally. Further, to reduce the number of prefixes that are announced externally, the global space is aggregated into a less-specific prefix \CD{PG}. The semantics of aggregation is that the aggregate prefix is announced as long as the router has a path to at least one sub-prefix.
-
-The operator may decide that a simple way to implement the policy is to have X and Y: $i)$ not export externally what they hear from G and H, routers that belong to the local services cluster; and $ii)$ announce what they hear from routers C and D and aggregate to \CD{PG} if an announcement is subset of \CD{PG}. This implementation is appealing because X and Y do not need to be made aware of which prefixes are global versus local and IP address assignment can be done independently (e.g., new prefixes can be assigned to local services without updating router configurations).
-
-\begin{figure}[t!]
+\DIFdelend \DIFaddbegin \begin{figure}[t!]
   \centering
   \includegraphics[width=\columnwidth]{figures/example2}
   \caption{Policy-compliance under failures is difficult.}
   \label{fig:example2}
   \vspace{-1em}
 \end{figure}
+\DIFaddend 
 
-However, this implementation does not have the right behavior in the face of failures. Suppose links X--G and X--H fail. Then, X will hear announcements for \CD{PL*} from C and D, having traversed from G and H to Y to C and D. Per policy implementation, X will start "leaking" these prefixes externally. Depending on the rationale for local services, this leak could impact security (e.g., if the services are sensitive) or availability (e.g., if the \CD{PL*} prefixes are used for other services outside of the data center). This problem does not manifest without failures because then X has and prefers paths to \CD{PL*} through G and H since they are shorter. A similar problem will happen if links Y--G and Y--H fail.
+\subsection{Example 2:  The Data Center}
+
+ While configuring policies for a fully functional network is difficult, ensuring policy compliance in the face of failures can be almost impossible. Consider the data center network in Figure~\ref{fig:example2} with routers organized as a fat tree and running BGP.\footnote{For scale and policy flexibility, data center networks increasingly use BGP internally, with a private AS number per router~\cite{bgp-in-dc}.} The network has two clusters, one with services that should be reachable globally and one with services that should be accessible only internally. This policy is enabled by using non-overlapping address \DIFdelbegin \DIFdel{spaces }\DIFdelend \DIFaddbegin \DIFadd{space }\DIFaddend in the two clusters and ensuring that only the address space for the global services is announced externally. Further, to reduce the number of prefixes that are announced externally, the global space is aggregated into a less-specific prefix \CD{PG}. The semantics of aggregation is that the aggregate prefix is announced as long as the router has a path to at least one sub-prefix.
+
+The operator may decide that a simple way to implement the policy is to have X and Y: $i)$ not export externally what they hear from G and H, routers that belong to the local services cluster; and $ii)$ announce what they hear from routers C and D and aggregate to \CD{PG} if an announcement is subset of \CD{PG}. This implementation is appealing because X and Y do not need to be made aware of which prefixes are global versus local and IP address assignment can be done independently (e.g., new prefixes can be assigned to local services without updating router configurations).
+
+
+\DIFdelbegin %DIFDELCMD < \begin{figure}[t!]
+%DIFDELCMD <   \centering
+%DIFDELCMD <   \includegraphics[width=\columnwidth]{figures/example2}
+%DIFDELCMD <   \caption{Policy-compliance under failures is difficult.}
+%DIFDELCMD <   \label{fig:example2}
+%DIFDELCMD <   \vspace{-1em}
+%DIFDELCMD < \end{figure}
+%DIFDELCMD < 
+
+%DIFDELCMD < %%%
+\DIFdelend However, this implementation does not have the right behavior in the face of failures. Suppose links X--G and X--H fail. Then, X will hear announcements for \CD{PL*} from C and D, having traversed from G and H to Y to C and D. Per policy implementation, X will start "leaking" these prefixes externally. Depending on the rationale for local services, this leak could impact security (e.g., if the services are sensitive) or availability (e.g., if the \CD{PL*} prefixes are used for other services outside of the data center). This problem does not manifest without failures because then X has and prefers paths to \CD{PL*} through G and H since they are shorter. A similar problem will happen if links Y--G and Y--H fail.
 %\footnote{A different problem occurs when links X--C and X--D (or Y--C and Y--D) fail. X (Y) may stop announcing the global prefixes because they would be heard through G and H.}
 Link failures in data centers are frequent and it is not uncommon to have multiple failed links at a given time~\cite{dc-failure-study}.
 
@@ -787,6 +845,7 @@ outside the user's network.
 Line 4 }\DIFdelend applies to any other traffic \DIFdelbegin \DIFdel{, and allows any routes that leave through a peer with a preference for customers over peers over providers}\DIFdelend \DIFaddbegin \DIFadd{not matching }\CD{PCust} \DIFadd{and allows the traffic to leave through any direct neighbor with the usual preferences of }\CD{R1} \DIFadd{over }\CD{R2} \DIFadd{over }\CD{Peer} \DIFadd{over }\CD{Prov}\DIFaddend . To summarize our progress, the \CD{Routing} policy
 implements P1, P3, and P4 from Figure~\ref{fig:example1}.
 
+
 Since\DIFdelbegin \DIFdel{by default }\DIFdelend \DIFaddbegin \DIFadd{, by default, }\DIFaddend routing allows transit traffic (\EG, traffic entering from
 \CD{Peer} and leaving through \CD{Prov}), we separately define a
 policy to enforce P2 and P5 from Figure~\ref{fig:example1}, using conjunction (\AND),
@@ -800,7 +859,7 @@ disjunction (\OR) and negation (\NOT) of constraints.
 %DIF < % define CustTransit = $later(Cust) \AND later(Prov)$
 \DIFaddbegin \DIFadd{First, we create reusable abstractions for describing traffic that transits our network. In }\sysname\DIFadd{, this is done by creating a new parameterized definition.
 }\begin{code}
-\Define transit(X,Y) = \Enter(X \OR Y) \AND \Exit(X \OR Y)
+\Define transit(X,Y) = \Enter(X{\OR}Y) \AND \Exit(X{\OR}Y)
 \Define cust-transit(X,Y) = \Later(X) \AND \Later(Y)
 \end{code}
 \noindent
@@ -1037,10 +1096,92 @@ The front-end (FE) of \sysname simplifies operators' task of describing preferre
   \vspace{-1em}
 \end{figure}
 
-We handle these challenges by breaking compilation into multiple stages \DIFaddbegin \DIFadd{(see Figure~\ref{fig:pipeline}), }\DIFaddend and developing efficient algorithms for \DIFdelbegin \DIFdel{each (See Figure~\ref{fig:pipeline})}\DIFdelend \DIFaddbegin \DIFadd{the translation between each stage}\DIFaddend . The first stage of the pipeline involves simple rewriting rules and substitutions from the FE to the core Regular Intermediate Representation (RIR). Policies in RIR are checked for well-formedness (\EG, never constraining traffic that does not enter the network), before being combined with the network topology to obtain the Product Graph Intermediate Representation (PGIR). The PGIR is a data representation that compactly captures the flow of BGP announcements subject to the policy and topology restrictions. We develop efficient algorithms that operate over the PGIR to ensure policy compliance under failures, avoid BGP instability, and prevent aggregation-induced black holes. Once the compiler determines that the PGIR is safe, it translates it to an abstract BGP (ABGP) representation. \DIFdelbegin \DIFdel{Vendor-specific adaptors to translate from ABGP to concrete device
+%DIF >  grammar
+\DIFaddbegin \newcommand{\BNFALT}{\;\;|\;\;}
+\newcommand{\hdr}[2]{\flushleft \chdr{\hspace{5mm}#1}{#2}}
+\newcommand{\chdr}[2]{\textbf{#1} {#2} \\ \centering}
+
+\begin{figure*}[t]\small
+  \begin{minipage}[t]{.45\linewidth}
+  \hdr{Syntax}{}
+  \vspace*{-1\baselineskip}
+  %
+  \[ \begin{array}{rclr}
+    \hline
+
+     pol     &::=& p_1, \dots, p_n & \textit{constraints} \\
+     p       &::=& t \hspace{.3em} \Path \hspace{.3em} r_1 \Prefer \dots \Prefer r_m & \textit{preferences} \\
+     x       &::=& d.d.d.d/d & \textit{prefix} \\
+     t       &::=& \True & \textit{true} \\
+         &\BNFALT& \NOT t & \textit{negation} \\
+         &\BNFALT& t_1 \OR{} t_2 & \textit{disjunction} \\
+         &\BNFALT& t_1 \AND{} t_2 & \textit{conjunction} \\
+         &\BNFALT& \textit{prefix} = x & \textit{prefix test} \\
+         &\BNFALT& \textit{comm} = d & \textit{community test} \\
+     r       &::=& n & \textit{AS number} \\
+         &\BNFALT& \emptyset & \textit{empty set} \\
+         &\BNFALT& \In & \textit{internal loc} \\
+         &\BNFALT& \Out & \textit{external loc} \\
+         &\BNFALT& r_1 \cup r_2 & \textit{union} \\
+         &\BNFALT& r_1 \cap r_2 & \textit{intersection} \\
+         &\BNFALT& r_1 \cdot r_2 & \textit{concatenation} \\
+         &\BNFALT& \NOT r & \textit{path negation} \\
+         &\BNFALT& r^* & \textit{iteration} \\
+     l       &::=& r_1 \rightarrow r_2 & \textit{link pairs} \\
+     cc     &::=& agg(x, l) \BNFALT tag(c, t, l) & \textit{control constraints} \\
+  \end{array} \]
+
+  \end{minipage}
+  %
+  ~~
+  \vrule
+  ~~
+  %
+  \begin{minipage}[t]{.5\linewidth}\small
+  \hdr{Propane Expansions}{}
+  \vspace*{-1\baselineskip}
+  %
+  \[\begin{array}{rcl}
+    \hline
+    \Any           & = & \Out^* \cdot \In^+ \cdot \Out^* \\
+    \None          & = & \emptyset \\
+    \Internal      & = & \In^+ \\
+    \Only(X)       & = & \Any \cap X^* \\
+    \Never(X)      & = & \Any \cap (!X)^* \\
+    \Through(X)    & = & \Out^* \cdot \In^* \cdot X \cdot \In^* \cdot \Out^* \\
+    \Later(X)      & = & \Out^* \cdot (X \cap \Out) \cdot \Out^* \cdot \In^+ \cdot \Out^* \\
+    \Before(X)     & = & \Out^* \cdot \In^+ \cdot \Out^* \cdot (X \cap \Out) \cdot \Out^* \\
+    \End(X)        & = & \Any \cap (\Sigma^* \cdot X) \\
+    \Start(X)      & = & \Any \cap (X \cdot \Sigma^*) \\
+    \Exit(X)       & = & (\Out^* \cdot \In^* \cdot (X \cap \In) \cdot \Out \cdot \Out^*) \cup \\
+                  &        & (\Out^* \cdot \In^+ \cdot (X \cap \Out) \cdot \Out^*) \\
+    \Enter(X)      & = & (\Out^* \cdot \Out \cdot (X \cap \In) \cdot \In^* \cdot \Out^*) \cup \\
+                  &        & (\Out^* \cdot (X \cap \Out) \cdot \In^+ \cdot \Out^*) \\
+    \LinkKW(X,Y)     & = & \Any \cap (\Sigma^* \cdot X \cdot Y \cdot \Sigma^*) \\
+    \PathKW(\vec{X}) & = & \Any \cap (\Sigma^* \cdot X_1 \dots X_n \cdot \Sigma^*) \\
+    \Novalley(\vec{X}) & = & \Any ~ \cap \\
+                  &   & \NOT\PathKW(X_2,X_1,X_2) ~ \cap \dots \cap \\
+                  &   & \NOT\PathKW(X_n,X_{n-1},X_n) \\
+  \end{array} \]
+
+  \end{minipage}
+
+  \hrulefill
+
+  \caption{Regular Intermediate Language (RIL) syntax (left), and
+           Propane language expansions (right).}
+  \label{fig:rir-syntax}
+  %\vspace{-1em}
+\end{figure*}
+
+\subsection{\DIFadd{Regular IR (RIR)}}
+\label{sec:rir}
+
+\DIFaddend We handle these challenges by breaking compilation into multiple stages \DIFaddbegin \DIFadd{(see Figure~\ref{fig:pipeline}), }\DIFaddend and developing efficient algorithms for \DIFdelbegin \DIFdel{each (See Figure~\ref{fig:pipeline})}\DIFdelend \DIFaddbegin \DIFadd{the translation between each stage}\DIFaddend . The first stage of the pipeline involves simple rewriting rules and substitutions from the FE to the core Regular Intermediate Representation (RIR). Policies in RIR are checked for well-formedness (\EG, never constraining traffic that does not enter the network), before being combined with the network topology to obtain the Product Graph Intermediate Representation (PGIR). The PGIR is a data representation that compactly captures the flow of BGP announcements subject to the policy and topology restrictions. We develop efficient algorithms that operate over the PGIR to ensure policy compliance under failures, avoid BGP instability, and prevent aggregation-induced black holes. Once the compiler determines that the PGIR is safe, it translates it to an abstract BGP (ABGP) representation. \DIFdelbegin \DIFdel{Vendor-specific adaptors to translate from ABGP to concrete device
 configurations are easily added to generate concrete configurations }\DIFdelend \DIFaddbegin \DIFadd{ABGP can then be translated into various vendor-specific device
 configurations as needed. The }\sysname \DIFadd{compiler currently generates 
 Quagga router configurations from ABGP}\DIFaddend . 
+
 
 \DIFdelbegin \subsection{\DIFdel{Regular IR (RIR)}}
 %DIFAUXCMD
@@ -1053,12 +1194,13 @@ Quagga router configurations from ABGP}\DIFaddend .
 %DIFDELCMD < 
 
 %DIFDELCMD < %%%
-\DIFdelend % grammar
-\newcommand{\BNFALT}{\;\;|\;\;}
-\newcommand{\hdr}[2]{\flushleft \chdr{\hspace{5mm}#1}{#2}}
-\newcommand{\chdr}[2]{\textbf{#1} {#2} \\ \centering}
+%DIF <  grammar
+%DIFDELCMD < \newcommand{\BNFALT}{\;\;|\;\;}
+%DIFDELCMD < \newcommand{\hdr}[2]{\flushleft \chdr{\hspace{5mm}#1}{#2}}
+%DIFDELCMD < \newcommand{\chdr}[2]{\textbf{#1} {#2} \\ \centering}
+%DIFDELCMD < 
 
-\DIFdelbegin %DIFDELCMD < \begin{figure*}\small
+%DIFDELCMD < \begin{figure*}\small
 %DIFDELCMD <   \begin{minipage}[t]{.45\linewidth}
 %DIFDELCMD <   \hdr{\large Syntax}{}
 %DIFDELCMD <   \vspace*{-1\baselineskip}
@@ -1136,85 +1278,10 @@ Quagga router configurations from ABGP}\DIFaddend .
 %DIFDELCMD <   \label{fig:rir-syntax}
 %DIFDELCMD <   \vspace{-1em}
 %DIFDELCMD < \end{figure*}
+%DIFDELCMD < 
+
 %DIFDELCMD < %%%
-\DIFdelend \DIFaddbegin \begin{figure*}\small
-  \begin{minipage}[t]{.45\linewidth}
-  \hdr{\large Syntax}{}
-  \vspace*{-1\baselineskip}
-  %
-  \[ \begin{array}{rclr}
-    \hline
-
-     pol     &::=& p_1, \dots, p_n & \textit{constraints} \\
-     p       &::=& t \hspace{.3em} \Path \hspace{.3em} r_1 \Prefer \dots \Prefer r_m & \textit{preferences} \\
-     x       &::=& d.d.d.d/d & \textit{prefix} \\
-     t       &::=& \True & \textit{true} \\
-         &\BNFALT& \NOT t & \textit{negation} \\
-         &\BNFALT& t_1 \OR{} t_2 & \textit{disjunction} \\
-         &\BNFALT& t_1 \AND{} t_2 & \textit{conjunction} \\
-         &\BNFALT& \textit{prefix} = x & \textit{prefix test} \\
-         &\BNFALT& \textit{comm} = d & \textit{community test} \\
-     r       &::=& n & \textit{AS number} \\
-         &\BNFALT& \emptyset & \textit{empty set} \\
-         &\BNFALT& \In & \textit{internal loc} \\
-         &\BNFALT& \Out & \textit{external loc} \\
-         &\BNFALT& r_1 \cup r_2 & \textit{union} \\
-         &\BNFALT& r_1 \cap r_2 & \textit{intersection} \\
-         &\BNFALT& r_1 \cdot r_2 & \textit{concatenation} \\
-         &\BNFALT& \NOT r & \textit{path negation} \\
-         &\BNFALT& r^* & \textit{iteration} \\
-     l       &::=& r_1 \rightarrow r_2 & \textit{link pairs} \\
-     cc     &::=& agg(x, l) \BNFALT tag(c, t, l) & \textit{control constraints} \\
-  \end{array} \]
-
-  \end{minipage}
-  %
-  ~~
-  \vrule
-  ~~
-  %
-  \begin{minipage}[t]{.5\linewidth}\small
-  \hdr{\large Propane Expansions}{}
-  \vspace*{-1\baselineskip}
-  %
-  \[\begin{array}{rcl}
-    \hline
-    \Any           & = & \Out^* \cdot \In^+ \cdot \Out^* \\
-    \None          & = & \emptyset \\
-    \Internal      & = & \In^+ \\
-    \Only(X)       & = & \Any \cap X^* \\
-    \Never(X)      & = & \Any \cap (!X)^* \\
-    \Through(X)    & = & \Out^* \cdot \In^* \cdot X \cdot \In^* \cdot \Out^* \\
-    \Later(X)      & = & \Out^* \cdot (X \cap \Out) \cdot \Out^* \cdot \In^+ \cdot \Out^* \\
-    \Before(X)     & = & \Out^* \cdot \In^+ \cdot \Out^* \cdot (X \cap \Out) \cdot \Out^* \\
-    \End(X)        & = & \Any \cap (\Sigma^* \cdot X) \\
-    \Start(X)      & = & \Any \cap (X \cdot \Sigma^*) \\
-    \Exit(X)       & = & (\Out^* \cdot \In^* \cdot (X \cap \In) \cdot \Out \cdot \Out^*) \cup \\
-                  &        & (\Out^* \cdot \In^+ \cdot (X \cap \Out) \cdot \Out^*) \\
-    \Enter(X)      & = & (\Out^* \cdot \Out \cdot (X \cap \In) \cdot \In^* \cdot \Out^*) \cup \\
-                  &        & (\Out^* \cdot (X \cap \Out) \cdot \In^+ \cdot \Out^*) \\
-    \LinkKW(X,Y)     & = & \Any \cap (\Sigma^* \cdot X \cdot Y \cdot \Sigma^*) \\
-    \PathKW(\vec{X}) & = & \Any \cap (\Sigma^* \cdot X_1 \dots X_n \cdot \Sigma^*) \\
-    \Novalley(\vec{X}) & = & \Any ~ \cap \\
-                  &   & \NOT\PathKW(X_2,X_1,X_2) ~ \cap \dots \cap \\
-                  &   & \NOT\PathKW(X_n,X_{n-1},X_n) \\
-  \end{array} \]
-
-  \end{minipage}
-
-  \hrulefill
-
-  \caption{Regular Intermediate Language (RIL) syntax (left), and
-           Propane language expansions (right).}
-  \label{fig:rir-syntax}
-  %\vspace{-1em}
-\end{figure*}
-\DIFaddend 
-
-\DIFaddbegin \subsection{\DIFadd{Regular IR (RIR)}}
-\label{sec:rir}
-
-\DIFaddend \para{Syntax}
+\DIFdelend \para{Syntax}
 The \sysname FE is just a thin layer atop a core, regular-expression language (RIR) for describing preference-based path constraints. 
 Figure~\ref{fig:rir-syntax} shows the RIR syntax. A policy consists of one or more constraints, each of which have a test on the type of route, and a corresponding set of preferred regular paths. Regular paths are regular expressions where the base characters are abstract locations---either a router or an AS. Special \In{} and \Out{} symbols refer to any internal or external location respectively. In addition, $\Sigma$ refers to any symbol. We also use \DIFdelbegin \DIFdel{other standard abbreviations
 for regular expressions such as }\DIFdelend \DIFaddbegin \DIFadd{the standard regular expressions abbreviation }\DIFaddend $r^+$ \DIFaddbegin \DIFadd{to stand for $r \cdot r^*$}\DIFaddend , a sequence of one or more occurrences of $r$\DIFdelbegin \DIFdel{, when appropriate.}\DIFdelend \DIFaddbegin \DIFadd{. Predicates ($t$) consist of logical boolean connectives (and, or, not) as well as tests that match a particular prefix (or group of prefixes) and tests for route advertisments with a particular community value (i.e., an integer value associated with a path). 
@@ -1361,12 +1428,12 @@ where $\odot$ stands for an arbitrary regular binary operator\DIFaddbegin \DIFad
 \DIFdelend \DIFaddbegin \begin{figure*}
   \begin{minipage}[t]{.5\linewidth}
 
-  \hdr{\large Topology}{}
+  \hdr{Topology}{}
   \vspace*{-2\baselineskip}
 
   \includegraphics[width=.6\columnwidth]{figures/topology}
 
-  \hdr{\large Policy Automata}{}
+  \hdr{Policy Automata}{}
   \vspace*{-0.5\baselineskip}
 
   \begin{tikzpicture}[>=stealth',shorten >=1pt,auto,node distance=1.4cm,minimum size=1cm]
@@ -1403,7 +1470,7 @@ where $\odot$ stands for an arbitrary regular binary operator\DIFaddbegin \DIFad
   ~~
   %
   \begin{minipage}[t]{.5\linewidth}
-  \hdr{\large Product Graph IR}{}
+  \hdr{Product Graph IR}{}
   \vspace*{-1\baselineskip}
   %
   \includegraphics[width=.65\columnwidth]{figures/productgraph}
@@ -1742,7 +1809,8 @@ The final stage of our compiler translates policies from PGIR to a vendor-neutra
 \begin{code}
   \Router{A}
     Match \PEER=C, \COMM=(3,2)
-      Export \COMM \Arrow (4,2), \MED \Arrow 80, \PEER \Arrow W
+      Export \COMM \Arrow (4,2), 
+             \MED \Arrow 80, \PEER \Arrow W
   \Router{B}
     Match \PEER = C, \COMM = (-,2)
       Export \COMM \Arrow (-,3), \COMM \Arrow \text{noexport},

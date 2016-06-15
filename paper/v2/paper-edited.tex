@@ -80,7 +80,16 @@
 %\renewcommand*{\LaTeX}{\oldLaTeX\space}
 \renewcommand{\path}[2]{ #1 \mapsto \ensuremath{#2} }
 
+
+
 \begin{document}
+
+\setcopyright{acmcopyright}
+\conferenceinfo{SIGCOMM '16}{August 22--26, 2016, Florianopolis, Brazil}
+
+
+
+
 
 \special{papersize=8.5in,11in}
 \setlength{\pdfpageheight}{\paperheight}
@@ -210,15 +219,34 @@ data center and backbone networks.  We show that, despite its strong guarantees,
 %
 %=====================================================
 
+%\category{CR-number}{subcategory}{third-level}
 
-\category{CR-number}{subcategory}{third-level}
+\begin{CCSXML}
+<ccs2012>
+<concept>
+<concept_id>10003033.10003068.10003073.10003075</concept_id>
+<concept_desc>Networks~Network control algorithms</concept_desc>
+<concept_significance>300</concept_significance>
+</concept>
+<concept>
+<concept_id>10011007.10011006.10011050.10011017</concept_id>
+<concept_desc>Software and its engineering~Domain specific languages</concept_desc>
+<concept_significance>300</concept_significance>
+</concept>
+</ccs2012>
+\end{CCSXML}
+
+\ccsdesc[300]{Networks~Network control algorithms}
+\ccsdesc[300]{Software and its engineering~Domain specific languages}
+
+\printccsdesc
+
+\keywords{Propane; Domain-specific Language; BGP; Synthesis; Compilation; Fault tolerance}
+
 %% general terms are not compulsory anymore,
 %% you may leave them out
-\terms
-term1, term2
-\keywords
-Propane, BGP, Synthesis, Compilation
-
+%\terms Network Programming Language, Distributed Program Synthesis
+%\keywords Propane Language, BGP, Synthesis, Compilation
 
 %=====================================================
 %
@@ -706,13 +734,14 @@ restricts traffic destined to known customer prefixes (\CD{PCust}) to only follo
 Line 3 applies to any other traffic not matching \CD{PCust} and allows the traffic to leave through any direct neighbor with the usual preferences of \CD{R1} over \CD{R2} over \CD{Peer} over \CD{Prov}. To summarize our progress, the \CD{Routing} policy
 implements P1, P3, and P4 from Figure~\ref{fig:example1}.
 
+
 Since, by default, routing allows transit traffic (\EG, traffic entering from
 \CD{Peer} and leaving through \CD{Prov}), we separately define a
 policy to enforce P2 and P5 from Figure~\ref{fig:example1}, using conjunction (\AND),
 disjunction (\OR) and negation (\NOT) of constraints. 
 First, we create reusable abstractions for describing traffic that transits our network. In \sysname, this is done by creating a new parameterized definition.
 \begin{code}
-\Define transit(X,Y) = \Enter(X \OR Y) \AND \Exit(X \OR Y)
+\Define transit(X,Y) = \Enter(X{\OR}Y) \AND \Exit(X{\OR}Y)
 \Define cust-transit(X,Y) = \Later(X) \AND \Later(Y)
 \end{code}
 \noindent
