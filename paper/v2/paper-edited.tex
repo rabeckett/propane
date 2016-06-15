@@ -280,7 +280,7 @@ We use \sysname for data center and backbone networks of a large cloud provider.
 \label{sec:introduction}
 
 It is well known that configuring networks is error
-prone and such errors can lead to disruptive 
+prone and such errors can lead to disruptive
 downtimes~\cite{mahajan+:bgp-misconfiguration,feamster+:rcc,batfish,dc-failure-study}.
 For instance, a recent misconfiguration led to an hour-long, nation-wide outage for Time Warner's backbone network~\cite{time-warner}; and a major BGP-related incident makes international news every few months~\cite{bgpmon}.
 
@@ -316,7 +316,7 @@ for network operators.  As a result, configurations that work
 correctly in failure-free environments have nonetheless been found to violate key
 network-wide properties when failures occur~\cite{batfish}.
 
-To reduce configuration errors, operators are increasingly adopting an 
+To reduce configuration errors, operators are increasingly adopting an
 approach in which common tasks are captured as parameterized templates~\cite{hatch,thwack}.
 %
 %More powerful still are systems like
@@ -652,11 +652,10 @@ Thus, we see that devising a configuration that ensures policy compliance in the
 \label{sec:propane}
 
 Policies for (distributed) control planes differ from data-plane
-policies in a few important ways. First, control-plane
-policies must account for all failures at compile time; there is
+policies in a few important ways. First, they must account for all failures at compile time; there is
 no controller at runtime, so the routers must be configured in advance to handle failures in a compliant manner.
 %
-In \sysname, we enable such specifications through a notion of {\em path preferences}, with the semantics that a less-preferred path is taken only when a higher-preference path is unavailable in the network.
+In \sysname, we enable such specifications through {\em path preferences}, with the semantics that a less-preferred path is taken only when a higher-preference path is unavailable in the network.
 %
 Second, paths in a control-plane policy may be under-specified (e.g.,
 "prefer customer" does not indicate a concrete path). The \sysname
@@ -664,11 +663,13 @@ compiler treats such under-specifications as constraints on the set of
 allowed paths and automatically computes valid sets based on the topology.
 %
 
-In the rest of this section, we define \sysname policies for the two
-examples from the previous section, introducing key aspects of
-the \sysname language along the way. The complete syntax of the
-language as well as our strategy for compiling \sysname policies to
-BGP is defined in \S\ref{sec:compilation}.
+This section introduces the \sysname language using the 
+examples from the previous section.
+%, introducing key aspects of
+%the \sysname language along the way. 
+The next section describes the complete syntax of the
+language as well as our strategy for compiling it to
+BGP.
 
 \subsection{Example 1: The Backbone}
 
@@ -680,11 +681,11 @@ BGP is defined in \S\ref{sec:compilation}.
 %import-export filters, local preferences, MED attributes, and community tags
 %to ensure policy compliance under all possible failure scenarios.
 
-\sysname allows operators to configure the network with the
+\sysname lets operators configure the network with the
 abstraction that they have centralized control over routing.
 Specifically, the operator simply provides a set of high-level constraints
 that describe the
-different routes traffic may (or may not) take and their relative preferences.
+paths traffic should---or should not---take and their relative preferences.
 \sysname specifications are written modularly via a series
 of declarations.
 %These definitions allow users to express the three
@@ -781,20 +782,20 @@ and \CD{NoTrans} simultaneously, we simply conjoin them: \CD{Routing \AND{} NoTr
 %% Routing $\AND$  NoTransit
 %% \end{lstlisting}
 %
-These constraints capture the entire policy. From them, \sysname will generate per-device import and export filters, local preferences,
+
+Collectively, the constraints above capture the entire policy. From them, our compiler will generate per-device import and export filters, local preferences,
 MED attributes, and community tags to ensure that the policy is
 implemented correctly under all failures.
 
 \subsection{Example 2: The Data Center}
 
-In our data center,
-there are three main concerns:
-(1) traffic for the prefix block allocated to each top-of-rack router must be able to reach that router,
+Our data center example network has three main concerns:
+(1) traffic for the prefix allocated to each top-of-rack router must be able to reach that router,
 (2) local services must not leak outside the data center, and
 (3) aggregation must be performed on global prefixes to reduce churn
 in the network.
 
-\sysname allows us to specify each of these constraints modularly. The first constraint is about prefix ownership---namely, we only want traffic for certain prefixes to end up at a particular location. The following definition captures this intent.
+\sysname allows modular specification of each of these constraints. The first constraint is about prefix ownership---we want traffic only for certain prefixes to end up at a particular location. The following definition captures this intent.
 
 %% \begin{lstlisting}[mathescape=true]
 %% define Ownership = {
@@ -814,13 +815,14 @@ in the network.
      \True \Path \End(\Out)\}
 \end{code}
 \noindent
-In English: traffic for prefix \CD{PG1} is only allowed to follow paths that
-end at router \CD{A}; traffic matching \CD{PG2},
+This definition says that traffic for prefix \CD{PG1} is allowed to follow only paths that
+end at router \CD{A}; traffic for \CD{PG2},
 but not \CD{PG1}, must
 end at router \CD{B}; and so on.
 Any traffic destined for a prefix that not a part of the data center should be allowed to leave the data center and end at some external location, which is otherwise unconstrained.
-The special keyword \Out{} here matches any location outside the user's network, while the keyword \In{} will match any location inside the network.
-For the second constraint, we can define another policy:
+The special keyword \Out{} matches any location outside the data center network, while the keyword \In{} will match any location inside the network.
+
+For the second constraint, we define another policy:
 
 %% \begin{lstlisting}[mathescape=true]
 %% define Routing = {
@@ -842,8 +844,8 @@ For the second constraint, we can define another policy:
 %This means traffic for
 %\CD{PG*} may be sent either from other data center routers or
 %from external ASes.
-The locality constraint ensures that traffic for local
-prefixes only ever follows paths that are internal to the network at each hop.
+This definition says that traffic for local
+prefixes only follows paths that are internal to the network at each hop.
 This constraint guarantees that the services remain reachable only to locations
 inside the data center.
 
@@ -855,8 +857,7 @@ For instance, a constraint on aggregation is included to ensure that
 aggregation for global prefixes is performed from
 locations inside (\In) the network to locations outside (\Out).
 In this case, \CD{PG1} and \CD{PG2} will use the aggregate \CD{PG}
-(which we assume is defined earlier using an appropriate prefix such
-as \CD{74.3.28.0/24})
+(which we assume is defined earlier)
 when advertised outside the datacenter.
 
 \begin{code}
