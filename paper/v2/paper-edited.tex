@@ -1088,8 +1088,8 @@ We list only the route aggregation and community tagging constraints in Figure~\
 
 \para{Semantics}
 
-The semantics of RIR is in terms of ranked paths. Each preference-based regular path constraint of the form $r_1 \Prefer \dots \Prefer r_j$ maps to a set of concrete paths in the network that match one of $r_i$. A network path is a string of abstract locations of the form $n_1 n_2 \dots n_k$. A regular expression $r$ matches path $p$, if $p \in \mathcal{L}(r)$, that is, the path is in the language of the regular expression and is topologically valid. 
-%We denote the length of a path $p$ as $\abs{p}$. 
+The semantics of RIR is in terms of ranked paths. Each preference-based regular path constraint of the form $r_1 \Prefer \dots \Prefer r_j$ maps to a set of concrete paths in the network that match one of $r_i$. A network path is a string of abstract locations of the form $n_1 n_2 \dots n_k$. A regular expression $r$ matches path $p$, if $p \in \mathcal{L}(r)$, that is, the path is in the language of the regular expression and is topologically valid.
+%We denote the length of a path $p$ as $\abs{p}$.
 
 A path $p$ has rank:
 $$(\min_i \set{ p \in \mathcal{L}(r_i) }, \abs{p})$$
@@ -1206,20 +1206,21 @@ where $\odot$ stands for an arbitrary regular binary operator, and $x$ is a poli
 
 \subsection{Product Graph IR}
 
-Now that the user policy exists in a simplified form, we must consider the topology. In particular, we want a compact representation that describes all the possible ways BGP route announcements can flow through the network subject to the policy and topology constraints. Our PGIR captures these dependencies by ``intersecting" each of the regular automata corresponding to the RIR path preferences, and the topology. Paths through the PGIR correspond to real paths through the topology that satisfy the user constraints.
+Now that the user policy exists in a simplified form, we must consider the topology. In particular, we want a compact representation that describes all the possible ways BGP route announcements can flow through the network subject to the policy and topology constraints. The PGIR captures these constraints by ``intersecting" each of the regular automata corresponding to the RIR path preferences and the topology. Paths through the PGIR correspond to real paths through the topology that satisfy the user constraints.
 
 %Finding paths through a graph subject to regular constraints has been studied extensively in the database literature~\ref{bib:todo}, and has been applied to networks in the past~\ref{bib:todo}.
 
 \para{Formal definition}
 
 % Formally define automata
-The RIR policy is an ordered sequence of regular expressions $r_1 \Prefer \dots \Prefer r_j$. While paths talk about the direction traffic flows through the network, to implement the policy with BGP we are concerned about the way control-plane information is disseminated (i.e., route announcements flowing in the opposite direction). To capture this idea, for each regular expression $r_i$, we construct a deterministic finite state machine on the reversed regular expression. Each automaton for the reversed regular expression of $r_i$ is a tuple: ($\Sigma, Q_i, F_i, q_{0_i}, \sigma_i$). The alphabet $\Sigma$ consists of all abstraction locations (routers or ASes), $Q_i$ is the set of states for automaton i, $F_i$ is the set of final states, $q_{0_i}$ is the initial state, and $\sigma_i \colon Q_i \times \Sigma \rightarrow Q_i$ is the state transition function.
+%The RIR policy is an ordered sequence of regular expressions $r_1 \Prefer \dots \Prefer r_j$. 
+While paths in RIR policy describe the direction traffic flow through the network, to implement the policy with BGP we are concerned about the way control-plane information is disseminated, i.e., route announcements flowing in the opposite direction. To capture this idea, for each regular expression $r_i$ in RIR policy, we construct a deterministic finite state machine on the reversed regular expression. Each automaton for the reversed regular expression of $r_i$ is a tuple ($\Sigma, Q_i, F_i, q_{0_i}, \sigma_i$). The alphabet $\Sigma$ consists of all abstraction locations (i.e., routers or ASes), $Q_i$ is the set of states for automaton i, $F_i$ is the set of final states, $q_{0_i}$ is the initial state, and $\sigma_i \colon Q_i \times \Sigma \rightarrow Q_i$ is the state transition function.
 %
 % Formally define topology
 The topology is represented as a graph ($V, E$), which consists of a set of vertices $V$, and a set of directed edges $E \colon V \times V$.
 %
 % Formally define product graph
-The combined PGIR is a tuple: ($V'$, $E'$, $s$, $e$, $P$) with
+The combined PGIR is a tuple ($V'$, $E'$, $s$, $e$, $P$) with
 vertices $V' \colon V \times Q_1 \times \dots \times Q_j$,
 edges $E' \colon V' \times V'$,
 a unique starting vertex $s$,
@@ -1241,7 +1242,7 @@ The preference function $P$ for node $v = (x, a_1, \dots, a_m)$ is defined as $P
 Finally, there is an edge from each node in the PGIR such that $P(v) \neq \emptyset$ to the special end node $e$. We write $(x \leq_{rank} y)$ if either $P(x) = P(y) = \emptyset$ or $min ~ P(x) \leq min ~ P(y)$, which means that paths ending at PGIR node $x$ are better than (lower rank) than paths that ending at $y$.
 
 
-Intuitively, PGIR tracks which states of each automaton the policy is in as route announcements move between routers.
+Intuitively, PGIR tracks which states of each automaton the policy is in as route announcements move between locations.
 %
 Consider the topology in Figure~\ref{fig:example-compilation}. Suppose we want a primary route from neighbor W that allows traffic to enter the network at $A$, and utilize the C--D link before leaving the network (through $X$ or $Y$). As a backup, we also want to allow traffic to enter the network from $B$, in which case the traffic can also utilize the C--E link before leaving the network. For simplicity, we assume that the route ends in either $X$, $Y$, or $Z$. The RIR for the policy could be written as:
 %
@@ -1252,19 +1253,20 @@ Figure~\ref{fig:example-compilation} shows the policy automata for each regular 
 The figure also shows the PGIR after intersecting the topology and policy automata. Every path in the PGIR corresponds to a concrete path in the topology. In particular, every path through the PGIR that ends at a node $v$ such that the preference function $P(v) = \set{i_1, \dots, i_m}$ is non-empty, is a valid topological path that satisfies the policy constraints and results in a particular path with preferences $i_1$ through $i_m$.
 %
 For example, the path $X \cdot D \cdot C \cdot A \cdot W$ is a valid path in the topology that BGP route announcements might take, which would lead to obtaining a path with the lowest (best) rank of $1$.
-BGP control messages can start from peer X, which would match the $\Out$ transition from both automata, leading to state $1$ in the first automaton, and state $1$ in the second automaton. This is reflected in the product graph by the node with state $(X,1,1)$. From here, if X were to advertise this route to D, it would result in the path $D \cdot X$, which would lead to state $2$ in the first automaton, and state $2$ in the second automaton, and so on.
+BGP control messages can start from peer X, which would match the $\Out$ transition from both automata, leading to state $1$ in the first automaton, and state $1$ in the second automaton. This possiblity is reflected in the product graph by the node with state $(X,1,1)$. From here, if X were to advertise this route to D, it would result in the path $D \cdot X$, which would lead to state $2$ in the first automaton, and state $2$ in the second automaton, and so on.
 %
 The ``--" state indicates the corresponding automaton can not accept the current path or any extension of it. Since node $(W,5,-)$ is in an accepting state for the first automata, it indicates that this path has preference 1.
 
 \para{Minimization}
-
-Before checking if policies captured by the PGIR are safe, we minimize the PGIR to improve our safety analysis.
+After building the PGIR as desribed above, 
+we minimize it in order to improve the subsequent analysis that checks if the policies captured by it are safe under failures.
 The minimization is based on the observation that, although every path in the PGIR is a valid path in the topology, we do not want to consider paths that form loops. In particular, BGP's loop prevention mechanism forces an AS to reject any route for which it is already in the AS path.
 %
 For example, in Figure~\ref{fig:example-compilation}, the path $W \cdot A \cdot C \cdot B \cdot W$ is a valid topological path, leading to a path that satisfies the preference 1 policy, but which contains a loop.
 %
-It often improves the precision of the failure-safety analysis to eliminate cases that are not possible due to loops.
+The precision of the failure-safety analysis often increases when nodes and edges that are not possible due to loops are eliminated.
 %For example, if we can safely remove a PGIR edge, then we do not have to consider what happens when the edge has failed.
+
 We use graph dominators~\cite{tarjan-dominance} as a cheap approximation for removing many nodes and edges in the PGIR that are never on any \emph{simple} (loop free) path between the start and end nodes.
 In the PGIR, a node $x$ dominates a node $y$ if $x$ appears on every path leading from the start node to $y$. Similarly, a node $x$ post-dominates a node $y$ in the PGIR if $x$ appears on every path from $y$ to the end node.
 We can safely remove nodes and edges in the PGIR when any of the following conditions hold, where $x$, $x'$ and $y$, $y'$ refer to PGIR nodes that shadow each other:
@@ -1279,8 +1281,9 @@ We can safely remove nodes and edges in the PGIR when any of the following condi
 \item Remove edge ($x$, $y$) if $x$ is dominated by some $y'$
 \end{itemize}
 %We can safely remove any PGIR node or edge as long as it never appears on any \emph{simple} path from the \textit{start} node to the \emph{end} node.
-For example, node $(W,1,1)$ in Figure~\ref{fig:example-compilation} can be removed since it is never on a simple path to the end node because it must always go through node $(W,-,4)$. That is, node $(W,-,4)$ post-dominates node $(W,1,1)$. We repeatly apply the above minimizations to the PGIR until no further minimization is possible.
-Colored nodes and dashed edges in Figure~\ref{fig:example-compilation} are removed after minimization since they are irrelvant to the BGP decision process.
+For example, node $(W,1,1)$ in Figure~\ref{fig:example-compilation} can be removed since it is never on a simple path to the end node because it must always go through node $(W,-,4)$. That is, node $(W,-,4)$ post-dominates node $(W,1,1)$. We repeatedly apply the minimizations above to the PGIR until no further minimization is possible.
+In the example of Figure~\ref{fig:example-compilation}, colored nodes and dashed edges are removed after minimization.
+ %since they are irrelvant to the BGP decision process.
 %
 %Although fully minimizing this graph is an NP-complete problem,  a simple and efficient algorithm based on graph dominators achieves largely the same effect, greatly simplifying the failure safety analysis.
 
