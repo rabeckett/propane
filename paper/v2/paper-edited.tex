@@ -102,27 +102,28 @@
 
 \author{%
 Ryan Beckett\\
-  \affaddr{Princeton University}
+  \affaddr{Princeton}
   %\\
   %\email{rbeckett@princeton.edu}
 \and
 Ratul Mahajan\\
-  \affaddr{Microsoft Research}
+  \affaddr{Microsoft}
   %\\
   %\email{ratul@microsoft.com}
 \and
 Todd Millstein\\
-  \affaddr{University of California, Los Angeles}
+  \affaddr{UCLA}
+  %\affaddr{University of California, Los Angeles}
   %\\
   %\email{todd@cs.ucla.edu}
-\and
+\and 
 Jitu Padhye\\
-  \affaddr{Microsoft Research}
+  \affaddr{Microsoft}
   %\\
   %\email{padhye@microsoft.com}
 \and
 David Walker\\
-  \affaddr{Princeton University}
+  \affaddr{Princeton}
   %\\
   %\email{dpw@princeton.edu}
 }
@@ -216,7 +217,7 @@ David Walker\\
 %datacenter and backbone networks.  We show that, despite its strong guarantees, it scales to topologies with hundreds to thousands of routers.
 
 \textbf{Abstract---}
-We develop \sysname, a language and a compiler to help network operators with a challenging, error-prone task: bridging the gap between network-wide routing objectives and low-level configurations of devices that run complex, distributed protocols.
+We develop \sysname, a language and compiler to help network operators with a challenging, error-prone task---bridging the gap between network-wide routing objectives and low-level configurations of devices that run complex, distributed protocols.
 %
 The language allows operators to specify their objectives naturally, using high-level constraints and ordered preferences on paths that traffic should take.
 %through their network or other networks.
@@ -226,7 +227,7 @@ The compiler automatically translates these specifications to router-level BGP c
 %It uses We introduce data structures and algorithms that
 It guarantees that the compiled configurations correctly implement the specified policy under all possible combinations of failures.
 %
-We use \sysname for datacenter and backbone networks of a large cloud provider. We find that our language can effectively express their policies and, despite its strong guarantees, our compiler scales to topologies with hundreds or thousands of routers.
+We show that \sysname can effectively express the policies of datacenter and backbone networks of a large cloud provider;  and despite its strong guarantees, our compiler scales to networks with hundreds or thousands of routers.
 
 
 
@@ -1806,7 +1807,7 @@ as opposed to using logic programming and SAT-based model-finding.
 \section{Conclusions}
 \label{sec:conclusions}
 
-We introduced \sysname, a language and compiler for implementing network-wide policies using a distributed set of devices running BGP. Propane allows operators to describe their policy naturally through high-level constraints on the shape and relative preferences of paths for different types of traffic. When \sysname compiles a policy, the resulting BGP configurations are correct-by-construction and faithfully implement the policy in a distributed fashion, regardless of the number and combinations of failures. Applying \sysname to real-world networks showed that its language is expressive and its compiler is scalable. 
+We introduced \sysname, a language and compiler for implementing network-wide policies using a distributed set of devices running BGP. Propane allows operators to describe their policy naturally through high-level constraints on the shape and relative preferences of paths for different types of traffic. When \sysname compiles a policy, the resulting BGP configurations are correct-by-construction and faithfully implement the policy in a distributed fashion, regardless of the number and combinations of failures. Applying \sysname to real-world networks showed that its language is expressive and its compiler is scalable.
 
 
 
