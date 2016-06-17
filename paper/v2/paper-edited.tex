@@ -1199,7 +1199,7 @@ where $\odot$ stands for an arbitrary regular binary operator, and $x$ is a poli
   \hrulefill
   \vspace*{.4em}
 
-  \caption{Example Product Graph IR construction for policy: $(\CD{W} \cdot \CD{A} \cdot \CD{C} \cdot \CD{D} \cdot \Out) \Prefer (\CD{W} \cdot \CD{B} \cdot \In^+ \cdot \Out)$.}
+  \caption{Product graph construction for policy $(\CD{W} \cdot \CD{A} \cdot \CD{C} \cdot \CD{D} \cdot \Out) \Prefer (\CD{W} \cdot \CD{B} \cdot \In^+ \cdot \Out)$.}
   \label{fig:example-compilation}
   %\vspace{-1em}
 \end{figure*}
@@ -1316,8 +1316,8 @@ The soundness violation could be fixed by tagging and filtering route advertisem
 
 \begin{figure}[t!]
   \centering
-  \includegraphics[width=.8\columnwidth]{figures/unimplementable}
-  \caption{Example topology for which the \sysname policy: $(\CD{A} \cdot \CD{B} \cdot \CD{D} \cdot \CD{E} \cdot \CD{G}) \Prefer (\CD{A} \cdot \CD{C} \cdot \CD{D} \cdot \CD{F} \cdot \CD{G})$ is unimplementable in BGP under arbitrary failures.}
+  \includegraphics[width=.5\columnwidth]{figures/unimplementable}
+  \caption{A network where the policy $(\CD{A} \cdot \CD{B} \cdot \CD{D} \cdot \CD{E} \cdot \CD{G}) \Prefer (\CD{A} \cdot \CD{C} \cdot \CD{D} \cdot \CD{F} \cdot \CD{G})$ is unimplementable in BGP under arbitrary failures.}
   \label{fig:unimplementable}
   %\vspace{-1em}
 \end{figure}
