@@ -1546,7 +1546,7 @@ Rather than construct the product graph in full, our implementation prevents exp
 
 \para{Fast failure-safety analysis}
 
-When computing local preferences and ensuring failure safety, as described in \S\ref{sec:compilation}, the compiler performs memoization of the \textit{Regret-Free} function. That is, whenever for two states $N_1$ and $N_2$ we compute $Regret-Free(G, N_1, N_2)$, if the function evaluates to $true$, then each of the intermediate related states $x$ and $y$ must also satisfy $protect(G, x, y)$. Memoizing these states dramatically reduces the amount of work performed to find preferences in the common case.
+When computing local preferences and ensuring failure safety, as described in \S\ref{sec:compilation}, the compiler performs memoization of the \textup{Regret-Free} function. That is, whenever for two states $N_1$ and $N_2$ we compute $\textup{Regret-Free}(G, N_1, N_2)$, if the function evaluates to $true$, then each of the intermediate related states $x$ and $y$ must also satisfy $\textup{Regret-Free}(G, x, y)$. Memoizing these states dramatically reduces the amount of work performed to find preferences in the common case.
 
 \para{Efficient configuration generation}
 
