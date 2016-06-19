@@ -217,7 +217,7 @@ David Walker\\
 \textbf{Abstract---}
 We develop \sysname, a language and compiler to help network operators with a challenging, error-prone task---bridging the gap between network-wide routing objectives and low-level configurations of devices that run complex, distributed protocols.
 %
-The language allows operators to specify their objectives naturally, using high-level constraints and ordered preferences on paths that traffic should take.
+The language allows operators to specify their objectives naturally, using high-level constraints on and ordered preferences for paths that traffic should take.
 %through their network or other networks.
 %using ranked sets of paths which may be partial or end-to-end and may also refer to other networks.
 %
@@ -620,7 +620,7 @@ Templates help to an extent by keeping preference and community values consisten
 The operator may implement the policy by having X and Y: $i)$ not export externally what they hear from G and H, routers that belong to the local services cluster; and $ii)$ export externally what they hear from routers C and D and aggregate to \CD{PG} if an announcement is subset of \CD{PG}. This implementation is appealing because X and Y do not need to be made aware of which prefixes are global versus local and IP address assignment can occur independently, e.g., local services can be assigned new prefixes without updating those routers' configurations.
 
 
-However, this implementation has incorrect behavior in the face of failures. Suppose links X--G and X--H fail. Then, X will hear announcements for \CD{PL*} from C and D, having traversed from G and H to Y to C and D. Per its policy implementation, X will start "leaking" these prefixes externally. Depending on the rationale for local services, this leak could impact security (e.g., if the services are sensitive) or availability (e.g., if the \CD{PL*} prefixes are reused for other services outside of the datacenter). This problem does not manifest without failures because then X has and prefers paths to \CD{PL*} through G and H since they are shorter. A similar problem will happen if links Y--G and Y--H fail.
+However, this implementation has incorrect behavior in the face of failures. Suppose links X--G and X--H fail. Then, X will hear announcements for \CD{PL*} from C and D, having traversed from G and H to Y to C and D. Per its policy implementation, X will start "leaking" these prefixes externally. Depending on the rationale for local services, this leak could impact security (e.g., if the services are sensitive) or availability (e.g., if the \CD{PL*} prefixes are reused for other services outside of the datacenter). This problem does not manifest without failures because then X has and prefers paths to \CD{PL*} through G and H since they are shorter. A similar problem will occur if links Y--G and Y--H fail.
 %\footnote{A different problem occurs when links X--C and X--D (or Y--C and Y--D) fail. X (Y) may stop announcing the global prefixes because they would be heard through G and H.}
 Link failures in datacenters are frequent and it is not uncommon to have multiple failed links at a given time~\cite{dc-failure-study}.
 
@@ -773,7 +773,7 @@ Line 3 applies to any other traffic not matching \CD{PCust} and allows the traff
 implements P1, P3, and P4 from Figure~\ref{fig:example1}.
 
 
-Since, by default, routing allows transit traffic (\EG, traffic entering from
+Since, routing allows transit traffic by default (\EG, traffic entering from
 \CD{Peer} and leaving through \CD{Prov}), we separately define a
 policy to enforce P2 and P5 from Figure~\ref{fig:example1}, using conjunction (\AND),
 disjunction (\OR) and negation (\NOT) of constraints.
@@ -863,7 +863,7 @@ For the second constraint, we define another policy:
 %from external ASes.
 This definition says that traffic for local
 prefixes only follows paths that are internal to the network at each hop.
-This constraint guarantees that the services remain reachable only to locations
+This constraint guarantees that the services remain accessible only to locations
 inside the datacenter.
 
 As in the backbone example, we can logically conjoin these constraints
@@ -1079,7 +1079,7 @@ It simplifies operators' task of describing preferred paths, but that simplicity
   %\vspace{-1em}
 \end{figure*}
 
-To handle these challenges, we decompose compilation into multiple stages, shown in  Figure~\ref{fig:pipeline}, and develop efficient algorithms for the translation between stages. The first stage of the pipeline involves simple rewriting rules and substitutions from the FE to the core Regular Intermediate Representation (RIR). Policies in RIR are checked for well-formedness (\EG, never constraining traffic that does not enter the network), before being combined with the network topology to obtain the Product Graph Intermediate Representation (PGIR). The PGIR is a data representation that compactly captures the flow of BGP announcements subject to the policy and topology restrictions. We develop efficient algorithms that operate over the PGIR to ensure policy compliance under failures, avoid BGP instability, and prevent aggregation-induced black holes. Once the compiler determines safety, it translates the PGIR to an abstract BGP (ABGP) representation. ABGP can then be translated into various vendor-specific device
+To handle these challenges, we decompose compilation into multiple stages, shown in  Figure~\ref{fig:pipeline}, and develop efficient algorithms for the translation between stages. The first stage of the pipeline involves simple rewriting rules and substitutions from the FE to the core Regular Intermediate Representation (RIR). Policies in RIR are checked for being well-formed (\EG, never constraining traffic that does not enter the network), before being combined with the network topology to obtain the Product Graph Intermediate Representation (PGIR). The PGIR is a data representation that compactly captures the flow of BGP announcements subject to the policy and topology restrictions. We develop efficient algorithms that operate over the PGIR to ensure policy compliance under failures, avoid BGP instability, and prevent aggregation-induced black holes. Once the compiler determines safety, it translates the PGIR to an abstract BGP (ABGP) representation. ABGP can then be translated into various vendor-specific device
 configurations as needed.
 %The \sysname compiler currently generates
 % Quagga router configurations from ABGP.
@@ -1259,7 +1259,7 @@ The preference function $P$ for node $v = (x, a_1, \dots, a_m)$ is defined as $P
 Finally, there is an edge from each node in the PGIR such that $P(v) \neq \emptyset$ to the special end node $e$. We write $(x \leq_{rank} y)$ if either $P(x) = P(y) = \emptyset$ or $min ~ P(x) \leq min ~ P(y)$, which means that paths ending at PGIR node $x$ are better than (lower rank) than paths that ending at $y$.
 
 
-Intuitively, PGIR tracks which states of each automaton the policy is in as route announcements move between locations.
+Intuitively, PGIR tracks the policy states of each automaton as route announcements move between locations.
 %
 Consider the topology in Figure~\ref{fig:example-compilation}. Suppose we want a primary route from neighbor W that allows traffic to enter the network at $A$, and utilize the C--D link before leaving the network (through $X$ or $Y$). As a backup, we also want to allow traffic to enter the network from $B$, in which case the traffic can also utilize the C--E link before leaving the network. For simplicity, we assume that the route ends in either $X$, $Y$, or $Z$. The RIR for the policy could be written as:
 %
@@ -1277,7 +1277,7 @@ The ``--" state indicates the corresponding automaton can not accept the current
 \para{Minimization}
 After building the PGIR as desribed above,
 we minimize it in order to improve the subsequent analysis that checks if the policies captured by it are safe under failures.
-The minimization is based on the observation that, although every path in the PGIR is a valid path in the topology, we do not want to consider paths that form loops. In particular, BGP's loop prevention mechanism forces an AS to reject any route for which it is already in the AS path.
+The minimization is based on the observation that, although every path in the PGIR is a valid path in the topology, we do not want to consider paths that form loops. In particular, BGP's loop prevention mechanism forces an AS to reject any route that is already in the AS path.
 %
 For example, in Figure~\ref{fig:example-compilation}, the path $W \cdot A \cdot C \cdot B \cdot W$ is a valid topological path, leading to a path that satisfies the preference 1 policy, but which contains a loop.
 %
@@ -1349,7 +1349,7 @@ The compiler's task is to determine a \emph{total ordering} of contexts for each
 
 \para{Regret-free Preferences}
 
-A natural question then is how the compiler should order PGIR contexts for each router in a way that is both \emph{sound} and \emph{complete} under all possible failures? To this end, we introduce the notion of \emph{regret-free} preferences, motivated by the observations from the example in Figure~\ref{fig:unimplementable}. Router $r$ has a \emph{regret-free} preference for a set of advertisements $X$ over $Y$ if, whevever $r$ selects an advertisement from $X$ over another from $Y$, there is always some policy-compliant path to each final (advertisement) destination $d$ that is at least as good $(\leq_{rank})$ as any possible path to $d$ if it had accepted an advertisement from $Y$ instead. In other words, the preference of $X$ over $Y$ at $r$ is regret-free if we are never worse off by choosing from $X$.
+A natural question then is, how should the compiler order PGIR contexts for each router in a way that is both \emph{sound} and \emph{complete} under all possible failures? To this end, we introduce the notion of \emph{regret-free} preferences, motivated by the observations from the example in Figure~\ref{fig:unimplementable}. Router $r$ has a \emph{regret-free} preference for a set of advertisements $X$ over $Y$ if, whevever $r$ selects an advertisement from $X$ over another from $Y$, there is always some policy-compliant path to each final (advertisement) destination $d$ that is at least as good $(\leq_{rank})$ as any possible path to $d$ if it had accepted an advertisement from $Y$ instead. In other words, the preference of $X$ over $Y$ at $r$ is regret-free if we are never worse off by choosing from $X$.
 %
 In the compilation example from Figure~\ref{fig:example-compilation}, the choice for $C$ to prefer context $(C,3,2)$ to $(C,-,2)$ is regret-free, since there will always be at least as good a path to destination $W$ regardless of any failures that might occur in the network.
 
@@ -1533,7 +1533,7 @@ Finally, the external AS $W$ should prefer our internal router $A$ over $B$. In 
 %Aggregation is another tool commonly used to influence how traffic can enter the network, by relying on BGP's longest prefix matching default. Since aggregates are provided as additional user constraints, the compiler can also make use of this information to check that incoming preferences can be met given the aggregates specified (e.g., to ensure that all external ASes prefer to enter from one location over another).
 Figure~\ref{fig:abgp-config} shows the full configuration from the compilation example.
 
-After configuration generation, the compiler further processes the ABGP policy, removing community tags when possible, combining filters, removing dead filters, and so on. In the compilation example, all community tags can be removed since there is never any ambiguity based on the router importing the route, and the neigbor the route is being imported from. Similarly, after removing the communities, the two rules at router $B$ are merged into a single rule.
+After configuration generation, the compiler further processes the ABGP policy, removing community tags when possible, combining filters, removing dead filters, and so on. In the compilation example, all community tags can be removed since there is never any ambiguity based on the router importing the route, and the neighbor from which the route is being imported. Similarly, after removing the communities, the two rules at router $B$ are merged into a single rule.
 
 
 %=====================================================
@@ -1595,7 +1595,7 @@ We apply \sysname on real policies for backbone and datacenter networks. Our mai
 
 \subsection{Networks studied}
 
-We obtained routing policy for the backbone network and for the datacenters of a large cloud provider. Multiple datacenters share this policy. The backbone network connects to the datacenters and also has many external BGP neighbors. The high-level policies of these networks are captured in an English document which guides operators when writing configuration templates for datacenter routers or actual configurations for the backbone network (where templates are not used because the network has less regular structure).
+We obtained routing policy for the backbone network and for the datacenters of a large cloud provider. Multiple datacenters share this policy. The backbone network connects to the datacenters and also has many external BGP neighbors. The high-level policies of these networks are captured in an English document which guides operators when writing configuration templates for datacenter routers or actual configurations for the backbone network (where templates are not used because the network has a less regular structure).
 
 The networks have the types of policies that we outlined earlier (\S\ref{sec:motivation}). The backbone network classifies external neighbors into several different categories and prefers paths through them in order. It does not want to provide transit among certain types of neighbors. For some neighbors, it prefers some links over the others. It supports communities based on which it will not announce certain routes externally or announce them only within a geographic region (e.g., West Coast of the USA). Finally, it has many filters, e.g., to prevent bogons (private address space) from external neighbors, prevent customers from providing transit to other large networks, prevent traversing providers through peers, etc.
 
@@ -1613,7 +1613,7 @@ Routers in the datacenter network run BGP using private AS numbers and peer with
 
 \subsection{Expressiveness}
 
-We found that we could translate all network policies to \sysname. We verified with the operators that our translation preserved intended semantics.\footnote{Not intended as a scientific test, but we also asked the two operators if they would find it easy to express their policies in \sysname. The datacenter operator said that he found the language intuitive. The backbone operator said that formalizing the policy in \sysname seemed equally easy or difficult as formalizing in RPSL~\cite{RFC2622}, but he appreciated that he would have to do it only once for the whole network (not per-router) and did not have to manually compute various local preferences, import-export filters, and MEDs.} We found that the datacenter policies were correctly translated. For the backbone network, the operator mentioned an additional policy that was not present in the English document, which we added later.
+We found that we could translate all network policies to \sysname. We verified with the operators that our translation preserved intended semantics.\footnote{Not intended as a scientific test, but we also asked the two operators if they would find it easy to express their policies in \sysname. The datacenter operator said that he found the language intuitive. The backbone operator said that formalizing the policy in \sysname seemed equally easy or difficult as formalizing in RPSL~\cite{RFC2622}, but he appreciated that he would have to do it only once for the whole network (not per-router) and did not have to manually compute various local preferences, import-export filters, and MEDs.} We further found that the datacenter policies were correctly translated. For the backbone network, the operator mentioned an additional policy that was not present in the English document, which we added later.
 
 Not counting the lines for various definitions like prefix and customer groups or for prefix ownership constraints, which we cannot reveal because of confidentiality concerns, the routing policies for \sysname were 43 lines for the backbone network and 31 lines for the datacenter networks.
 
