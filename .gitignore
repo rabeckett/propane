@@ -216,3 +216,9 @@ paper/paper.pdf
 
 # User preferences
 propane.userprefs
+
+# latex generated files
+*.blg
+*.fls
+*.fdb_latexmk
+paper/*/*.pdf
