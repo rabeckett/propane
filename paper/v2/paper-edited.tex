@@ -1533,9 +1533,9 @@ Our compiler includes the following features that improve its performance and us
 
 \para{Efficient PGIR construction}
 
-Constructing automata for extended regular expressions (i.e., regular expressions with negation and intersection operations) is known to have high complexity~\cite{regex-complexity}. The \sysname compiler uses regular expressions derivatives~\cite{regex-derivatives} with character classes to construct deterministic automata for extended regular expressions over large alphabets efficiently. Since regular expressions are defined over a finite alphabet, and since much of the AS topology is unknown, we set the alphabet to include all uniquely referenced external ASes in the policy. Similarly, to model the unknown external AS topology beyond immediate peers, we include a special topology node to represent any unknown location.
+Constructing automata for extended regular expressions (i.e., regular expressions with negation and intersection operations) is known to have high complexity~\cite{regex-complexity}. The \sysname compiler uses regular expressions derivatives~\cite{regex-derivatives} with character classes to construct deterministic automata for extended regular expressions efficiently. Since regular expressions are defined over a finite alphabet, and since much of the AS topology is unknown, we set the alphabet to include all uniquely referenced external ASes in the policy. To model the unknown external AS topology beyond immediate peers, we include a special topology node to represent any unknown location.
 %
-Rather than construct the product graph in full, our implementation prevents exploring parts of the graph when no accepting state is reachable in any of the corresponding regular automata during construction.
+Rather than construct the product graph in full, our implementation prevents exploring parts of the graph during construction when no automata has a reachable accepting state.
 
 %\para{PG Minimization}
 
@@ -1805,6 +1805,11 @@ as opposed to using logic programming and SAT-based model-finding.
 \label{sec:conclusions}
 
 We introduced \sysname, a language and compiler for implementing network-wide policies using a distributed set of devices running BGP. Propane allows operators to describe their policy naturally through high-level constraints on the shape and relative preferences of paths for different types of traffic. When \sysname compiles a policy, the resulting BGP configurations are correct-by-construction and faithfully implement the policy in a distributed fashion, regardless of the number and combinations of failures. Applying \sysname to real-world networks showed that its language is expressive and its compiler is scalable.
+
+
+\section*{Acknowledgement}
+
+\ryan{TODO: add acknowledgements}
 
 
 
