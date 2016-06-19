@@ -1161,7 +1161,7 @@ where $\odot$ stands for an arbitrary regular binary operator, and $x$ is a poli
 \newcommand{\state}[4]{\node[state,#3](#1)[#4]{#2};}
 \newcommand{\transition}[4]{\path[->] (#1) edge [#4] node {#3} (#2);}
 
-\begin{figure*}
+\begin{figure*}[t!]
   \begin{minipage}[t]{.5\linewidth}
 
   \hdr{Topology}{}
@@ -1330,14 +1330,6 @@ $A \cdot C \cdot D \cdot E \cdot G$ path, even though this path was not allowed 
 %
 The soundness violation could be fixed by tagging and filtering route advertisements appropriately so that $C$ rejects routes that go through $E$, however the completeness violation can not be fixed. In fact, this policy can not be implemented in BGP in a way that is policy compliant under all failures.
 
-\begin{figure}[t!]
-  \centering
-  \includegraphics[width=.5\columnwidth]{figures/unimplementable}
-  \caption{A network where the policy $(\CD{A} \cdot \CD{B} \cdot \CD{D} \cdot \CD{E} \cdot \CD{G}) \Prefer (\CD{A} \cdot \CD{C} \cdot \CD{D} \cdot \CD{F} \cdot \CD{G})$ is unimplementable in BGP under arbitrary failures.}
-  \label{fig:unimplementable}
-  %\vspace{-1em}
-\end{figure}
-
 
 \para{Problem Formulation}
 
@@ -1360,7 +1352,13 @@ In the compilation example from Figure~\ref{fig:example-compilation}, the choice
 %The property simply says that if router $N$ prefers context $N_1$ to $N_2$, then any time there is a path from $N_2$ to some destination $d$, then there exists a better (lower ranked) path from $N_1$ to destination $d$.
 %
 
-
+\begin{figure}[t!]
+  \centering
+  \includegraphics[width=.5\columnwidth]{figures/unimplementable}
+  \caption{A network where the policy $(\CD{A} \cdot \CD{B} \cdot \CD{D} \cdot \CD{E} \cdot \CD{G}) \Prefer (\CD{A} \cdot \CD{C} \cdot \CD{D} \cdot \CD{F} \cdot \CD{G})$ is unimplementable in BGP under arbitrary failures.}
+  \label{fig:unimplementable}
+  %\vspace{-1em}
+\end{figure}
 
 \para{A Preference Inference Algorithm}
 
@@ -1419,14 +1417,6 @@ The checks for failure safety described above overlooked one critical point: A b
 %\para{Aggregation Safety}
 \label{sec:agg-safety}
 
-\begin{figure}[t!]
-  \centering
-  \includegraphics[width=\columnwidth]{figures/aggregation}
-  \caption{Aggregation safety for a datacenter.}
-  \label{fig:aggregation-safety}
-  \vspace{-1em}
-\end{figure}
-
 As shown in \S\ref{sec:motivation}, BGP aggregation can lead to subtle black-holing of traffic when failures occur. Deciding when this can happen requires knowledge of the routing policy and not just the topology. For instance, a policy might require all traffic for a particular prefix to go over a single link before being aggregated, even if there are several available in the toplogy. If that link fails, a black hole might be introduced.
 %
 Because the PGIR encodes the complete user policy and topology,  \sysname can efficiently check that aggregates do not black hole traffic for up to $k$ failures.
@@ -1440,6 +1430,14 @@ The number of PGIR paths that we are able to remove is a lower bound on the numb
 
 For example, recall the datacenter example from \S\ref{sec:motivation}, with the policy
 \CD{PG1} \Path \text{ }\End(\CD{A}), where \CD{PG1} falls under the \CD{PG} aggregate. Figure~\ref{fig:aggregation-safety} shows the simplified PGIR. Since the compiler knows aggregation will occur at $X$, and it knows that the \CD{PG1} prefix will originate at $A$, we can compute the number of failures it would take to disconnect $A$ from $X$. We could remove the $A$--$D$--$X$ path first. We would then need to remove any other $A$--$D$ or $D$--$X$ links from the PGIR (in this case none). Next, we could remove the links along the $A$--$C$--$X$ path, repeating the process. Because $A$ is then disconnected from $X$, the compiler knowns that 2 is a lower bound on the number of failures for aggregation safety for prefix \CD{PG1}. This process is repeated for other aggregation locations (e.g., $Y$).
+
+\begin{figure}[t!]
+  \centering
+  \includegraphics[width=\columnwidth]{figures/aggregation}
+  \caption{Aggregation safety for a datacenter.}
+  \label{fig:aggregation-safety}
+  \vspace{-1em}
+\end{figure}
 
 
 \subsection{Abstract BGP}
@@ -1491,6 +1489,21 @@ For example, recall the datacenter example from \S\ref{sec:motivation}, with the
 The final stage of our compiler translates policies from PGIR to a vendor-neutral abstraction of BGP (ABGP).
 % and then from ABGP to actual device configurations.
 
+
+\para{From PGIR to ABGP}
+
+Once we have the ordering on node preferences in the PGIR from the failure safety analysis, the translation to ABGP is straightforward. The idea is to encode the state of the automata using BGP community values. Each router will match based on its peer and a community value corresponding to the state of the PGIR, and then update the state before exporting to the neighbors permitted by the PGIR. For example, router $A$ in Figure~\ref{fig:example-compilation} will allow an announcement from $C$ with a community value for state $(3,2)$ (and deny anything else). If it sees such an announcement, it will remove the old community value, and add a new one for state $(4,2)$ before exporting it to $W$.
+
+To ensure preferred paths are always obtained, for each router $r$ in the topology, the compiler sets a higher local preference for neighbors of a more-preferred node for $r$ in the PGIR. For example, $C$ will prefer an advertisement from $D$ in state $(2,2)$ over an advertisement from $E$ in state $(-,2)$.
+
+Since the compiler can control community tagging only for routers under the control of the AS being programmed, it cannot match on communities for external ASes. Instead, it translates matches from external ASes into a BGP regular expression filter. For example, node $D$ in Figure~\ref{fig:example-compilation} would match the single hop external paths $X$ or $Y$. In general, if routes are allowed from beyond $X$ or $Y$, these will also be captured in the BGP regular expression filters. The unknown AS topology is modelled as a special node in the PGIR that generates a filter to match any sequence of ASes.
+
+Finally, the external AS $W$ should prefer our internal router $A$ over $B$. In general, it is not possible to reliably control traffic entering the network beyond certain special cases. In this example, however, assuming our network and $W$ have an agreement to honor MEDs, the MED attribute can influence $W$ to prefer $A$ over $B$. Additionally, the compiler can use the BGP no-export community to ensure that no other AS beyond $W$ can send us traffic. The compiler can perform a simple analysis to determine when it can utilize BGP special attributes to ensure traffic enters the network in a particular way by looking at links in the product graph that cross from the internal topology to the external topology.
+%Aggregation is another tool commonly used to influence how traffic can enter the network, by relying on BGP's longest prefix matching default. Since aggregates are provided as additional user constraints, the compiler can also make use of this information to check that incoming preferences can be met given the aggregates specified (e.g., to ensure that all external ASes prefer to enter from one location over another).
+Figure~\ref{fig:abgp-config} shows the full configuration from the compilation example.
+
+After configuration generation, the compiler further processes the ABGP policy, removing community tags when possible, combining filters, removing dead filters, and so on. In the compilation example, all community tags can be removed since there is never any ambiguity based on the router importing the route, and the neigbor the route is being imported from. Similarly, after removing the communities, the two rules at router $B$ are merged into a single rule.
+
 \begin{figure}[t!]
 \begin{code}
   \Router{A}
@@ -1521,6 +1534,7 @@ The final stage of our compiler translates policies from PGIR to a vendor-neutra
   \vspace{-1em}
 \end{figure}
 
+<<<<<<< b2ae169888974095d80e74e7ed519ae41ee009ff
 \para{From PGIR to ABGP}
 
 Once we have the ordering on node preferences in the PGIR from the failure safety analysis, the translation to ABGP is straightforward. The idea is to encode the state of the automata using BGP community values. Each router will match based on its peer and a community value corresponding to the state of the PGIR, and then update the state before exporting to the neighbors permitted by the PGIR. For example, router $A$ in Figure~\ref{fig:example-compilation} will allow an announcement from $C$ with a community value for state $(3,2)$ (and deny anything else). If it sees such an announcement, it will remove the old community value, and add a new one for state $(4,2)$ before exporting it to $W$.
@@ -1569,6 +1583,14 @@ When computing local preferences and ensuring failure safety, as described in \S
 
 The naive code generation algorithm described in \S\ref{sec:compilation} is extremely memory inefficient since it generates a separate match-export pair for every unique in edge/out edge pair for every node in the product graph before minimization. Our implementation performs partial minimization during generation by recognizing common cases such as when there is no restriction on exporting to or importing from neighbors.
 
+\begin{figure}
+  \subcaptionbox{Datacenter}
+    {\includegraphics[width=.49\columnwidth]{figures/compilation-times-dc.png}}
+  \subcaptionbox{Backbone}
+    {\includegraphics[width=.49\columnwidth]{figures/compilation-times-backbone.png}} \\
+  \caption{Compilation time. \label{fig:compilation-times}}
+  \vspace{-1em}
+\end{figure}
 
 \para{Checking policy correctness}
 
@@ -1586,6 +1608,14 @@ Even when programming the network centrally, it is possible for operators to mak
 %
 %=====================================================
 
+\begin{figure}[t!]
+  \subcaptionbox{Datacenter}
+    {\includegraphics[width=.49\columnwidth]{figures/config-compression-dc.png}}
+  \subcaptionbox{Backbone}
+    {\includegraphics[width=.49\columnwidth]{figures/config-compression-backbone.png}} \\
+  \caption{Configuration minimization. \label{fig:config-min}}
+  \vspace{-1em}
+\end{figure}
 
 \section{Evaluation}
 \label{sec:evaluation}
@@ -1600,15 +1630,6 @@ We obtained routing policy for the backbone network and for the datacenters of a
 The networks have the types of policies that we outlined earlier (\S\ref{sec:motivation}). The backbone network classifies external neighbors into several different categories and prefers paths through them in order. It does not want to provide transit among certain types of neighbors. For some neighbors, it prefers some links over the others. It supports communities based on which it will not announce certain routes externally or announce them only within a geographic region (e.g., West Coast of the USA). Finally, it has many filters, e.g., to prevent bogons (private address space) from external neighbors, prevent customers from providing transit to other large networks, prevent traversing providers through peers, etc.
 
 Routers in the datacenter network run BGP using private AS numbers and peer with each other and with the backbone network over eBGP. The routers aggregate some prefix blocks when announcing them to the backbone network, they keep some prefixes internal, and attach communities for some other prefixes that should not traverse beyond the geographic region. The datacenter networks also have policies by which some prefixes should not be announced beyond a certain tier in the datacenter hierarchy.
-
-\begin{figure}
-  \subcaptionbox{Datacenter}
-    {\includegraphics[width=.49\columnwidth]{figures/compilation-times-dc.png}}
-  \subcaptionbox{Backbone}
-    {\includegraphics[width=.49\columnwidth]{figures/compilation-times-backbone.png}} \\
-  \caption{Compilation time. \label{fig:compilation-times}}
-  \vspace{-1em}
-\end{figure}
 
 
 \subsection{Expressiveness}
@@ -1664,14 +1685,6 @@ In both examples, we observe that our failure-safety analysis algorithm for find
 
 %
 
-\begin{figure}[t!]
-  \subcaptionbox{Datacenter}
-    {\includegraphics[width=.49\columnwidth]{figures/config-compression-dc.png}}
-  \subcaptionbox{Backbone}
-    {\includegraphics[width=.49\columnwidth]{figures/config-compression-backbone.png}} \\
-  \caption{Configuration minimization. \label{fig:config-min}}
-  \vspace{-1em}
-\end{figure}
 
 \subsection{Configuration size}
 
