@@ -1388,9 +1388,9 @@ Searching precisely for \emph{regret-free} preferences in general is hard, and c
       \Else { \Return $false$}
       \EndIf
     \EndFor
-  \EndWhile
-  \Return true
-  \EndProcedure
+  \EndWhile \\
+  \hspace{\algorithmicindent} \Return true
+\EndProcedure
 \end{algorithmic}
 \end{algorithm}
 
@@ -1804,7 +1804,7 @@ as opposed to using logic programming and SAT-based model-finding.
 \section{Conclusions}
 \label{sec:conclusions}
 
-We introduced \sysname, a language and compiler for implementing network-wide policies using a distributed set of devices running BGP. Propane allows operators to describe their policy naturally through high-level constraints on the shape and relative preferences of paths for different types of traffic. When \sysname compiles a policy, the resulting BGP configurations are correct-by-construction and faithfully implement the policy in a distributed fashion, regardless of the number and combinations of failures. Applying \sysname to real-world networks showed that its language is expressive and its compiler is scalable.
+We introduced \sysname, a language and compiler for implementing network-wide policies using a distributed set of devices running BGP. Propane allows operators to describe their policy through high-level constraints on the shape and relative preferences of paths for different types of traffic. When \sysname compiles a policy, the resulting BGP configurations are guaranteed to faithfully implement the policy in a distributed fashion, regardless of any number of network failures. Applying \sysname to real-world networks showed that its language is expressive and its compiler is scalable.
 
 
 \section*{Acknowledgements}
