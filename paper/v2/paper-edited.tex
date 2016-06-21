@@ -1381,9 +1381,9 @@ Searching precisely for \emph{regret-free} preferences in general is hard, and c
       \If {\big($\exists n_1' \in \textup{adj}(G,n_1), n_1' \approx n_2'$\big) \textbf{or} \\
             \hspace{5.2em} 
             \big($\exists n_1' \in$ $G$, dominates $n_1$, $n_1' \approx n_1$\big)}
-        \If {$(x,y)$ not marked}
-          \State {mark $(x,y)$ as seen}
-          \State $q.Enqueue(x,y)$
+        \If {$(n_1',n_2')$ not marked}
+          \State {mark $(n_1',n_2')$ as seen}
+          \State $q.Enqueue(n_1',n_2')$
         \EndIf
       \Else { \Return $false$}
       \EndIf
