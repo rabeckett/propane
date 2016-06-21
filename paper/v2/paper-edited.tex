@@ -1650,7 +1650,7 @@ Figure~\ref{fig:compilation-times} shows the compilation times for datacenter an
 
 %From the break down of the time by compilation phase, we see that no single compilation phase dominates the running time of the compiler. However, construction and minimization of the product graph take the most time.
 
-Total compilation for the largest datacenter is less than 9 minutes total. Unlike the datacenter policy, the number of prefixes for the backbone policy remains relatively fixed as the topology size increases. Compilation for the largest backbone network, takes less than 3 minutes total. The inclusion of more preferences in the backbone policy increases the size of the PGIR, which leads to PGIR construction and minimization taking proportionally more time.
+Total compilation for the largest datacenter is less than 9 minutes total. Unlike the datacenter policy, the number of prefixes for the backbone policy remains relatively fixed as the topology size increases. Compilation for the largest backbone network, takes less than 3 minutes total. The inclusion of both more preferences and more neighboring ASes in the backbone policy increases the size of the resulting PGIR, which in turn leads to PGIR construction and minimization taking proportionally more time.
 
 In both examples, we observe that Algorithm~\ref{alg:failures} for inferring \textup{Regret-Free} preferences is efficient, taking only a small fraction of the total running time. PGIR minimization is the most expensive compilation phase. If needed, minimization can be limited to a fixed number of iterations for large networks. Both the backbone and datacenter policies could be successfully compiled without performing minimization.
 
