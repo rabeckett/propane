@@ -114,7 +114,7 @@ Todd Millstein\\
   %\affaddr{University of California, Los Angeles}
   %\\
   %\email{todd@cs.ucla.edu}
-\and 
+\and
 Jitu Padhye\\
   \affaddr{Microsoft}
   %\\
@@ -1279,7 +1279,7 @@ The figure also shows the PGIR after intersecting the topology and policy automa
 For example, the path $X \cdot D \cdot C \cdot A \cdot W$ is a valid path in the topology that BGP route announcements might take, which would lead to obtaining a path with the lowest (best) rank of $1$.
 BGP control messages can start from peer X, which would match the $\Out$ transition from both automata, leading to state $1$ in the first automaton, and state $1$ in the second automaton. This possiblity is reflected in the product graph by the node with state $(X,1,1)$. From here, if X were to advertise this route to D, it would result in the path $D \cdot X$, which would lead to state $2$ in the first automaton, and state $2$ in the second automaton, and so on.
 %
-The ``--" state indicates the corresponding automaton cannot accept the current path or any extension of it. Since 
+The ``--" state indicates the corresponding automaton cannot accept the current path or any extension of it. Since
 node $(W,5,-)$ is in an accepting state for the first automaton, it indicates that this path has preference 1.
 
 \para{Minimization}
@@ -1305,8 +1305,8 @@ We can safely remove nodes and edges in the PGIR when any of the following condi
 \item Remove edge ($x$, $y$) if $y$ is post-dominated by some $x'$
 \item Remove edge ($x$, $y$) if $x$ is dominated by some $y'$
 \end{itemize}
-For example, node $(W,1,1)$ in Figure~\ref{fig:example-compilation} is removed since it is never on a simple path to the end node, because the path must always go through node $(W,-,4)$. That is, node $(W,-,4)$ post-dominates node $(W,1,1)$ and both are shadows of topology location $W$. 
-Similarly, the edge from $(C,3,2)$ to $(D,-,2)$ is removed since node $(C,-,2)$ post-dominates $(D,-,2)$ and is a shadow of the same topology location $C$. 
+For example, node $(W,1,1)$ in Figure~\ref{fig:example-compilation} is removed since it is never on a simple path to the end node, because the path must always go through node $(W,-,4)$. That is, node $(W,-,4)$ post-dominates node $(W,1,1)$ and both are shadows of topology location $W$.
+Similarly, the edge from $(C,3,2)$ to $(D,-,2)$ is removed since node $(C,-,2)$ post-dominates $(D,-,2)$ and is a shadow of the same topology location $C$.
 We repeatedly apply the minimizations above until no further minimization is possible.
 In the example from Figure~\ref{fig:example-compilation}, colored nodes and dashed edges show edges and nodes removed after minimization.
 
@@ -1329,17 +1329,19 @@ The soundness violation could be fixed by tagging and filtering route advertisem
 
 \para{Problem Formulation}
 
-The problem of determining local preferences for each router is closely reflected in the structure of the PGIR. In particular, whenever a given router appears in multiple shadow nodes in the PGIR, then the compiler must decide which shadow to prefer.
+The problem of determining local preferences for each router is reflected in the structure of the PGIR. Whenever a given router appears as multiple shadow nodes in the PGIR, the compiler must decide which shadow to prefer.
 %
-In our compilation example from Figure~\ref{fig:example-compilation}, the topology node $C$ can receive an advertisement from $E$ in shadow $(C,-,2)$ or it can receive an advertisement from its neighbor $D$ in shadow $(C,3,2)$.
+In the example from Figure~\ref{fig:example-compilation}, the topology node $C$ can receive an advertisement from $E$ in shadow $(C,-,2)$ or from $D$ in shadow $(C,3,2)$.
 %
-The compiler's task is to determine a \emph{total ordering} of shadow nodes for each router in the topology, which reflects the relative preference of advertisements received in each shadow. For example, if the compiler determines that, for router $C$, shadow $(C,3,2)$ can be locally preferred to shadow $(C,-,2)$, written as $(C,3,2) \leq_{lp} (C,-,2)$, then this means that $C$ will prefer advertisements heard from $D$ (with tag $(2,2)$) over $E$ (with tag $(-,2)$). Section~\ref{sec:abgp} discusses our encoding of preferences and filters in more detail.
+%
+The compiler must determine a \emph{total ordering} of shadow nodes for each router, which reflects the relative preference of advertisements received in each shadow and should be consistent with path ranks in routing policy.
+%
+For example, if $C$'s shadow $(C,3,2)$ is preferred to $(C,-,2)$, written as $(C,3,2) \leq_{lp} (C,-,2)$,  $C$ will prefer advertisements from $(D,2,2)$ over $(E,-,2)$. $D$ and $E$ tag their advertisements to let $C$ know which shadow sent the advertisement. \$\ref{sec:abgp} discusses tagging in detail.
 
 \para{Regret-free Preferences}
+To order PGIR shadows ($\leq_{lp}$) for each router in a way that is both sound and complete under all failures, we introduce the notion of \emph{regret-free} preferences, motivated by the observations from the example in Figure~\ref{fig:unimplementable}. A router $r$ has a regret-free preference for a set of advertisements $X$ over $Y$ if, whenever $r$ selects an advertisement to destination $d$ from $X$ over another from $Y$, there is always some policy-compliant path to $d$ that is at least as good $(\leq_{rank})$ as any possible path to $d$ if $r$ had selected an advertisement from $Y$ instead. In other words, the preference of $X$ over $Y$ at $r$ is regret-free if $r$ is never (under any failure) worse-off by choosing an advertisement from $X$ when available. The notion of regret-free preferences can be lifted to PGIR nodes by considering the set of advertisements available to each node.
 
-A natural question then is, how should the compiler order PGIR shadows ($\leq_{lp}$) for each router in a way that is both \emph{sound} and \emph{complete} under all possible failures? To this end, we introduce the notion of \emph{regret-free} preferences, motivated by the observations from the example in Figure~\ref{fig:unimplementable}. We say a router $r$ has a \emph{regret-free} preference for a set of advertisements $X$ over $Y$ if, whevever $r$ selects an advertisement from $X$ over another from $Y$, there is always some policy-compliant path to each final (advertisement) destination $d$ that is at least as good $(\leq_{rank})$ as any possible path to $d$ if it had accepted an advertisement from $Y$ instead. In other words, the preference of $X$ over $Y$ at $r$ is regret-free if we are never worse off by choosing an advertisement from $X$ when available. The notion of regret-free preferences can be lifted to nodes in the PGIR by considering the set of advertisments available to each node.
-
-In the compilation example from Figure~\ref{fig:example-compilation}, the choice for $C$ to prefer shadow $(C,3,2)$ to $(C,-,2)$ is regret-free, since there will always be at least as good a path to destination $W$ regardless of any failures that might occur in the network. For example, if the $C$--$A$ link fails, then there is still a backup path from $(C,3,2)$ to $(W,-,4)$ that is just as good as any path from $(C,-,2)$. Likewise, any combination of failures to disconnect $(C,3,2)$ from $(W,-,4)$ would also disconnect $(C,-,2)$ from $(W,-,4)$.
+In the example of Figure~\ref{fig:example-compilation}, the choice for $C$ to prefer shadow $(C,3,2)$ to $(C,-,2)$ is regret-free, since there will always be at least as good a path to destination $W$ regardless of any failures that might occur in the network. For example, if the $C$--$A$ link fails, then there is still a backup path from $(C,3,2)$ to $(W,-,4)$ that is just as good as any path from $(C,-,2)$. Likewise, any combination of failures to disconnect $(C,3,2)$ from $(W,-,4)$ would also disconnect $(C,-,2)$ from $(W,-,4)$.
 
 %We now explain this property more formally in terms of the structure of the PGIR. We use the notation $path(s,d)$ to say that there exists a path in the PGIR from $s$ to $d$.
 %
@@ -1361,7 +1363,7 @@ In the compilation example from Figure~\ref{fig:example-compilation}, the choice
 %For example, in our compilation example from Figure~\ref{fig:example-compilation}, the topology node $C$ can receive an announcement from $E$ and later achieve the backup path, or it can receive an announcement from its neighbor $D$ and later achieve either the primary or backup path. Is it safe for $C$ to prefer its neighbor $D$ over its other neighbor $E$? The important observation is that, if $C$ prefers $D$, then it is never worse off---it will always achieve at least as good a path as if it had choosen $E$.
 %For example, suppose $C$ chooses a route from $D$, but cannot achieve its primary path because the $A$ -- $W$ link has failed. In this case, the advertisement from $C$ will still be sent along towards the ultimate backup location $W$. Since the $(C,3,2)$ node has the same one-step and two-step next hops as node $(C,-,2)$ in the product graph, no possible failure will prevent a route advertisment from reaching $(W,-,4)$ that wouldn't have otherwise prevented it if $C$ had choosen $E$.
 
-Searching precisely for \emph{regret-free} preferences in general is hard, and clearly enumerating all possible combinations of failures and preference orderings is intractable. We thus adopt a conservative analysis that we found to be both effective and efficient in practice. The idea is to $i)$ search for regret-free preferences by comparing the set of paths available after accepting advertisments in two different PGIR shadows $N_1$ and $N_2$ of topology location $N$, and $ii)$ refine the comparison when necessary by considering where the announcements must have traversed before arriving at $N_1$ or $N_2$.
+Searching for precise regret-free preferences in general is hard, and clearly enumerating all possible combinations of failures and preference orderings is intractable. We thus adopt a conservative analysis that we found to be effective and efficient in practice. The idea is to $i)$ search for regret-free preferences by comparing the set of paths available after accepting advertisments in two different PGIR shadows $N_1$ and $N_2$ of topology node $N$, and $ii)$ refine the comparison when necessary by considering where the announcements must have traversed before arriving at $N_1$ or $N_2$.
 
 \begin{algorithm}[t!]
 \caption{Inferring regret-free preferences}
@@ -1379,7 +1381,7 @@ Searching precisely for \emph{regret-free} preferences in general is hard, and c
     \EndIf
     \For {$n_2'$ in adj($G$, $n_2$)}
       \If {\big($\exists n_1' \in \textup{adj}(G,n_1), n_1' \approx n_2'$\big) \textbf{or} \\
-            \hspace{5.2em} 
+            \hspace{5.2em}
             \big($\exists n_1' \in$ $G$, dominates $n_1$, $n_1' \approx n_1$\big)}
         \If {$(n_1',n_2')$ not marked}
           \State {mark $(n_1',n_2')$ as seen}
@@ -1395,21 +1397,21 @@ Searching precisely for \emph{regret-free} preferences in general is hard, and c
 \end{algorithm}
 
 
-Algorithm~\ref{alg:failures} checks whether one shadow can be preferred to another ($N_1 \leq_{lp} N_2$). The algorithm walks from nodes $N_1$ and $N_2$ and ensures that for every \textit{step} $N_2$ can take to some new topology location, $N_1$ can, at the very least, also take a step to an equivalent topology location $(\approx)$. When there is no such equivalent step, the algorithm attempts to take into account where the advertisement must have already traversed. In particular, it checks to see if there is an equivalent dominator (a topology location the advertisement must have passed through earlier) and walks from this new node instead.
+Algorithm~\ref{alg:failures} checks whether one shadow can be preferred to another ($N_1 \leq_{lp} N_2$). It walks from nodes $N_1$ and $N_2$ and ensures that for every \textit{step} $N_2$ can take to some new topology location, $N_1$ can, at the very least, also take a step to an equivalent topology location $(\approx)$. When there is no such equivalent step, the algorithm attempts to take into account where the advertisement must have already traversed. In particular, it checks if there is an equivalent dominator (i.e., a topology location the advertisement must have passed through earlier) and walks from this new node instead.
 At each step, it requires that the current node reachable from $N_1$ has a path rank that is at least as good as that of the current node reachable from $N_2$ ($n_1 \leq_{rank} n_2$). The intuition here is that if $n_1 \nleq_{rank} n_2$, then we can very likely fail every edge in the topology except for the path that leads to the current $n_1$ and $n_2$, thereby generating a counterexample.
 Algorithm~\ref{alg:failures} terminates since the number of related states $(n_1,n_2)$ that can be explored is finite.
 
-For each router in the topology, local preferences are now obtained by sorting the corresponding PGIR contexts according to the $(\leq_{lp})$ relation determined by the \textup{Regret-Free} algorithm. If two nodes are incomparable, then the compiler rejects the policy as unimplementable.
+For each router in the topology, local preferences are now obtained by sorting the corresponding PGIR contexts according to the $(\leq_{lp})$ relation determined by Algorithm~\ref{alg:failures}. If two nodes are incomparable, then the compiler rejects the policy as unimplementable.
 
 \para{Avoiding Loops}
 
-The checks for failure safety described above overlooked one critical point: A better (lower rank) path might not be available due to loops that are rejected by BGP. 
+The checks for failure safety described above overlooked one critical point: A better (lower rank) path might not be available due to loops that are rejected by BGP.
 %
 For example, in Figure~\ref{fig:example-compilation}, suppose we did not remove node $(D,-,2)$ during minimization. In this case, $(C,3,2)$ might think that $(D,-,2)$ is available for use along a path to $W$ even though the advertisement might have already gone through $(D,2,2)$ prior to reaching $(C,3,2)$. Since BGP would reject any path using $D$ twice, the PGIR node $(D,-,2)$ may be unusable for $(C,3,2)$ despite the analysis not taking this information into account.
 
 To avoid this situation, the compiler checks that, any time there are two shadows $N_1$ and $N_2$ for topology location $N$, where $N_1$ appears ``above'' (i.e., can reach) $N_2$ in the PGIR, then $N_1$ must be strictly preferred to $N_2$ (i.e., $N_1 <_{lp} N_2$). The idea is that any time shadow $N_2$ is not usable because the advertisement already went through $N_1$, it ultimately does not matter since $N$ has a regret-free preference for $N_1$ anyway and will only be better off.
 %
-For example, $(D,2,2)$ appears ``above'' $(D,-,2)$, so we require that $(D,2,2) <_{lp} (D,-,2)$. In this case, the compiler determines that this is safe according to Algorithm~\ref{alg:failures}, so router $D$ can simply prefer advertisements from $Y$ and $X$ over advertisements from $C$. 
+For example, $(D,2,2)$ appears ``above'' $(D,-,2)$, so we require that $(D,2,2) <_{lp} (D,-,2)$. In this case, the compiler determines that this is safe according to Algorithm~\ref{alg:failures}, so router $D$ can simply prefer advertisements from $Y$ and $X$ over advertisements from $C$.
 
 
 %It is fine however, to reuse the same nodes that appear above $x$, since any path that went through another node $z$ to get to $x$, but then looped through $z$ again, would be obtainable from $z$ itself.
@@ -1810,8 +1812,9 @@ We introduced \sysname, a language and compiler for implementing network-wide po
 \section*{Acknowledgements}
 
 \ryan{TODO: add acknowledgements}
+We thank R. Aditya, George Chen, and Lihua Yuan for feedback on this work and the SIGCOMM reviewers for comments on the paper.
 This work is supported in part by
-the National Science Foundation award CNS-1161595.
+the NSF award CNS-1161595.
 
 
 
