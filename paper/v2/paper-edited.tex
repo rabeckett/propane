@@ -1428,11 +1428,11 @@ For example, $(D,2,2)$ appears ``above'' $(D,-,2)$, so we require that $(D,2,2) 
 %\para{Aggregation Safety}
 \label{sec:agg-safety}
 
-As shown in \S\ref{sec:motivation}, BGP aggregation can lead to subtle black-holing of traffic when failures occur. Determining when this can happen requires knowledge, not only of the topology, but also of the routing policy. For instance, a policy might require all traffic for a particular prefix to go over a single link before being aggregated, even when there are several available in the toplogy. If that one link fails, a black hole might be introduced.
+As shown in \S\ref{sec:motivation}, aggregation can lead to subtle black-holing of traffic when failures occur. Determining when this can happen requires knowledge, not only of the topology, but also of the policy. For instance, a policy might require all traffic for a particular prefix to go over a single link before being aggregated. If that one link fails, a black hole might be introduced.
 %
-Because the PGIR encodes the complete user policy and topology,  \sysname can efficiently check that aggregates do not black hole traffic for up to $k$ failures.
+Because the PGIR encodes the complete user policy and topology, \sysname can efficiently check that aggregates do not black hole traffic for up to $k$ failures.
 
-We frame the aggregation problem as a variant of the min-cut problem in the PGIR. Specifically, for each prefix that falls under an aggregate, we are interested in finding a lower bound on the number of failures required to disconnect the prefix's origin from its aggregation point. The difficulty, however, is that links in the topology can appear in multiple places in the PGIR, thus preventing the direct application of a standard min-cut algorithm.
+We view the aggregation problem as a variant of the min-cut problem in the PGIR. Specifically, for each prefix that falls under an aggregate, we are interested in finding a lower bound on the number of failures required to disconnect the prefix's origin from its aggregation point. The difficulty, however, is that each link in the topology might appear as multiple links in the PGIR, thus preventing the direct application of standard min-cut algorithms.
 %
 
 Instead, we adopt the following simple strategy: $i)$ pick a random origin-to-aggregation path in the PGIR, $ii)$ remove all similar edges in the PGIR for the topological edges chosen, and $iii)$ repeat until no such path exists.
@@ -1499,7 +1499,7 @@ The final stage of our compiler translates policies from PGIR to a vendor-neutra
 
 \para{From PGIR to ABGP}
 
-Once we have the ordering on node preferences in the PGIR from the failure safety analysis, the translation to ABGP is straightforward. The idea is to encode the state of the automata using BGP community values. Each router will match based on its peer and a community value corresponding to the state of the PGIR, and then update the state before exporting to the neighbors permitted by the PGIR. For example, router $A$ in Figure~\ref{fig:example-compilation} will allow an announcement from $C$ with a community value for state $(3,2)$ (and deny anything else). If it sees such an announcement, it will remove the old community value and add a new one for state $(4,2)$ before exporting it to $W$.
+Once we have the total ordering on node preferences in the PGIR from the failure safety analysis, the translation to ABGP is straightforward. The idea is to encode the state of the automata using BGP community values. Each router will match based on its peer and a community value corresponding to the state of the PGIR, and then update the state before exporting to the neighbors permitted by the PGIR. For example, router $A$ in Figure~\ref{fig:example-compilation} will allow an announcement from $C$ with a community value for state $(3,2)$ (and deny anything else). If it sees such an announcement, it will remove the old community value and add a new one for state $(4,2)$ before exporting it to $W$.
 
 To ensure preferred paths are always obtained, for each router $r$ in the topology, the compiler sets a higher local preference for neighbors of a more-preferred node for $r$ in the PGIR. For example, $C$ will prefer an advertisement from $D$ in state $(2,2)$ over an advertisement from $E$ in state $(-,2)$.
 
@@ -1553,7 +1553,7 @@ The naive code generation algorithm described in \S\ref{sec:compilation} is extr
 \para{Checking policy correctness}
 
 Even when programming the network centrally, it is possible for operators to make mistakes and write incorrect policies.
-\sysname includes many analyses to flag common mistakes at compile time. A subset includes: (i) a preference analysis to determine when backup paths/preferences will never be used, (ii) a reachability analysis to check if topology locations that should be reachable according to the operator policy are not reachable after combining both the topology and policy, (iii) an anycast analysis to find instances where the operator accidentally anycasts a prefix (i.e., originates it from multiple locations), (iv) an aggregate analysis to find when aggregates do not summarize any specific prefix.
+\sysname includes many analyses to flag common mistakes at compile time. A subset includes: (i) a preference analysis to determine when backup paths/preferences will never be used, (ii) a reachability analysis to check if topology locations that should be reachable according to the operator policy are not reachable after combining both the topology and policy, (iii) an anycast analysis to find instances where the operator might accidentally anycast a prefix (i.e., originates the prefix from multiple locations), (iv) an aggregate analysis to find when aggregates do not summarize any specific prefix.
 
 
 
@@ -1584,7 +1584,7 @@ Routers in the datacenter network run BGP using private AS numbers and peer with
 
 \subsection{Expressiveness}
 
-We found that we could translate all network policies to \sysname. We verified with the operators that our translation preserved intended semantics.\footnote{Not intended as a scientific test, but we also asked the two operators if they would find it easy to express their policies in \sysname. The datacenter operator said that he found the language intuitive. The backbone operator said that formalizing the policy in \sysname seemed equally easy or difficult as formalizing in RPSL~\cite{RFC2622}, but he appreciated that he would have to do it only once for the whole network (not per-router) and did not have to manually compute various local preferences, import-export filters, and MEDs.} We further found that the datacenter policies were correctly translated. For the backbone network, the operator mentioned an additional policy that was not present in the English document, which we added later.
+We found that we could translate all network policies to \sysname. We verified with the operators that our translation preserved intended semantics.\footnote{Not intended as a scientific test, but we also asked the two operators if they would find it easy to express their policies in \sysname. The datacenter operator said that he found the language intuitive. The backbone operator said that formalizing the policy in \sysname seemed equally easy or difficult as formalizing in RPSL~\cite{RFC2622}, but he appreciated that he would have to do it only once for the whole network (not per-router) and did not have to manually compute various local preferences, import-export filters, and MEDs.} We further found that the datacenter policies were correctly translated. For the backbone network, the operator mentioned an additional policy not present in the English document, which we added later.
 
 Not counting the lines for various definitions like prefix and customer groups or for prefix ownership constraints, which we cannot reveal because of confidentiality concerns, the routing policies for \sysname were 43 lines for the backbone network and 31 lines for the datacenter networks.
 
@@ -1641,7 +1641,7 @@ Figure~\ref{fig:compilation-times} shows the compilation times for datacenter an
 
 Total compilation for the largest datacenter is less than 9 minutes total. Unlike the datacenter policy, the number of prefixes for the backbone policy remains relatively fixed as the topology size increases. Compilation for the largest backbone network, takes less than 3 minutes total. The inclusion of more preferences in the backbone policy increases the size of the PGIR, which leads to PGIR construction and minimization taking proportionally more time.
 
-In both examples, we observe that our failure-safety analysis algorithm for finding preferences is highly efficient, taking only a small fraction of the total running time. PGIR minimization is the most expensive compilation phase. If needed, minimization can be capped after a certain number of iterations for large networks. Both the backbone and datacenter  policies we considered can be successfully compiled without minimization.
+In both examples, we observe that Algorithm~\ref{alg:failures} for inferring \textup{Regret-Free} preferences is efficient, taking only a small fraction of the total running time. PGIR minimization is the most expensive compilation phase. If needed, minimization can be limited to a fixed number of iterations for large networks. Both the backbone and datacenter policies could be successfully compiled without performing minimization.
 
 %
 
