@@ -1305,8 +1305,8 @@ We can safely remove nodes and edges in the PGIR when any of the following condi
 \item Remove edge ($x$, $y$) if $y$ is post-dominated by some $x'$
 \item Remove edge ($x$, $y$) if $x$ is dominated by some $y'$
 \end{itemize}
-For example, node $(W,1,1)$ in Figure~\ref{fig:example-compilation} is removed since it is never on a simple path to the end node, because the path must always go through node $(W,-,4)$. That is, node $(W,-,4)$ post-dominates node $(W,1,1)$ and both are shadows of topology location $W$.
-Similarly, the edge from $(C,3,2)$ to $(D,-,2)$ is removed since node $(C,-,2)$ post-dominates $(D,-,2)$ and is a shadow of the same topology location $C$.
+For example, node $(W,1,1)$ in Figure~\ref{fig:example-compilation} is removed because every path to the end node must always go through node $(W,-,4)$. That is, node $(W,-,4)$ post-dominates node $(W,1,1)$ and both are shadows of topology location $W$.
+Similarly, the edge from $(C,3,2)$ to $(D,-,2)$ is removed since node $(C,-,2)$ post-dominates $(D,-,2)$ and is a shadow of $C$.
 
 We repeatedly apply the minimizations above until no further minimization is possible.
 In the example from Figure~\ref{fig:example-compilation}, colored nodes and dashed edges show edges and nodes removed after minimization.
@@ -1364,7 +1364,7 @@ In the example of Figure~\ref{fig:example-compilation}, the choice for $C$ to pr
 %For example, in our compilation example from Figure~\ref{fig:example-compilation}, the topology node $C$ can receive an announcement from $E$ and later achieve the backup path, or it can receive an announcement from its neighbor $D$ and later achieve either the primary or backup path. Is it safe for $C$ to prefer its neighbor $D$ over its other neighbor $E$? The important observation is that, if $C$ prefers $D$, then it is never worse off---it will always achieve at least as good a path as if it had choosen $E$.
 %For example, suppose $C$ chooses a route from $D$, but cannot achieve its primary path because the $A$ -- $W$ link has failed. In this case, the advertisement from $C$ will still be sent along towards the ultimate backup location $W$. Since the $(C,3,2)$ node has the same one-step and two-step next hops as node $(C,-,2)$ in the product graph, no possible failure will prevent a route advertisment from reaching $(W,-,4)$ that wouldn't have otherwise prevented it if $C$ had choosen $E$.
 
-Searching for precise regret-free preferences in general is hard, and clearly enumerating all possible combinations of failures and preference orderings is intractable. We thus adopt a conservative analysis that we found to be effective and efficient in practice. The idea is to $i)$ search for regret-free preferences by comparing the set of paths available after accepting advertisments in two different PGIR shadows $N_1$ and $N_2$ of topology node $N$, and $ii)$ refine the comparison when necessary by considering where the announcements must have traversed before arriving at $N_1$ or $N_2$.
+Searching for precise regret-free preferences in general is hard, and clearly enumerating all possible combinations of failures and preference orderings is intractable. We thus adopt a conservative analysis that we found to be effective and efficient in practice. The idea is to $i)$ search for regret-free preferences by comparing the set of paths available after accepting advertisements in two different PGIR shadows $N_1$ and $N_2$ of topology node $N$, and $ii)$ refine the comparison when necessary by considering where the announcements must have traversed before arriving at $N_1$ or $N_2$.
 
 \begin{algorithm}[t!]
 \caption{Inferring regret-free preferences}
@@ -1438,7 +1438,7 @@ Because the PGIR encodes the complete user policy and topology, \sysname can eff
 We view the aggregation problem as a variant of the min-cut problem in the PGIR. Specifically, for each prefix that falls under an aggregate, we are interested in finding a lower bound on the number of failures required to disconnect the prefix's origin from its aggregation point. The difficulty, however, is that each link in the topology might appear as multiple links in the PGIR, thus preventing the direct application of standard min-cut algorithms.
 %
 
-Instead, we adopt the following simple strategy: $i)$ pick a random origin-to-aggregation path in the PGIR, $ii)$ remove all similar edges in the PGIR for the topological edges chosen, and $iii)$ repeat until no such path exists.
+Instead, we adopt the following simple strategy: $i)$ pick a random path in the PGIR between the prefix origin and aggregation point, $ii)$ remove all similar edges in the PGIR for each topological edges along the chosen path, and $iii)$ repeat until no such path exists.
 Because each path chosen is both policy compliant and edge disjoint (due to ii), the number of paths that we are able to remove lower bounds the number of failures required to disconnect the prefix from its aggregate, subject to the policy constraints.
 
 For example, recall the datacenter example from \S\ref{sec:motivation}, with the policy
@@ -1812,8 +1812,7 @@ We introduced \sysname, a language and compiler for implementing network-wide po
 
 \section*{Acknowledgments}
 
-\ryan{TODO: add acknowledgements}
-We thank R. Aditya, George Chen, and Lihua Yuan for feedback on this work and the SIGCOMM reviewers for comments on the paper.
+We thank R. Aditya, George Chen, and Lihua Yuan for feedback on this work and the SIGCOMM reviewers for comments on the paper. This work is supported in part by the National Science Foundation award CNS-1161595.
 
 
 

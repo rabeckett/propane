@@ -221,4 +221,6 @@ propane.userprefs
 *.blg
 *.fls
 *.fdb_latexmk
+*.bak
 paper/*/*.pdf
+
