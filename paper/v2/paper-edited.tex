@@ -1368,7 +1368,7 @@ Searching precisely for \emph{regret-free} preferences in general is hard, and c
 \label{alg:failures}
 \begin{algorithmic}[1]
 \Procedure{Regret-free($G$, $N_1$, $N_2$)}{}
-  \If {$loc(N_1) \neq loc(N_2)$} \Return false
+  \If {$N_1 \not\approx N_2$} \Return false
   \EndIf
   \State $q \gets Queue()$
   \State $q.Enqueue (N_1, N_2)$
@@ -1380,7 +1380,7 @@ Searching precisely for \emph{regret-free} preferences in general is hard, and c
     \For {$n_2'$ in adj($G$, $n_2$)}
       \If {\big($\exists n_1' \in \textup{adj}(G,n_1), n_1' \approx n_2'$\big) \textbf{or} \\
             \hspace{5.2em} 
-            \big($\exists n_1' \in$ $G$, dominates $n_1$, $n_1' \approx n_1'$\big)}
+            \big($\exists n_1' \in$ $G$, dominates $n_1$, $n_1' \approx n_1$\big)}
         \If {$(x,y)$ not marked}
           \State {mark $(x,y)$ as seen}
           \State $q.Enqueue(x,y)$
