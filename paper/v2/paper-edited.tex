@@ -1407,9 +1407,9 @@ The checks for failure safety described above overlooked one critical point: A b
 %
 For example, in Figure~\ref{fig:example-compilation}, suppose we did not remove node $(D,-,2)$ during minimization. In this case, $(C,3,2)$ might think that $(D,-,2)$ is available for use along a path to $W$ even though the advertisement might have already gone through $(D,2,2)$ prior to reaching $(C,3,2)$. Since BGP would reject any path using $D$ twice, the PGIR node $(D,-,2)$ may be unusable for $(C,3,2)$ despite the analysis not taking this information into account.
 
-To avoid this situation, the compiler checks that, any time we have two shadows $N_1$ and $N_2$ for some topology location $N$, where $N_1$ appears ``above'' (i.e., can reach) $N_2$ in the PGIR, then $N_1$ must be strictly preferred to $N_2$ (that is, $N_1 <_{lp} N_2$). The idea is that any time $N_2$ is not usable because the advertisement already went through $N_1$, it ultimately does not matter since $N$ has a regret-free preference for $N_1$ anyway.
+To avoid this situation, the compiler checks that, any time there are two shadows $N_1$ and $N_2$ for topology location $N$, where $N_1$ appears ``above'' (i.e., can reach) $N_2$ in the PGIR, then $N_1$ must be strictly preferred to $N_2$ (i.e., $N_1 <_{lp} N_2$). The idea is that any time shadow $N_2$ is not usable because the advertisement already went through $N_1$, it ultimately does not matter since $N$ has a regret-free preference for $N_1$ anyway and will only be better off.
 %
-For example, $(D,2,2)$ appears ``above'' $(D,-,2)$, so we require that $(D,2,2) <_{lp} (D,-,2)$. In this case, the compiler determines that this is safe according to Algorithm~\ref{alg:failures}, so router $D$ can simply prefer advertisements from $Y$ and $X$ over advertisements from $C$.
+For example, $(D,2,2)$ appears ``above'' $(D,-,2)$, so we require that $(D,2,2) <_{lp} (D,-,2)$. In this case, the compiler determines that this is safe according to Algorithm~\ref{alg:failures}, so router $D$ can simply prefer advertisements from $Y$ and $X$ over advertisements from $C$. 
 
 
 %It is fine however, to reuse the same nodes that appear above $x$, since any path that went through another node $z$ to get to $x$, but then looped through $z$ again, would be obtainable from $z$ itself.
