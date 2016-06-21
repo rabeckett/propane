@@ -78,7 +78,7 @@ ax1.fill_between(num_nodes, y_stack[0,:], y_stack[1,:], facecolor=color2, alpha=
 ax1.fill_between(num_nodes, y_stack[1,:], y_stack[2,:], facecolor=color3)
 ax1.fill_between(num_nodes, y_stack[2,:], y_stack[3,:], facecolor=color4)
 ax1.set_xlabel('Routers', fontsize=35)
-ax1.set_ylabel('Avg. Time / Prefix (s)', fontsize=35)
+ax1.set_ylabel('Avg. Time / Predicate (s)', fontsize=35)
 ax1.tick_params(axis='both', which='major', labelsize=35)
 ax1.tick_params(axis='both', which='minor', labelsize=35)
 ax1.xaxis.set_ticks([0,40,80,120,160,200])
