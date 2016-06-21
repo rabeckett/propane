@@ -1399,7 +1399,10 @@ Searching for precise regret-free preferences in general is hard, and clearly en
 \end{algorithm}
 
 
-Algorithm~\ref{alg:failures} checks whether one shadow can be preferred to another ($N_1 \leq_{lp} N_2$). It walks from nodes $N_1$ and $N_2$ and ensures that for every \textit{step} $N_2$ can take to some new topology location, $N_1$ can, at the very least, also take a step to an equivalent topology location $(\approx)$. When there is no such equivalent step, the algorithm attempts to take into account where the advertisement must have already traversed. In particular, it checks if there is an equivalent dominator (i.e., a topology location the advertisement must have passed through earlier) and walks from this new node instead.
+Algorithm~\ref{alg:failures} checks whether one shadow can be preferred to another ($N_1 \leq_{lp} N_2$). It walks from nodes $N_1$ and $N_2$ and ensures that for every \textit{step} $N_2$ can take to some new topology location, $N_1$ can, at the very least, also take a step to an equivalent topology location $(\approx)$. When there is no such equivalent step, the algorithm attempts to take into account where the advertisement must have already traversed. In particular, it checks if there is an equivalent dominator node and, if so, walks from this new node instead. 
+%
+The idea is that, since the advertisement must have already passed through the dominator, we can check to see if we are guaranteed to find paths that are at least as good from this new node instead.
+%
 At each step, it requires that the current node reachable from $N_1$ has a path rank that is at least as good as that of the current node reachable from $N_2$ ($m \leq_{rank} n$). The intuition here is that if $m \nleq_{rank} n$, then we can very likely fail every edge in the topology except for the path that leads to the current $m$ and $n$, thereby generating a counterexample.
 Algorithm~\ref{alg:failures} terminates since the number of related states $(m,n)$ that can be explored is finite.
 
