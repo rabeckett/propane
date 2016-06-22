@@ -1245,7 +1245,8 @@ The PGIR is constructed by adding an edge from $m = (l_m, a_1, \dots, a_k)$ to $
 %
 Additionally, we add edges from the start node $s$ to any $n = (l, a_1, \dots, a_k)$ when $\sigma_i(q_{0_i}, l) = a_i$ for each $i$.
 %
-The preference function $P$ for node $n = (l, a_1, \dots, a_k)$ is defined as $P(n) = \set{i~\vert~a_i \in F_i} $. That is, it records which preferences are achieved from each policy automaton for every node in the product construction.
+The preference function $P$ is defined as $P(n) = \set{i~\vert~a_i \in F_i} $. That is, it records the path rank of each regular expression matched in the current node.
+% in preferences are achieved from each policy automaton for every node in the product construction.
 %
 Finally, there is an edge from each node in the PGIR such that $P(n) \neq \emptyset$ to the special end node $e$. We write $(m \leq_{rank} n)$ if either $P(m) = P(n) = \emptyset$ or $min ~ P(m) \leq min ~ P(n)$, which means that paths ending at PGIR node $m$ are better (lower rank) than paths ending at $n$.
 
@@ -1271,7 +1272,7 @@ After building the PGIR as described above,
 we minimize it in order to improve the precision of the subsequent analysis that checks if the policies captured by it are safe under failures.
 The minimization is based on the observation that, although every path in the PGIR is a valid path in the topology, we do not want to consider paths that form loops. In particular, BGP's loop prevention mechanism forces an AS to reject any route that is already in the AS path.
 %
-For example, in Figure~\ref{fig:example-compilation}, the path $W \cdot A \cdot C \cdot B \cdot W$ is a valid topological path, leading to a path that satisfies the preference 1 policy, but which contains a loop.
+For example, in Figure~\ref{fig:example-compilation}, the path $W \cdot A \cdot C \cdot B \cdot W$ is a valid topological path, leading to a path that satisfies the preference 2 policy, but which contains a loop.
 %
 %The precision of the failure-safety analysis often increases when nodes and edges that are not possible due to loops are eliminated.
 %For example, if we can safely remove a PGIR edge, then we do not have to consider what happens when the edge has failed.
@@ -1397,8 +1398,8 @@ For each router in the topology, local preferences are now obtained by sorting t
 
 \begin{figure}[t!]
   \centering
-  \includegraphics[width=.6\columnwidth]{figures/loops}
-  \caption{A Product Graph where preference inference is unsound before considering loops.}
+  \includegraphics[width=.66\columnwidth]{figures/loops}
+  \caption{A Product Graph where preference inference is unsound before considering loops. Path ranks shown by nodes.}
   \label{fig:avoiding-loops}
   %\vspace{-1em}
 \end{figure}
@@ -1650,7 +1651,7 @@ Figure~\ref{fig:compilation-times} shows the compilation times for datacenter an
 
 %From the break down of the time by compilation phase, we see that no single compilation phase dominates the running time of the compiler. However, construction and minimization of the product graph take the most time.
 
-Total compilation for the largest datacenter is less than 9 minutes total. Unlike the datacenter policy, the number of prefixes for the backbone policy remains relatively fixed as the topology size increases. Compilation for the largest backbone network, takes less than 3 minutes total. The inclusion of both more preferences and more neighboring ASes in the backbone policy increases the size of the resulting PGIR, which in turn leads to PGIR construction and minimization taking proportionally more time.
+Total compilation for the largest datacenter is less than 9 minutes total. Unlike the datacenter policy, the number of prefixes for the backbone policy remains relatively fixed as the topology size increases. Compilation for the largest backbone network, takes less than 3 minutes total. The inclusion of both more preferences and more neighboring ASes in the backbone policy increases the size of the resulting PGIR, which in turn cleads to PGIR construction and minimization taking proportionally more time.
 
 In both examples, we observe that Algorithm~\ref{alg:failures} for inferring \textup{Regret-Free} preferences is efficient, taking only a small fraction of the total running time. PGIR minimization is the most expensive compilation phase. If needed, minimization can be limited to a fixed number of iterations for large networks. Both the backbone and datacenter policies could be successfully compiled without performing minimization.
 
