@@ -217,7 +217,7 @@ David Walker\\
 \textbf{Abstract---}
 We develop \sysname, a language and compiler to help network operators with a challenging, error-prone task---bridging the gap between network-wide routing objectives and low-level configurations of devices that run complex, distributed protocols.
 %
-The language allows operators to specify their objectives naturally, using 
+The language allows operators to specify their objectives naturally, using
 high-level constraints on both the shape and relative preference of traffic paths.
 %
 The compiler automatically translates these specifications to router-level BGP configurations, using an effective intermediate representation that compactly encodes the flow of routing information along policy-compliant paths.
@@ -238,45 +238,56 @@ We show that \sysname can effectively express the policies of datacenter and bac
 
 %\category{CR-number}{subcategory}{third-level}
 
-\begin{CCSXML}
-<ccs2012>
-<concept>
-<concept_id>10003033.10003068.10003073.10003075</concept_id>
-<concept_desc>Networks~Network control algorithms</concept_desc>
-<concept_significance>300</concept_significance>
-</concept>
-<concept>
-<concept_id>10003033.10003083.10003095</concept_id>
-<concept_desc>Networks~Network reliability</concept_desc>
-<concept_significance>300</concept_significance>
-</concept>
-<concept>
-<concept_id>10003033.10003099.10003104</concept_id>
-<concept_desc>Networks~Network management</concept_desc>
-<concept_significance>300</concept_significance>
-</concept>
-<concept>
-<concept_id>10011007.10010940.10010992.10010998.10011000</concept_id>
-<concept_desc>Software and its engineering~Automated static analysis</concept_desc>
-<concept_significance>300</concept_significance>
-</concept>
-<concept>
-<concept_id>10011007.10011006.10011050.10011017</concept_id>
-<concept_desc>Software and its engineering~Domain specific languages</concept_desc>
-<concept_significance>300</concept_significance>
-</concept>
-</ccs2012>
-\end{CCSXML}
+%\begin{CCSXML}
+%<ccs2012>
+%<concept>
+%<concept_id>10003033.10003068.10003073.10003075</concept_id>
+%<concept_desc>Networks~Network control algorithms</concept_desc>
+%<concept_significance>300</concept_significance>
+%</concept>
+%<concept>
+%<concept_id>10003033.10003083.10003095</concept_id>
+%<concept_desc>Networks~Network reliability</concept_desc>
+%<concept_significance>300</concept_significance>
+%</concept>
+%<concept>
+%<concept_id>10003033.10003099.10003104</concept_id>
+%<concept_desc>Networks~Network management</concept_desc>
+%<concept_significance>300</concept_significance>
+%</concept>
+%<concept>
+%<concept_id>10011007.10010940.10010992.10010998.10011000</concept_id>
+%<concept_desc>Software and its engineering~Automated static analysis</concept_desc>
+%<concept_significance>300</concept_significance>
+%</concept>
+%<concept>
+%<concept_id>10011007.10011006.10011050.10011017</concept_id>
+%<concept_desc>Software and its engineering~Domain specific languages</concept_desc>
+%<concept_significance>300</concept_significance>
+%</concept>
+%</ccs2012>
+%\end{CCSXML}
+%
+%\ccsdesc[300]{Networks~Network control algorithms}
+%\ccsdesc[300]{Networks~Network reliability}
+%\ccsdesc[300]{Networks~Network management}
+%\ccsdesc[300]{Software and its engineering~Automated static analysis}
+%\ccsdesc[300]{Software and its engineering~Domain specific languages}
+%
+%\printccsdesc
+%
+%\keywords{Propane; Domain-specific Language; BGP; Synthesis; Compilation; Fault Tolerance; Distributed Systems}
 
-\ccsdesc[300]{Networks~Network control algorithms}
-\ccsdesc[300]{Networks~Network reliability}
-\ccsdesc[300]{Networks~Network management}
-\ccsdesc[300]{Software and its engineering~Automated static analysis}
-\ccsdesc[300]{Software and its engineering~Domain specific languages}
+\vspace{0.1in}
+\noindent
+\textbf{CCS Concepts}\\
+$\bullet$ Networks $\rightarrow$ {\em Network control algorithms; Network reliability; Network management;} 
+$\bullet$ Software and its engineering $\rightarrow$ {\em Automated static analysis; Domain specific languages}
 
-\printccsdesc
-
-\keywords{Propane; Domain-specific Language; BGP; Synthesis; Compilation; Fault Tolerance; Distributed Systems}
+\vspace{0.1in}
+\noindent
+\textbf{Keywords}\\
+Propane; Domain-specific Language; BGP; Synthesis; Compilation; Fault Tolerance; Distributed Systems
 
 %% general terms are not compulsory anymore,
 %% you may leave them out
@@ -1094,7 +1105,7 @@ We list only the route aggregation and community tagging constraints in Figure~\
 We give a semantics to RIR programs using sets of ranked paths. Each path constraint $r_1 \Prefer \dots \Prefer r_j$ denotes a set of ranked network paths. A network path is a topologically valid string of abstract locations $l_1 l_2 \dots l_k$. We use the notation $\abs{p}$ to denote the length of the path $p$. A regular expression $r$ matches path $p$, if $p \in \mathcal{L}(r)$, that is, the path is in the language of the regular expression. Paths are ranked lexicographically according to (1) the most preferred regular expression matched, and (2) as a tie breaker, the path length. Lower ranks indicate \emph{more} preferred paths. More formally, a path $p$ has rank:
 $$(\min_i \set{ p \in \mathcal{L}(r_i) }, \abs{p})$$
 %
-The set of ranked paths depends on which paths are valid in the topology, and thus when failures occur, the most preferred routes change. 
+The set of ranked paths depends on which paths are valid in the topology, and thus when failures occur, the most preferred routes change.
 %
 For any source $s$ and destination $d$, \sysname will send traffic along the highest ranked available path from $s$ to $d$.
 
@@ -1328,7 +1339,7 @@ For example, if $C$'s shadow $(C,3,2)$ can be preferred to $(C,-,2)$, written as
 
 \begin{figure}[t!]
   \centering
-  \includegraphics[width=.8\columnwidth]{figures/unimplementable}
+  \includegraphics[width=.5\columnwidth]{figures/unimplementable}
   \caption{A network where the policy $(\CD{A} \cdot \CD{B} \cdot \CD{D} \cdot \CD{E} \cdot \CD{G}) \Prefer (\CD{A} \cdot \CD{C} \cdot \CD{D} \cdot \CD{F} \cdot \CD{G})$ is unimplementable in BGP under arbitrary failures.}
   \label{fig:unimplementable}
   %\vspace{-1em}
@@ -1388,7 +1399,7 @@ Searching for precise regret-free preferences in general is hard, and clearly en
 \end{algorithm}
 
 
-Algorithm~\ref{alg:failures} checks whether one shadow can be preferred to another ($N_1 \leq_{lp} N_2$). It walks from nodes $N_1$ and $N_2$ and ensures that for every \textit{step} $N_2$ can take to some new topology location, $N_1$ can, at the very least, also take a step to an equivalent topology location $(\approx)$. When there is no such equivalent step, the algorithm attempts to take into account where the advertisement must have already traversed. In particular, it checks if there is an equivalent dominator node and, if so, walks from this new node instead. 
+Algorithm~\ref{alg:failures} checks whether one shadow can be preferred to another ($N_1 \leq_{lp} N_2$). It walks from nodes $N_1$ and $N_2$ and ensures that for every \textit{step} $N_2$ can take to some new topology location, $N_1$ can, at the very least, also take a step to an equivalent topology location $(\approx)$. When there is no such equivalent step, the algorithm attempts to take into account where the advertisement must have already traversed. In particular, it checks if there is an equivalent dominator node and, if so, walks from this new node instead.
 %
 The idea is that, since the advertisement must have already passed through the dominator, we can check to see if we are guaranteed to find paths that are at least as good from this new node instead.
 %
@@ -1401,7 +1412,7 @@ For each router in the topology, local preferences are now obtained by sorting t
 \begin{figure}[t!]
   \centering
   \includegraphics[width=.67\columnwidth]{figures/loops}
-  \caption{A Product Graph where preference inference is unsound before considering loops. Path ranks shown by nodes.}
+  \caption{A product graph where preference inference is unsound before considering loops. Path ranks shown by nodes.}
   \label{fig:avoiding-loops}
   %\vspace{-1em}
 \end{figure}
@@ -1413,9 +1424,9 @@ For each router in the topology, local preferences are now obtained by sorting t
 The checks for failure safety described above overlook one critical point: A better (lower rank) path might not be available due to loops rejected by BGP.
 %BGP automatically rejects advertisements to a location where the locations is already contained in the AS path attribute.
 
-Consider the partial Product Graph shown in Figure~\ref{fig:avoiding-loops}. Our preference inference algorithm will determine that node $X_1$ should be locally preferred to node $X_2$ since this will result in a better (lower ranked) path to destination $A$. However, when applying Algorithm~\ref{alg:failures}, we failed to take into account the possibility of loops. In particular, node $A_2$ may be unusable for advertisements that go through $X_1$ since the advertisement may have already gone through $A_1$ previously. In this case, $X$ will have made the wrong choice since preferring $X_2$ would have resulted in a better path for the destination $A$ (a path of rank 3 instead of 4).
+Consider the partial product graph shown in Figure~\ref{fig:avoiding-loops}. Our preference inference algorithm will determine that node $X_1$ should be locally preferred to node $X_2$ since this will result in a better (lower ranked) path to destination $A$. However, when applying Algorithm~\ref{alg:failures}, we failed to take into account the possibility of loops. In particular, node $A_2$ may be unusable for advertisements that go through $X_1$ since the advertisement may have already gone through $A_1$ previously. In this case, $X$ will have made the wrong choice since preferring $X_2$ would have resulted in a better path for the destination $A$ (a path of rank 3 instead of 4).
 
-On the other hand, this would not have been a problem if paths ending at $A_1$ had a lower rank than those ending at $A_2$ or $A_3$. For example, if paths ending at $A_1$ had rank 1, then any time $A_2$ is unusable due to a loop with $A_1$, it ultimately does not matter since $A_1$ is preferred anyway. 
+On the other hand, this would not have been a problem if paths ending at $A_1$ had a lower rank than those ending at $A_2$ or $A_3$. For example, if paths ending at $A_1$ had rank 1, then any time $A_2$ is unusable due to a loop with $A_1$, it ultimately does not matter since $A_1$ is preferred anyway.
 %
 In fact, checking if we are never worse off using $A_1$ instead of $A_2$ corresponds exactly with determining if $A$ has a regret-free preference for $A_1$ over $A_2$.
 %
@@ -1813,9 +1824,8 @@ as opposed to using logic programming and SAT-based model-finding.
 We introduced \sysname, a language and compiler for implementing network-wide policies using a distributed set of devices running BGP. Propane allows operators to describe their policy naturally through high-level constraints on both the shape and relative preferences of paths for different types of traffic. When \sysname compiles a policy, the resulting BGP configurations are guaranteed to faithfully implement the centralized policy in a purely distributed fashion, regardless of any number of network failures. Applying \sysname to real-world networks showed that its language is expressive and its compiler is scalable.
 
 
-\section*{Acknowledgments}
-
-We thank R. Aditya, George Chen, and Lihua Yuan for feedback on this work and the SIGCOMM reviewers for comments on the paper. This work is supported in part by the National Science Foundation award CNS-1161595.
+\para{Acknowledgements}
+We thank R. Aditya, George Chen, and Lihua Yuan for feedback on the work and the SIGCOMM reviewers for comments on the paper. This work is supported in part by the National Science Foundation award CNS-1161595.
 
 
 
