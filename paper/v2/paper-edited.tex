@@ -1293,7 +1293,7 @@ We can safely remove nodes and edges in the PGIR when any of the following condi
 \item Remove edge ($m$, $n$) if some $n'$ dominates $m$
 \end{itemize}
 For example, node $(W,1,1)$ in Figure~\ref{fig:example-compilation} is removed because every path to the end node must always go through node $(W,-,4)$. That is, node $(W,1,1)$ is post-dominated by node $(W,-,4)$ and both are shadows of topology location $W$.
-Similarly, the edge from $(C,3,2)$ to $(D,-,2)$ is removed since node $(C,-,2)$ post-dominates $(D,-,2)$.
+%Similarly, the edge from $(C,3,2)$ to $(D,-,2)$ is removed since node $(C,-,2)$ post-dominates $(D,-,2)$.
 
 We repeatedly apply the minimizations above until no further minimization is possible.
 In the example from Figure~\ref{fig:example-compilation}, colored nodes and dashed edges show edges and nodes removed after minimization.
