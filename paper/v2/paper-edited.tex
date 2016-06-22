@@ -1151,7 +1151,11 @@ The next step rewrites the high-level constraints such as $\Enter$ according to 
 \end{array}
 \]
 %
-where $\odot$ stands for an arbitrary regular binary operator, and $r$ is a policy with a single preference. The compiler flags preferences nested under a unary operator (\IE, \textit{star} or \textit{negation}) as invalid.
+where $\odot$ stands for an arbitrary regular binary operator, and $r$ is a policy with a single preference.
+%
+In cases where $r$ does not contain a single preference, such as $(s ~\Prefer~ t) \cdot (u ~\Prefer~ v)$, it is not clear which of the paths $s \cdot v$ and $t \cdot u$ is preferred. \sysname rejects such ambiguous policies, requiring instead that operators explicitly specify which paths to prefer --- for example as $(s \cdot u) ~\Prefer~ (s \cdot v) ~\Prefer~ (t \cdot u) ~\Prefer~ (t \cdot v)$.
+%
+\sysname also rejects policies that contain preferences nested under a unary operator (\IE, \textit{star} or \textit{negation}) as invalid.
 
 
 
@@ -1233,7 +1237,7 @@ Now that the user policy exists in a simplified form, we must consider the topol
 
 % Formally define automata
 %The RIR policy is an ordered sequence of regular expressions $r_1 \Prefer \dots \Prefer r_j$.
-While paths in an RIR policy describe the direction traffic flows through the network, to implement the policy with BGP we are concerned about the way control-plane information is disseminated, \IE, route announcements flowing in the opposite direction. To capture this idea, for each regular expression $r_i$ in an RIR policy, we construct a deterministic finite state machine on the reversed regular expression. Each automaton for the reversed regular expression of $r_i$ is a tuple ($\Sigma, Q_i, F_i, q_{0_i}, \sigma_i$). The alphabet $\Sigma$ consists of all abstract locations (\IE, routers or ASes), $Q_i$ is the set of states for automaton i, $F_i$ is the set of final states, $q_{0_i}$ is the initial state, and $\sigma_i \colon Q_i \times \Sigma \rightarrow Q_i$ is the state transition function.
+While paths in an RIR policy describe the direction traffic flows through the network, to implement the policy with BGP we are concerned about the way control-plane information is disseminated --- route announcements flowing in the opposite direction. To capture this idea, for each regular expression $r_i$ in an RIR policy, we construct a deterministic finite state machine for the reversed regular expression. An automata for regular expression $r_i$ is defined as a tuple ($\Sigma, Q_i, F_i, q_{0_i}, \sigma_i$). The alphabet $\Sigma$ consists of all abstract locations (\IE, routers or ASes), $Q_i$ is the set of states for automaton i, $F_i$ is the set of final states, $q_{0_i}$ is the initial state, and $\sigma_i \colon Q_i \times \Sigma \rightarrow Q_i$ is the state transition function.
 %
 % Formally define topology
 The topology is represented as a graph ($V, E$), which consists of a set of vertices $V$ and a set of directed edges $E \colon V \times V$.
@@ -1246,7 +1250,7 @@ a unique starting vertex $s$,
 a unique ending vertex $e$,
 and a preference function $P \colon V' \rightarrow 2^{\set{1, \dots, j}}$ , which maps nodes in the product graph to a set of path ranks.
 
-For a PGIR vertex $n = (l, \dots) \in V'$, we say that $n$ is a \emph{shadow} of topology location $l$, written as $\tilde{n} = l$, to indicate that the topology location for node $n$ is $l$. When two PGIR nodes $m$ and $n$ shadow the same topology location (\IE, $\tilde{m} = \tilde{n}$), we write $m \approx n$.
+For a PGIR vertex $n = (l, \dots) \in V'$, we say that $n$ is a \emph{shadow} of topology location $l$. We also write $\tilde{n} = l$ to indicate that the topology location for node $n$ is $l$. When two PGIR nodes $m$ and $n$ shadow the same topology location (\IE, $\tilde{m} = \tilde{n}$), we write $m \approx n$.
 
 Throughout the remainder of the paper, we will use the convention that metavariables $m$ and $n$ stand for PGIR nodes and $l$ stands for a topology location. Capital letters like $X$ refer to concrete topology locations, while capital letters with subscripts such as $X_1$ and $X_2$ refer to concrete PGIR nodes that share a topology location (\IE, $\tilde{X_1}$ = $\tilde{X_2} = X$).
 
@@ -1258,7 +1262,7 @@ The PGIR is constructed by adding an edge from $m = (l_m, a_1, \dots, a_k)$ to $
 %
 Additionally, we add edges from the start node $s$ to any $n = (l, a_1, \dots, a_k)$ when $\sigma_i(q_{0_i}, l) = a_i$ for each $i$.
 %
-The preference function $P$ is defined as $P(n) = \set{i~\vert~a_i \in F_i} $. That is, it records the path rank of each regular expression matched in the current node.
+The preference function $P$ is defined as $P(n) = \set{i~\vert~a_i \in F_i} $. That is, it records the path rank of each automaton that has reached a final state.
 % in preferences are achieved from each policy automaton for every node in the product construction.
 %
 Finally, there is an edge from each node in the PGIR such that $P(n) \neq \emptyset$ to the special end node $e$. We write $(m \leq_{rank} n)$ if either $P(m) = P(n) = \emptyset$ or $min ~ P(m) \leq min ~ P(n)$, which means that paths ending at PGIR node $m$ are better (lower rank) than paths ending at $n$.
