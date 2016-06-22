@@ -218,7 +218,7 @@ David Walker\\
 We develop \sysname, a language and compiler to help network operators with a challenging, error-prone task---bridging the gap between network-wide routing objectives and low-level configurations of devices that run complex, distributed protocols.
 %
 The language allows operators to specify their objectives naturally, using 
-high-level constraints on both the shape and relative preferences of traffic paths.
+high-level constraints on both the shape and relative preference of traffic paths.
 %
 The compiler automatically translates these specifications to router-level BGP configurations, using an effective intermediate representation that compactly encodes the flow of routing information along policy-compliant paths.
 %It uses We introduce data structures and algorithms that
@@ -442,9 +442,9 @@ behavior after the configurations are deployed.
 %of abstraction than raw BGP configurations (and which has the pleasant effect of simplifying our
 %task).
 
-We have implemented our language and compiler in a system called \sysname. To evaluate it, we use it to specify real policies of datacenter and backbone networks.
+We have implemented our language and compiler in a system called \sysname. To evaluate it, we use it to specify real policies for Microsoft's datacenter and backbone networks.
 % and compared these specifications with existing configurations.
-We find that our language expresses such policies easily, and that the compiler scales to topologies with hundreds to thousands of routers, compiling in under 9 minutes in all cases.
+We find that our language expresses such policies easily, and that the compiler scales to topologies with hundreds or thousands of routers, compiling in under 9 minutes in all cases.
 
 %measured the performance of our compiler, demonstrating that our compilation
 %algorithms scale to topologies with several thousand routers.
@@ -584,7 +584,7 @@ To implement P2, the operators can assign communities that
 indicate where a certain routing announcement entered the
 network. Then, \CD{R4} must be configured to not announce to
 $\CD{Peer}$ routes that have communities that correspond to the
-\CD{R2}-\CD{Prov} link but to announce routes with communities for the \CD{R2}-\CD{Cust} and \CD{R1}-\CD{Cust} links. A similar policy must be configured for \CD{R2} as well. Finally, to implement P4 and P5, the operators will have to compute and configure appropriate prefix- and AS-path-based import and export filters at each router.
+\CD{R2}-\CD{Prov} link but to announce routes with communities for the \CD{R2}-\CD{Cust} and \CD{R1}-\CD{Cust} links. A similar type of policy must be configured for \CD{R2} as well. Finally, to implement P4 and P5, the operators will have to compute and configure appropriate prefix- and AS-path-based import and export filters at each router.
 
 Clearly, it is difficult to correctly configure even this
 small example network manually; correctly configuring real, larger networks can quickly become a nightmare. Such networks have hundreds of neighbors spanning multiple commercial-relationship classes, differing numbers of links to each neighbor, along with several neighbor- or prefix-based exceptions to the default behavior. A large AS with many peers in different geographic locations may be faced with complex challenges such as keeping traffic within national boundaries.
@@ -709,8 +709,8 @@ through either router \CD{R1}, router \CD{R2}, \CD{Peer}, or \CD{Prov}.
 The paths that exit through \CD{R1}
 are preferred (\Prefer) to those that exit through \CD{R2}, which are preferred to those that
 leave through \CD{Peer} and then \CD{Prov}.  As we
-describe in the next section, the \Exit\ predicate, as well as other
-path predicates used later in this section, is simply a shorthand for
+describe in the next section, the \Exit\ expression, as well as other
+path expressions used later in this section, is simply a shorthand for
 a particular regular expression over paths that is expressible in our policy
 language. The preference operator (\Prefer) is flexible and can be used between constraints as well as among individual routers. For example, the above constraint could have been written equivalently as
 \Exit(\CD{R1}) \Prefer \ldots \Prefer ~\Exit(\CD{Prov})
@@ -1019,7 +1019,7 @@ It simplifies operators' task of describing preferred paths, but that simplicity
          &\BNFALT& \NOT r & \textit{path negation} \\
          &\BNFALT& r^* & \textit{iteration} \\
      lp       &::=& r_1 \rightarrow r_2 & \textit{link pairs} \\
-     cc     &::=& agg(x, lp) \BNFALT tag(c, t, lp) & \textit{control constraints} \\
+     cc     &::=& agg(x, lp) \BNFALT tag(d, t, lp) & \textit{control constraints} \\
   \end{array} \]
 
   \end{minipage}
@@ -1065,7 +1065,7 @@ It simplifies operators' task of describing preferred paths, but that simplicity
   %\vspace{-1em}
 \end{figure*}
 
-To handle these challenges, we decompose compilation into multiple stages, shown in  Figure~\ref{fig:pipeline}, and develop efficient algorithms for the translation between stages. The first stage of the pipeline involves simple rewriting rules and substitutions from the FE to the core Regular Intermediate Representation (RIR). Policies in RIR are checked for being well-formed (\EG, never constraining traffic that does not enter the network), before being combined with the network topology to obtain the Product Graph Intermediate Representation (PGIR). The PGIR is a data representation that compactly captures the flow of BGP announcements subject to the policy and topology restrictions. We develop efficient algorithms that operate over the PGIR to ensure policy compliance under failures, avoid BGP instability, and prevent aggregation-induced black holes. Once the compiler determines safety, it translates the PGIR to an abstract BGP (ABGP) representation. ABGP can then be translated into various vendor-specific device
+To handle these challenges, we decompose compilation into multiple stages, shown in  Figure~\ref{fig:pipeline}, and develop efficient algorithms for the translation between stages. The first stage of the pipeline involves simple rewriting rules and substitutions from the FE to the core Regular Intermediate Representation (RIR). Policies in RIR are checked well-formedness (\EG, never constraining traffic that does not enter the network), before being combined with the topology to obtain the Product Graph Intermediate Representation (PGIR). The PGIR is a data representation that compactly captures the flow of BGP announcements subject to the policy and topology restrictions. We develop efficient algorithms that operate over the PGIR to ensure policy compliance under failures, avoid BGP instability, and prevent aggregation-induced black holes. Once the compiler determines safety, it translates the PGIR to an abstract BGP (ABGP) representation. ABGP can then be translated into various vendor-specific device
 configurations as needed.
 %The \sysname compiler currently generates
 % Quagga router configurations from ABGP.
@@ -1082,11 +1082,11 @@ Figure~\ref{fig:rir-syntax} shows the RIR syntax. A policy has one or more const
 %% \]
 %% describes a more-preferred set of paths for traffic announced by a prefix no less specific than \CD{74.125.28.0/24}, which starts at AS 200, before entering and staying inside the user's network to get to the destination, and a less-preferred set of paths that start at AS 100 and are otherwise the same. The plus operator $\In^+$ stands for $\In \cdot \In^*$, at least one internal hop. Tests over route types use standard boolean connectives, and can refer to both prefixes and route community values.
 
-\sysname also supports constraints purely on the control-plane behavior of BGP. For example, prefix aggregation is an important optimization to reduce routing table size and churn in practice. A constraint of the form $agg(x,l)$ tells the compiler to perform aggregation for prefix $x$ across all links described by $l$. It is also often useful to be able to add community tags to exported routes in BGP (\EG, to communicate non-standard information to peers). A constraint of the form $tag(c,t,l)$ adds community tag $c$ for any prefixes matching $t$ across links $l$.
+\sysname also supports constraints purely on the control-plane behavior of BGP. For example, prefix aggregation is an important optimization to reduce routing table size in practice. A constraint of the form $agg(x,lp)$ tells the compiler to perform aggregation for prefix $x$ across all links described by $lp$. It is also often useful to be able to add community tags to exported routes in BGP (\EG, to communicate non-standard information to peers). A constraint of the form $tag(d,t,lp)$ adds community tag $d$ for any prefixes matching $t$ across links $lp$.
 %% Aggregation, for example, from internal to external locations, is specified using the same regular syntax as before:
 %% $$\Agg(128.17.0.0/16, \In \Link \Out)$$
 %% where the expression $\In \Link Out$ refers to control messages flowing from any internal to any external location.
-We list only the route aggregation and community tagging constraints in Figure~\ref{fig:rir-syntax}, but we also support other constraints such as limiting the maximum number of routes allowed between ASes, or enabling BGP multipath.
+We list only the route aggregation and community tagging constraints in Figure~\ref{fig:rir-syntax}, but \sysname also supports other constraints such as limiting the maximum number of routes allowed between ASes, or enabling BGP multipath.
 
 
 \para{Semantics}
@@ -1212,7 +1212,7 @@ where $\odot$ stands for an arbitrary regular binary operator, and $r$ is a poli
 
 \subsection{Product graph IR}
 
-Now that the user policy exists in a simplified form, we must consider the topology. In particular, we want a compact representation that describes all the possible ways BGP route announcements can flow through the network subject to the policy and topology constraints. The PGIR captures these constraints by ``intersecting" each of the regular automata corresponding to the RIR path preferences and the topology. Paths through the PGIR correspond to real paths through the topology that satisfy the user constraints.
+Now that the user policy exists in a simplified form, we must consider the topology. In particular, we want a compact representation that describes all the possible ways BGP route announcements can flow through the network subject to the policy and topology constraints. The PGIR captures these constraints by ``intersecting" each of the regular automata corresponding to the RIR path preferences with the topology. Paths through the PGIR correspond to real paths through the topology that satisfy the user constraints.
 
 %Finding paths through a graph subject to regular constraints has been studied extensively in the database literature~\ref{bib:todo}, and has been applied to networks in the past~\ref{bib:todo}.
 
@@ -1220,7 +1220,7 @@ Now that the user policy exists in a simplified form, we must consider the topol
 
 % Formally define automata
 %The RIR policy is an ordered sequence of regular expressions $r_1 \Prefer \dots \Prefer r_j$.
-While paths in an RIR policy describe the direction traffic flows through the network, to implement the policy with BGP we are concerned about the way control-plane information is disseminated, \IE, route announcements flowing in the opposite direction. To capture this idea, for each regular expression $r_i$ in RIR policy, we construct a deterministic finite state machine on the reversed regular expression. Each automaton for the reversed regular expression of $r_i$ is a tuple ($\Sigma, Q_i, F_i, q_{0_i}, \sigma_i$). The alphabet $\Sigma$ consists of all abstract locations (\IE, routers or ASes), $Q_i$ is the set of states for automaton i, $F_i$ is the set of final states, $q_{0_i}$ is the initial state, and $\sigma_i \colon Q_i \times \Sigma \rightarrow Q_i$ is the state transition function.
+While paths in an RIR policy describe the direction traffic flows through the network, to implement the policy with BGP we are concerned about the way control-plane information is disseminated, \IE, route announcements flowing in the opposite direction. To capture this idea, for each regular expression $r_i$ in an RIR policy, we construct a deterministic finite state machine on the reversed regular expression. Each automaton for the reversed regular expression of $r_i$ is a tuple ($\Sigma, Q_i, F_i, q_{0_i}, \sigma_i$). The alphabet $\Sigma$ consists of all abstract locations (\IE, routers or ASes), $Q_i$ is the set of states for automaton i, $F_i$ is the set of final states, $q_{0_i}$ is the initial state, and $\sigma_i \colon Q_i \times \Sigma \rightarrow Q_i$ is the state transition function.
 %
 % Formally define topology
 The topology is represented as a graph ($V, E$), which consists of a set of vertices $V$ and a set of directed edges $E \colon V \times V$.
@@ -1231,11 +1231,11 @@ vertices $V' \colon V \times Q_1 \times \dots \times Q_j$,
 edges $E' \colon V' \times V'$,
 a unique starting vertex $s$,
 a unique ending vertex $e$,
-and a preference function $P \colon V' \rightarrow 2^{\set{1, \dots, j}}$ , which maps nodes in the product graph to a set of preference ranks.
+and a preference function $P \colon V' \rightarrow 2^{\set{1, \dots, j}}$ , which maps nodes in the product graph to a set of path ranks.
 
 For a PGIR vertex $n = (l, \dots) \in V'$, we say that $n$ is a \emph{shadow} of topology location $l$, written as $\tilde{n} = l$, to indicate that the topology location for node $n$ is $l$. When two PGIR nodes $m$ and $n$ shadow the same topology location (\IE, $\tilde{m} = \tilde{n}$), we write $m \approx n$.
 
-Throughout the remainder of the paper, we will the convention that metavariables $m$ and $n$ stand for PGIR nodes and $l$ stands for a topology location. Captial letters like $X$, $Y$ refer to concrete topology locations, while capital letters with subscripts such as $X_1$ and $X_2$ refer to concrete PGIR nodes that share a topology location (\IE, $\tilde{X_1}$ = $\tilde{X_2} = X$).
+Throughout the remainder of the paper, we will use the convention that metavariables $m$ and $n$ stand for PGIR nodes and $l$ stands for a topology location. Capital letters like $X$ refer to concrete topology locations, while capital letters with subscripts such as $X_1$ and $X_2$ refer to concrete PGIR nodes that share a topology location (\IE, $\tilde{X_1}$ = $\tilde{X_2} = X$).
 
 \para{From RIR To PGIR}
 
@@ -1251,7 +1251,7 @@ The preference function $P$ is defined as $P(n) = \set{i~\vert~a_i \in F_i} $. T
 Finally, there is an edge from each node in the PGIR such that $P(n) \neq \emptyset$ to the special end node $e$. We write $(m \leq_{rank} n)$ if either $P(m) = P(n) = \emptyset$ or $min ~ P(m) \leq min ~ P(n)$, which means that paths ending at PGIR node $m$ are better (lower rank) than paths ending at $n$.
 
 
-Intuitively, a PGIR tracks the policy states of each automaton as route announcements move between locations.
+Intuitively, the PGIR tracks the policy states of each automaton as route announcements move between locations.
 %
 Consider the topology in Figure~\ref{fig:example-compilation}. Suppose we want a primary route from neighbor W that allows traffic to enter the network at $A$ and utilize the C--D link before leaving the network (through $X$ or $Y$). As a backup, we also want to allow traffic to enter the network from $B$, in which case the traffic can also utilize the C--E link before leaving the network. For simplicity, we assume that the route ends in either $X$, $Y$, or $Z$. The RIR for the policy could be written as:
 %
@@ -1398,7 +1398,7 @@ For each router in the topology, local preferences are now obtained by sorting t
 
 \begin{figure}[t!]
   \centering
-  \includegraphics[width=.66\columnwidth]{figures/loops}
+  \includegraphics[width=.67\columnwidth]{figures/loops}
   \caption{A Product Graph where preference inference is unsound before considering loops. Path ranks shown by nodes.}
   \label{fig:avoiding-loops}
   %\vspace{-1em}
@@ -1408,7 +1408,7 @@ For each router in the topology, local preferences are now obtained by sorting t
 
 \para{Avoiding Loops}
 
-The checks for failure safety described above overlook one critical point: A better (lower rank) path might not be available due to loops rejected by BGP. 
+The checks for failure safety described above overlook one critical point: A better (lower rank) path might not be available due to loops rejected by BGP.
 %BGP automatically rejects advertisements to a location where the locations is already contained in the AS path attribute.
 
 Consider the partial Product Graph shown in Figure~\ref{fig:avoiding-loops}. Our preference inference algorithm will determine that node $X_1$ should be locally preferred to node $X_2$ since this will result in a better (lower ranked) path to destination $A$. However, when applying Algorithm~\ref{alg:failures}, we failed to take into account the possibility of loops. In particular, node $A_2$ may be unusable for advertisements that go through $X_1$ since the advertisement may have already gone through $A_1$ previously. In this case, $X$ will have made the wrong choice since preferring $X_2$ would have resulted in a better path for the destination $A$ (a path of rank 3 instead of 4).
