@@ -227,12 +227,15 @@
   month = 	 sep,
 }
 
+
+
 @InProceedings{netkat,
   author = 	 {Carolyn Jane Anderson and Nate Foster and Arjun Guha and Jean-Baptiste Jeannin and Dexter Kozen and Cole Schlesinger and David Walker},
   title = 	 {{NetKAT}: Semantic Foundations for Networks},
-  booktitle = popl,
-  year = 	 2014,
-  month = 	 jan,
+  booktitle = {POPL},
+  year = 	 {2014},
+  pages = {113--126},
+  month = 	"January",
 }
 
 @inproceedings{fast-compiler,
@@ -480,6 +483,7 @@ year = 2012
   title = 	 {{FatTire}: Declarative Fault Tolerance for Software Defined Networks.},
   booktitle = {HotSDN},
   year = 	 {2013},
+  pages = {109-114},
 }
 
 @techreport{K03c,
@@ -696,7 +700,7 @@ year = 2012
     pages = {195--209}
 }
 
-@article{foster:merlin,
+@inproceedings{foster:merlin,
   author    = {Robert Soul{\'{e}} and
                Shrutarshi Basu and
                Parisa Jalili Marandi and
@@ -705,9 +709,9 @@ year = 2012
                Emin G{\"{u}}n Sirer and
                Nate Foster},
   title     = {Merlin: {A} Language for Provisioning Network Resources},
-  journal   = {CoRR},
-  volume    = {abs/1407.1199},
+  booktitle   = {CoNEXT},
   year      = {2014},
+  pages = {213-226},
 }
 
 @article{ka-lattices,
@@ -744,6 +748,7 @@ year = 2012
   title = 	 {Detecting {BGP} Configuration Faults with Static Analysis},
   booktitle = {NSDI},
   year = 	 {2005},
+  pages = {43--56},
 }
 
 @Article{feamster+:bgp-prediction,
@@ -760,14 +765,15 @@ year = 2012
 @InProceedings{margrave,
   author = 	 {Tim Nelson and Christopher Barratt and Daniel J. Dougherty and Kathi Fisler and Shriram Krishnamurthi},
   title = 	 {The Margrave Tool for Firewall Analysis},
-  booktitle = {{USENIX} Large Installation System Administration Conference},
+  booktitle = {LISA},
   year = 	 {2010},
+  pages = {1--8},
 }
 
 @InProceedings{lumeta,
   author = 	 {Avishai Wool},
   title = 	 {Architecting the Lumeta Firewall Analyzer},
-  booktitle = {{USENIX} Security Symposium},
+  booktitle = {SSYM},
   year = 	 {2001},
 }
 
@@ -787,12 +793,11 @@ year = 2012
 }
 
 @InProceedings{batfish,
-  author = 	 {Ari Fogel and Stanley Fung and Luis Pedrosa and Meg Walraed-Sullivan and Ramesh Govindan and Ratul Mahajan and Todd Millstein
-
-},
+  author = 	 {Ari Fogel and Stanley Fung and Luis Pedrosa and Meg Walraed-Sullivan and Ramesh Govindan and Ratul Mahajan and Todd Millstein},
   title = 	 {A General Approach to Network Configuration Analysis },
   booktitle = {NSDI},
   year = 	 {2015},
+  pages = {469--483},
 }
 
 @InProceedings{arc,
@@ -806,7 +811,7 @@ year = 2012
 @InBook{ipassure,
   author = 	 {Sanjai Narain and R. Talpade and Gary Levin},
   title = 	 {Guide to Reliable Internet Services and Applications},
-  chapter = 	 {Chapter on Network Configuration Validation},
+  chapter = 	 {Network Configuration Validation},
   publisher = 	 {Springer},
   year = 	 {2010},
 }
@@ -815,15 +820,21 @@ year = 2012
         Author = {Gill, Phillipa and Jain, Navendu and Nagappan, Nachiappan},
         Booktitle = {SIGCOMM},
         Title = {Understanding Network Failures in Data Centers: Measurement, Analysis, and Implications},
-        Year = {2011}
+        Year = {2011},
+        month = aug,
+        pages = {350--361},
 }
+
 
 @inproceedings{fattree,
  author = {Al-Fares, Mohammad and Loukissas, Alexander and Vahdat, Amin},
  title = {A Scalable, Commodity Data Center Network Architecture},
  booktitle = {SIGCOMM},
  year = {2008},
-}
+ pages = {63--74},
+ month = "August"
+} 
+
 
 @misc{bgp-in-dc,
  title = {Use of {BGP} for routing in large-scale data centers},
@@ -847,6 +858,8 @@ year = 2012
   month = 	 aug,
   address = 	 {NY, NY},
   publisher = {Associated Press},
+  howpublished = "\url{http://www.seattletimes.com/business/time-warner-cable-says-outages-largely-resolved}",
+
 }
 
 @Misc{routing-instability,
@@ -919,13 +932,13 @@ pages = {59--72},
 }
 
 @inproceedings{onos,
-  title={{ONOS}: towards an open, distributed {SDN} {OS}},
-  author={Berde, Pankaj and Gerola, Matteo and Hart, Jonathan and Higuchi, Yuta and Kobayashi, Masayoshi and Koide, Toshio and Lantz, Bob and O'Connor, Brian and Radoslavov, Pavlin and Snow, William and others},
-  booktitle={Proceedings of the third workshop on Hot topics in software defined networking},
-  pages={1--6},
-  year={2014},
-  organization={ACM}
-}
+ author = {Berde, Pankaj and Gerola, Matteo and Hart, Jonathan and Higuchi, Yuta and Kobayashi, Masayoshi and Koide, Toshio and Lantz, Bob and O'Connor, Brian and Radoslavov, Pavlin and Snow, William and Parulkar, Guru},
+ title = {ONOS: Towards an Open, Distributed SDN OS},
+ booktitle = {HotSDN},
+ year = {2014},
+ pages = {1--6},
+} 
+
 
 @inproceedings{pga,
   title={{PGA}: Using graphs to express and automatically reconcile network policies},
@@ -941,6 +954,7 @@ pages = {59--72},
  title = {Ethane: Taking Control of the Enterprise},
  booktitle = {SIGCOMM},
  year = {2007},
+ month = aug,
 }
 
 @InProceedings{fast-dominance,
@@ -953,9 +967,10 @@ pages = {59--72},
 @InProceedings{tarjan-dominance,
  author = {Lengauer, Thomas and Tarjan, Robert},
  title = {A Fast Algorithm for Finding Dominators in a Flowgraph},
- booktitle = {ACM Trans. Program. Lang. Syst.},
- month = jan,
+ booktitle = {TOPLAS},
+ month = july,
  year = {1979},
+ pages = {121-141}
 }
 
 @InProceedings{linear-dominance,
@@ -970,21 +985,28 @@ pages = {59--72},
  title = {Regular-expression Derivatives Re-examined},
  booktitle = {J. Funct. Program.},
  month = mar,
- year = {2009}
+ year = {2009},
+ pages = {173--190},
 }
 
 @article{regex-complexity,
-  author    = {Wouter Gelade and Frank Neven},
-  title     = {Succinctness of the Complement and Intersection of Regular Expressions},
-  booktitle   = {CoRR},
-  year      = {2008}
-}
+ author = {Gelade, Wouter and Neven, Frank},
+ title = {Succinctness of the Complement and Intersection of Regular Expressions},
+ journal = {ACM Trans. Comput. Logic},
+ volume = {13},
+ number = {1},
+ month = jan,
+ year = {2012},
+ pages = {4:1--4:19},
+} 
+
 
 @inproceedings{route-aggregation,
  author = {Le, Franck and Xie, Geoffrey G. and Zhang, Hui},
  title = {On Route Aggregation},
  booktitle = {CoNEXT},
  year = {2011},
+ pages = {6:1--6:12},
 }
 
 @inproceedings{igp-correctness1,
@@ -992,13 +1014,17 @@ pages = {59--72},
  title = {On the Correctness of IBGP Configuration},
  booktitle = {SIGCOMM},
  year = {2002},
+ month = aug,
+ pages = {17--29},
 }
 
 @inproceedings{igp-correctness2,
     author = {Nick Feamster and Jared Winick and Jennifer Rexford},
     title = {A Model of BGP Routing for Network Engineering},
-    booktitle = {in Proc. ACM SIGMETRICS},
+    booktitle = {SIGMETRICS},
     year = {2004},
+    month = jun,
+    pages = {331--342},
 }
 
 @techreport{RFC2622,
@@ -1012,6 +1038,8 @@ pages = {59--72},
   issn = {2070-1721},
   publisher = {RFC Editor},
   institution = {RFC Editor},
+  note = {\url{http://www.rfc-editor.org/rfc/rfc2622.txt}},
+
 }
 
 @techreport{RFC6020,
