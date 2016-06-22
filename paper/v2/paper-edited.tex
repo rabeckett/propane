@@ -442,7 +442,7 @@ behavior after the configurations are deployed.
 %of abstraction than raw BGP configurations (and which has the pleasant effect of simplifying our
 %task).
 
-We have implemented our language and compiler in a system called \sysname. To evaluate it, we use it to specify real policies for Microsoft's datacenter and backbone networks.
+We have implemented our language and compiler in a system called \sysname. To evaluate it, we use it to specify real policies for datacenter and backbone networks.
 % and compared these specifications with existing configurations.
 We find that our language expresses such policies easily, and that the compiler scales to topologies with hundreds or thousands of routers, compiling in under 9 minutes in all cases.
 
@@ -1579,7 +1579,7 @@ We apply \sysname on real policies for backbone and datacenter networks. Our mai
 
 \subsection{Networks studied}
 
-We obtained routing policy for Microsoft's backbone network and datacenters. Multiple datacenters share this policy. The backbone network connects to the datacenters and also has many external BGP neighbors. The high-level policies of these networks are captured in an English document which guides operators when writing configuration templates for datacenter routers or actual configurations for the backbone network (where templates are not used because the network has a less regular structure).
+We obtained routing policy for the backbone network and datacenters of a large cloud provider. Multiple datacenters share this policy. The backbone network connects to the datacenters and also has many external BGP neighbors. The high-level policies of these networks are captured in an English document which guides operators when writing configuration templates for datacenter routers or actual configurations for the backbone network (where templates are not used because the network has a less regular structure).
 
 The networks have the types of policies that we outlined earlier (\S\ref{sec:motivation}). The backbone network classifies external neighbors into several different categories and prefers paths through them in order. It does not want to provide transit among certain types of neighbors. For some neighbors, it prefers some links over the others. It supports communities based on which it will not announce certain routes externally or announce them only within a geographic region (\EG, West Coast of the USA). Finally, it has many filters, \EG, to prevent bogons (private address space) from external neighbors, prevent customers from providing transit to other large networks, prevent traversing providers through peers, \ETC
 
