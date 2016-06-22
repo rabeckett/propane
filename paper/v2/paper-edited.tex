@@ -977,7 +977,7 @@ Once \sysname compiles the policy, it is guaranteed to remain compliant under al
 \label{sec:compilation}
 
 The examples above use what we call the front end (FE) of \sysname.
-It simplifies operators' task of describing preferred paths, but that simplicity comes at the cost of compilation complexity. The compiler must efficiently compute the sets of paths represented by the intersection of preferences and topology, determine which ones can be honored under failures, and ensure policy compliance under all failure cases.
+It simplifies operators' task of describing preferred paths, but that simplicity comes at the cost of compilation complexity. The compiler must efficiently compute the sets of paths represented by the intersection of preferences and topology and ensure policy compliance under all failure scenarios.
 
 \begin{figure}[t!]
   \centering
@@ -1000,8 +1000,8 @@ It simplifies operators' task of describing preferred paths, but that simplicity
   \[ \begin{array}{rclr}
     \hline
 
-     pol     &::=& p_1, \dots, p_n & \textit{constraints} \\
-     p       &::=& t \hspace{.3em} \Path \hspace{.3em} r_1 \Prefer \dots \Prefer r_m & \textit{preferences} \\
+     pol     &::=& p_1, \dots, p_n & \textit{policies} \\
+     p       &::=& t \hspace{.3em} \Path \hspace{.3em} r_1 \Prefer \dots \Prefer r_m \BNFALT cc & \textit{constraints} \\
      x       &::=& d.d.d.d/d & \textit{prefix} \\
      t       &::=& \True & \textit{true} \\
          &\BNFALT& \NOT t & \textit{negation} \\
@@ -1075,14 +1075,14 @@ configurations as needed.
 
 %\para{Syntax}
 The \sysname FE is just a thin layer atop the RIR for describing preference-based path constraints.
-Figure~\ref{fig:rir-syntax} shows the RIR syntax. A policy has one or more constraints, each of which has a test on the type of route and a corresponding set of preferred regular paths. Regular paths are regular expressions where the base characters are abstract locations representing either a router or an external AS. Special \In{} and \Out{} symbols refer to any internal or external location respectively. In addition, $\Sigma$ refers to any symbol. We also use the standard regular expression abbreviation $r^+$ for $r \cdot r^*$, a sequence of one or more occurrences of $r$. Predicates ($t$) consist of logical boolean connectives (and, or, not) as well as tests that match a particular prefix (or group of prefixes) and tests for route advertisements with a particular community value (\IE, an integer value associated with a path).
+Figure~\ref{fig:rir-syntax} shows the RIR syntax. A policy has one or more constraints. The first kind of constraint is a test on the type of route and a corresponding set of preferred regular paths or a control constraint. Regular paths are regular expressions where the base characters are abstract locations representing either a router or an external AS. Special \In{} and \Out{} symbols refer to any internal or external location respectively. In addition, $\Sigma$ refers to any symbol. We also use the standard regular expression abbreviation $r^+$ for $r \cdot r^*$, a sequence of one or more occurrences of $r$. Predicates ($t$) consist of logical boolean connectives (and, or, not) as well as tests that match a particular prefix (or group of prefixes) and tests for route advertisements with a particular community value (\IE, an integer value associated with a path).
 %% For example, the constraint
 %% \[(\textit{prefix}=74.3.28.0/24) \Link \\
 %% (as200 \cdot \In^+) \Prefer (as100 \cdot \In^+)
 %% \]
 %% describes a more-preferred set of paths for traffic announced by a prefix no less specific than \CD{74.125.28.0/24}, which starts at AS 200, before entering and staying inside the user's network to get to the destination, and a less-preferred set of paths that start at AS 100 and are otherwise the same. The plus operator $\In^+$ stands for $\In \cdot \In^*$, at least one internal hop. Tests over route types use standard boolean connectives, and can refer to both prefixes and route community values.
 
-\sysname also supports constraints purely on the control-plane behavior of BGP. For example, prefix aggregation is an important optimization to reduce routing table size in practice. A constraint of the form $agg(x,lp)$ tells the compiler to perform aggregation for prefix $x$ across all links described by $lp$. It is also often useful to be able to add community tags to exported routes in BGP (\EG, to communicate non-standard information to peers). A constraint of the form $tag(d,t,lp)$ adds community tag $d$ for any prefixes matching $t$ across links $lp$.
+\sysname also supports constraints on the control-plane behavior of BGP. For example, prefix aggregation is an important optimization to reduce routing table size. A constraint of the form $agg(x,lp)$ tells the compiler to perform aggregation for prefix $x$ across all links described by $lp$. It is also often useful to be able to add community tags to exported routes in BGP (\EG, to communicate non-standard information to peers). A constraint of the form $tag(d,t,lp)$ adds community tag $d$ for any prefixes matching $t$ across links $lp$.
 %% Aggregation, for example, from internal to external locations, is specified using the same regular syntax as before:
 %% $$\Agg(128.17.0.0/16, \In \Link \Out)$$
 %% where the expression $\In \Link Out$ refers to control messages flowing from any internal to any external location.
@@ -1091,14 +1091,16 @@ We list only the route aggregation and community tagging constraints in Figure~\
 
 \para{Semantics}
 
-The semantics of RIR is in terms of ranked paths. Each preference-based regular path constraint of the form $r_1 \Prefer \dots \Prefer r_j$ maps to a set of concrete paths in the network that match one of the $r_i$. A network path is a string of abstract locations of the form $l_1 l_2 \dots l_k$. A regular expression $r$ matches path $p$, if $p \in \mathcal{L}(r)$, that is, the path is in the language of the regular expression and is topologically valid.
-%We denote the length of a path $p$ as $\abs{p}$.
-
-A path $p$ has rank:
+We give a semantics to RIR programs using sets of ranked paths. Each path constraint $r_1 \Prefer \dots \Prefer r_j$ denotes a set of ranked network paths. A network path is a topologically valid string of abstract locations $l_1 l_2 \dots l_k$. We use the notation $\abs{p}$ to denote the length of the path $p$. A regular expression $r$ matches path $p$, if $p \in \mathcal{L}(r)$, that is, the path is in the language of the regular expression. Paths are ranked lexicographically according to (1) the most preferred regular expression matched, and (2) as a tie breaker, the path length. Lower ranks indicate \emph{more} preferred paths. More formally, a path $p$ has rank:
 $$(\min_i \set{ p \in \mathcal{L}(r_i) }, \abs{p})$$
-which is lexicographically ordered according to (1) the most preferred regular expression matched, and (2) as a tie breaker, the path length $\abs{p}$. Lower ranks indicate \emph{more} preferred paths. Traffic may be sent on any of the most preferred paths for each pair of starting and ending locations that appear in some specified path. There is an implicit lowest preference $\emptyset$ to drop traffic when no other route is possible.
+%
+The set of ranked paths depends on which paths are valid in the topology, and thus when failures occur, the most preferred routes change. 
+%
+For any source $s$ and destination $d$, \sysname will send traffic along the highest ranked available path from $s$ to $d$.
 
-The set of ranked paths depends on which paths are valid in the topology, and thus when failures occur, the most preferred routes change. The \sysname compiler ensures that generated configurations for a policy always achieve the most preferred path possible given the failures in the topology, using only distributed mechanisms.
+%Traffic may be sent on any of the most preferred paths for each pair of starting and ending locations that appear in some specified path. There is an implicit lowest preference $\emptyset$ to drop traffic when no other route is possible.
+
+%The \sysname compiler ensures that generated configurations for a policy always achieve the most preferred path possible given the failures in the topology, using only distributed mechanisms.
 
 
 \para{From FE to RIR}
@@ -1277,7 +1279,7 @@ For example, in Figure~\ref{fig:example-compilation}, the path $W \cdot A \cdot 
 %The precision of the failure-safety analysis often increases when nodes and edges that are not possible due to loops are eliminated.
 %For example, if we can safely remove a PGIR edge, then we do not have to consider what happens when the edge has failed.
 
-We use graph dominators~\cite{tarjan-dominance} as a cheap approximation for removing many nodes and edges in the PGIR that are never on any \emph{simple} (loop free) path between the start and end nodes.
+We use graph dominators~\cite{tarjan-dominance} as a relatively cheap approximation for removing many nodes and edges in the PGIR that are never on any \emph{simple} (loop free) path between the start and end nodes.
 In the PGIR, a node $m$ dominates a node $n$ if $m$ appears on every path leading from the start node to $n$. Similarly, a node $m$ post-dominates a node $n$ in the PGIR if $m$ appears on every path from $n$ to the end node.
 We can safely remove nodes and edges in the PGIR when any of the following conditions hold, where we have $m$, $m'$ and $n$, $n'$ such that $m \approx m'$ and $n \approx n'$.
 \begin{itemize}
@@ -1290,8 +1292,8 @@ We can safely remove nodes and edges in the PGIR when any of the following condi
 \item Remove edge ($m$, $n$) if some $m'$ post-dominates $n$
 \item Remove edge ($m$, $n$) if some $n'$ dominates $m$
 \end{itemize}
-For example, node $(W,1,1)$ in Figure~\ref{fig:example-compilation} is removed because every path to the end node must always go through node $(W,-,4)$. That is, node $(W,1,1$ is post-dominated by node $(W,-,4)$ and both are shadows of topology location $W$.
-Similarly, the edge from $(C,3,2)$ to $(D,-,2)$ is removed since node $(C,-,2)$ post-dominates $(D,-,2)$.
+For example, node $(W,1,1)$ in Figure~\ref{fig:example-compilation} is removed because every path to the end node must always go through node $(W,-,4)$. That is, node $(W,1,1)$ is post-dominated by node $(W,-,4)$ and both are shadows of topology location $W$.
+Similarly, the edge from $(C,3,2)$ to $(D,-,2)$ is removed since node $(C,-,2)$ post-dominates $(D,-,2)$, and shadows the topology location $C$.
 
 We repeatedly apply the minimizations above until no further minimization is possible.
 In the example from Figure~\ref{fig:example-compilation}, colored nodes and dashed edges show edges and nodes removed after minimization.
