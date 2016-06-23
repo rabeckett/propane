@@ -8,7 +8,7 @@ M.~Al-Fares, A.~Loukissas, and A.~Vahdat.
 \bibitem{RFC2622}
 C.~Alaettinoglu, C.~Villamizar, E.~Gerich, D.~Kessens, D.~Meyer, T.~Bates,
   D.~Karrenberg, and M.~Terpstra.
-\newblock Routing policy specification language (rpsl).
+\newblock Routing policy specification language ({RPSL}).
 \newblock RFC 2622, RFC Editor, June 1999.
 \newblock \url{http://www.rfc-editor.org/rfc/rfc2622.txt}.
 
@@ -28,7 +28,7 @@ M.~Anderson.
 \bibitem{onos}
 P.~Berde, M.~Gerola, J.~Hart, Y.~Higuchi, M.~Kobayashi, T.~Koide, B.~Lantz,
   B.~O'Connor, P.~Radoslavov, W.~Snow, and G.~Parulkar.
-\newblock Onos: Towards an open, distributed sdn os.
+\newblock {ONOS}: Towards an open, distributed sdn os.
 \newblock In {\em HotSDN}, 2014.
 
 \bibitem{bgpmon}
@@ -38,8 +38,8 @@ News and press | {BGP}mon.
 
 \bibitem{RFC6020}
 M.~Bjorklund.
-\newblock Yang - a data modeling language for the network configuration
-  protocol (netconf).
+\newblock {YANG} - a data modeling language for the network configuration
+  protocol {(NETCONF)}.
 \newblock RFC 6020, RFC Editor, October 2010.
 \newblock \url{http://www.rfc-editor.org/rfc/rfc6020.txt}.
 
@@ -50,7 +50,7 @@ M.~Casado, M.~J. Freedman, J.~Pettit, J.~Luo, N.~McKeown, and S.~Shenker.
 
 \bibitem{RFC6241}
 R.~Enns, M.~Bjorklund, J.~Schoenwaelder, and A.~Bierman.
-\newblock Network configuration protocol (netconf).
+\newblock Network configuration protocol ({NETCONF}).
 \newblock RFC 6241, RFC Editor, June 2011.
 \newblock \url{http://www.rfc-editor.org/rfc/rfc6241.txt}.
 
@@ -67,7 +67,7 @@ N.~Feamster and H.~Balakrishnan.
 
 \bibitem{igp-correctness2}
 N.~Feamster, J.~Winick, and J.~Rexford.
-\newblock A model of bgp routing for network engineering.
+\newblock A model of {BGP} routing for network engineering.
 \newblock In {\em SIGMETRICS}, June 2004.
 
 \bibitem{batfish}
@@ -80,13 +80,13 @@ A.~Fogel, S.~Fung, L.~Pedrosa, M.~Walraed-Sullivan, R.~Govindan, R.~Mahajan,
 N.~Foster, M.~J. Freedman, A.~Guha, R.~Harrison, N.~P. Katta, C.~Monsanto,
   J.~Reich, M.~Reitblatt, J.~Rexford, C.~Schlesinger, A.~Story, and D.~Walker.
 \newblock Languages for software-defined networks.
-\newblock {\em IEEE Communications Magazine}, 51(2), 2013.
+\newblock {\em IEEE Communications Magazine}, 51(2):128--134, 2013.
 
 \bibitem{regex-complexity}
 W.~Gelade and F.~Neven.
 \newblock Succinctness of the complement and intersection of regular
   expressions.
-\newblock {\em ACM Trans. Comput. Logic}, 13(1), January 2012.
+\newblock {\em ACM Trans. Comput. Logic}, 13(1):4:1--4:19, January 2012.
 
 \bibitem{arc}
 A.~Gember-Jacobson, R.~Viswanathan, A.~Akella, and R.~Mahajan.
@@ -101,7 +101,7 @@ P.~Gill, N.~Jain, and N.~Nagappan.
 
 \bibitem{igp-correctness1}
 T.~G. Griffin and G.~Wilfong.
-\newblock On the correctness of ibgp configuration.
+\newblock On the correctness of {IBGP} configuration.
 \newblock In {\em SIGCOMM}, August 2002.
 
 \bibitem{hatch}
@@ -131,7 +131,7 @@ R.~Mahajan, D.~Wetherall, and T.~Anderson.
 
 \bibitem{mccauley2013extending}
 J.~McCauley, A.~Panda, M.~Casado, T.~Koponen, and S.~Shenker.
-\newblock Extending sdn to large-scale networks.
+\newblock Extending {SDN} to large-scale networks.
 \newblock In {\em Open Networking Summit}, 2013.
 
 \bibitem{narain:lisa05}
