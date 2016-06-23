@@ -28,13 +28,12 @@ M.~Anderson.
 \bibitem{onos}
 P.~Berde, M.~Gerola, J.~Hart, Y.~Higuchi, M.~Kobayashi, T.~Koide, B.~Lantz,
   B.~O'Connor, P.~Radoslavov, W.~Snow, and G.~Parulkar.
-\newblock {ONOS}: Towards an open, distributed sdn os.
-\newblock In {\em HotSDN}, 2014.
+\newblock {ONOS}: Towards an open, distributed {SDN} {OS}.
+\newblock In {\em HotSDN}, August 2014.
 
 \bibitem{bgpmon}
-News and press | {BGP}mon.
+News and press | {BGPM}on.
 \newblock \url{http://www.bgpmon.net/news-and-events/}.
-\newblock Retrieved 2016-01-26.
 
 \bibitem{RFC6020}
 M.~Bjorklund.
@@ -54,16 +53,10 @@ R.~Enns, M.~Bjorklund, J.~Schoenwaelder, and A.~Bierman.
 \newblock RFC 6241, RFC Editor, June 2011.
 \newblock \url{http://www.rfc-editor.org/rfc/rfc6241.txt}.
 
-\bibitem{feamster:thesis}
-N.~Feamster.
-\newblock {\em Proactive Techniques for Correct and Predictable Internet
-  Routing}.
-\newblock PhD thesis, Massachusetts Institute of Technology, 2005.
-
 \bibitem{feamster+:rcc}
 N.~Feamster and H.~Balakrishnan.
 \newblock Detecting {BGP} configuration faults with static analysis.
-\newblock In {\em NSDI}, 2005.
+\newblock In {\em NSDI}, May 2005.
 
 \bibitem{igp-correctness2}
 N.~Feamster, J.~Winick, and J.~Rexford.
@@ -74,13 +67,13 @@ N.~Feamster, J.~Winick, and J.~Rexford.
 A.~Fogel, S.~Fung, L.~Pedrosa, M.~Walraed-Sullivan, R.~Govindan, R.~Mahajan,
   and T.~Millstein.
 \newblock A general approach to network configuration analysis.
-\newblock In {\em NSDI}, 2015.
+\newblock In {\em NSDI}, March 2015.
 
 \bibitem{sdn-languages}
 N.~Foster, M.~J. Freedman, A.~Guha, R.~Harrison, N.~P. Katta, C.~Monsanto,
   J.~Reich, M.~Reitblatt, J.~Rexford, C.~Schlesinger, A.~Story, and D.~Walker.
 \newblock Languages for software-defined networks.
-\newblock {\em IEEE Communications Magazine}, 51(2):128--134, 2013.
+\newblock {\em IEEE Communications Magazine}, 51(2):128--134, February 2013.
 
 \bibitem{regex-complexity}
 W.~Gelade and F.~Neven.
@@ -91,7 +84,7 @@ W.~Gelade and F.~Neven.
 \bibitem{arc}
 A.~Gember-Jacobson, R.~Viswanathan, A.~Akella, and R.~Mahajan.
 \newblock Fast control plane analysis using an abstract representation.
-\newblock In {\em SIGCOMM}, 2016.
+\newblock In {\em SIGCOMM}, August 2016.
 
 \bibitem{dc-failure-study}
 P.~Gill, N.~Jain, and N.~Nagappan.
@@ -107,17 +100,16 @@ T.~G. Griffin and G.~Wilfong.
 \bibitem{hatch}
 Hatch -- create and share configurations.
 \newblock \url{http://www.hatchconfigs.com/}.
-\newblock Retrieved 2016-01-26.
 
 \bibitem{bgp-in-dc}
 P.~Lapukhov, A.~Premji, and J.~Mitchell.
 \newblock Use of {BGP} for routing in large-scale data centers.
-\newblock Internet draft, 2015.
+\newblock Internet draft, August 2015.
 
 \bibitem{route-aggregation}
 F.~Le, G.~G. Xie, and H.~Zhang.
 \newblock On route aggregation.
-\newblock In {\em CoNEXT}, 2011.
+\newblock In {\em CoNEXT}, December 2011.
 
 \bibitem{tarjan-dominance}
 T.~Lengauer and R.~Tarjan.
@@ -127,23 +119,23 @@ T.~Lengauer and R.~Tarjan.
 \bibitem{mahajan+:bgp-misconfiguration}
 R.~Mahajan, D.~Wetherall, and T.~Anderson.
 \newblock Understanding {BGP} misconfiguration.
-\newblock In {\em SIGCOMM}, 2002.
+\newblock In {\em SIGCOMM}, August 2002.
 
 \bibitem{mccauley2013extending}
 J.~McCauley, A.~Panda, M.~Casado, T.~Koponen, and S.~Shenker.
 \newblock Extending {SDN} to large-scale networks.
-\newblock In {\em Open Networking Summit}, 2013.
+\newblock In {\em Open Networking Summit}, April 2013.
 
 \bibitem{narain:lisa05}
 S.~Narain.
 \newblock Network configuration management via model finding.
-\newblock In {\em Proceedings of the 19th Conference on Systems
-  Administration}, 2005.
+\newblock In {\em LISA}, December 2005.
 
 \bibitem{narain+:configassure}
 S.~Narain, G.~Levin, S.~Malik, and V.~Kaul.
 \newblock Declarative infrastructure configuration synthesis and debugging.
-\newblock {\em Journal of Network Systems Management}, 16(3):235--258, 2008.
+\newblock {\em Journal of Network Systems Management}, 16(3):235--258, October
+  2008.
 
 \bibitem{ipassure}
 S.~Narain, R.~Talpade, and G.~Levin.
@@ -152,9 +144,9 @@ S.~Narain, R.~Talpade, and G.~Levin.
 \newblock Springer, 2010.
 
 \bibitem{queries}
-S.~Narayana, J.~Rexford, and D.~Walker.
-\newblock Compiling path queries in software-defined networks.
-\newblock 2014.
+S.~Narayana, M.~Tahmasbi, J.~Rexford, and D.~Walker.
+\newblock Compiling path queries.
+\newblock In {\em NSDI}, March 2016.
 
 \bibitem{regex-derivatives}
 S.~Owens, J.~Reppy, and A.~Turon.
@@ -164,19 +156,18 @@ S.~Owens, J.~Reppy, and A.~Turon.
 \bibitem{fattire}
 M.~Reitblatt, M.~Canini, N.~Foster, and A.~Guha.
 \newblock {FatTire}: Declarative fault tolerance for software defined networks.
-\newblock In {\em HotSDN}, 2013.
+\newblock In {\em HotSDN}, August 2013.
 
 \bibitem{foster:merlin}
 R.~Soul{\'{e}}, S.~Basu, P.~J. Marandi, F.~Pedone, R.~Kleinberg, E.~G. Sirer,
   and N.~Foster.
 \newblock Merlin: {A} language for provisioning network resources.
-\newblock In {\em CoNEXT}, 2014.
+\newblock In {\em CoNEXT}, December 2014.
 
 \bibitem{thwack}
 configuration templates | thwack.
 \newblock
   \url{https://thwack.solarwinds.com/search.jspa?q=configuration+templates}.
-\newblock Retrieved 2016-01-26.
 
 \bibitem{bagpipe}
 K.~Weitz, D.~Woos, E.~Torlak, M.~D. Ernst, A.~Krishnamurthy, and Z.~Tatlock.
