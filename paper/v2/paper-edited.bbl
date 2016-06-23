@@ -171,7 +171,8 @@ configuration templates | thwack.
 
 \bibitem{bagpipe}
 K.~Weitz, D.~Woos, E.~Torlak, M.~D. Ernst, A.~Krishnamurthy, and Z.~Tatlock.
-\newblock Getting started with {Bagpipe}.
-\newblock \url{http://www.konne.me/bagpipe/started.html}, 2015.
+\newblock Formal semantics and automated verification for the border gateway
+  protocol.
+\newblock In {\em NetPL}, March 2016.
 
 \end{thebibliography}
