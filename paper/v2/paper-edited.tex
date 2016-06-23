@@ -1476,7 +1476,7 @@ The final stage of our compiler translates policies from PGIR to a vendor-neutra
 
 Once we have the total ordering on node preferences in the PGIR from the failure safety analysis, the translation to ABGP is straightforward. The idea is to encode the state of the automata using BGP community values. Each router will match based on its peer and a community value corresponding to the state of the PGIR, and then update the state before exporting to the neighbors permitted by the PGIR. For example, router $A$ in Figure~\ref{fig:example-compilation} will allow an announcement from $C$ with a community value for state $(3,2)$ (and deny anything else). If it sees such an announcement, it will remove the old community value and add a new one for state $(4,2)$ before exporting it to $W$.
 
-To ensure preferred paths are always obtained, for each router $r$ in the topology, the compiler sets a higher local preference for neighbors of a more-preferred node for $r$ in the PGIR. For example, $C$ will prefer an advertisement from $D$ in state $(2,2)$ over an advertisement from $E$ in state $(-,2)$.
+For each router $r$, the compiler sets a higher local preference for neighbors of a more-preferred PGIR node for $r$. For example, $C$ will prefer an advertisement from $D$ in state $(2,2)$ over an advertisement from $E$ in state $(-,2)$.
 
 Since the compiler can control community tagging only for routers under the control of the AS being programmed, it cannot match on communities for external ASes. Instead, it translates matches from external ASes into a BGP regular expression filter. For example, node $D$ in Figure~\ref{fig:example-compilation} would match the single hop external paths $X$ or $Y$. In general, if routes are allowed from beyond $X$ or $Y$, these will also be captured in the BGP regular expression filters. The unknown AS topology is modeled as a special node in the PGIR that generates a filter to match any sequence of ASes.
 
@@ -1485,7 +1485,7 @@ Finally, the external AS $W$ should prefer our internal router $A$ over $B$. In 
 %Aggregation is another tool commonly used to influence how traffic can enter the network, by relying on BGP's longest prefix matching default. Since aggregates are provided as additional user constraints, the compiler can also make use of this information to check that incoming preferences can be met given the aggregates specified (e.g., to ensure that all external ASes prefer to enter from one location over another).
 Figure~\ref{fig:abgp-config} shows the full configuration from the compilation example.
 
-After configuration generation, the compiler further processes the ABGP policy, removing community tags when possible, combining filters, removing dead filters, and so on. In the compilation example all community tags can be removed, since there is never any ambiguity based on the router importing the route and the neighbor the route is being imported from. After removing the communities, the two rules at router $B$ are merged into a single rule.
+After configuration generation, the compiler further processes the ABGP policy, removing community tags when possible, combining filters, removing dead filters, and so on. In the ABGP policy shown in Figure~\ref{fig:abgp-config}, all community tags can be removed, since there is never any ambiguity as to the current state of the PGIR based only on the current router importing the route and the neighbor from which the route is being imported.
 
 \newcommand{\highlight}[1]{%
   \colorbox{red!50}{$\displaystyle#1$}}
@@ -1503,10 +1503,7 @@ After configuration generation, the compiler further processes the ABGP policy, 
       Export \COMM \Arrow (4,2),
              \MED \Arrow 80, \PEER \Arrow W
   \Router{B}
-    Match \PEER = C, \COMM = (-,2)
-      Export \COMM \Arrow (-,3), \COMM \Arrow \text{noexport},
-             \MED \Arrow 81, \PEER \Arrow W
-    Match \PEER = C, \COMM = (3,2)
+    Match \PEER = C, \COMM = (-,2) or (3,2)
       Export \COMM \Arrow (-,3), \COMM \Arrow \text{noexport},
              \MED \Arrow 81, \PEER \Arrow W
   \Router{C}
@@ -1720,10 +1717,10 @@ Our work draws on four threads of prior work.
 \para{SDN languages}
 \sysname{} was heavily influenced by SDN programming
 languages such as NetKAT~\cite{netkat}, Merlin~\cite{foster:merlin}, FatTire~\cite{fattire},
-as well as path queries~\cite{queries}.
-Each of these languages is oriented around regular expressions, which
-describe paths through a network, and predicates, which classify packets.
-In particular, FatTire allows programmers to define sets of paths together
+and path queries~\cite{queries}.
+Each of these languages uses regular expressions to
+describe paths through a network and predicates to classify packets.
+In particular, FatTire allows programmers to define sets of paths
 with a fault tolerance level (\IE, tolerate 1 or 2 faults)
 and the compiler generates appropriate OpenFlow rules.
 \sysname is more expressive as it allows users to specify preferences among
@@ -1731,8 +1728,7 @@ paths, and it generates distributed implementations that tolerate any number of 
 Because FatTire generates data plane rules up front,
 specifying higher levels of fault tolerance comes
 at the cost of generating additional rules that tax switch memory.
-In contrast, \sysname relies on distributed
-control plane mechanisms to react to faults, which do not have additional memory cost.
+In contrast, \sysname relies on distributed control plane mechanisms to react to faults, which do not have additional memory cost.
 Because of the differences in the underlying technology, the analyses
 and compilation algorithms used in \sysname are quite different from
 previous work on SDN.
@@ -1747,13 +1743,14 @@ However, all of these solutions remain low-level, for example, requiring operato
 \para{Configuration analysis}
 The notion that configuring network devices is difficult and error-prone is not new.
 In the past, researchers have tried to tackle this problem by analyzing existing
-firewall configurations~\cite{fang,lumeta,margrave} and
+%firewall configurations~\cite{fang,lumeta,margrave} and
 router configurations~\cite{feamster+:rcc,feamster:thesis,ipassure,batfish,bagpipe,arc} and reporting errors or inconsistencies when they are detected.
 Our research is complementary to these analysis
 efforts.  We hope to eliminate bugs by using higher-level
 languages and a ``correct-by-construction''
-methodology.  By proposing that network administrators write configurations
-at a high-level of abstraction, a whole host of low-level errors can be avoided and policy implementation can be simplified.
+methodology. Writing configurations at a high level of abstraction simplifies policy implementation and prevents a whole host of low-level errors.
+%By proposing that network administrators write configurations
+%at a high-level of abstraction, a whole host of low-level errors can be avoided and policy implementation can be simplified.
 
 \para{Configuration synthesis}
 ConfigAssure~\cite{narain:lisa05,narain+:configassure}
@@ -1822,7 +1819,10 @@ as opposed to using logic programming and SAT-based model-finding.
 \section{Conclusions}
 \label{sec:conclusions}
 
-We introduced \sysname, a language and compiler for implementing network-wide policies using a distributed set of devices running BGP. Propane allows operators to describe their policy naturally through high-level constraints on both the shape and relative preferences of paths for different types of traffic. When \sysname compiles a policy, the resulting BGP configurations are guaranteed to faithfully implement the centralized policy in a purely distributed fashion, regardless of any number of network failures. Applying \sysname to real-world networks showed that its language is expressive and its compiler is scalable.
+We introduced \sysname, a language and compiler for implementing network-wide policies using a distributed set of devices running BGP. Propane allows operators to describe their policy through high-level constraints on both the shape and relative preferences of paths for different types of traffic. When \sysname compiles a policy, the resulting BGP configurations are guaranteed to 
+%remain policy-compliant
+implement the centralized policy in a distributed fashion, 
+regardless of any number of network failures. Applying \sysname to real-world networks showed that its language is expressive and its compiler is scalable.
 
 
 \para{Acknowledgements}
