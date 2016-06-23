@@ -122,7 +122,7 @@ F.~Le, G.~G. Xie, and H.~Zhang.
 \bibitem{tarjan-dominance}
 T.~Lengauer and R.~Tarjan.
 \newblock A fast algorithm for finding dominators in a flowgraph.
-\newblock In {\em TOPLAS}, 1979.
+\newblock In {\em TOPLAS}, July 1979.
 
 \bibitem{mahajan+:bgp-misconfiguration}
 R.~Mahajan, D.~Wetherall, and T.~Anderson.
@@ -154,7 +154,7 @@ S.~Narain, R.~Talpade, and G.~Levin.
 \bibitem{queries}
 S.~Narayana, J.~Rexford, and D.~Walker.
 \newblock Compiling path queries in software-defined networks.
-\newblock In {\em {HotSDN}}, 2014.
+\newblock 2014.
 
 \bibitem{regex-derivatives}
 S.~Owens, J.~Reppy, and A.~Turon.
