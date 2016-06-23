@@ -769,7 +769,7 @@ restricts traffic destined to known customer prefixes (\CD{PCust}) to only follo
 %a backup route (\CD{\End(Cust)}) is defined that admits traffic along
 %any path (including those through other networks) that ends at the customer.
 %Line 3 states that traffic for internal prefixes must end in our network, and is otherwise unconstrained.
-Line 3 applies to any other traffic not matching \CD{PCust} and allows the traffic to leave through any direct neighbor with the usual preferences of \CD{R1} over \CD{R2} over \CD{Peer} over \CD{Prov}. To summarize our progress, the \CD{Routing} policy
+Line 3 applies to any other traffic not matching \CD{PCust} and allows the traffic to leave through any direct neighbor with the usual preference of \CD{R1} over \CD{R2} over \CD{Peer} over \CD{Prov}. To summarize our progress, the \CD{Routing} policy
 implements P1, P3, and P4 from Figure~\ref{fig:example1}.
 
 
@@ -791,7 +791,7 @@ Here we define transit traffic between groups of neighbors $X$ and $Y$ as traffi
            \NOT{}cust-transit(Cust,Prov)\}
 \end{code}
 \noindent
-The \CD{NoTrans} constraint requires that all traffic not follow a path that transits the network between \CD{Peer} and \CD{Prov}.
+The \CD{NoTrans} constraint requires that all traffic not follow a path that transits our network between \CD{Peer} and \CD{Prov}.
 Additionally, it prevents traffic from ever following paths that leave our network and later go through both \CD{Prov} and \CD{Cust}.  To implement both \CD{Routing}
 and \CD{NoTrans} simultaneously, we simply conjoin them: \CD{Routing \AND{} NoTrans}.
 %
@@ -1089,7 +1089,7 @@ configurations as needed.
 
 %\para{Syntax}
 The \sysname FE is just a thin layer atop the RIR for describing preference-based path constraints.
-Figure~\ref{fig:rir-syntax} shows the RIR syntax. A policy has one or more constraints. The first kind of constraint is a test on the type of route and a corresponding set of preferred regular paths or a control constraint. Regular paths are regular expressions where the base characters are abstract locations representing either a router or an external AS. Special \In{} and \Out{} symbols refer to any internal or external location respectively. In addition, $\Sigma$ refers to any symbol. We also use the standard regular expression abbreviation $r^+$ for $r \cdot r^*$, a sequence of one or more occurrences of $r$. Predicates ($t$) consist of logical boolean connectives (and, or, not) as well as tests that match a particular prefix (or group of prefixes) and tests for route advertisements with a particular community value (\IE, an integer value associated with a path).
+Figure~\ref{fig:rir-syntax} shows the RIR syntax. A policy has one or more constraints. The first kind of constraint is a test on the type of route and a corresponding set of preferred regular paths. Regular paths are regular expressions where the base characters are abstract locations representing either a router or an external AS. Special \In{} and \Out{} symbols refer to any internal or external location respectively. In addition, $\Sigma$ refers to any location. We also use the standard regular expression abbreviation $r^+$ for $r \cdot r^*$, a sequence of one or more occurrences of $r$. Predicates ($t$) consist of logical boolean connectives (and, or, not) as well as tests that match a particular prefix (or group of prefixes) and tests for route advertisements with a particular community value attached (\IE, an integer value associated with a path).
 %% For example, the constraint
 %% \[(\textit{prefix}=74.3.28.0/24) \Link \\
 %% (as200 \cdot \In^+) \Prefer (as100 \cdot \In^+)
@@ -1145,7 +1145,7 @@ PL2 \Path \textbf{only}(\In) \Intersect \End(F)
 \True \Path \Exit(\Out)
 \end{code}
 
-The next step rewrites the high-level constraints such as $\Enter$ according to the equivalences in Figure~\ref{fig:rir-syntax}. Since preferences can only occur at the outermost level for an RIR expression, the final step is to ``lift" occurrences of the preference operator in each regular expression. For example, the regular expression $r \cdot (s \Prefer t) \cdot u$ is lifted to $(r \cdot s \cdot u) \Prefer (r \cdot t \cdot u)$ by distributing the preference over the sequence operator. In general, we employ the following distributivity equivalences:
+The next step rewrites the high-level constraints such as $\Exit$ according to the equivalences in Figure~\ref{fig:rir-syntax}. Since preferences can only occur at the outermost level for an RIR expression, the final step is to ``lift" occurrences of the preference operator in each regular expression. For example, the regular expression $r \cdot (s ~\Prefer~ t) \cdot u$ is lifted to $(r \cdot s \cdot u) \Prefer (r \cdot t \cdot u)$ by distributing the preference over the sequence operator. In general, we employ the following distributivity equivalences:
 %
 \[
 \begin{array}{c}
@@ -1285,7 +1285,7 @@ For example, the path $X \cdot D \cdot C \cdot A \cdot W$ is a valid path in the
 BGP control messages can start from peer X, which would match the $\Out$ transition from both automata, leading to state $1$ in the first automaton, and state $1$ in the second automaton. This possibility is reflected in the product graph by the node with state $(X,1,1)$. From here, if X were to advertise this route to D, it would result in the path $D \cdot X$, which would lead to state $2$ in the first automaton, and state $2$ in the second automaton, and so on.
 %
 The ``--" state indicates the corresponding automaton cannot accept the current path or any extension of it. Since
-node $(W,5,-)$ is in an accepting state for the first automaton, it indicates that this path has preference 1.
+node $(W,5,-)$ is in an accepting state for the first automaton, it indicates that this path has rank 1.
 
 \para{Minimization}
 After building the PGIR as described above,
@@ -1328,7 +1328,7 @@ To demonstrate the difficulty of generating device-local preferences, consider t
 $(\CD{A} \cdot \CD{B} \cdot \CD{D} \cdot \CD{E} \cdot \CD{G})  \Prefer (\CD{A} \cdot \CD{C} \cdot \CD{D} \cdot \CD{F} \cdot \CD{G})$.
 %
 How could such a policy be implemented in BGP? Suppose we set the local preferences to have $D$ prefer $E$ over $F$, and have $A$ prefer $B$ over $C$. This works as expected under normal conditions, however, if the A--B link fails, then suddenly $D$ has made the wrong decision by preferring $E$. Traffic will now follow the
-$A \cdot C \cdot D \cdot E \cdot G$ path, even though this path was not allowed by the policy. Thus, the distributed implementation has used a route that is not allowed by the policy. To make matters worse, the second preference for the path $A \cdot C \cdot D \cdot F \cdot G$ is available in the network but not being used. Thus, a path for the best possible route available exists in the network but is not being used by the distributed implementation.
+$A \cdot C \cdot D \cdot E \cdot G$ path, even though this path was not allowed by the policy. Thus, the distributed implementation has used a route that is not allowed by the policy. To make matters worse, the second preference for the path $A \cdot C \cdot D \cdot F \cdot G$ is available in the network but not being used. Thus, a path for the best possible route available after the A--B failure exists in the network, but the distributed implementation will not find it.
 %
 The first problem could be fixed by tagging and filtering route advertisements appropriately so that $C$ rejects routes that go through $E$, however the second problem cannot be fixed. In fact, this policy cannot be implemented in BGP in a way that is policy compliant under all failures since $D$ cannot safely choose between $E$ and $F$ without knowing whether the A--B link is available.
 
@@ -1340,9 +1340,9 @@ The problem of determining local preferences for each router is reflected in the
 In the example from Figure~\ref{fig:example-compilation}, the topology node $C$ can receive an advertisement from $E$ in shadow $(C,-,2)$ or from $D$ in shadow $(C,3,2)$.
 %
 %
-The compiler must determine a \emph{total ordering} of shadow nodes for each router, which reflects the relative preference of advertisements received in each shadow and should be consistent with path ranks in routing policy.
+The compiler must determine a \emph{total ordering} of shadow nodes for each router, which reflects the relative preference of advertisements received in each shadow and should be consistent with path ranks.
 %
-For example, if $C$'s shadow $(C,3,2)$ can be preferred to $(C,-,2)$, written as $(C,3,2) \leq_{lp} (C,-,2)$, $C$ can prefer advertisements from $(D,2,2)$ over $(E,-,2)$. $D$ and $E$ tag their advertisements to let $C$ know which shadow sent the advertisement. \$\ref{sec:abgp} discusses tagging in detail.
+For example, if $C$'s shadow $(C,3,2)$ can be preferred to $(C,-,2)$, written as $(C,3,2) \leq_{lp} (C,-,2)$, $C$ can prefer advertisements from $(D,2,2)$ over $(E,-,2)$. $D$ and $E$ tag their advertisements to let $C$ know which shadow sent the advertisement. Section \ref{sec:abgp} discusses tagging in detail.
 
 \begin{figure}[t!]
   \centering
@@ -1455,7 +1455,7 @@ Instead, we adopt the following simple strategy: $i)$ pick a random path in the 
 Because each path chosen is both policy compliant and edge disjoint (due to ii), the number of paths that we are able to remove lower bounds the number of failures required to disconnect the prefix from its aggregate, subject to the policy constraints.
 
 
-For example, recall the datacenter example from \S\ref{sec:motivation}, with the policy
+Recall the datacenter example from \S\ref{sec:motivation}, with the policy
 \CD{PG1} \Path \text{ }\End(\CD{A}), where \CD{PG1} falls under the \CD{PG} aggregate. Figure~\ref{fig:aggregation-safety} shows the PGIR for \CD{PG1}. Since we know aggregation will occur at $X$, and that the \CD{PG1} prefix will originate at $A$, we can compute the number of failures it would take to disconnect $A$ from $X$. We could remove the $A$--$D$--$X$ path first and would then need to remove any other $A$--$D$ or $D$--$X$ links from the PGIR (in this case none). Next, we could remove the links along the $A$--$C$--$X$ path, repeating the process. Because $A$ is now disconnected from $X$, 2 is a lower bound on the number of failures required to introduce an aggregation black hole for prefix \CD{PG1}. This process is repeated for other aggregation locations (\EG, $Y$).
 
 
@@ -1541,7 +1541,7 @@ After configuration generation, the compiler further processes the ABGP policy, 
 \section{Implementation}
 \label{sec:implementation}
 
-Our \sysname compiler is implemented in roughly 6700 lines of F\# code. It includes command-line flags for enabling or disabling the use of the BGP MED attribute, AS path prepending, the no-export community, as well as for ensuring at least k-failure safety for aggregate prefixes. Since each prefix has a separate routing policy, we compile each routing policy in parallel. Currently, \sysname supports generating Quagga router configurations out of the box. Users can add new vendor-specific adapters to translate from ABGP to other router configuration languages, or incorporate the compiler into an existing template-based system, \EG, by mixing the \sysname-generated BGP configuration with other, non-BGP configuration elements.
+Our \sysname compiler is implemented in roughly 6700 lines of F\# code. It includes command-line flags for enabling or disabling the use of the BGP MED attribute, AS path prepending, the no-export community, as well as for ensuring at least k-failure safety for aggregate prefixes. Since each predicate has a separate routing policy, we compile each routing policy in parallel. Currently, \sysname supports generating Quagga router configurations out of the box. Users can add new vendor-specific adapters to translate from ABGP to other router configuration languages, or incorporate the compiler into an existing template-based system, \EG, by mixing the \sysname-generated BGP configuration with other, non-BGP configuration elements.
 
 Our compiler includes the following features that improve its performance and usability.
 
