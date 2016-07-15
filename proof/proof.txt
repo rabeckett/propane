@@ -1,0 +1,470 @@
+--------------
+Notation:
+--------------
+
+PGIR nodes:       n,m,o
+Topology locs:    a,b,c
+automata states:  qᵢ
+
+Capital letters for abstract topology/PGIR
+lower case letters for concrete topology/PGIR
+subscripts refer to PGIR shadows, ie -- n1, n2
+
+We use T/Tᴬ for the concrete and abstract topologies
+We use PG/PGᴬ for the concrete and abstract product graphs
+We use Mᵢ/Mᴬᵢ for the concrete and abstract automata
+
+-----------------
+Propane Language:
+-----------------
+
+pol ::= c1, ..., ck
+c ::= t ⇒ r1 >> ... >> rj
+t ::= true | prefix = n | ¬t | t1 ∧ t2 | t1 ∨ t2
+r ::= ∅ | l | r1 ∩ r2 | r1 ∪ r2 | !r | r*
+
+--------------
+Product Graph:
+--------------
+
+Topology = (V,E)
+
+PG: (V', E', s, P)
+V': V x Id
+E': V' x V'
+s: V'
+P: V' ⟶ N⊥
+
+[[PG]] ∈ 2^{V' x N⊥}
+
+for path p = (x1,q1), ..., (xk,qk) in the product graph, 
+we use topo(p) to denote the topology path x1, ..., xk
+
+a path and rank r:  (topo(p),r) ∈ [[PG]] 
+if p = n1, ..., nk is a path in PG and P(nk) = r
+
+-------------
+Abstract BGP:
+-------------
+
+Syntax:
+
+  config ::= r1, ..., rk
+  r ::= {peer=n, comm=n, lp=n} → m
+  m ::= [v_peer, v_comm]
+  v ::= comm | {n} | v ∪ v | v - v
+
+Semantics:
+  
+  ABGP: V ⟶ config x (2^Pfx)
+  State: V ⟶ Pfx ⟶ adj(V) ⟶ (m x n)⊥
+  Best: V ⟶ (adj(V) x m x n)⊥
+
+---------------
+PG Compilation:
+---------------
+
+Given 
+  1. a PG for prefix [pfx]
+  2. a total ordering of PG nodes for each topology loc, consecutively mapped from 0, [ord]
+
+we compile the PG to ABGP as follows:
+
+compile_ABGP(PG, ord) =
+  λa. 
+    for m=(a, qs) in PG
+      for each bᵢ where nᵢ = (bᵢ,ss) in adjIn(PG,m)
+        {peer={bᵢ}, comm=ss, lp=ord(m)} → [{c | (c,...) ∈ adjOut(PG,m)}, qs]
+
+------------
+Abstraction:
+------------
+
+Abstract Topology = (Vᴬ, Eᴬ)
+
+Homomorphism f: V ⟶ Vᴬ
+such that (x,y) ∈ E ⇒ (f(x), f(y)) ∈ Eᴬ,
+
+For path p = x1, ..., xk in the topology, 
+define f(p) = f(x1), ..., f(xk)
+
+for path p = n1, ..., nk in the PG
+define f(p) = f(topo(p))
+
+-------------
+Substitution:
+-------------
+
+Assume we have an abstract Propane policy (t ⤇ r1, ..., rk),
+we define an concretize function (con) as follows:
+
+con(t ⤇ r1, ..., rk)  = t ⤇ con(r1), ..., con(rk)
+con(∅)                = ∅
+con(l)                = ∑ f⁻¹(l)
+con(r1 ∩ r2)          = con(r1) ∩ con(r2)
+con(r1 ∪ r2)          = con(r1) ∪ con(r2)
+con(!r)               = !con(r)
+con(r*)               = con(r)*
+
+Now suppose we have an abstract ABGP policy (r1, ..., rk), 
+we define substitution over this policy as well:
+
+
+lift f⁻¹ to sets as follows:
+f⁻¹(X) = ∪ {f⁻¹(x) x ∈ X}
+
+Lookup function returns at most one next hop PG node for a given location
+This relies on the fact that there is at most one unique next hop neighbor 
+for a given location -- see later proof for this.
+
+lookup(PG, m, {bᵢ}) = {loc(n) | (m,n) ∈ PG, f(loc(n)) = bᵢ}
+
+con(λA. config)     = λa. con(config)
+con(r1, ..., rk)    = con(r1), ..., con(rk)
+con({peer=v_p, comm=v_c, lp=i} → [v_peer, v_comm])  = 
+    let curr = (a,v_comm)
+        imp = (v_p, v_c)
+    {peer={loc(n) | n ∈ fˡ⁻¹(imp), (n,curr) ∈ PG}, comm=v_c, lp=i} → [lookup(curr, v_peer), v_comm]
+
+--------------------
+Correctness Theorem:
+--------------------
+
+      ABGP         Propane
+
+[[compile(pol)]] = [[pol]]
+
+
+Lemma:
+  suppose we compile topology T and policy pol to
+  product graph PG, then [[compile_PG(pol,T)]] = [[pol]]T
+
+  Proof:
+    (⇒) Suppose path p = n1, ..., nk with P(nk) = r
+          then (p,r) ∈ [[PG]]
+          for each edge (nᵢ, nᵢ₊₁) = ((xᵢ, idᵢ), (xᵢ₊₁, idᵢ₊₁)) we know that 
+            (xᵢ,xᵢ₊₁) is a topology edge
+            σᵣ(id₁, xᵢ₊₁) = idᵢ₊₁
+          it follows that x1, ..., xk is a path in the topology
+          since id_k ∈ Fᵣ, it follows that x1, ..., xk ∈ L(r)
+    (⇐) Suppose path p = x1, ..., xk is a topology path
+          where we have (p,r) ∈ [[pol]]T
+          then p ∈ L(r)
+         Consider the set of automaton states id_1, ..., id_k used to match p in Mᵣ
+         then the path (x1, id_1), ..., (xk, id_k) is a path in the PG with P(xk, id_k) = r
+          since each (xᵢ, xᵢ₊₁) is a valid topology link
+          and by construction, σᵣ(idᵢ, xᵢ₊₁) = idᵢ₊₁ with id_k ∈ Fᵣ
+
+-------------------------------------------------------------------------
+
+Lemma:
+  For regular expression r over abstract locations, 
+  path p ∈ L(con(r)) ⟺ f(p) ∈ L(r)
+  Example:
+    f(A) = X, f(B) = Y, f(C) = Z
+    ABC ∈ (A+B)(C+D)(E+F) ⟺ f(A)f(B)f(C) ∈ XYZ
+
+  Proof:
+    by induction on r
+    case ∅:
+      p ∈ L(con(∅)) ⟺ f(p) ∈ L(∅)
+      p ∈ ∅ ⟺ f(p) ∈ ∅
+    case l:
+      p ∈ L(con(l)) ⟺ f(p) ∈ L(l)
+      p ∈ L(∑ f⁻¹(l)) ⟺ f(p) ∈ L(l)
+      p ∈ f⁻¹(l) ⟺ f(p) ∈ {l}
+      f(p) ∈ f(f⁻¹(l)) ⟺ f(p) ∈ {l}
+      f(p) ∈ {l} ⟺ f(p) = {l}
+    case r1 [∪/∩] r2:
+      p ∈ L(con(r1 ∪ r2)) ⟺ f(p) ∈ L(r1 ∪ r2)
+      p ∈ L(con(r1) ∪ con(r2)) ⟺ f(p) ∈ L(r1 ∪ r2)
+      p ∈ L(con(r1)) ∪ L(con(r2)) ⟺ f(p) ∈ L(r1 ∪ r2)
+      p ∈ L(con(r1)) or p ∈ L(con(r2)) ⟺ f(p) ∈ L(r1) or f(p) ∈ L(r2)
+      Finish with IH
+    case !r:
+      p ∈ L(con(!r)) ⟺ f(p) ∈ L(!r)
+      p ∈ L(!con(r)) ⟺ f(p) ∈ L(!r)
+      p ∈ Σ* \ L(con(r)) ⟺ f(p) ∈ Σ* \ L(r)
+      by IH: p ∈ L(con(r)) ⟺ f(p) ∈ L(r)
+    case r*:
+      TODO: should be the same idea as union
+
+-------------------------------------------------------------------------
+
+Definition:
+  Define a concretization of the state machine con(Mᵢ)
+  For a regular expression rᵢ, with finite machine Mᵢ,
+  Set up the concrete state machine con(Mᵢ) for con(rᵢ) as follows:
+
+  1) σᵣ(q,f(a)) = q' ⟺ σ_con(r) (q, a) = q'
+  2) q ∈ Fᵣ ⟺ q ∈ F_con(r)
+
+-------------------------------------------------------------------------
+
+Lemma:
+  Mᵢ matches f(p) ⟹ con(Mᵢ) matches p
+
+  Proof:
+    Suppose Mᵢ matches f(p), where 
+    f(p) = A1, ..., Ak
+    
+    then there exists a trace through Mᵢ of the form:
+    q0, q1, ..., qk+1
+
+    where σᵣᵢ(qₓ, Aₓ) = qₓ₊₁ and qₓ₊₁ ∈ Fᵣᵢ
+
+    We must show that con(Mᵢ) matches p, where
+    p = a1, ..., ak  with f(aᵢ) = Aᵢ
+
+    From the construction of the automata, we know that:
+    (1) σᵣᵢ(qₓ, Aₓ) = qₓ₊₁ ⟺ σ_con(rᵢ)(qₓ, aₓ) = qₓ₊₁
+    (2) a ∈ Fᵣ ⟺ f(A) ∈ F_con(r)
+
+    Therefore, trivially the following trace for con(Mᵢ):
+    q0, q1, ..., qk+1
+
+    matches p
+
+-------------------------------------------------------------------------
+
+Lemma:
+  con(Mᵢ) matches p ⟺ p ∈ L(con(rᵢ))
+
+  Proof:
+    We know from the above lemma that 
+    p ∈ L(con(rᵢ)) ⟺ f(p) ∈ L(rᵢ)
+    Therefore we know that Mᵢ matches f(p)
+    The above lemma gives us what we want
+
+-------------------------------------------------------------------------
+
+Consequence:
+
+  We can lift the homomorphism f to relate product graph states.
+  Define fˡ(n) = nᴬ where:
+  n  = (x   , q1,...,qk)
+  N  = (f(x), q1,...,qk)
+
+  Note that this is also a homomorphism in that, when there is an
+  edge in the PG between
+  m  = (x   , q1,...,qk)
+  n  = (y   , s1,...,sk)
+
+  then there is a topology edge between x and y and σ_con(ri)(qᵢ, y) = sᵢ
+  Thus there is an edge in the abstract product graph, since:
+
+  M  = (f(x), q1,...,qk)
+  N  = (f(y), s1,...,sk)
+
+  and we know that the f(x) to f(y) edge must exist in Tᴬ due to f.
+  and we know that σᵣᵢ(qᵢ, f(y)) = sᵢ from the above lemma
+
+-------------------------------------------------------------------------
+
+Lemma: 
+  if the follwing:
+  1. (a,b) ∈ E
+  2. loc(m) = a 
+  3. fˡ(m) = M
+  4. (M, N) is an edge in PGᴬ,
+  5. loc(N) = f(b)
+
+  then there exists a node n in the PG such that:
+  1. loc(n) = b
+  2. fˡ(n) = N
+  3. (m,n) is an edge in PG
+  4. rank(n) = rank(N)
+
+  proof:
+    let us suppose that:
+    m = (a,   q1,...,qk)
+
+    therefore we know that:
+    M = (f(a), q1,...,qk)
+
+    also suppose we have, for some b,:
+    N = (f(b), s1,...,sk)
+
+    this is valid since (a,b) ∈ E (meaning f(a),f(b) ∈ Eᴬ) and loc(N) = f(b)
+    would not exist in the abstract topology
+
+    let us take [n] to be (b, s1,...,sk)
+
+    1. Clearly loc(n) = b
+    2. fˡ(n) = (f(b), s1,...,sk) = N
+    3. Clearly (a,b) ∈ E
+       Because σᵣᵢ(qᵢ, f(b)) = sᵢ
+       we know that σ_con(rᵢ)(qᵢ, b) = sᵢ
+       It follows that (m,n) is an edge in PG by definition
+    4. Since the states are the same, the ranks are the same
+
+-------------------------------------------------------------------------
+
+Lemma:
+  Given: 
+    1. PGC = compile_PG(con(pol), T)
+    2. PGA = compile_PG(pol, Tᴬ)
+    3. two shadows in PG, a1 ≈ a2
+    4. f(a1) = A1 ∧ f(a2) = A2 
+
+
+  REGRET-FREE(PGᴬ, A1,A2) ⟹ REGRET-FREE(PG, a1,a2)
+
+  Proof:
+    for each neighbor of A2, call it B2, we are guaranteed
+    that there is an equivalent neighbor of A1: B1 ≈ B2 with B1 ≤rank B2
+    Assume that loc(B2) = loc(B1) = f(b)
+
+    now suppose that a2 has a neighbor b2, 
+    therefore, (a,b) is a valid topology edge in T
+
+    we must prove that a1 has neighbor b1 ≈ b2 with b1 ≤rank b2
+
+    simply apply the above lemma since
+    1. (a,b) ∈ E
+    2. loc(a1) = a
+    3. fˡ(a1) = A1
+    4. (A1,B1) is an edge in PGᴬ
+    5. loc(B1) = f(b)
+
+    Therefore, there exists a node b1 in the PG such that:
+    1. loc(b1) = b
+    2. fˡ(b1) = B1
+    3. (a1,b1) is an edge in PG
+    4. rank(b1) = rank(B1)
+
+    similarly, we can apply the same lemma to derive that:
+    rank(b2) = rank(B2)
+
+    therefore, b1 ≤rank b2 since B1 ≤rank B2
+
+    Thus c1 has a neighbor d1 where d1 ≈ d2 and d1 ≤rank d2
+    Since this property holds for each step of the loop,
+    it holds for the REGRET-FREE algorithm (without dominators)
+
+-------------------------------------------------------------------------
+
+Consequence:
+  Since REGRET-FREE(N1,N2) ⟹ REGRET-FREE(n1, n2),
+  this means that N1 ≤lp N2 ⟹ n1 ≤lp n2
+
+-------------------------------------------------------------------------
+
+Lemma:
+  For a node m in the PG, 
+  if there is a node n where (m,n) ∈ PG, then ∀n', (n'≈n ∧ n'≠n) ⟹ (m,n') ∉ PG
+
+  Proof:
+    This falls out of the fact that the automata are deterministic.
+    Because of this, m transitions on loc(n) to a single new node
+
+
+-------------------------------------------------------------------------
+
+Final Proof:
+  Concrete TC, abstract TA and policy pol:
+
+  To Show:
+    [[compile_ABGP(con(pol), TC)]] = [[con(compile_ABGP(pol,TA))]]
+
+  Instead, we will show:
+    compile_ABGP(con(pol), TC) = con(compile_ABGP(pol,TA))
+
+  [[con(pol)]] TC  = [[ compile_PG(con(pol), TC) ]]
+  [[pol]] TA       = [[ compile_PG(pol, TA) ]]
+
+-------------------------------------------------------------------------
+
+Theorem:
+  If it is the case that
+  [[compile_ABGP(PG, ord1)]] = [[compile_ABGP(PG, ord2)]] for consistent total orderings [ord1], [ord2]
+
+  then we have the abstraction property:
+  [[compile(con(pol), T)]] = [[con(compile(pol,Tᴬ))]]
+
+  It suffices to show instead that:
+  compile(con(pol), T)  =  con(compile(pol,Tᴬ))
+
+  We break down compilation into two steps: Pol → PG → ABGP
+  compile_ABGP(compile_PG(con(pol), T))  =  con(compile_ABGP(compile_PG(pol, Tᴬ)))
+
+  Let us call
+  PG  = compile_PG(con(pol), T)
+  PGᴬ = compile_PG(pol, Tᴬ)
+
+  We are left with:
+  compile_ABGP(PG)  =  con(compile_ABGP(PGᴬ))
+
+  By filling in the definitions for [con] and compile_ABGP, on the left/right respectively:
+
+  λa. 
+    for m=(a, qs) in PG
+      for each bᵢ where nᵢ = (bᵢ,ss) in adjIn(PG,m)
+        {peer={bᵢ}, comm=ss, lp=ord(m)} → [{c | (c,...) ∈ adjOut(PG,m)}, qs]
+
+  ==
+
+  con(λA. 
+    for M=(A, qs) in PG
+      for each Bᵢ where Nᵢ = (Bᵢ,ss) in adjIn(PGᴬ,M)
+        {peer={Bᵢ}, comm=ss, lp=ord(M)} → [{C | (C,...) ∈ adjOut(PGᴬ,M)}, qs] )
+
+  λa. con( 
+    for M=(A, qs) in PG
+      for each Bᵢ where Nᵢ = (Bᵢ,ss) in adjIn(PGᴬ,M)
+        {peer={Bᵢ}, comm=ss, lp=ord(M)} → [{C | (C,...) ∈ adjOut(PGᴬ,M)}, qs] )
+
+  λa.
+    for M=(A, qs) in PG
+      for each Bᵢ where Nᵢ = (Bᵢ,ss) in adjIn(PGᴬ,M)
+        con( {peer={Bᵢ}, comm=ss, lp=ord(M)} → [{C | (C,...) ∈ adjOut(PGᴬ,M)}, qs] )
+
+  λa.
+    for M=(A, qs) in PG
+      for each Bᵢ where Nᵢ = (Bᵢ,ss) in adjIn(PGᴬ,M)
+        let curr = (a,qs)
+            imp = ({Bᵢ},ss)
+        {peer={loc(n) | n ∈ fˡ⁻¹(imp), (n,curr) ∈ PG}, comm=ss, lp=ord(M)} → 
+          [lookup(curr, {C | (C,...) ∈ adjOut(PGᴬ,M)}), qs]
+
+  By definition, the concrete PG states [n] matching:
+  {loc(n) | n ∈ fˡ⁻¹(imp), (n,curr) ∈ PG}
+  are exactly those states [n] mapping to some Bᵢ which are actually connected in PG to the current node
+
+  λa.
+    for M=(A, qs) in PG
+      for each bᵢ where nᵢ = (bᵢ,ss) in adjIn(PG,(a,qs))
+        let curr = (a,qs)
+        let v_peer = {C | (C,...) ∈ adjOut(PGᴬ,M)}
+        {peer={bᵢ}, comm=ss, lp=ord(M)} → [lookup(curr, v_peer), qs]
+
+  Now we replace the lookup function
+
+  λa.
+    for M=(A, qs) in PG
+      for each bᵢ where nᵢ = (bᵢ,ss) in adjIn(PG,(a,qs))
+        {peer={bᵢ}, comm=ss, lp=ord(M)} → [{loc(n) | ((a,qs),n) ∈ PG, f(loc(n)) = C, (C,...) ∈ adjOut(PGᴬ,M)}, qs]
+
+  Here (for concrete router a) we are exporting to all neighbors [n] that are connected to the 
+  current node (a,qs) in the concrete PG, so long as n's location maps to an allowed export for abstract C.
+  
+  Note here the following: 
+  every n ∈ adjOut(PG,m) will correspond to some C ie, f(n) = (C,...) above by the homomorphism property
+  Therefore, we can replace the above with the following:
+
+  λa. 
+    for m=(a, qs) in PG
+      for each bᵢ where nᵢ = (bᵢ,ss) in adjIn(PG,m)
+        {peer={bᵢ}, comm=ss, lp=ord(f(m))} → [{c | (c,...) ∈ adjOut(PG,m)}, qs]
+
+  Note as well that we replaced ord(M) with ord(f(m)): 
+  From the previous safety theorem, we know that (f(m1) ≤lp f(m2) ⟹ m1 ≤lp m2),
+  Therefore, they represent consistent total orderings. We can therefore replace [ord]
+  with [ord'] such that ord'(m) = ord(f(m)). This leaves us with
+
+  λa. 
+    for m=(a, qs) in PG
+      for each bᵢ where nᵢ = (bᵢ,ss) in adjIn(PG,m)
+        {peer={bᵢ}, comm=ss, lp=ord'(m)} → [{c | (c,...) ∈ adjOut(PG,m)}, qs]
+
+  which satisfies the assumption to the theorem.
