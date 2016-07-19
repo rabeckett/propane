@@ -1,3 +1,5 @@
+% Search for "DPW:" to get Dave's comments
+
 --------------
 Notation:
 --------------
@@ -30,18 +32,22 @@ Product Graph:
 Topology = (V,E)
 
 PG: (V', E', s, P)
-V': V x Id
+V': V x Q1 x ... x Qj
 E': V' x V'
 s: V'
 P: V' ⟶ N⊥
 
-[[PG]] ∈ 2^{V' x N⊥}
+[[PG]] ∈ 2^{V' x N⊥}   
 
-for path p = (x1,q1), ..., (xk,qk) in the product graph, 
-we use topo(p) to denote the topology path x1, ..., xk
+DPW:  [[PG]] ∈ 2^{V list x N⊥} 
+
+for path p = (a1,q1), ..., (ak,qk) in the product graph, 
+we use topo(p) to denote the topology path a1, ..., ak
 
 a path and rank r:  (topo(p),r) ∈ [[PG]] 
-if p = n1, ..., nk is a path in PG and P(nk) = r
+⟺ p = n1, ..., nk is a path in PG and P(nk) = r and r ≠ ⊥
+
+we let qs range over tuples of states (q1,...,qn) ∈ Q1 x ... x Qn
 
 -------------
 Abstract BGP:
@@ -49,16 +55,31 @@ Abstract BGP:
 
 Syntax:
 
+  abgp ::= x1 -> vconfig, ..., xn -> vconfign
+  vconfig ::= a1 -> config1, ..., an -> confign
   config ::= r1, ..., rk
-  r ::= {peer=n, comm=n, lp=n} → m
-  m ::= [v_peer, v_comm]
-  v ::= comm | {n} | v ∪ v | v - v
+  r ::= n:{peer ∈ ns, comm ∈ ns} → [ns,comm]
+  comm ::= self | {n} | v ∪ v | v - v
+  ns ::= {n1, ..., n2}
 
 Semantics:
-  
-  ABGP: V ⟶ config x (2^Pfx)
+
   State: V ⟶ Pfx ⟶ adj(V) ⟶ (m x n)⊥
   Best: V ⟶ (adj(V) x m x n)⊥
+
+We assume a particular vertex x appears at most once in any abgp specification.
+An abgp configuration is a partial function from prefixes to vertex configuration.
+We write abgp(x) to apply such a config to a prefix x.
+We often build configs using set-builder notation.  For instance,
+{a -> r | a in topo /\ p(a,r)} denotes the abgp policy
+a1 -> r11,...
+...
+an -> r1n,...
+where a1,...,an are the nodes in the topology
+and each rij satisfies p(ai,rij).
+Similarly for vconfigs.
+
+      
 
 ---------------
 PG Compilation:
@@ -70,11 +91,19 @@ Given
 
 we compile the PG to ABGP as follows:
 
-compile_ABGP(PG, ord) =
-  λa. 
-    for m=(a, qs) in PG
-      for each bᵢ where nᵢ = (bᵢ,ss) in adjIn(PG,m)
-        {peer={bᵢ}, comm=ss, lp=ord(m)} → [{c | (c,...) ∈ adjOut(PG,m)}, qs]
+compile_ABGP(PG, a, ord) =
+  {a -> r | 
+    m=(a,qs) ∈ PG,
+    {peer={bᵢ | nᵢ = (bᵢ,ss) in adjIn(PG,m)}, comm=ss, lp=ord(m)} → [{c | (c,...) ∈ adjOut(PG,m)}, qs]
+  }
+
+DPW:  I think I would use the underscore character _ instead of "..." above -- "..." suggests a
+series, but I believe there is just 1 unknown value here
+
+DPW: I notice you are using "qs" here -- the automaton state.  Might as well make the PG be over
+qs or something .....
+
+DPW: Any reason you use qs instead of q?
 
 ------------
 Abstraction:
@@ -85,8 +114,8 @@ Abstract Topology = (Vᴬ, Eᴬ)
 Homomorphism f: V ⟶ Vᴬ
 such that (x,y) ∈ E ⇒ (f(x), f(y)) ∈ Eᴬ,
 
-For path p = x1, ..., xk in the topology, 
-define f(p) = f(x1), ..., f(xk)
+For path p = a1, ..., ak in the topology, 
+define f(p) = f(a1), ..., f(ak)
 
 for path p = n1, ..., nk in the PG
 define f(p) = f(topo(p))
@@ -106,12 +135,14 @@ con(r1 ∪ r2)          = con(r1) ∪ con(r2)
 con(!r)               = !con(r)
 con(r*)               = con(r)*
 
+DPW:  Maybe write the sum above as:  Sum_{b_i in f-1(l)} b_i
+
 Now suppose we have an abstract ABGP policy (r1, ..., rk), 
 we define substitution over this policy as well:
 
 
 lift f⁻¹ to sets as follows:
-f⁻¹(X) = ∪ {f⁻¹(x) x ∈ X}
+f⁻¹(X) = ∪ {f⁻¹(x) | x ∈ X}
 
 Lookup function returns at most one next hop PG node for a given location
 This relies on the fact that there is at most one unique next hop neighbor 
@@ -119,12 +150,32 @@ for a given location -- see later proof for this.
 
 lookup(PG, m, {bᵢ}) = {loc(n) | (m,n) ∈ PG, f(loc(n)) = bᵢ}
 
+DPW: I believe loc(m) and loc(n) are concrete topo nodes and b is an abstract node.
+     So lookup intuitively says something like this:  
+       "if you are at concrete product graph node m, and want to get to abstract node b next,
+        then you should go to PG node n." 
+
 con(λA. config)     = λa. con(config)
 con(r1, ..., rk)    = con(r1), ..., con(rk)
 con({peer=v_p, comm=v_c, lp=i} → [v_peer, v_comm])  = 
+    let curr = (a,v_comm)        
+        imp = (v_p, v_c)
+    {peer={loc(n) | n ∈ fˡ⁻¹(imp), (n,curr) ∈ PG}, comm=v_c, lp=i} → [lookup(PG, curr, v_peer), v_comm]
+
+DPW:  changed lookup on last line to have PG as argument.
+DPW:  con(λA. config)     = λa. con(config)
+      goes from A to a -- is that just a typo?
+DPW:  Note: a appears free in the 3rd definition.  This is not good form.  Try this:
+
+con(λA. config)     = λa. con(config,a)
+con(r1, ..., rk,a)    = con(r1,a), ..., con(rk,a)
+con({peer=v_p, comm=v_c, lp=i} → [v_peer, v_comm],a)  = 
     let curr = (a,v_comm)
         imp = (v_p, v_c)
-    {peer={loc(n) | n ∈ fˡ⁻¹(imp), (n,curr) ∈ PG}, comm=v_c, lp=i} → [lookup(curr, v_peer), v_comm]
+    {peer={loc(n) | n ∈ fˡ⁻¹(imp), (n,curr) ∈ PG}, comm=v_c, lp=i} → [lookup(PG, curr, v_peer), v_comm]
+
+DPW:  Here:   n ∈ fˡ⁻¹(imp)    I think you want to generate 1 rule for each n in fˡ⁻¹(imp), right?
+DPW:  I think the lookup doesn't work with "a" in curr being a parametr to the config ...
 
 --------------------
 Correctness Theorem:
