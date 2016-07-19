@@ -93,17 +93,11 @@ we compile the PG to ABGP as follows:
 
 compile_ABGP(PG, a, ord) =
   {a -> r | 
-    m=(a,qs) ∈ PG,
-    {peer={bᵢ | nᵢ = (bᵢ,ss) in adjIn(PG,m)}, comm=ss, lp=ord(m)} → [{c | (c,...) ∈ adjOut(PG,m)}, qs]
+    m = (a,qs) ∈ PG,
+    in = {bᵢ | nᵢ = (bᵢ,ss) in adjIn(PG,m)}
+    out = {c | (c,_) ∈ adjOut(PG,m)}
+    r = {peer=in, comm=ss, lp=ord(m)} → [out, qs]
   }
-
-DPW:  I think I would use the underscore character _ instead of "..." above -- "..." suggests a
-series, but I believe there is just 1 unknown value here
-
-DPW: I notice you are using "qs" here -- the automaton state.  Might as well make the PG be over
-qs or something .....
-
-DPW: Any reason you use qs instead of q?
 
 ------------
 Abstraction:
@@ -292,7 +286,7 @@ Lemma:
 Consequence:
 
   We can lift the homomorphism f to relate product graph states.
-  Define fˡ(n) = nᴬ where:
+  Define fˡ(n) = N where:
   n  = (x   , q1,...,qk)
   N  = (f(x), q1,...,qk)
 
@@ -519,3 +513,168 @@ Theorem:
         {peer={bᵢ}, comm=ss, lp=ord'(m)} → [{c | (c,...) ∈ adjOut(PG,m)}, qs]
 
   which satisfies the assumption to the theorem.
+
+----------------
+Abstract Labels:
+----------------
+
+Given an abstract, (undirected) topology Gᴬ: (Vᴬ x Eᴬ)
+
+Assume L is a set of unique labels.
+and that we have a fixed theory with variables 
+over labels. The theory must support at the very least, integer arithmetic. 
+Sentences in the theory are represented as: Theory(L)
+
+An abstract, labelled topology is a tuple,
+Vᴸ: (Vᴬ x L)
+Eᴸ: (Eᴬ x L x L)
+Gᴬᴸ: Vᴸ x Eᴸ x Theory(L)
+
+It associates a unique label with each vertex in the topology,
+and a pair of unique labels with each edge.
+
+Recall, a homomorphism f: G → Gᴬ maps concrete nodes to abstract nodes
+for abstract topology G = (V,E)
+
+We can lift this homomorphism to an abstract 
+labelled graph is a straightforward way:
+f(a) = (A,l) ⟺ f(a) = A
+
+The semantics of abstract labelled graphs is given
+by determining if a concrete topology belongs to an abstract
+labelled graph given a homomorphism f.
+
+First, we define parial functions from labels to vertices, and edges resp.
+Lⱽ: L → Vᴸ
+Lᴱ: L → Eᴸ
+Lᵛ(l) = V       ⟺ (V,l) is a vertex in Gᴬᴸ
+Lᴱ(l1,l2) = E   ⟺ (E,l1,l2) is an edge in Gᴬᴸ
+
+[[]]: Gᴬᴸ → 2^{G x (G → Gᴬᴸ)}
+
+(G,f) ∈ [[Gᴬᴸ]]
+(G,f) ∈ [[(V,E,T)]]  ⟺ 
+  ∧_(X,l)∈V         ⊨ T[|f⁻¹(X)| / l]
+  ∧_(X,Y,l1,l2)∈E   ⊨ T[|{e | e ∈ f⁻¹(x) x f⁻¹(y), e ∈ Eᶜ}| / l]
+
+-------------
+Reachability:
+-------------
+
+Suppose we run the reachability algorithm over abstract labelled graph Gᴬᴸ
+from source location X. The result is a graph where some of the abstract
+nodes are labelled with {S,A}. The function [interp] below gives
+and interpretation of the labelling for arbitrary underlying concrete 
+in terms of reachability.
+
+Q(L) = {∃  if  L=S
+       {∀  if  L=A
+
+interp(X,Y,L) = 
+  ∀x ∈ f⁻¹(X), Q(L) y ∈ f⁻¹(Y), reachable(x,y)
+
+-------------------
+Reachability Proof:
+-------------------
+
+If we run the reachability algorithm described (in the paper),
+from source X and end up with label L for node Y, 
+then interp(X,Y,L) is valid.
+
+TODO: proof of termination
+
+We show this by demonstrating that each inference rule is sound.
+
+Rule 1:
+
+     A
+    (N)
+     | F
+     |
+     | E
+    (M)   where E ≥ N or F ≥ N
+    [L]
+
+    Assume we have label L at node M. This means interp(X,M,L) is valid, 
+    so some node m ∈ f⁻¹(M) is reachable.
+
+    Case E ≥ N:
+      Each node m ∈ f⁻¹(M) has at least as many outgoing edges 
+      as there are nodes (N), because duplicate edges in the undirected
+      topology are not allowed, 
+
+      then each node m must have an edge to every node
+      n ∈ f⁻¹(N). Therefore, interp(X,N,A) is valid since each n mapping to N
+      must be reachable through that particular m.
+
+    Case F ≥ N:
+      Since each node n ∈ f⁻¹(N) has an edge to every node m ∈ f⁻¹(M),
+      it must be the case that all nodes n are reachable through the particular
+      reachable node m. Thus interp(X,N,A) must be valid
+
+
+Rule 2:
+
+     S
+    (N)
+     | F
+     |
+     | E
+    (M)   where E ≥ 1
+    [L]
+
+    Assume we have label L at node M. This means interp(X,M,L) is valid
+    i.e., some node m ∈ f⁻¹(M) is reachable
+
+    since m has at least one edge to some node n ∈ f⁻¹(N), that node n
+    is reachable through n, so interp(X,N,S) is valid since some node 
+    is reachable from a given source
+
+Rule 3:
+
+     S
+    (N)
+     | F
+     |
+     | E
+    (M)   where F ≥ 1
+    [A]
+
+    we have interp(X,M,A), so all nodes m ∈ f⁻¹(M) are reachable.
+    since we know there is at least one incoming edge for each
+    n ∈ f⁻¹(N), we know n is reachable through that edge, since 
+    the node it is connected to will also be reachable.
+    Therefore, interp(X,N,S) is valid.
+
+
+
+
+
+
+
+
+
+
+
+Rule 4:
+
+     A
+    (N)
+  F1 | \ F2
+     |  \
+  E1 |   \ E2  ... where  ∑ W(Lᵢ,Eᵢ) ≥ {N,1}
+    (M)   (O)
+    [L₁]  [L₂] ...
+
+
+Summing each edge separately
+
+  (L=S) ∧ (E≥N) ⟹ z = N
+  (L=S) ∧ (F≥M) ⟹ z = N
+  (L=S) ∧ (E≥1) ⟹ z = E
+  (L=S) ∧ (F≥1) ⟹ z = 0
+
+  (L=A) ∧ (F≥M) ⟹ z = N
+  (L=A) ∧ (F≥1) ⟹ z = N
+  (L=A) ∧ (E≥N) ⟹ z = N
+  (L=A) ∧ (E≥1) ⟹ z = M
