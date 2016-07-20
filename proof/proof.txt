@@ -93,7 +93,7 @@ we compile the PG to ABGP as follows:
 
 compile_ABGP(PG, a, ord) =
   {a -> r | 
-    m = (a,qs) ∈ PG,
+    m = (a,_) ∈ PG,
     in = {bᵢ | nᵢ = (bᵢ,ss) in adjIn(PG,m)}
     out = {c | (c,_) ∈ adjOut(PG,m)}
     r = {peer=in, comm=ss, lp=ord(m)} → [out, qs]
@@ -217,9 +217,9 @@ Lemma:
     case l:
       p ∈ L(con(l)) ⟺ f(p) ∈ L(l)
       p ∈ L(∑ f⁻¹(l)) ⟺ f(p) ∈ L(l)
+      p ∈ ∪ {x | x ∈ f⁻¹(l)} ⟺ f(p) ∈ L(l)
       p ∈ f⁻¹(l) ⟺ f(p) ∈ {l}
-      f(p) ∈ f(f⁻¹(l)) ⟺ f(p) ∈ {l}
-      f(p) ∈ {l} ⟺ f(p) = {l}
+      p ∈ f⁻¹(l) ⟺ f(p) = l
     case r1 [∪/∩] r2:
       p ∈ L(con(r1 ∪ r2)) ⟺ f(p) ∈ L(r1 ∪ r2)
       p ∈ L(con(r1) ∪ con(r2)) ⟺ f(p) ∈ L(r1 ∪ r2)
@@ -402,21 +402,6 @@ Lemma:
   Proof:
     This falls out of the fact that the automata are deterministic.
     Because of this, m transitions on loc(n) to a single new node
-
-
--------------------------------------------------------------------------
-
-Final Proof:
-  Concrete TC, abstract TA and policy pol:
-
-  To Show:
-    [[compile_ABGP(con(pol), TC)]] = [[con(compile_ABGP(pol,TA))]]
-
-  Instead, we will show:
-    compile_ABGP(con(pol), TC) = con(compile_ABGP(pol,TA))
-
-  [[con(pol)]] TC  = [[ compile_PG(con(pol), TC) ]]
-  [[pol]] TA       = [[ compile_PG(pol, TA) ]]
 
 -------------------------------------------------------------------------
 
@@ -645,9 +630,6 @@ Rule 3:
     n ∈ f⁻¹(N), we know n is reachable through that edge, since 
     the node it is connected to will also be reachable.
     Therefore, interp(X,N,S) is valid.
-
-
-
 
 
 
