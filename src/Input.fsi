@@ -4,6 +4,4 @@
 /// The input text: string [] 
 /// The ast definitions 
 /// The ast control constraints.
-val readFromFile: string -> string [] * Ast.Definitions * Ast.ControlConstraints
-
-
+val readFromFile : string -> string [] * Ast.Definitions * Ast.ControlConstraints

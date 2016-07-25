@@ -499,6 +499,7 @@ Theorem:
 
   which satisfies the assumption to the theorem.
 
+
 ----------------
 Abstract Labels:
 ----------------
@@ -636,7 +637,7 @@ Rule 3:
 
 
 
-
+---------------------------------------------------------------------
 
 Rule 4:
 
