@@ -55,8 +55,8 @@ let main argv =
     
     let polInfo = Ast.build ast
     let res = Abgp.compileAllPrefixes fullName polInfo
-    match res.AggSafety, settings.Failures with
-    | Some safetyInfo, _ -> 
+    match res.AggSafety with
+    | Some safetyInfo -> 
       let i = safetyInfo.NumFailures
       
       let bad, warn = 

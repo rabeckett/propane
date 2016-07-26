@@ -9,11 +9,18 @@ open Util.Debug
 open Util.Error
 open Util.Format
 
+/// Individual node in the Product Graph. Contains:
+///
+/// .Id     a unique id to speed up hashing/comparisons in graph algorithms
+/// .State  a unique representation of all automata states (q1,...,qk)
+/// .Accept a 16 bit integer representing the lowest (best) preference
+///         the value System.Int16.MaxValue represents a non-accepting node
+/// .Node   the underlying topology node, including name + internal/external
 [<CustomEquality; CustomComparison>]
 type CgState = 
   { Id : int
     State : int
-    Accept : Bitset32.T
+    Accept : int16
     Node : Topology.Node }
   override this.ToString() = 
     "(Id=" + string this.Id + ", State=" + string this.State + ", Loc=" + this.Node.Loc + ")"
@@ -30,20 +37,41 @@ type CgState =
       | :? CgState as y -> x.Id - y.Id
       | _ -> failwith "cannot compare values of different types"
 
+/// An intermediate representation of Product graph nodes.
+/// This is a bit of a temporary hack. It simplifies product graph construction
+/// since the default hashing and comparison operators can be used during 
+/// construction, before we have assigned a unique id for each state and node.
+/// We throw this away after construction since it is less space inefficient.
 type CgStateTmp = 
   { TStates : int array
     TNode : Topology.Node
-    TAccept : Bitset32.T }
+    TAccept : int16 }
 
+/// Type of the Product Graph. Contains:
+/// 
+/// .Start  A unique start node. Anything routers connected 
+///         to the start node can originate traffic
+/// .End    A unique end node, which is connected to all accepting
+///         nodes. This is included to simplify some algorithms
+/// .Topo   The underlying topology object
 type T = 
   { Start : CgState
     End : CgState
     Graph : BidirectionalGraph<CgState, Edge<CgState>>
     Topo : Topology.T }
 
+/// Direction of search. We often need to search in the reverse graph,
+/// yet do not want to make a copy of the graph every time
 type Direction = 
   | Up
   | Down
+
+/// We represent the non-accepting state as the maximum
+/// 16 bit integer value. This makes comparisons in the
+/// failure analysis easy.
+let NO_ACCEPT = System.Int16.MaxValue
+
+let MAX_PREF = System.Int16.MaxValue
 
 let copyGraph (cg : T) : T = 
   let newCG = QuickGraph.BidirectionalGraph()
@@ -68,6 +96,9 @@ let copyReverseGraph (cg : T) : T =
     End = cg.End
     Topo = cg.Topo }
 
+/// Convert the space-inefficient product graph that keeps an array
+/// of automata states in each node, into a space-efficient product
+/// graph that represents each unique tuple with a single integer
 let index ((graph, topo, startNode, endNode) : BidirectionalGraph<_, _> * _ * _ * _) = 
   let newCG = QuickGraph.BidirectionalGraph()
   let reindex = Util.Reindexer(HashIdentity.Structural)
@@ -144,9 +175,14 @@ let inline uniqueNeighbors canOriginate topo (t : Topology.Node) =
    else Topology.neighbors topo t)
   |> Set.ofSeq
 
+/// Build the product graph from a topology and collection of 
+/// (ordered) regular expressions. Performs a multi-way intersection 
+/// of each automata with the topology. As an optimization, we avoid 
+/// constructing parts of the product graph prematurely when we are 
+/// guaranteed it will never lead to an accepting state.
 let buildFromAutomata (topo : Topology.T) (autos : Regex.Automaton array) : T = 
-  if autos.Length > 31 then 
-    error (sprintf "Propane does not currently support more than 31 preferences")
+  if autos.Length >= int MAX_PREF then 
+    error (sprintf "Propane does not currently support more than %d preferences" MAX_PREF)
   if not (Topology.isWellFormed topo) then 
     error (sprintf "Invalid topology. Topology must be connected.")
   let unqTopo = Set.ofSeq (Topology.vertices topo)
@@ -157,7 +193,7 @@ let buildFromAutomata (topo : Topology.T) (autos : Regex.Automaton array) : T =
   
   let newStart = 
     { TStates = starting
-      TAccept = Bitset32.empty
+      TAccept = NO_ACCEPT
       TNode = Topology.Node("start", Topology.Start) }
   ignore (graph.AddVertex newStart)
   let marked = HashSet(HashIdentity.Structural)
@@ -181,13 +217,12 @@ let buildFromAutomata (topo : Topology.T) (autos : Regex.Automaton array) : T =
           let newState = transitions.[i].[(v, c.Loc)]
           if not (garbage.[i].Contains newState) then dead := false
           let accept = 
-            if (Topology.canOriginateTraffic c) && (Set.contains newState g.F) then 
-              Bitset32.singleton (i + 1)
-            else Bitset32.empty
+            if (Topology.canOriginateTraffic c) && (Set.contains newState g.F) then int16 (i + 1)
+            else NO_ACCEPT
           newState, accept)
       
       let nextStates, nextAccept = Array.unzip nextInfo
-      let accept = Array.fold Bitset32.union Bitset32.empty nextAccept
+      let accept = Array.fold min NO_ACCEPT nextAccept
       
       let state = 
         { TStates = nextStates
@@ -202,11 +237,11 @@ let buildFromAutomata (topo : Topology.T) (autos : Regex.Automaton array) : T =
         ignore (graph.AddEdge edge)
   let newEnd = 
     { TStates = [||]
-      TAccept = Bitset32.empty
+      TAccept = NO_ACCEPT
       TNode = Topology.Node("end", Topology.End) }
   graph.AddVertex newEnd |> ignore
   for v in graph.Vertices do
-    if not (Bitset32.isEmpty v.TAccept) then 
+    if v.TAccept <> NO_ACCEPT then 
       let e = Edge(v, newEnd)
       ignore (graph.AddEdge(e))
   index (graph, topo, newStart, newEnd)
@@ -214,15 +249,15 @@ let buildFromAutomata (topo : Topology.T) (autos : Regex.Automaton array) : T =
 let loc x = x.Node.Loc
 let shadows x y = (loc x = loc y) && (x <> y)
 
-let preferences (cg : T) : Bitset32.T = 
-  let mutable all = Bitset32.empty
+let preferences (cg : T) : Set<int16> = 
+  let mutable all = Set.empty
   for v in cg.Graph.Vertices do
-    all <- Bitset32.union all v.Accept
+    if v.Accept <> NO_ACCEPT then all <- Set.add v.Accept all
   all
 
 let acceptingStates (cg : T) : Set<CgState> = 
   cg.Graph.Vertices
-  |> Seq.filter (fun (v : CgState) -> not (Bitset32.isEmpty v.Accept))
+  |> Seq.filter (fun (v : CgState) -> v.Accept <> NO_ACCEPT)
   |> Set.ofSeq
 
 let acceptingLocations (cg : T) : Set<string> = acceptingStates cg |> Set.map loc
@@ -262,12 +297,11 @@ let toDot (cg : T) (pi : Ast.PolInfo option) : string =
     | Topology.Start -> v.VertexFormatter.Label <- "Start"
     | Topology.End -> v.VertexFormatter.Label <- "End"
     | _ -> 
-      if Bitset32.isEmpty v.Vertex.Accept then 
+      if v.Vertex.Accept = NO_ACCEPT then 
         let label = sprintf "%s, %s" state location
         v.VertexFormatter.Label <- label
       else 
-        let accept = (Bitset32.toSet v.Vertex.Accept |> Util.Set.toString)
-        let label = sprintf "%s, %s\nAccept=%s" state location accept
+        let label = sprintf "%s, %s\nAccept=%d" state location v.Vertex.Accept
         v.VertexFormatter.Label <- label
         v.VertexFormatter.Shape <- Graphviz.Dot.GraphvizVertexShape.DoubleCircle
         v.VertexFormatter.Style <- Graphviz.Dot.GraphvizVertexStyle.Filled
@@ -278,6 +312,10 @@ let toDot (cg : T) (pi : Ast.PolInfo option) : string =
   graphviz.FormatVertex.Add(onFormatVertex)
   graphviz.Generate()
 
+/// To help with debugging, we generate a graphical representation
+/// of the product graph in the graphviz dot format.
+/// A png can be generated if the 'dot' command line tool
+/// is installed and in the system path.
 let generatePNG (cg : T) pi (file : string) : unit = 
   System.IO.File.WriteAllText(file + ".dot", toDot cg pi)
   let p = new Process()
@@ -288,6 +326,10 @@ let generatePNG (cg : T) pi (file : string) : unit =
   p.Start() |> ignore
   p.WaitForExit()
 
+/// Helper functions for common reachability queries.
+/// We avoid using the default QuickGraph algorithms since 
+/// (1)  We want to abstract over direction
+/// (2)  We want to take advantage of the unique node id
 module Reachable = 
   let postOrder (cg : T) (source : CgState) direction : List<CgState> = 
     let f = 
@@ -323,24 +365,33 @@ module Reachable =
           s.Push(w)
     marked
   
-  let srcAccepting (cg : T) (source : CgState) direction : Bitset32.T = 
+  let srcAccepting (cg : T) (source : CgState) direction : Set<int16> = 
     let f = 
       if direction = Up then neighborsIn
       else neighbors
     
-    let mutable ret = Bitset32.empty
+    let mutable ret = Set.empty
     let marked = HashSet()
     let s = Stack()
     s.Push(source)
     while s.Count > 0 do
       let v = s.Pop()
-      ret <- Bitset32.union ret v.Accept
+      if v.Accept <> NO_ACCEPT then ret <- Set.add v.Accept ret
       if not (marked.Contains v) then 
         ignore (marked.Add v)
         for w in f cg v do
           s.Push(w)
     ret
 
+/// Implementation of graph dominators as described in:
+///
+/// A Simple, Fast Dominance Algorithm ~ https://www.cs.rice.edu/~keith/EMBED/dom.pdf
+///
+/// Uses an O(n^2) algorithm for computing dominators of every node in the
+/// product graph, where n is the number of nodes in the product graph.
+/// 
+/// However, this runs fast in practice since the sets of dominators are stored
+/// compactly in a data structure called a dominator tree.
 module Domination = 
   type DomTreeMapping = Dictionary<CgState, CgState option>
   
@@ -430,6 +481,11 @@ module Domination =
             changed <- true
     DominationTree(dom)
 
+/// We perform multiple minimization passes over the product graph
+/// after construction for the following reasons:
+/// (1)  Can speed up compilation by reducing the size of the graph
+/// (2)  Can make the compiled configs smaller by pruning irrelevant cases
+/// (3)  Can improve the failure analysis, by ruling out certain cases
 module Minimize = 
   type Edge = 
     struct
@@ -488,7 +544,7 @@ module Minimize =
       |> Set.ofSeq
     cg.Graph.RemoveVertexIf
       (fun v -> 
-      v.Node.Typ = Topology.InsideOriginates && Bitset32.isEmpty v.Accept 
+      v.Node.Typ = Topology.InsideOriginates && v.Accept = NO_ACCEPT 
       && not (Set.contains v starting)) |> ignore
     cg
   
@@ -561,6 +617,14 @@ module Minimize =
     logInfo (idx, sprintf "Node count - after O3: %d" cg.Graph.VertexCount)
     cg
 
+/// Run failure analysis on minimized product graph.
+/// The goal of the failure analysis is to:
+/// 
+/// Compute a collection of local preferences for each router
+/// such that end-to-end preferences are respected regardless
+/// of any combination of failures (node or edge) in the network.
+///
+/// See the paper for details on how this works.
 module Consistency = 
   exception SimplePathException of CgState * CgState
   
@@ -605,10 +669,9 @@ module Consistency =
       
       // add nodes if preserves the preference relation
       let inline add x' y' (x, y) = 
-        match Bitset32.minimum x'.Accept, Bitset32.minimum y'.Accept with
-        | None, Some _ | Some _, None -> counterEx := Some(x, y)
-        | Some i, Some j when i > j -> counterEx := Some(x, y)
-        | _, _ -> 
+        let i, j = x'.Accept, y'.Accept
+        if i > j then counterEx := Some(x, y)
+        else 
           let n' = Node(x', y')
           if not (seen.Contains n') then 
             ignore (seen.Add n')
@@ -747,6 +810,15 @@ module Consistency =
   
   let findOrderingConservative (idx : int) = findOrdering idx
 
+/// Sometimes we need to generate regex BGP filters
+/// when dealing with external peers. We do this using
+/// the standard automata-to-regex algorithm by walking 
+/// backwards through the product graph from a given router
+/// and constructing the regex matching any path to that router.
+///
+/// Note: This function is destructive, so the caller should create
+///       a defensive copy of the product graph beforehand.
+///       TODO: make this non-destructive to avoid repeated copies
 module ToRegex = 
   let constructRegex (cg : T) (state : CgState) : Regex.T = 
     let reMap = ref Map.empty
@@ -780,6 +852,12 @@ module ToRegex =
       cg.Graph.RemoveVertex q |> ignore
     (!reMap).[(cg.End, cg.Start)]
 
+/// Module for reasoning about failures related to aggregation.
+/// The idea is to:
+/// (1)  pick a random path from src to aggregation point
+/// (2)  remove the path from the product graph, and any 
+///      edges related by the topology
+/// (3)  repeat until aggregation is no longer reachable.
 module Failure = 
   type FailType = 
     | NodeFailure of Topology.Node

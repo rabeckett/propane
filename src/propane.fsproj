@@ -74,8 +74,6 @@
   <ItemGroup>
     <Compile Include="Args.fsi" />
     <Compile Include="Args.fs" />
-    <Compile Include="Bitset32.fsi" />
-    <Compile Include="Bitset32.fs" />
     <Compile Include="Util.fs" />
     <Compile Include="Route.fs" />
     <Compile Include="Topology.fsi" />

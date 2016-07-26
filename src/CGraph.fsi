@@ -5,14 +5,28 @@ open System.Collections
 open System.Collections.Generic
 open Util.Error
 
+/// Individual node in the Product Graph. Contains:
+///
+/// .Id     a unique id to speed up hashing/comparisons in graph algorithms
+/// .State  a unique representation of all automata states (q1,...,qk)
+/// .Accept a 16 bit integer representing the lowest (best) preference
+///         the value System.Int16.MaxValue represents a non-accepting node
+/// .Node   the underlying topology node, including name + internal/external
 [<CustomEquality; CustomComparison>]
 type CgState = 
   { Id : int
     State : int
-    Accept : Bitset32.T
+    Accept : int16
     Node : Topology.Node }
   interface System.IComparable
 
+/// Type of the Product Graph. Contains:
+/// 
+/// .Start  A unique start node. Anything routers connected 
+///         to the start node can originate traffic
+/// .End    A unique end node, which is connected to all accepting
+///         nodes. This is included to simplify some algorithms
+/// .Topo   The underlying topology object
 type T = 
   { Start : CgState
     End : CgState
@@ -37,7 +51,7 @@ val loc : CgState -> string
 /// Determine if two nodes shadow each other
 val shadows : CgState -> CgState -> bool
 /// Returns the set of reachable preferences 
-val preferences : T -> Bitset32.T
+val preferences : T -> Set<int16>
 /// Returns the set of states that are attached to the end node
 val acceptingStates : T -> Set<CgState>
 /// Returns the set of locations that are attached to the end node
@@ -58,15 +72,10 @@ val toDot : T -> Ast.PolInfo option -> string
 val generatePNG : T -> Ast.PolInfo option -> string -> unit
 
 module Reachable = 
-  /// Find all destinations reachable from src while avoiding certain nodes
-  // val srcWithout: T -> CgState -> (CgState -> bool) -> Direction -> HashSet<CgState>
-  /// Check if src can reach dst while avoiding certain nodes
-  //val inline srcDstWithout: T -> CgState -> CgState -> (CgState -> bool) -> Direction -> bool
-  /// Check if src can reach dst
-  //val inline srcDst: T -> CgState -> CgState -> Direction -> bool
   /// Find all destinations reachable from src
   val dfs : T -> CgState -> Direction -> HashSet<CgState>
-  val srcAccepting : T -> CgState -> Direction -> Bitset32.T
+  /// Find all accepting preferences reachable from a given src
+  val srcAccepting : T -> CgState -> Direction -> Set<int16>
 
 module Minimize = 
   /// Get rid of nodes that can originate traffic but aren't accepting

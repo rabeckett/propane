@@ -707,7 +707,7 @@ module Incoming =
     else 
       let byPreference = 
         info.Peers
-        |> Seq.map (fun p -> (Bitset32.minimum (Reachable.srcAccepting cg p Down), p))
+        |> Seq.map (fun p -> (Set.minElement (Reachable.srcAccepting cg p Down), p))
         |> Seq.groupBy fst
         |> Seq.map (fun (x, y) -> (x, Seq.map snd y))
         |> Seq.sortBy fst
@@ -1015,11 +1015,11 @@ let getLocsThatCantGetPath idx cg (reb : Regex.REBuilder) dfas =
   Set.difference locsThatNeedPath locsThatGetPath
 
 let getUnusedPrefs cg res = 
-  let mutable nRegexes = Bitset32.empty
+  let mutable nRegexes = Set.empty
   for i in 1..List.length res do
-    nRegexes <- Bitset32.add i nRegexes
+    nRegexes <- Set.add (int16 i) nRegexes
   let prefs = CGraph.preferences cg
-  Bitset32.difference nRegexes prefs // don't use difference here
+  Set.difference nRegexes prefs // don't use difference here
 
 let warnAnycasts cg (polInfo : Ast.PolInfo) pred = 
   let settings = Args.getSettings()
@@ -1100,9 +1100,9 @@ let compileToIR fullName idx pred (polInfo : Ast.PolInfo option) aggInfo (reb : 
   else 
     // Find unused preferences for policies that were not drop
     let unusedPrefs = getUnusedPrefs cg res
-    if not (Bitset32.isEmpty unusedPrefs) then 
+    if not (Set.isEmpty unusedPrefs) then 
       let predStr = Route.toString pred
-      Bitset32.iter (fun i -> 
+      Set.iter (fun i -> 
         let msg = sprintf "Unused preference %d policy " i + sprintf "for predicate %s" predStr
         warning msg) unusedPrefs
     try 
