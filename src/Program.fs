@@ -1,7 +1,6 @@
 ﻿module Program
 
 open System
-open Util
 open Util.Debug
 open Util.Format
 
@@ -9,7 +8,7 @@ let runUnitTests() =
   writeFormatted (header "Running unit tests ")
   Topology.Test.run()
   Regex.Test.run()
-  //Predicate.Test.run ()
+  //Route.Test.run ()
   Abgp.Test.run()
 
 let total xs = 
@@ -17,7 +16,7 @@ let total xs =
   |> Array.map float
   |> Array.sum
 
-let displayStats (stats : Abgp.Stats) = 
+let printStats (stats : Abgp.Stats) = 
   printfn ""
   printfn "Total PG construction time (sec):  %f" (total stats.PerPrefixBuildTimes / 1000.0)
   printfn "Total PG Minimization time (sec):  %f" (total stats.PerPrefixMinTimes / 1000.0)
@@ -77,21 +76,8 @@ let main argv =
         if warn then warning msg
         else error msg
     | _ -> ()
-    if settings.Stats then displayStats res.Stats
+    if settings.Stats then printStats res.Stats
     match settings.OutFile with
     | None -> ()
-    | Some out -> 
-      File.createDir out
-      File.writeFileWithExtension out "ir" (Abgp.format res.Abgp)
-      // Get the low-level configurations
-      let nc = Abgp.toConfig res.Abgp
-      let ext = "cfg"
-      //if settings.IsAbstract then "template"
-      //else "quagga"
-      let outDir = out + File.sep + ext
-      File.createDir outDir
-      for kv in Config.generate nc do
-        let name = kv.Key
-        let config = kv.Value
-        File.writeFileWithExtension (outDir + File.sep + name) ext config
+    | Some out -> Generate.generate out res
   0

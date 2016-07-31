@@ -194,10 +194,12 @@ let readTopology (file : string) : TopoInfo =
     | None -> asnMap <- Map.add n.Name asn asnMap
     | Some _ -> error (sprintf "Duplicate router name '%s' in topology" n.Name)
     let typ = 
-      match n.Internal, n.CanOriginate with
-      | true, false -> Inside
-      | true, true -> InsideOriginates
-      | false, true | false, false -> Outside
+      if n.Internal then InsideOriginates
+      else Outside
+    // match n.Internal, n.CanOriginate with
+    // | true, false -> Inside
+    // | true, true -> InsideOriginates
+    // | false, true | false, false -> Outside
     if n.Internal then internalNames <- Set.add n.Name internalNames
     else externalNames <- Set.add n.Name externalNames
     // TODO: duplicate names not handled
