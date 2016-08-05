@@ -1028,20 +1028,19 @@ let warnAnycasts cg (polInfo : Ast.PolInfo) pred =
   let bad = Set.difference orig origLocs
   let ti = polInfo.Ast.TopoInfo
   if (not settings.Anycast) && (Set.count orig > 1) then 
-    let bad1 = bad.MinimumElement
-    let bad2 = (Set.remove bad1 bad).MinimumElement
-    let bad1 = Topology.router bad1 ti
-    let bad2 = Topology.router bad2 ti
+    let loc1 = orig.MinimumElement
+    let loc2 = (Set.remove loc1 orig).MinimumElement
+    let loc1 = Topology.router loc1 ti
+    let loc2 = Topology.router loc2 ti
     let msg = 
-      sprintf "Anycasting from multiple locations, e.g., %s and %s " bad1 bad2 
+      sprintf "Anycasting from multiple locations, e.g., %s and %s " loc1 loc2 
       + sprintf "for predicate %s. If you believe this is not a mistake, you can " 
           (Route.toString pred) + sprintf "enable anycast by using the -anycast:on flag"
     error msg
   if not (Set.isEmpty bad) then 
-    let bad1 = Topology.router (bad.MinimumElement) ti
-    let bad2 = Topology.router (orig.MaximumElement) ti
+    let loc1 = Topology.router (bad.MinimumElement) ti
     let msg = 
-      sprintf "Anycasting from multiple locations, e.g., %s and %s for " bad1 bad2 
+      sprintf "Anycasting from multiple locations, e.g., %s for " loc1 
       + sprintf "predicate %s, even though the location is not explicitly " (Route.toString pred) 
       + sprintf "mentioned in the policy. This is almost always a mistake."
     warning msg

@@ -82,7 +82,7 @@ let generate (out : string) (res : Abgp.CompilationResult) =
   // Create output directory
   File.createDir out
   // Generate intermediate representation
-  File.writeFileWithExtension out "ir" (Abgp.format res.Abgp)
+  File.writeFileWithExtension (out + File.sep + "configs") "ir" (Abgp.format res.Abgp)
   // Get the low-level configurations
   let nc : NetworkConfiguration = Abgp.toConfig res.Abgp
   let configDir = out + File.sep + "configs"
