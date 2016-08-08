@@ -1052,18 +1052,17 @@ let getMinAggregateFailures (cg : CGraph.T) (pred : Route.Predicate)
   let smallest = ref System.Int32.MaxValue
   let pairs = ref None
   for (Route.TrafficClassifier(p, _)) in prefixes do
-    aggInfo |> Map.iter (fun aggRouter aggs -> 
-                 let relevantAggs = 
-                   List.filter (fun (prefix, _) -> Route.mightApplyTo prefix p) aggs
-                 if not relevantAggs.IsEmpty then 
-                   let rAgg, _ = relevantAggs.Head
-                   match CGraph.Failure.disconnectLocs cg originators aggRouter with
-                   | None -> ()
-                   | Some(k, x, y) -> 
-                     if k < !smallest then 
-                       smallest := min !smallest k
-                       let p = (x, y, p, rAgg)
-                       pairs := Some p)
+    Map.iter (fun aggRouter aggs -> 
+      let relevantAggs = List.filter (fun (prefix, _) -> Route.mightApplyTo prefix p) aggs
+      if not relevantAggs.IsEmpty then 
+        let rAgg, _ = relevantAggs.Head
+        match CGraph.Failure.disconnectLocs cg originators aggRouter with
+        | None -> ()
+        | Some(k, x, y) -> 
+          if k < !smallest then 
+            smallest := min !smallest k
+            let p = (x, y, p, rAgg)
+            pairs := Some p) aggInfo
   if !smallest = System.Int32.MaxValue then None
   else 
     let (x, y, p, agg) = Option.get !pairs
