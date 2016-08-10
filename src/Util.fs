@@ -204,6 +204,11 @@ module Format =
   let footerSize = 80
   let offset = 9
   
+  let indent (i : int) (s : string) : string = 
+    let ind = String.replicate i " "
+    let s = s.Replace("\n", "\n" + ind)
+    (ind + s).TrimEnd(' ')
+  
   let wrapText (s : string) : string = 
     let s = s.Trim()
     let words = s.Split(' ')

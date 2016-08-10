@@ -30,16 +30,21 @@ let getPeerIp (rc : RouterConfiguration) (pc : PeerConfig) =
   if s.IsAbstract then sprintf "%s.%s.$peerIP$" rc.Name pc.Peer
   else pc.PeerIp
 
-let quagga (rc : RouterConfiguration) : string = 
-  let settings = Args.getSettings()
+let quaggaInterfaces (rc : RouterConfiguration) : string = 
   let sb = System.Text.StringBuilder()
-  // interfaces
   let mutable i = 0
   for pc in rc.PeerConfigurations do
     bprintf sb "interface eth%d\n" i
     bprintf sb "  ip-address %s 255.255.255.255\n" (getPeerIp rc pc)
     bprintf sb "!\n"
     i <- i + 1
+  string sb
+
+let quagga (rc : RouterConfiguration) : string = 
+  let settings = Args.getSettings()
+  let sb = System.Text.StringBuilder()
+  // generate interface info
+  bprintf sb "%s" (quaggaInterfaces rc)
   // bgp network and peers
   bprintf sb "router bgp %s\n" (getRouterName rc)
   for n in rc.Networks do
@@ -83,6 +88,60 @@ let quagga (rc : RouterConfiguration) : string =
     bprintf sb "!\n"
   string sb
 
+let core (nc : NetworkConfiguration) : string = 
+  let sb = System.Text.StringBuilder()
+  let mutable i = 0
+  let nodeMap = Dictionary()
+  for kv in nc.RouterConfigurations do
+    let name = kv.Key
+    let rc = kv.Value
+    nodeMap.[name] <- i
+    i <- i + 1
+  let mutable i = 0
+  for kv in nc.RouterConfigurations do
+    let name = kv.Key
+    let rc = kv.Value
+    // per router
+    bprintf sb "node n%d {\n" i
+    bprintf sb "  type router\n"
+    bprintf sb "  model router\n"
+    bprintf sb "  network-config {\n"
+    bprintf sb "    hostname router%s\n" rc.Name
+    bprintf sb "    !\n"
+    bprintf sb "%s" (quaggaInterfaces rc |> Util.Format.indent 4)
+    bprintf sb "  }\n"
+    bprintf sb "  iconcoords {100.0, 100.0}\n"
+    bprintf sb "  labelcoords {100.0, 125.0}\n"
+    // interfaces here -- need map
+    let mutable j = 0
+    for peer in rc.PeerConfigurations do
+      // TODO: external neighbors
+      if nodeMap.ContainsKey(peer.Peer) then 
+        bprintf sb "  interface-peer {eth%d n%d}\n" j nodeMap.[peer.Peer]
+        j <- j + 1 // TODO: do  this proper
+    bprintf sb "  canvas c1\n"
+    bprintf sb "  services {zebra BGP vtysh IPForward}\n"
+    bprintf sb "  custom-config {\n"
+    bprintf sb "    custom-config-id service:zebra:/usr/local/etc/quagga/Quagga.conf\n"
+    bprintf sb "    custom-command /usr/local/etc/quagga/Quagga.conf\n"
+    bprintf sb "    config {\n"
+    bprintf sb "%s" (quagga rc |> Util.Format.indent 4)
+    bprintf sb "    }\n"
+    bprintf sb "  custom-config {\n"
+    bprintf sb "    custom-config-id service:zebra\n"
+    bprintf sb "    custom-command zebra\n"
+    bprintf sb "    config {\n"
+    bprintf sb "    ('/usr/local/etc/quagga/', '/var/run/quagga')\n"
+    bprintf sb "    ('/usr/local/etc/quagga/Quagga.conf', 'quaggaboot.sh')\n"
+    bprintf sb "    35\n"
+    bprintf sb "    ('sh quaggaboot.sh zebra')\n"
+    bprintf sb "    ('killall zebra')\n"
+    bprintf sb "    }\n"
+    bprintf sb "  }\n"
+    bprintf sb "}\n\n"
+    i <- i + 1
+  string sb
+
 let generate (out : string) (res : Abgp.CompilationResult) = 
   let settings = Args.getSettings()
   // Create output directory
@@ -98,6 +157,6 @@ let generate (out : string) (res : Abgp.CompilationResult) =
     let name = kv.Key
     let rc = kv.Value
     let output = quagga rc
-    File.writeFileWithExtension (configDir + File.sep + name) "cfg" output
-// TODO: Create the GNS3 file
-// TODO: Create the CORE file
+    output |> File.writeFileWithExtension (configDir + File.sep + name) "cfg"
+  // TODO: Create the GNS3 file
+  core nc |> File.writeFileWithExtension (out + File.sep + "core") "imn"
