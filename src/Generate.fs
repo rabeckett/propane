@@ -33,11 +33,17 @@ let getPeerIp (rc : RouterConfiguration) (pc : PeerConfig) =
 let quagga (rc : RouterConfiguration) : string = 
   let settings = Args.getSettings()
   let sb = System.Text.StringBuilder()
+  // interfaces
+  let mutable i = 0
+  for pc in rc.PeerConfigurations do
+    bprintf sb "interface eth%d\n" i
+    bprintf sb "  ip-address %s 255.255.255.255\n" (getPeerIp rc pc)
+    bprintf sb "!\n"
+    i <- i + 1
+  // bgp network and peers
   bprintf sb "router bgp %s\n" (getRouterName rc)
-  // owned networks
   for n in rc.Networks do
     bprintf sb "  network %s\n" n
-  // peer networks
   for pc in rc.PeerConfigurations do
     bprintf sb "  neighbor %s remote-as %s\n" (getPeerIp rc pc) pc.Peer
   for pc in rc.PeerConfigurations do
@@ -94,3 +100,4 @@ let generate (out : string) (res : Abgp.CompilationResult) =
     let output = quagga rc
     File.writeFileWithExtension (configDir + File.sep + name) "cfg" output
 // TODO: Create the GNS3 file
+// TODO: Create the CORE file
