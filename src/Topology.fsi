@@ -8,7 +8,6 @@ type NodeType =
   | End
   | Outside
   | Inside
-  | InsideOriginates
   | Unknown
 
 [<Struct>]

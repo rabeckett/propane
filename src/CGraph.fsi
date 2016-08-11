@@ -78,8 +78,6 @@ module Reachable =
   val srcAccepting : T -> CgState -> Direction -> Set<int16>
 
 module Minimize = 
-  /// Get rid of nodes that can originate traffic but aren't accepting
-  val delMissingSuffixPaths : T -> T
   /// Remove nodes and edges not relevant to the BGP decision process
   val minimize : int -> T -> T
 

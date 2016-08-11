@@ -537,17 +537,6 @@ module Minimize =
     cg.Graph.RemoveVertexIf(fun v -> Topology.isTopoNode v.Node && not (canReach.Contains v)) 
     |> ignore
   
-  let delMissingSuffixPaths cg = 
-    let starting = 
-      neighbors cg cg.Start
-      |> Seq.filter isRealNode
-      |> Set.ofSeq
-    cg.Graph.RemoveVertexIf
-      (fun v -> 
-      v.Node.Typ = Topology.InsideOriginates && v.Accept = NO_ACCEPT 
-      && not (Set.contains v starting)) |> ignore
-    cg
-  
   let inline allConnected cg outStar scc = 
     Set.forall (fun x -> 
       let nOut = Set.ofSeq (neighbors cg x)

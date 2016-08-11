@@ -14,7 +14,6 @@ type NodeType =
   | End
   | Outside
   | Inside
-  | InsideOriginates
   | Unknown
 
 type Node = 
@@ -42,7 +41,7 @@ let alphabet (Topology(topo) : T) : Set<Node> * Set<Node> =
   let mutable aout = Set.empty
   for v in topo.Vertices do
     match v.Typ with
-    | Inside | InsideOriginates -> ain <- Set.add v ain
+    | Inside -> ain <- Set.add v ain
     | Outside | Unknown -> aout <- Set.add v aout
     | Start | End -> failwith "unreachable"
   (ain, aout)
@@ -67,15 +66,13 @@ let isOutside (t : Node) =
 let isInside (t : Node) = 
   match t.Typ with
   | Inside -> true
-  | InsideOriginates -> true
   | _ -> false
 
 let canOriginateTraffic (t : Node) = 
   match t.Typ with
-  | InsideOriginates -> true
   | Outside -> true
   | Unknown -> true
-  | Inside -> false
+  | Inside -> true
   | Start | End -> false
 
 let isWellFormed (topo : T) : bool = 
@@ -194,7 +191,7 @@ let readTopology (file : string) : TopoInfo =
     | None -> asnMap <- Map.add n.Name asn asnMap
     | Some _ -> error (sprintf "Duplicate router name '%s' in topology" n.Name)
     let typ = 
-      if n.Internal then InsideOriginates
+      if n.Internal then Inside
       else Outside
     // match n.Internal, n.CanOriginate with
     // | true, false -> Inside
@@ -246,13 +243,13 @@ module Examples =
   
   let topoDiamond() = 
     let g = Topology(BidirectionalGraph<Node, Edge<Node>>())
-    let vA = Node("A", InsideOriginates)
+    let vA = Node("A", Inside)
     let vX = Node("X", Inside)
     let vM = Node("M", Inside)
     let vN = Node("N", Inside)
     let vY = Node("Y", Inside)
     let vZ = Node("Z", Inside)
-    let vB = Node("B", InsideOriginates)
+    let vB = Node("B", Inside)
     addVertices g [ vA; vX; vM; vN; vY; vZ; vB ]
     addEdgesUndirected g [ (vA, vX)
                            (vA, vM)
@@ -266,10 +263,10 @@ module Examples =
   
   let topoDatacenterSmall() = 
     let g = Topology(BidirectionalGraph<Node, Edge<Node>>())
-    let vA = Node("A", InsideOriginates)
-    let vB = Node("B", InsideOriginates)
-    let vC = Node("C", InsideOriginates)
-    let vD = Node("D", InsideOriginates)
+    let vA = Node("A", Inside)
+    let vB = Node("B", Inside)
+    let vC = Node("C", Inside)
+    let vD = Node("D", Inside)
     let vX = Node("X", Inside)
     let vY = Node("Y", Inside)
     let vM = Node("M", Inside)
@@ -287,12 +284,12 @@ module Examples =
   
   let topoDatacenterMedium() = 
     let g = Topology(BidirectionalGraph<Node, Edge<Node>>())
-    let vA = Node("A", InsideOriginates)
-    let vB = Node("B", InsideOriginates)
+    let vA = Node("A", Inside)
+    let vB = Node("B", Inside)
     let vC = Node("C", Inside)
     let vD = Node("D", Inside)
-    let vE = Node("E", InsideOriginates)
-    let vF = Node("F", InsideOriginates)
+    let vE = Node("E", Inside)
+    let vF = Node("F", Inside)
     let vG = Node("G", Inside)
     let vH = Node("H", Inside)
     let vX = Node("X", Inside)
@@ -318,12 +315,12 @@ module Examples =
   
   let topoDatacenterMediumAggregation() = 
     let g = Topology(BidirectionalGraph<Node, Edge<Node>>())
-    let vA = Node("A", InsideOriginates)
-    let vB = Node("B", InsideOriginates)
+    let vA = Node("A", Inside)
+    let vB = Node("B", Inside)
     let vC = Node("C", Inside)
     let vD = Node("D", Inside)
-    let vE = Node("E", InsideOriginates)
-    let vF = Node("F", InsideOriginates)
+    let vE = Node("E", Inside)
+    let vF = Node("F", Inside)
     let vG = Node("G", Inside)
     let vH = Node("H", Inside)
     let vX = Node("X", Inside)
@@ -352,12 +349,12 @@ module Examples =
   
   let topoDatacenterLarge() = 
     let g = Topology(BidirectionalGraph<Node, Edge<Node>>())
-    let vA = Node("A", InsideOriginates)
-    let vB = Node("B", InsideOriginates)
-    let vC = Node("C", InsideOriginates)
-    let vD = Node("D", InsideOriginates)
-    let vE = Node("E", InsideOriginates)
-    let vF = Node("F", InsideOriginates)
+    let vA = Node("A", Inside)
+    let vB = Node("B", Inside)
+    let vC = Node("C", Inside)
+    let vD = Node("D", Inside)
+    let vE = Node("E", Inside)
+    let vF = Node("F", Inside)
     let vM = Node("M", Inside)
     let vN = Node("N", Inside)
     let vO = Node("O", Inside)
@@ -384,10 +381,10 @@ module Examples =
   
   let topoBadGadget() = 
     let g = Topology(BidirectionalGraph<Node, Edge<Node>>())
-    let vA = Node("A", InsideOriginates)
-    let vB = Node("B", InsideOriginates)
-    let vC = Node("C", InsideOriginates)
-    let vD = Node("D", InsideOriginates)
+    let vA = Node("A", Inside)
+    let vB = Node("B", Inside)
+    let vC = Node("C", Inside)
+    let vD = Node("D", Inside)
     addVertices g [ vA; vB; vC; vD ]
     addEdgesUndirected g [ (vA, vB)
                            (vB, vC)
@@ -399,10 +396,10 @@ module Examples =
   
   let topoBrokenTriangle() = 
     let g = Topology(BidirectionalGraph<Node, Edge<Node>>())
-    let vA = Node("A", InsideOriginates)
+    let vA = Node("A", Inside)
     let vB = Node("B", Inside)
-    let vC = Node("C", InsideOriginates)
-    let vD = Node("D", InsideOriginates)
+    let vC = Node("C", Inside)
+    let vD = Node("D", Inside)
     let vE = Node("E", Inside)
     addVertices g [ vA; vB; vC; vD; vE ]
     addEdgesUndirected g [ (vC, vA)
@@ -414,9 +411,9 @@ module Examples =
   
   let topoBigDipper() = 
     let g = Topology(BidirectionalGraph<Node, Edge<Node>>())
-    let vA = Node("A", InsideOriginates)
-    let vC = Node("C", InsideOriginates)
-    let vD = Node("D", InsideOriginates)
+    let vA = Node("A", Inside)
+    let vC = Node("C", Inside)
+    let vD = Node("D", Inside)
     let vE = Node("E", Inside)
     addVertices g [ vA; vC; vD; vE ]
     addEdgesUndirected g [ (vC, vA)
@@ -427,12 +424,12 @@ module Examples =
   
   let topoSeesaw() = 
     let g = Topology(BidirectionalGraph<Node, Edge<Node>>())
-    let vM = Node("M", InsideOriginates)
+    let vM = Node("M", Inside)
     let vN = Node("N", Inside)
     let vO = Node("O", Inside)
-    let vX = Node("X", InsideOriginates)
-    let vA = Node("A", InsideOriginates)
-    let vB = Node("B", InsideOriginates)
+    let vX = Node("X", Inside)
+    let vA = Node("A", Inside)
+    let vB = Node("B", Inside)
     addVertices g [ vM; vN; vO; vX; vA; vB ]
     addEdgesUndirected g [ (vM, vN)
                            (vM, vO)
@@ -508,9 +505,9 @@ module Examples =
   
   let topoBackboneWAN() = 
     let g = Topology(BidirectionalGraph<Node, Edge<Node>>())
-    let vA = Node("A", InsideOriginates)
-    let vSEA = Node("SEA", InsideOriginates)
-    let vNY = Node("NY", InsideOriginates)
+    let vA = Node("A", Inside)
+    let vSEA = Node("SEA", Inside)
+    let vNY = Node("NY", Inside)
     let vX = Node("X", Outside)
     let vY = Node("Y", Outside)
     addVertices g [ vA; vSEA; vNY; vX; vY ]
@@ -542,7 +539,7 @@ module Examples =
     let routersT0 = 
       Array.init iT0 (fun i -> 
         let name = "T0_" + string i
-        let v = Node(name, InsideOriginates)
+        let v = Node(name, Inside)
         ignore (g.AddVertex v)
         prefixes.[v] <- getPrefix i
         tiers.[v] <- 0

@@ -254,7 +254,12 @@ module Format =
   
   let writeHeader() = 
     let settings = Args.getSettings()
-    let name = Option.get settings.PolFile
+    
+    let name = 
+      match settings.PolFile with
+      | Some f -> f
+      | None -> "foo"
+    
     let sep = System.IO.Path.DirectorySeparatorChar
     let arr = name.Split(sep)
     let len = arr.Length

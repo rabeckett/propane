@@ -1086,9 +1086,7 @@ let compileToIR fullName idx pred (polInfo : Ast.PolInfo option) aggInfo (reb : 
   let buildTime = dfaTime + pgTime
   debug (fun () -> CGraph.generatePNG cg polInfo fullName)
   // minimize PG and record time
-  let cg, delTime = Profile.time (CGraph.Minimize.delMissingSuffixPaths) cg
   let cg, minTime = Profile.time (CGraph.Minimize.minimize idx) cg
-  let minTime = delTime + minTime
   debug (fun () -> CGraph.generatePNG cg polInfo (fullName + "-min"))
   // warn for anycasts 
   if not settings.Test then warnAnycasts cg polInfo.Value pred
@@ -1684,13 +1682,17 @@ module Test =
     [ reb.Build Route.top 1 pref1 ]
   
   let rDatacenterSmall3 (pb : Route.PredicateBuilder) (reb : Regex.REBuilder) = 
+    let start = reb.Start [ "A"; "B"; "C"; "D" ]
+    
     let pref1 = 
       reb.Inter [ reb.Through [ "M" ]
-                  reb.End [ "A" ] ]
+                  reb.End [ "A" ]
+                  start ]
     
     let pref2 = 
       reb.Inter [ reb.Internal()
-                  reb.End [ "A" ] ]
+                  reb.End [ "A" ]
+                  start ]
     
     [ reb.Build Route.top 1 pref1
       reb.Build Route.top 2 pref2 ]
@@ -1700,15 +1702,22 @@ module Test =
     [ reb.Build Route.top 1 pref1 ]
   
   let rDatacenterSmall5 (pb : Route.PredicateBuilder) (reb : Regex.REBuilder) = 
+    let start = reb.Start [ "A"; "B"; "C"; "D" ]
+    
     let pref1 = 
       reb.Inter [ reb.Through [ "M" ]
-                  reb.End [ "A" ] ]
+                  reb.End [ "A" ]
+                  start ]
     
     let pref2 = 
       reb.Inter [ reb.Through [ "N" ]
-                  reb.End [ "A" ] ]
+                  reb.End [ "A" ]
+                  start ]
     
-    let pref3 = reb.Inter [ reb.End [ "A" ] ]
+    let pref3 = 
+      reb.Inter [ reb.End [ "A" ]
+                  start ]
+    
     [ reb.Build Route.top 1 pref1
       reb.Build Route.top 2 pref2
       reb.Build Route.top 3 pref3 ]
@@ -1733,7 +1742,8 @@ module Test =
     let pref1 = 
       reb.Inter [ reb.Through [ "X" ]
                   reb.End [ "F" ]
-                  vf ]
+                  vf
+                  reb.Start [ "A"; "B"; "E"; "F" ] ]
     
     [ reb.Build Route.top 1 pref1 ]
   
@@ -1832,8 +1842,9 @@ module Test =
   
   let rBrokenTriangle1 (pb : Route.PredicateBuilder) (reb : Regex.REBuilder) = 
     let pref1 = 
-      reb.Union [ reb.Path [ "C"; "A"; "E"; "D" ]
-                  reb.Path [ "A"; "B"; "D" ] ]
+      reb.Inter [ reb.Union [ reb.Path [ "C"; "A"; "E"; "D" ]
+                              reb.Path [ "A"; "B"; "D" ] ]
+                  reb.Start [ "A"; "C"; "D" ] ]
     [ reb.Build Route.top 1 pref1 ]
   
   let rBigDipper1 (pb : Route.PredicateBuilder) (reb : Regex.REBuilder) = 
@@ -2144,7 +2155,7 @@ module Test =
         Receive = None
         Originate = None
         Prefs = None
-        Fail = Some FRNoPathForRouters }
+        Fail = Some FRInconsistentPrefs }
       { Name = "BigDipper"
         Explanation = "Must choose the correct preference"
         Topo = tBigDipper

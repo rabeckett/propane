@@ -606,10 +606,9 @@ module Test =
     
     let mutable fail = false
     for p in [ pref1; pref2; pref3 ] do
-      try 
-        ignore (reb.Build Route.top 1 p)
-        fail <- true
-      with _ -> ()
+      match reb.WellFormed p with
+      | None -> fail <- true
+      | Some _ -> ()
     if fail then failed()
     else passed()
   

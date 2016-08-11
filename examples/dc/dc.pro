@@ -16,15 +16,11 @@ define routing = {
 }
 
 define locality = {
-	PL1 or PL2 => always(in)
+	PL1 or PL2 => internal
 }
 
 define notransit = {
 	true => not transit(Peer, Peer)
 }
 
-define main = routing and locality and notransit
-
-control {
-	aggregate(2.0.0.0/16, in -> out)
-}
+define main = routing and notransit and locality
