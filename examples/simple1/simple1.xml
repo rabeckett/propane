@@ -1,0 +1,5 @@
+<topology>
+  <node internal="true" can-originate="true" asn="100" name="A"></node>
+  <node internal="true" can-originate="true" asn="101" name="B"></node>
+  <edge source="A" target="B" source-ip="1.0.1.0" target-ip="1.0.2.0" directed="false"></edge>
+</topology>
