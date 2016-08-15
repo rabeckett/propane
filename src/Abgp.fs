@@ -1442,22 +1442,30 @@ let createExportRouteMap peerExportMap id (cMap, cLists, clID) (pLists, polID) r
   incr id
   let rmname = "export-" + (string !id)
   for (i, ms) in cs do
-    let rms = List()
-    let pls = List()
-    let als = List()
-    let cls = List()
-    let values = List()
-    values.Add("100:" + string i)
-    createCommunityList (Config.Kind.Permit, cMap, cLists, cls, clID, values)
-    let name = sprintf "cl-%d" (!clID - 1)
-    let pol = createPolicyList (polID, pLists, pls, als, cls)
-    let scs = List()
-    for m in ms do
-      match m with
-      | SetComm(c) -> scs.Add(SetCommunity("100:" + c))
-      | _ -> failwith "" // TODO
-    createRouteMap (rmname, 10, rMaps, rms, pol.Name, null, scs, DeleteCommunityList(name)) 
-    |> ignore
+    // only 
+    if not (Set.isEmpty ms) then 
+      let rms = List()
+      let pls = List()
+      let als = List()
+      let cls = List()
+      
+      let dc = 
+        match i with
+        | Some i -> 
+          let values = List()
+          values.Add("100:" + string i)
+          createCommunityList (Config.Kind.Permit, cMap, cLists, cls, clID, values)
+          let name = sprintf "cl-%d" (!clID - 1)
+          DeleteCommunityList(name)
+        | None -> null
+      
+      let pol = createPolicyList (polID, pLists, pls, als, cls)
+      let scs = List()
+      for m in ms do
+        match m with
+        | SetComm(c) -> scs.Add(SetCommunity("200:" + c))
+        | _ -> failwith "" // TODO
+      createRouteMap (rmname, 10, rMaps, rms, pol.Name, null, scs, dc) |> ignore
   for peer in ps do
     peerExportMap := Map.add peer ("rm-" + rmname) !peerExportMap
 
@@ -1465,11 +1473,25 @@ let addExportLists peerExportMap peerGroups commInfo polInfo rMaps =
   let id = ref 0
   peerGroups |> Map.iter (createExportRouteMap peerExportMap id commInfo polInfo rMaps)
 
+let adjustIfTagNotNeeded (m : Map<Set<_>, Set<_>>) = 
+  let isUnique = (Map.toSeq m |> Seq.length) = 1
+  
+  // use none if no tag to be attached
+  let inline updateTag a = 
+    if isUnique then None
+    else Some a
+  
+  // change to none if tag doesn't add any information
+  let aux acc k v = Map.add (Set.map (fun (a, b) -> ((updateTag a), b)) k) v acc
+  Map.fold aux Map.empty m
+
 let computeExportFilters (exportMap : Reindexer<_>) peerInfo commInfo polInfo rMaps = 
   // group export peer by applicable communities
   let relevantCommMap = relevantCommsByPeer exportMap peerInfo
   // group sets of communities with sets of peers
   let peerGroups = commGroupsByRelevantPeers relevantCommMap
+  // if only 1 unique action, then no need for tagging
+  let peerGroups = adjustIfTagNotNeeded peerGroups
   // add new export community lists / route maps 
   let peerExportMap = ref Map.empty
   addExportLists peerExportMap peerGroups commInfo polInfo rMaps
@@ -1572,7 +1594,7 @@ let toConfig (abgp : T) =
         (name, origins, pfxLists, asLists, cLists, polLists, rMaps, List(peerMap.Values))
     networkConfig.[name] <- routerConfig
   let config = Config.NetworkConfiguration(networkConfig)
-  Config.minimize config
+  Config.clean config
   config
 
 /// Unit tests for compilation.

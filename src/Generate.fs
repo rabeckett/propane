@@ -63,22 +63,22 @@ let quagga (rc : RouterConfiguration) : string =
     match pc.OutFilter with
     | None -> ()
     | Some f -> bprintf sb "  neighbor %s route-map %s out\n" (getPeerIp rc pc) f
-  bprintf sb "!\n"
+  if rc.PeerConfigurations.Count > 0 then bprintf sb "!\n"
   // prefix lists
   for pl in rc.PrefixLists do
     bprintf sb "ip prefix-list %s %s %s\n" pl.Name (stringOfKind pl.Kind) pl.Prefix
-  bprintf sb "!\n"
+  if rc.PrefixLists.Count > 0 then bprintf sb "!\n"
   // community lists
   for cl in rc.CommunityLists do
     bprintf sb "ip community-list standard %s %s " cl.Name (stringOfKind cl.Kind)
     for c in cl.Values do
       bprintf sb "%s " c
     bprintf sb "\n"
-  bprintf sb "!\n"
+  if rc.CommunityLists.Count > 0 then bprintf sb "!\n"
   // as path lists
   for al in rc.AsPathLists do
     bprintf sb "ip as-path access-list %s %s %s\n" al.Name (stringOfKind al.Kind) al.Regex // name should be a number
-  bprintf sb "!\n"
+  if rc.AsPathLists.Count > 0 then bprintf sb "!\n"
   // route maps
   for rm in rc.RouteMaps do
     bprintf sb "route-map %s permit %d\n" rm.Name rm.Priority

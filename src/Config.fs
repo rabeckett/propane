@@ -111,7 +111,7 @@ type RouteMap =
     val Priority : int
     val PolicyList : string
     val SetLocalPref : SetLocalPref
-    val SetCommunity : List<SetCommunity>
+    val mutable SetCommunity : List<SetCommunity>
     val DeleteCommunity : DeleteCommunityList
     new(n, i, pl, slp, sc, dc) = 
       { Name = n
@@ -149,7 +149,7 @@ type RouterConfiguration =
     val AsPathLists : List<AsPathList>
     val CommunityLists : List<CommunityList>
     val PolicyLists : List<PolicyList>
-    val RouteMaps : List<RouteMap>
+    val mutable RouteMaps : List<RouteMap>
     val PeerConfigurations : List<PeerConfig>
     new(name, nwrk, pls, als, cls, pols, rms, pcs) = 
       { Name = name
@@ -180,7 +180,7 @@ let private deleteMissingRouteMaps (rc : RouterConfiguration) =
     match pc.OutFilter with
     | None -> ()
     | Some f -> 
-      if not <| rc.RouteMaps.Exists(fun rm -> rm.Name = f) then pc.InFilter <- None
+      if not <| rc.RouteMaps.Exists(fun rm -> rm.Name = f) then pc.OutFilter <- None
 
 /// Remove definition of as-path, community, prefix lists
 /// that are never referenced in a valid route map
@@ -197,8 +197,29 @@ let private deleteUnusedLists (rc : RouterConfiguration) =
   rc.CommunityLists.RemoveAll(fun cl -> not <| commLists.Contains(cl.Name)) |> ignore
   rc.PrefixLists.RemoveAll(fun pl -> not <| prefixLists.Contains(pl.Name))
 
+/// Remove communities tagged to distinguish export actions, when
+/// the community is never needed -- i.e., the actions is already unambiguous.
+/// During generation unambigous exports will avoid matching on the community
+/// and will not delete the community, but it will still get added from imports.
+/// This function removes adding the community during imports when it is never used.
+let private deleteExportComms (rc : RouterConfiguration) = 
+  // collect all used delete communities
+  let mutable deleted = Set.empty
+  for rm in rc.RouteMaps do
+    let dc = rm.DeleteCommunity
+    if dc <> null then 
+      let clname = dc.Value
+      let cllist = rc.CommunityLists.Find(fun cl -> cl.Name = clname)
+      deleted <- Set.union deleted (Set.ofSeq cllist.Values)
+  // remove unused
+  for rm in rc.RouteMaps do
+    rm.SetCommunity.RemoveAll(fun c -> c.Value.[0] = '1' && not (deleted.Contains(c.Value))) 
+    |> ignore
+
 /// Remove unnecessary configuration route maps, filters etc to simplify the configuration.
-let minimize (nc : NetworkConfiguration) = 
-  for rc in nc.RouterConfigurations do
-    deleteMissingRouteMaps rc.Value |> ignore
-    deleteUnusedLists rc.Value |> ignore
+let clean (nc : NetworkConfiguration) = 
+  for kv in nc.RouterConfigurations do
+    let rc = kv.Value
+    deleteUnusedLists rc |> ignore
+    deleteExportComms rc |> ignore
+    deleteMissingRouteMaps rc |> ignore
