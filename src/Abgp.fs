@@ -1479,7 +1479,7 @@ let importFilterCommunityMods (exportMap : Reindexer<_>) es =
   let scs = List()
   for (peer, mods) in es do
     let comm = exportMap.Index(peer, Set.ofList mods)
-    let c = SetCommunity("200:" + string comm)
+    let c = SetCommunity("100:" + string comm)
     scs.Add(c)
   scs
 
@@ -1518,7 +1518,7 @@ let toConfig (abgp : T) =
       for Route.TrafficClassifier(prefix, comms) in tcs do
         assert (comms.IsEmpty) // TODO: handle this case
         match acts with
-        | Originate -> origins.Add(string prefix)
+        | Originate -> origins.Add(prefix.Example(mask = true))
         | Filters fs -> 
           // different actions for the same prefix but different community/regex etc
           for f in fs do
@@ -1571,7 +1571,9 @@ let toConfig (abgp : T) =
       RouterConfiguration
         (name, origins, pfxLists, asLists, cLists, polLists, rMaps, List(peerMap.Values))
     networkConfig.[name] <- routerConfig
-  Config.NetworkConfiguration(networkConfig)
+  let config = Config.NetworkConfiguration(networkConfig)
+  Config.minimize config
+  config
 
 /// Unit tests for compilation.
 /// Hooks into the compileToIR function to test

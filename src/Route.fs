@@ -191,6 +191,15 @@ module Bitwise =
     let c = shr (shl x 16) 24
     let d = shr (shl x 24) 24
     (a, b, c, d)
+  
+  let toMask x = 
+    assert (x >= 0 && x <= 32)
+    let nBitsRight n = ~~~(shl 0xFFFFFFFF n)
+    let x1 = nBitsRight (min 8 x)
+    let x2 = nBitsRight (min 8 (max 0 (x - 8)))
+    let x3 = nBitsRight (min 8 (max 0 (x - 16)))
+    let x4 = nBitsRight (min 8 (max 0 (x - 24)))
+    (x1, x2, x3, x4)
 
 /// Simple wrapper class for 32 bit prefixes with a convenience 
 /// constructor that will read from dot notation string.
@@ -243,6 +252,16 @@ type Prefix =
         IsExact = false
         IsTemplate = true
         Name = n }
+    
+    member v.Example(mask : bool) = 
+      if v.IsTemplate then sprintf "%s" v.Name
+      else if mask then 
+        let (a, b, c, d) = Bitwise.toDotted v.Bits
+        let (m1, m2, m3, m4) = Bitwise.toMask v.Slash
+        sprintf "%d.%d.%d.%d mask %d.%d.%d.%d" a b c d m1 m2 m3 m4
+      else 
+        let (a, b, c, d) = Bitwise.toDotted v.Bits
+        sprintf "%d.%d.%d.%d/%d" a b c d v.Slash
     
     override v.ToString() = 
       if v.IsTemplate then sprintf "%s" v.Name

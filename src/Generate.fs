@@ -30,12 +30,17 @@ let getPeerIp (rc : RouterConfiguration) (pc : PeerConfig) =
   if s.IsAbstract then sprintf "%s.%s.$peerIP$" rc.Name pc.Peer
   else pc.PeerIp
 
+let getSourceIp (rc : RouterConfiguration) (pc : PeerConfig) = 
+  let s = Args.getSettings()
+  if s.IsAbstract then sprintf "%s.%s.$sourceIP$" rc.Name pc.Peer
+  else pc.SourceIp
+
 let quaggaInterfaces (rc : RouterConfiguration) : string = 
   let sb = System.Text.StringBuilder()
   let mutable i = 0
   for pc in rc.PeerConfigurations do
     bprintf sb "interface eth%d\n" i
-    bprintf sb "  ip-address %s 255.255.255.255\n" (getPeerIp rc pc)
+    bprintf sb "  ip-address %s/32\n" (getSourceIp rc pc)
     bprintf sb "!\n"
     i <- i + 1
   string sb
@@ -158,5 +163,5 @@ let generate (out : string) (res : Abgp.CompilationResult) =
     let rc = kv.Value
     let output = quagga rc
     output |> File.writeFileWithExtension (configDir + File.sep + name) "cfg"
-  // TODO: Create the GNS3 file
+  // Write CORE emulator save file
   core nc |> File.writeFileWithExtension (out + File.sep + "core") "imn"

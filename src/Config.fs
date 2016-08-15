@@ -129,8 +129,8 @@ type PeerConfig =
     val Peer : string
     val PeerIp : string
     val SourceIp : string
-    val InFilter : string option // route map name
-    val OutFilter : string option
+    val mutable InFilter : string option // route map name
+    val mutable OutFilter : string option
     new(p, sip, pip, i, o) = 
       { Peer = p
         SourceIp = sip
@@ -168,3 +168,37 @@ type NetworkConfiguration =
     val RouterConfigurations : Dictionary<string, RouterConfiguration>
     new(rcs) = { RouterConfigurations = rcs }
   end
+
+/// Remove a peer route map if the route map is never used (i.e., does not exist).
+/// This is equivalent to having an explicit [permit any] route map.
+let private deleteMissingRouteMaps (rc : RouterConfiguration) = 
+  for pc in rc.PeerConfigurations do
+    match pc.InFilter with
+    | None -> ()
+    | Some f -> 
+      if not <| rc.RouteMaps.Exists(fun rm -> rm.Name = f) then pc.InFilter <- None
+    match pc.OutFilter with
+    | None -> ()
+    | Some f -> 
+      if not <| rc.RouteMaps.Exists(fun rm -> rm.Name = f) then pc.InFilter <- None
+
+/// Remove definition of as-path, community, prefix lists
+/// that are never referenced in a valid route map
+let private deleteUnusedLists (rc : RouterConfiguration) = 
+  let mutable asLists = Set.empty
+  let mutable commLists = Set.empty
+  let mutable prefixLists = Set.empty
+  for rm in rc.RouteMaps do
+    let polList = rc.PolicyLists.Find(fun pl -> pl.Name = rm.PolicyList)
+    asLists <- Set.union asLists (Set.ofSeq polList.AsPathLists)
+    commLists <- Set.union commLists (Set.ofSeq polList.CommunityLists)
+    prefixLists <- Set.union prefixLists (Set.ofSeq polList.PrefixLists)
+  rc.AsPathLists.RemoveAll(fun al -> not <| asLists.Contains(al.Name)) |> ignore
+  rc.CommunityLists.RemoveAll(fun cl -> not <| commLists.Contains(cl.Name)) |> ignore
+  rc.PrefixLists.RemoveAll(fun pl -> not <| prefixLists.Contains(pl.Name))
+
+/// Remove unnecessary configuration route maps, filters etc to simplify the configuration.
+let minimize (nc : NetworkConfiguration) = 
+  for rc in nc.RouterConfigurations do
+    deleteMissingRouteMaps rc.Value |> ignore
+    deleteUnusedLists rc.Value |> ignore
