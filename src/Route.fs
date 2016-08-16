@@ -257,8 +257,9 @@ type Prefix =
       if v.IsTemplate then sprintf "%s" v.Name
       else if mask then 
         let (a, b, c, d) = Bitwise.toDotted v.Bits
-        let (m1, m2, m3, m4) = Bitwise.toMask v.Slash
-        sprintf "%d.%d.%d.%d mask %d.%d.%d.%d" a b c d m1 m2 m3 m4
+        // let (m1, m2, m3, m4) = Bitwise.toMask v.Slash
+        // sprintf "%d.%d.%d.%d mask %d.%d.%d.%d" a b c d m1 m2 m3 m4
+        sprintf "%d.%d.%d.%d/%d" a b c d v.Slash
       else 
         let (a, b, c, d) = Bitwise.toDotted v.Bits
         sprintf "%d.%d.%d.%d/%d" a b c d v.Slash

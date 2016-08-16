@@ -40,7 +40,7 @@ let quaggaInterfaces (rc : RouterConfiguration) : string =
   let mutable i = 0
   for pc in rc.PeerConfigurations do
     bprintf sb "interface eth%d\n" i
-    bprintf sb "  ip-address %s/32\n" (getSourceIp rc pc)
+    bprintf sb " ip address %s/32\n" (getSourceIp rc pc)
     bprintf sb "!\n"
     i <- i + 1
   string sb
@@ -95,56 +95,88 @@ let quagga (rc : RouterConfiguration) : string =
 
 let core (nc : NetworkConfiguration) : string = 
   let sb = System.Text.StringBuilder()
-  let mutable i = 0
+  let mutable i = 1
   let nodeMap = Dictionary()
   for kv in nc.RouterConfigurations do
     let name = kv.Key
     let rc = kv.Value
     nodeMap.[name] <- i
     i <- i + 1
-  let mutable i = 0
+  let mutable i = 1
   for kv in nc.RouterConfigurations do
     let name = kv.Key
     let rc = kv.Value
     // per router
     bprintf sb "node n%d {\n" i
-    bprintf sb "  type router\n"
-    bprintf sb "  model router\n"
-    bprintf sb "  network-config {\n"
-    bprintf sb "    hostname router%s\n" rc.Name
-    bprintf sb "    !\n"
-    bprintf sb "%s" (quaggaInterfaces rc |> Util.Format.indent 4)
-    bprintf sb "  }\n"
-    bprintf sb "  iconcoords {100.0, 100.0}\n"
-    bprintf sb "  labelcoords {100.0, 125.0}\n"
-    // interfaces here -- need map
+    bprintf sb "    type router\n"
+    bprintf sb "    model router\n"
+    bprintf sb "    network-config {\n"
+    bprintf sb "\thostname AS%s\n" rc.Name
+    bprintf sb "\t!\n"
+    bprintf sb "%s\n" (quaggaInterfaces rc |> Util.Format.indent 1 true)
+    bprintf sb "    }\n"
+    bprintf sb "    iconcoords {100.0 100.0}\n"
+    bprintf sb "    labelcoords {100.0 135.0}\n"
     let mutable j = 0
     for peer in rc.PeerConfigurations do
       // TODO: external neighbors
       if nodeMap.ContainsKey(peer.Peer) then 
-        bprintf sb "  interface-peer {eth%d n%d}\n" j nodeMap.[peer.Peer]
+        bprintf sb "    interface-peer {eth%d n%d}\n" j nodeMap.[peer.Peer]
         j <- j + 1 // TODO: do  this proper
-    bprintf sb "  canvas c1\n"
-    bprintf sb "  services {zebra BGP vtysh IPForward}\n"
-    bprintf sb "  custom-config {\n"
-    bprintf sb "    custom-config-id service:zebra:/usr/local/etc/quagga/Quagga.conf\n"
-    bprintf sb "    custom-command /usr/local/etc/quagga/Quagga.conf\n"
-    bprintf sb "    config {\n"
-    bprintf sb "%s" (quagga rc |> Util.Format.indent 4)
+    bprintf sb "    canvas c1\n"
+    bprintf sb "    services {zebra BGP vtysh IPForward}\n"
+    bprintf sb "    custom-config {\n"
+    bprintf sb "\tcustom-config-id service:zebra:/usr/local/etc/quagga/Quagga.conf\n"
+    bprintf sb "\tcustom-command /usr/local/etc/quagga/Quagga.conf\n"
+    bprintf sb "\tconfig {\n"
+    bprintf sb "%s" (quagga rc |> Util.Format.indent 1 true)
+    bprintf sb "}\n"
     bprintf sb "    }\n"
-    bprintf sb "  custom-config {\n"
-    bprintf sb "    custom-config-id service:zebra\n"
-    bprintf sb "    custom-command zebra\n"
-    bprintf sb "    config {\n"
-    bprintf sb "    ('/usr/local/etc/quagga/', '/var/run/quagga')\n"
-    bprintf sb "    ('/usr/local/etc/quagga/Quagga.conf', 'quaggaboot.sh')\n"
-    bprintf sb "    35\n"
-    bprintf sb "    ('sh quaggaboot.sh zebra')\n"
-    bprintf sb "    ('killall zebra')\n"
+    bprintf sb "    custom-config {\n"
+    bprintf sb "\tcustom-config-id service:zebra\n"
+    bprintf sb "\tcustom-command zebra\n"
+    bprintf sb "\tconfig {\n"
+    bprintf sb "\t('/usr/local/etc/quagga', '/var/run/quagga')\n"
+    bprintf sb "\t('/usr/local/etc/quagga/Quagga.conf', 'quaggaboot.sh')\n"
+    bprintf sb "\t35\n"
+    bprintf sb "\t('sh quaggaboot.sh zebra',)\n"
+    bprintf sb "\t('killall zebra',)\n"
+    bprintf sb "\t}\n"
     bprintf sb "    }\n"
-    bprintf sb "  }\n"
     bprintf sb "}\n\n"
     i <- i + 1
+  // Add links
+  for kv in nc.RouterConfigurations do
+    let name = kv.Key
+    let rc = kv.Value
+    for peer in rc.PeerConfigurations do
+      // TODO: external neighbors
+      if nodeMap.ContainsKey(peer.Peer) then 
+        let x = nodeMap.[name]
+        let y = nodeMap.[peer.Peer]
+        // only do one direction
+        if x <= y then 
+          bprintf sb "link l%d%d {\n" x y
+          bprintf sb "    nodes {n%d n%d}\n" x y
+          bprintf sb "}\n\n"
+  bprintf sb "canvas c1 {\n"
+  bprintf sb "    name {Canvas1}\n"
+  bprintf sb "    size {900 706.0}\n"
+  bprintf sb "}\n\n"
+  bprintf sb "option global {\n"
+  bprintf sb "    interface_names yes\n"
+  bprintf sb "    ip_addresses yes\n"
+  bprintf sb "    ipv6_addresses no\n"
+  bprintf sb "    node_labels yes\n"
+  bprintf sb "    link_labels yes\n"
+  bprintf sb "    ipsec_configs yes\n"
+  bprintf sb "    remote_exec no\n"
+  bprintf sb "    exec_errors yes\n"
+  bprintf sb "    show_api no\n"
+  bprintf sb "    background_images no\n"
+  bprintf sb "    annotations yes\n"
+  bprintf sb "    grid yes\n"
+  bprintf sb "}\n"
   string sb
 
 let generate (out : string) (res : Abgp.CompilationResult) = 

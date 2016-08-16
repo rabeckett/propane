@@ -204,8 +204,11 @@ module Format =
   let footerSize = 80
   let offset = 9
   
-  let indent (i : int) (s : string) : string = 
-    let ind = String.replicate i " "
+  let indent (i : int) (tabs : bool) (s : string) : string = 
+    let ind = 
+      if tabs then String.replicate i "\t"
+      else String.replicate i " "
+    
     let s = s.Replace("\n", "\n" + ind)
     (ind + s).TrimEnd(' ')
   
