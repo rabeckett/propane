@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <topology>
-  <node internal="true" device="" asn="" name=""></node>
   <node internal="true" asn="" name=""></node>
-  <edge source="" target="" source-ip="" target-ip="" directed="true"></edge>
-  <edge source="" target="" source-ip="" target-ip="" directed="true"></edge>
+  <node internal="true" asn="" name="" device=""></node>
+  <edge source="" target="" source-ip="" target-ip=""></edge>
+  <edge source="" target="" source-ip="" target-ip=""></edge>
 </topology>

@@ -1,0 +1,23 @@
+﻿<?xml version="1.0" encoding="UTF-8"?>
+<topology>
+	<node internal="true" name="A"></node>
+	<node internal="true" name="B"></node>
+	<node internal="true" name="C"></node>
+	<node internal="true" name="D"></node>
+	<node internal="true" name="X"></node>
+	<node internal="true" name="Y"></node>
+	<node internal="true" name="M"></node>
+	<node internal="true" name="N"></node>
+	<node internal="false" name="CORE"></node>
+
+	<edge source="A" target="X"></edge>
+	<edge source="B" target="X"></edge>
+	<edge source="C" target="Y"></edge>
+	<edge source="D" target="Y"></edge>
+	<edge source="X" target="M"></edge>
+	<edge source="X" target="N"></edge>
+	<edge source="Y" target="M"></edge>
+	<edge source="Y" target="N"></edge>
+	<edge source="N" target="CORE"></edge>
+	<edge source="M" target="CORE"></edge>
+</topology>

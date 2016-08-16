@@ -193,10 +193,6 @@ let readTopology (file : string) : TopoInfo =
     let typ = 
       if n.Internal then Inside
       else Outside
-    // match n.Internal, n.CanOriginate with
-    // | true, false -> Inside
-    // | true, true -> InsideOriginates
-    // | false, true | false, false -> Outside
     if n.Internal then internalNames <- Set.add n.Name internalNames
     else externalNames <- Set.add n.Name externalNames
     // TODO: duplicate names not handled
@@ -214,14 +210,10 @@ let readTopology (file : string) : TopoInfo =
     else 
       let x = nodeMap.[e.Source]
       let y = nodeMap.[e.Target]
-      if e.Directed then 
-        addEdge x y
-        ipMap.[(x.Loc, y.Loc)] <- (e.SourceIp, e.TargetIp)
-      else 
-        addEdge x y
-        addEdge y x
-        ipMap.[(x.Loc, y.Loc)] <- (e.SourceIp, e.TargetIp)
-        ipMap.[(y.Loc, x.Loc)] <- (e.TargetIp, e.SourceIp)
+      addEdge x y
+      addEdge y x
+      ipMap.[(x.Loc, y.Loc)] <- (e.SourceIp, e.TargetIp)
+      ipMap.[(y.Loc, x.Loc)] <- (e.TargetIp, e.SourceIp)
   { Graph = Topology(g)
     AsnMap = asnMap
     InternalNames = internalNames

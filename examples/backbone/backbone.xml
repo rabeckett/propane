@@ -1,32 +1,32 @@
 <topology>
 
   <!-- Internal routers -->
-  <node internal="true" can-originate="true" asn="100" name="R1"></node>
-  <node internal="true" can-originate="true" asn="101" name="R2"></node>
-  <node internal="true" can-originate="true" asn="102" name="R3"></node>
-  <node internal="true" can-originate="true" asn="103" name="R4"></node>
+  <node internal="true" asn="100" name="R1"></node>
+  <node internal="true" asn="101" name="R2"></node>
+  <node internal="true" asn="102" name="R3"></node>
+  <node internal="true" asn="103" name="R4"></node>
   
   <!-- External Peers -->
-  <node internal="false" can-originate="true" asn="110" name="Cust"></node>
-  <node internal="false" can-originate="true" asn="120" name="Sprint"></node>
-  <node internal="false" can-originate="true" asn="130" name="Level3"></node>
-  <node internal="false" can-originate="true" asn="140" name="Princeton"></node>
+  <node internal="false" asn="110" name="Cust"></node>
+  <node internal="false" asn="120" name="Sprint"></node>
+  <node internal="false" asn="130" name="Level3"></node>
+  <node internal="false" asn="140" name="Princeton"></node>
 
   <!-- Full mesh connectivity -->
-  <edge source="R1" target="R2" directed="false"></edge>
-  <edge source="R1" target="R3" directed="false"></edge>
-  <edge source="R1" target="R4" directed="false"></edge>
-  <edge source="R2" target="R3" directed="false"></edge>
-  <edge source="R2" target="R4" directed="false"></edge>
-  <edge source="R3" target="R4" directed="false"></edge>
+  <edge source="R1" target="R2"></edge>
+  <edge source="R1" target="R3"></edge>
+  <edge source="R1" target="R4"></edge>
+  <edge source="R2" target="R3"></edge>
+  <edge source="R2" target="R4"></edge>
+  <edge source="R3" target="R4"></edge>
 
   <!-- Connections to neighbors -->
-  <edge source="R1" target="Cust" directed="false"></edge>
-  <edge source="R2" target="Cust" directed="false"></edge>
-  <edge source="R3" target="Sprint" directed="false"></edge>
-  <edge source="R4" target="Level3" directed="false"></edge>
+  <edge source="R1" target="Cust"></edge>
+  <edge source="R2" target="Cust"></edge>
+  <edge source="R3" target="Sprint"></edge>
+  <edge source="R4" target="Level3"></edge>
 
   <!-- External connections -->
-  <edge source="Cust" target="Princeton" directed="false"></edge>
+  <edge source="Cust" target="Princeton"></edge>
 </topology>
 
