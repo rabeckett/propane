@@ -45,7 +45,7 @@ let quaggaInterfaces (rc : RouterConfiguration) : string =
     i <- i + 1
   string sb
 
-let quagga (rc : RouterConfiguration) : string = 
+let quagga (rInternal : Set<string>) (rc : RouterConfiguration) : string = 
   let settings = Args.getSettings()
   let sb = System.Text.StringBuilder()
   // generate interface info
@@ -60,6 +60,8 @@ let quagga (rc : RouterConfiguration) : string =
     bprintf sb "  network %s\n" n
   for pc in rc.PeerConfigurations do
     bprintf sb "  neighbor %s remote-as %s\n" (getPeerIp rc pc) pc.Peer
+    if rInternal.Contains(pc.Peer) then 
+      bprintf sb "  neighbor %s send-community both\n" (getPeerIp rc pc)
   for pc in rc.PeerConfigurations do
     match pc.InFilter with
     | None -> ()
@@ -97,7 +99,7 @@ let quagga (rc : RouterConfiguration) : string =
     bprintf sb "!\n"
   string sb
 
-let core (nc : NetworkConfiguration) : string = 
+let core (rInternal : Set<string>) (nc : NetworkConfiguration) : string = 
   let sb = System.Text.StringBuilder()
   let mutable i = 1
   let nodeMap = Dictionary()
@@ -133,7 +135,7 @@ let core (nc : NetworkConfiguration) : string =
     bprintf sb "\tcustom-config-id service:zebra:/usr/local/etc/quagga/Quagga.conf\n"
     bprintf sb "\tcustom-command /usr/local/etc/quagga/Quagga.conf\n"
     bprintf sb "\tconfig {\n"
-    bprintf sb "%s" (quagga rc |> Util.Format.indent 1 true)
+    bprintf sb "%s" (quagga rInternal rc |> Util.Format.indent 1 true)
     bprintf sb "}\n"
     bprintf sb "    }\n"
     bprintf sb "    custom-config {\n"
@@ -168,7 +170,7 @@ let core (nc : NetworkConfiguration) : string =
   bprintf sb "    size {900 706.0}\n"
   bprintf sb "}\n\n"
   bprintf sb "option global {\n"
-  bprintf sb "    interface_names yes\n"
+  bprintf sb "    interface_names no\n"
   bprintf sb "    ip_addresses yes\n"
   bprintf sb "    ipv6_addresses no\n"
   bprintf sb "    node_labels yes\n"
@@ -183,6 +185,12 @@ let core (nc : NetworkConfiguration) : string =
   bprintf sb "}\n"
   string sb
 
+let internalRouters (nc : NetworkConfiguration) : Set<string> = 
+  let mutable rin = Set.empty
+  for kv in nc.RouterConfigurations do
+    rin <- Set.add kv.Key rin
+  rin
+
 let generate (out : string) (res : Abgp.CompilationResult) = 
   let settings = Args.getSettings()
   // Create output directory
@@ -193,11 +201,12 @@ let generate (out : string) (res : Abgp.CompilationResult) =
   let nc : NetworkConfiguration = Abgp.toConfig res.Abgp
   let configDir = out + File.sep + "configs"
   File.createDir configDir
+  let rInternal = internalRouters nc
   // Create each router configuration, specialized by type
   for kv in nc.RouterConfigurations do
     let name = kv.Key
     let rc = kv.Value
-    let output = quagga rc
+    let output = quagga rInternal rc
     output |> File.writeFileWithExtension (configDir + File.sep + name) "cfg"
   // Write CORE emulator save file
-  core nc |> File.writeFileWithExtension (out + File.sep + "core") "imn"
+  core rInternal nc |> File.writeFileWithExtension (out + File.sep + "core") "imn"

@@ -44,7 +44,7 @@ let usePrepending = ref false
 let useNoExport = ref false
 let useIBGP = ref false
 let minimize = ref true
-let isParallel = ref true
+let isParallel = ref false
 let test = ref false
 let bench = ref false
 let debug = ref false
@@ -107,7 +107,7 @@ let args =
       "Minimize configuration (default on)")
      
      ("-parallel:on|off", String(setOnOff isParallel "parallel"), 
-      "Parallelize compilation (default on)")
+      "Parallelize compilation (default off)")
      ("-failures:any|n", String setFailures, "Failure safety for aggregation (default any)")
      ("-anycast:on|off", String(setOnOff anycast "anycast"), "Allow anycast (default off)")
      ("-med:on|off", String(setOnOff useMed "MED"), "Use MED attribute (default off)")

@@ -555,8 +555,11 @@ module RouterWide =
   
   let minimizeForRouter (pi : Ast.PolInfo) allComms r rconf = 
     rconf |> fallThroughElimination allComms
-  
-  let minimize (config : T) = 
+  // TODO: reevaluate this function
+  // Perform fallthrough elimination on route maps
+  let minimize (config : T) = config
+
+(*
     let settings = Args.getSettings()
     let allComms = getAllCommunities config
     
@@ -571,7 +574,7 @@ module RouterWide =
       |> Map.ofArray
     
     { PolInfo = config.PolInfo
-      RConfigs = rconfs }
+      RConfigs = rconfs } *)
 
 /// Compilation from CGraph (product graph) to a complete IR config.
 /// Compiles for each prefix in parallel and then merges the results
@@ -1016,8 +1019,10 @@ let getLocsThatCantGetPath idx cg (reb : Regex.REBuilder) dfas =
 
 let getUnusedPrefs cg res = 
   let mutable nRegexes = Set.empty
-  for i in 1..List.length res do
-    nRegexes <- Set.add (int16 i) nRegexes
+  let mutable i = 1
+  for r in res do
+    if r <> Regex.empty then nRegexes <- Set.add (int16 i) nRegexes
+    i <- i + 1
   let prefs = CGraph.preferences cg
   Set.difference nRegexes prefs // don't use difference here
 
@@ -1385,7 +1390,7 @@ let matchPeer ti x =
   let router = 
     if settings.IsAbstract then Topology.router x ti
     else x
-  "^" + router + "_"
+  "^" + router + " .*"
 
 let peerPol ti asPathMap asPathLists (als : List<_>) alID (p : Peer) = 
   match p with
@@ -1442,30 +1447,31 @@ let createExportRouteMap peerExportMap id (cMap, cLists, clID) (pLists, polID) r
   incr id
   let rmname = "export-" + (string !id)
   for (i, ms) in cs do
-    // only 
-    if not (Set.isEmpty ms) then 
-      let rms = List()
-      let pls = List()
-      let als = List()
-      let cls = List()
-      
-      let dc = 
-        match i with
-        | Some i -> 
-          let values = List()
-          values.Add("100:" + string i)
-          createCommunityList (Config.Kind.Permit, cMap, cLists, cls, clID, values)
-          let name = sprintf "cl-%d" (!clID - 1)
-          DeleteCommunityList(name)
-        | None -> null
-      
-      let pol = createPolicyList (polID, pLists, pls, als, cls)
-      let scs = List()
-      for m in ms do
-        match m with
-        | SetComm(c) -> scs.Add(SetCommunity("200:" + c))
-        | _ -> failwith "" // TODO
-      createRouteMap (rmname, 10, rMaps, rms, pol.Name, null, scs, dc) |> ignore
+    // Note: do this even when no export actions
+    // since the act of matching some communities will
+    // implicitly deny others from being exported
+    let rms = List()
+    let pls = List()
+    let als = List()
+    let cls = List()
+    
+    let dc = 
+      match i with
+      | Some i -> 
+        let values = List()
+        values.Add("100:" + string i)
+        createCommunityList (Config.Kind.Permit, cMap, cLists, cls, clID, values)
+        let name = sprintf "cl-%d" (!clID - 1)
+        DeleteCommunityList(name)
+      | None -> null
+    
+    let pol = createPolicyList (polID, pLists, pls, als, cls)
+    let scs = List()
+    for m in ms do
+      match m with
+      | SetComm(c) -> scs.Add(SetCommunity("200:" + c))
+      | _ -> failwith "" // TODO
+    createRouteMap (rmname, 10, rMaps, rms, pol.Name, null, scs, dc) |> ignore
   for peer in ps do
     peerExportMap := Map.add peer ("rm-" + rmname) !peerExportMap
 
@@ -1478,7 +1484,7 @@ let adjustIfTagNotNeeded (m : Map<Set<_>, Set<_>>) =
   
   // use none if no tag to be attached
   let inline updateTag a = 
-    if isUnique then None
+    if isUnique then Some a // None
     else Some a
   
   // change to none if tag doesn't add any information
@@ -1560,7 +1566,13 @@ let toConfig (abgp : T) =
               |> ignore
               match m with
               | Match.Peer(x) -> peerPol ti asMap asLists als alID x
-              | Match.State(c, x) -> peerPol ti asMap asLists als alID x
+              | Match.State(c, x) -> 
+                // first match community
+                let values = List()
+                values.Add("200:" + string c)
+                createCommunityList (Config.Kind.Permit, cMap, cLists, cls, clID, values)
+                // now match peer as well
+                peerPol ti asMap asLists als alID x
               | Match.PathRE(re) -> 
                 createAsPathList (Config.Kind.Permit, asMap, asLists, als, alID, string re) 
                 |> ignore
