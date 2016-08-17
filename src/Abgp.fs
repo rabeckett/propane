@@ -1384,30 +1384,27 @@ let peers (ti : Topology.TopoInfo) (router : string) =
     let inPeers, outPeers = Set.map loc inPeers, Set.map loc outPeers
     Set.union inPeers outPeers, inPeers, outPeers
 
-let matchPeer ti x = 
+let getRouter ti x = 
   let settings = Args.getSettings()
-  
-  let router = 
-    if settings.IsAbstract then Topology.router x ti
-    else x
-  "^" + router + " .*"
+  if settings.IsAbstract then Topology.router x ti
+  else x
 
 let peerPol ti asPathMap asPathLists (als : List<_>) alID (p : Peer) = 
   match p with
   | Peer.Any -> ()
   | Peer.In -> als.Add("path-1")
   | Peer.Out -> als.Add("path-2")
-  | Peer.Router x -> 
-    let regexMatch = matchPeer ti x
+  | Peer.Router peer -> 
+    let regexMatch = sprintf "^%s .*" (getRouter ti peer)
     createAsPathList (Config.Kind.Permit, asPathMap, asPathLists, als, alID, regexMatch)
 
 let matchAllPeers ti (peers : Set<string>) = 
   let str = 
-    Set.fold (fun acc p -> 
-      let v = matchPeer ti p
+    Set.fold (fun acc peer -> 
+      let v = getRouter ti peer
       if acc = "" then v
-      else v + " | " + acc) "" peers
-  "(" + str + ")"
+      else v + "|" + acc) "" peers // no spaces allowed
+  sprintf "^(%s) .*" str
 
 let makeInitialPathList ti peers (asMap, asLists, alID) = 
   if not (Set.isEmpty peers) then 
