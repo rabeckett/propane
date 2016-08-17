@@ -1443,6 +1443,7 @@ let commGroupsByRelevantPeers m =
 let createExportRouteMap peerExportMap id (cMap, cLists, clID) (pLists, polID) rMaps cs ps = 
   incr id
   let rmname = "export-" + (string !id)
+  let mutable priority = 10
   for (i, ms) in cs do
     // Note: do this even when no export actions
     // since the act of matching some communities will
@@ -1468,7 +1469,8 @@ let createExportRouteMap peerExportMap id (cMap, cLists, clID) (pLists, polID) r
       match m with
       | SetComm(c) -> scs.Add(SetCommunity("200:" + c))
       | _ -> failwith "" // TODO
-    createRouteMap (rmname, 10, rMaps, rms, pol.Name, null, scs, dc) |> ignore
+    createRouteMap (rmname, priority, rMaps, rms, pol.Name, null, scs, dc) |> ignore
+    priority <- priority + 10
   for peer in ps do
     peerExportMap := Map.add peer ("rm-" + rmname) !peerExportMap
 
