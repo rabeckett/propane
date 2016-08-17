@@ -144,6 +144,7 @@ type PeerConfig =
 type RouterConfiguration = 
   class
     val Name : string
+    val RouterID : int
     val Networks : List<string>
     val PrefixLists : List<PrefixList>
     val AsPathLists : List<AsPathList>
@@ -151,8 +152,9 @@ type RouterConfiguration =
     val PolicyLists : List<PolicyList>
     val mutable RouteMaps : List<RouteMap>
     val PeerConfigurations : List<PeerConfig>
-    new(name, nwrk, pls, als, cls, pols, rms, pcs) = 
-      { Name = name
+    new(rid, name, nwrk, pls, als, cls, pols, rms, pcs) = 
+      { RouterID = rid
+        Name = name
         Networks = nwrk
         PrefixLists = pls
         AsPathLists = als

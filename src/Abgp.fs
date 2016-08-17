@@ -1512,6 +1512,7 @@ let toConfig (abgp : T) =
   let ti = pi.Ast.TopoInfo
   // network configuration
   let networkConfig = Dictionary()
+  let mutable rid = 0
   for kv in abgp.RConfigs do
     let rname = kv.Key
     let rconfig = kv.Value
@@ -1588,10 +1589,11 @@ let toConfig (abgp : T) =
     let name = 
       if settings.IsAbstract then Topology.router rname ti
       else rname
-    
+    // unique router id
+    rid <- rid + 1
     let routerConfig = 
       RouterConfiguration
-        (name, origins, pfxLists, asLists, cLists, polLists, rMaps, List(peerMap.Values))
+        (rid, name, origins, pfxLists, asLists, cLists, polLists, rMaps, List(peerMap.Values))
     networkConfig.[name] <- routerConfig
   let config = Config.NetworkConfiguration(networkConfig)
   Config.clean config

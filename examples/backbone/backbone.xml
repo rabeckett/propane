@@ -1,5 +1,4 @@
 <topology>
-
   <!-- Internal routers -->
   <node internal="true" asn="100" name="R1"></node>
   <node internal="true" asn="101" name="R2"></node>

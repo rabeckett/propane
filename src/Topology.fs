@@ -162,6 +162,17 @@ let router (asn : string) (ti : TopoInfo) =
     else "AS" + asn
   | Some r -> r
 
+let assignIps sip tip ip = 
+  match (sip, tip) with
+  | "", "" -> 
+    let (_, _, c, d) = Route.Bitwise.toDotted !ip
+    let s = sprintf "10.%d.%d.1" c d
+    let t = sprintf "10.%d.%d.2" c d
+    incr ip
+    (s, t)
+  | _, "" | "", _ -> error "Missing source or target ip in topology"
+  | _, _ -> (sip, tip)
+
 let readTopology (file : string) : TopoInfo = 
   let settings = Args.getSettings()
   let g = BidirectionalGraph<Node, Edge<Node>>()
@@ -200,6 +211,7 @@ let readTopology (file : string) : TopoInfo =
     nodeMap <- Map.add n.Name state nodeMap
     ignore (g.AddVertex state)
   let ipMap = Dictionary()
+  let ip = ref 0
   for e in topo.Edges do
     if settings.IsAbstract && (e.SourceIp <> "" || e.TargetIp <> "") then 
       error (sprintf "Invalid topology: source/target IP included in abstract topology")
@@ -208,12 +220,13 @@ let readTopology (file : string) : TopoInfo =
     elif not (nodeMap.ContainsKey e.Target) then 
       error (sprintf "Invalid edge target location %s in topology" e.Target)
     else 
+      let (s, t) = assignIps e.SourceIp e.TargetIp ip
       let x = nodeMap.[e.Source]
       let y = nodeMap.[e.Target]
       addEdge x y
       addEdge y x
-      ipMap.[(x.Loc, y.Loc)] <- (e.SourceIp, e.TargetIp)
-      ipMap.[(y.Loc, x.Loc)] <- (e.TargetIp, e.SourceIp)
+      ipMap.[(x.Loc, y.Loc)] <- (s, t)
+      ipMap.[(y.Loc, x.Loc)] <- (t, s)
   { Graph = Topology(g)
     AsnMap = asnMap
     InternalNames = internalNames

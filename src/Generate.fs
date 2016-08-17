@@ -40,7 +40,7 @@ let quaggaInterfaces (rc : RouterConfiguration) : string =
   let mutable i = 0
   for pc in rc.PeerConfigurations do
     bprintf sb "interface eth%d\n" i
-    bprintf sb " ip address %s/32\n" (getSourceIp rc pc)
+    bprintf sb " ip address %s/24\n" (getSourceIp rc pc)
     bprintf sb "!\n"
     i <- i + 1
   string sb
@@ -52,6 +52,10 @@ let quagga (rc : RouterConfiguration) : string =
   bprintf sb "%s" (quaggaInterfaces rc)
   // bgp network and peers
   bprintf sb "router bgp %s\n" (getRouterName rc)
+  bprintf sb "  no synchronization\n"
+  // convert router id to prefix
+  let (_, b, c, d) = Route.Bitwise.toDotted rc.RouterID
+  bprintf sb "  bgp router-id 192.%d.%d.%d\n" b c d
   for n in rc.Networks do
     bprintf sb "  network %s\n" n
   for pc in rc.PeerConfigurations do
