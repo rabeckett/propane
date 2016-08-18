@@ -57,7 +57,7 @@ let quagga (rInternal : Set<string>) (rc : RouterConfiguration) : string =
   let (_, b, c, d) = Route.Bitwise.toDotted rc.RouterID
   bprintf sb "  bgp router-id 192.%d.%d.%d\n" b c d
   for n in rc.Networks do
-    bprintf sb "  network %s\n" n
+    bprintf sb "  network %s\n" (string n)
   for pc in rc.PeerConfigurations do
     bprintf sb "  neighbor %s remote-as %s\n" (getPeerIp rc pc) pc.Peer
     if rInternal.Contains(pc.Peer) then 
@@ -103,11 +103,32 @@ let core (rInternal : Set<string>) (nc : NetworkConfiguration) : string =
   let sb = System.Text.StringBuilder()
   let mutable i = 1
   let nodeMap = Dictionary()
+  let hostMap = Dictionary()
+  // populate the node map [router name --> node id]
   for kv in nc.RouterConfigurations do
     let name = kv.Key
     let rc = kv.Value
     nodeMap.[name] <- i
     i <- i + 1
+  // populate the host map [router name --> network, router id, host id]
+  for kv in nc.RouterConfigurations do
+    let name = kv.Key
+    let rc = kv.Value
+    if rc.Networks.Count > 0 then 
+      let n = rc.Networks.[0]
+      
+      let (hSub, rSub) = 
+        match n with
+        | Route.ConcretePfx(a, b, c, d, slash) -> 
+          if slash = 32 then (string n, string n)
+          else 
+            let x = sprintf "%d.%d.%d.%d/%d" a b c (d + 1) slash
+            let y = sprintf "%d.%d.%d.%d/%d" a b c (d + 2) slash
+            (x, y)
+        | _ -> failwith "unreachable"
+      hostMap.[name] <- (hSub, rSub, nodeMap.[name], i)
+      i <- i + 1
+  // generate router information
   let mutable i = 1
   for kv in nc.RouterConfigurations do
     let name = kv.Key
@@ -120,15 +141,27 @@ let core (rInternal : Set<string>) (nc : NetworkConfiguration) : string =
     bprintf sb "\thostname AS%s\n" rc.Name
     bprintf sb "\t!\n"
     bprintf sb "%s\n" (quaggaInterfaces rc |> Util.Format.indent 1 true)
+    // add host interface if needed
+    if hostMap.ContainsKey(name) then 
+      let (_, rSub, rId, hId) = hostMap.[name]
+      bprintf sb "\tinterface eth%d\n" (rc.PeerConfigurations.Count)
+      bprintf sb "\t ip address %s\n" rSub
+      bprintf sb "\t!\n"
     bprintf sb "    }\n"
     bprintf sb "    iconcoords {100.0 100.0}\n"
-    bprintf sb "    labelcoords {100.0 135.0}\n"
+    bprintf sb "    labelcoords {100.0 128.0}\n"
     let mutable j = 0
+    // interfaces to other routers
     for peer in rc.PeerConfigurations do
       // TODO: external neighbors
       if nodeMap.ContainsKey(peer.Peer) then 
         bprintf sb "    interface-peer {eth%d n%d}\n" j nodeMap.[peer.Peer]
-        j <- j + 1 // TODO: do  this proper
+        j <- j + 1
+    // interfaces to attached host
+    if hostMap.ContainsKey(name) then 
+      let (_, _, _, hId) = hostMap.[name]
+      bprintf sb "    interface-peer {eth%d n%d}" j hId
+      j <- j + 1
     bprintf sb "    canvas c1\n"
     bprintf sb "    services {zebra BGP vtysh IPForward}\n"
     bprintf sb "    custom-config {\n"
@@ -151,7 +184,33 @@ let core (rInternal : Set<string>) (nc : NetworkConfiguration) : string =
     bprintf sb "    }\n"
     bprintf sb "}\n\n"
     i <- i + 1
-  // Add links
+  // generate host information
+  for kv in hostMap do
+    let name = kv.Key
+    let (hSub, _, rId, hId) = kv.Value
+    bprintf sb "node n%d {\n" hId
+    bprintf sb "    type router\n"
+    bprintf sb "    model host\n"
+    bprintf sb "    network-config {\n"
+    bprintf sb "\thostname HOST_%s\n" name
+    bprintf sb "\t!\n"
+    bprintf sb "\tinterface eth0\n"
+    bprintf sb "\t ip address %s\n" hSub
+    bprintf sb "\t!\n"
+    bprintf sb "    }\n"
+    bprintf sb "    canvas c1\n"
+    bprintf sb "    iconcoords {100.0 100.0}\n"
+    bprintf sb "    labelcoords {100.0 128.0}\n"
+    bprintf sb "    interface-peer {eth0 n%d}\n" rId
+    bprintf sb "}\n\n"
+  // Add links for hosts
+  for kv in hostMap do
+    let name = kv.Key
+    let (_, _, rId, hId) = kv.Value
+    bprintf sb "link l%d_%d {\n" rId hId
+    bprintf sb "    nodes {n%d n%d}\n" rId hId
+    bprintf sb "}\n\n"
+  // Add links between routers
   for kv in nc.RouterConfigurations do
     let name = kv.Key
     let rc = kv.Value
@@ -162,7 +221,7 @@ let core (rInternal : Set<string>) (nc : NetworkConfiguration) : string =
         let y = nodeMap.[peer.Peer]
         // only do one direction
         if x <= y then 
-          bprintf sb "link l%d%d {\n" x y
+          bprintf sb "link l%d_%d {\n" x y
           bprintf sb "    nodes {n%d n%d}\n" x y
           bprintf sb "}\n\n"
   bprintf sb "canvas c1 {\n"
@@ -190,6 +249,8 @@ let internalRouters (nc : NetworkConfiguration) : Set<string> =
   for kv in nc.RouterConfigurations do
     rin <- Set.add kv.Key rin
   rin
+
+let addFakeExternalConfigs (nc : NetworkConfiguration) = failwith ""
 
 let generate (out : string) (res : Abgp.CompilationResult) = 
   let settings = Args.getSettings()

@@ -1475,7 +1475,7 @@ let commGroupsByRelevantPeers m =
     | None -> Map.add v (Set.singleton k) acc
     | Some ps -> Map.add v (Set.add k ps) acc) Map.empty m
 
-let createExportRouteMap pfxInfo (origins : List<string * Export list>) peerExportMap id 
+let createExportRouteMap pfxInfo (origins : List<Route.TempPrefix * Export list>) peerExportMap id 
     (cMap, cLists, clID) (polLists, polID) rMaps cs ps = 
   incr id
   let (plID, pfxMap, pLists) = pfxInfo
@@ -1483,6 +1483,7 @@ let createExportRouteMap pfxInfo (origins : List<string * Export list>) peerExpo
   let mutable priority = 10
   // allow the originated prefix to be exported
   for (pfx, es) in origins do
+    let pfx = string pfx
     let pls = List()
     createPrefixList (Config.Kind.Permit, plID, pfxMap, pLists, pls, pfx)
     let pol = createPolicyList (polID, polLists, pls, List(), List())

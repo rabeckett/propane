@@ -201,6 +201,14 @@ module Bitwise =
     let x4 = nBitsRight (min 8 (max 0 (x - 24)))
     (x1, x2, x3, x4)
 
+type TempPrefix = 
+  | TemplatePfx of string
+  | ConcretePfx of int * int * int * int * int
+  override this.ToString() = 
+    match this with
+    | TemplatePfx s -> s
+    | ConcretePfx(a, b, c, d, slash) -> sprintf "%d.%d.%d.%d/%d" a b c d slash
+
 /// Simple wrapper class for 32 bit prefixes with a convenience 
 /// constructor that will read from dot notation string.
 [<StructuralEquality; StructuralComparison>]
@@ -253,16 +261,16 @@ type Prefix =
         IsTemplate = true
         Name = n }
     
-    member v.Example(mask : bool) = 
-      if v.IsTemplate then sprintf "%s" v.Name
+    member v.Example(mask : bool) : TempPrefix = 
+      if v.IsTemplate then TemplatePfx v.Name
       else if mask then 
         let (a, b, c, d) = Bitwise.toDotted v.Bits
         // let (m1, m2, m3, m4) = Bitwise.toMask v.Slash
         // sprintf "%d.%d.%d.%d mask %d.%d.%d.%d" a b c d m1 m2 m3 m4
-        sprintf "%d.%d.%d.%d/%d" a b c d v.Slash
+        ConcretePfx(a, b, c, d, v.Slash)
       else 
         let (a, b, c, d) = Bitwise.toDotted v.Bits
-        sprintf "%d.%d.%d.%d/%d" a b c d v.Slash
+        ConcretePfx(a, b, c, d, v.Slash)
     
     override v.ToString() = 
       if v.IsTemplate then sprintf "%s" v.Name

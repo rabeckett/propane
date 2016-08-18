@@ -145,7 +145,7 @@ type RouterConfiguration =
   class
     val Name : string
     val RouterID : int
-    val Networks : List<string>
+    val Networks : List<Route.TempPrefix>
     val PrefixLists : List<PrefixList>
     val AsPathLists : List<AsPathList>
     val CommunityLists : List<CommunityList>

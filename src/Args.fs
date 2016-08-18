@@ -26,12 +26,35 @@ let currentDir = System.Environment.CurrentDirectory
 let sep = string Path.DirectorySeparatorChar
 let debugDir = ref (currentDir + sep + "debug" + sep)
 let settings = ref None
+let usage = """
+Usage: propane [options]
+       propane (--help | --version)
 
-let inline adjustFilePath f = 
-  if Path.IsPathRooted(f) then f
-  else currentDir + sep + f
+Options:
+    -h, --help        Show this message.
+    --version         Show the version of Propane.
+    --policy FILE     Propane policy file.
+    --topo FILE       Network topology file (xml).
+    --output DIR      Specify output directory.
+    --failures K      Guarantee k failure safety for aggregation.
+    --abstract        Compile for abstract topology.
+    --parallel        Enable parallel compilation.
+    --naive           Disable policy minimization.
+    --stats           Display compilation statistics to stdout.
+    --checkenter      Check for valid network entry conditions.
+    --anycast         Allow use of ip anycast.
+    --med             Allow use of the BGP MED attribute.
+    --prepending      Allow use of AS path prepending.
+    --noexport        Allow use of the BGP no-export community.
+    --test            Run compiler unit tests.
+    --bench           Generate benchmark policies.
+    --debug           Output debugging information.
+"""
 
 let checkFile f = 
+  let inline adjustFilePath f = 
+    if Path.IsPathRooted(f) then f
+    else currentDir + sep + f
   if File.Exists f then adjustFilePath f
   else 
     let f' = currentDir + sep + f
@@ -47,31 +70,6 @@ let createDir dir =
   with _ -> 
     printfn "Invalid directory: %s" dir
     exit 0
-
-let usage = """
-Usage: propane [options]
-       propane (--help | --version)
-
-Options:
-    -h, --help         Show this message.
-    --version          Show the version of rustc.
-    --policy FILE      Propane policy file.
-    --topo FILE        Network topology file (xml).
-    --output DIR       Specify output directory.
-    --failures K       Guarantee k failure safety for aggregation.
-    --abstract         Compile for abstract topology.
-    --parallel         Enable parallel compilation.
-    --naive            Disable policy minimization.
-    --stats            Display compilation statistics to stdout.
-    --checkenter       Check for valid network entry conditions.
-    --anycast          Allow use of ip anycast.
-    --med              Allow use of the BGP MED attribute.
-    --prepending       Allow use of AS path prepending.
-    --noexport         Allow use of the BGP no-export community.
-    --test             Run compiler unit tests.
-    --bench            Generate benchmark policies.
-    --debug            Output debugging information.
-"""
 
 let exitUsage() = 
   printfn "%s" usage
@@ -127,4 +125,4 @@ let getSettings() =
   | Some s -> s
   | None -> 
     printfn "Error: no settings found"
-    exitUsage()
+    exit 0
