@@ -38,7 +38,8 @@ module Debug =
   let logInfo (idx, str) = 
     let settings = Args.getSettings()
     if settings.Debug then 
-      let logFile = settings.DebugDir + "debug(" + string idx + ").log"
+      let sep = string System.IO.Path.DirectorySeparatorChar
+      let logFile = settings.DebugDir + sep + "debug(" + string idx + ").log"
       System.IO.File.AppendAllText(logFile, str + "\n")
 
 module Profile = 
@@ -261,7 +262,7 @@ module Format =
     let name = 
       match settings.PolFile with
       | Some f -> f
-      | None -> "foo"
+      | None -> "undefined"
     
     let sep = System.IO.Path.DirectorySeparatorChar
     let arr = name.Split(sep)
@@ -275,6 +276,13 @@ module Format =
         first := true
         writeFooter()
       writeFormatted (sprintf "#(cyan)%s#\n" name))
+  
+  let errorLine str = 
+    lock obj (fun () -> 
+      let s = "Error:   "
+      writeColor s ConsoleColor.DarkRed
+      printfn "%s" str
+      exit 0)
   
   let error str = 
     lock obj (fun () -> 

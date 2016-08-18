@@ -218,7 +218,8 @@ let private deleteExportComms (rc : RouterConfiguration) =
     rm.SetCommunity.RemoveAll(fun c -> c.Value.[0] = '1' && not (deleted.Contains(c.Value))) 
     |> ignore
 
-/// Remove unnecessary configuration route maps, filters etc to simplify the configuration.
+/// Remove unnecessary configuration route maps, 
+/// filters etc to simplify the configuration.
 let clean (nc : NetworkConfiguration) = 
   for kv in nc.RouterConfigurations do
     let rc = kv.Value

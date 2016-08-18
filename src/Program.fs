@@ -35,14 +35,12 @@ let main argv =
   if settings.Bench then 
     Benchmark.generate()
     exit 0
-  let fullName = settings.DebugDir + (Util.Option.getOrDefault "output" settings.OutFile)
-  
   let topoInfo = 
     match settings.TopoFile with
-    | None -> error "No topology file specified, use -topo:file compiler flag"
+    | None -> errorLine "No topology file specified, use --help to see options"
     | Some f -> Topology.readTopology f
   match settings.PolFile with
-  | None -> error "No policy file specified, use -pol:file compiler flag"
+  | None -> errorLine "No policy file specified, use --help to see options"
   | Some polFile -> 
     let (lines, defs, cs) = Input.readFromFile polFile
     
@@ -53,15 +51,15 @@ let main argv =
         CConstraints = cs }
     
     let polInfo = Ast.build ast
-    let res = Abgp.compileAllPrefixes fullName polInfo
+    let res = Abgp.compileAllPrefixes polInfo
     match res.AggSafety with
     | Some safetyInfo -> 
       let i = safetyInfo.NumFailures
       
       let bad, warn = 
         match settings.Failures with
-        | Args.Any -> true, true
-        | Args.Concrete j -> i < j, false
+        | None -> true, true
+        | Some j -> i < j, false
       if bad then 
         let x = Topology.router safetyInfo.PrefixLoc topoInfo
         let y = Topology.router safetyInfo.AggregateLoc topoInfo
@@ -77,7 +75,5 @@ let main argv =
         else error msg
     | _ -> ()
     if settings.Stats then printStats res.Stats
-    match settings.OutFile with
-    | None -> ()
-    | Some out -> Generate.generate out res
+    Generate.generate settings.OutDir res
   0

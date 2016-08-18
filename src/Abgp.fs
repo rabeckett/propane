@@ -1108,20 +1108,22 @@ let getMinAggregateFailures (cg : CGraph.T) (pred : Route.Predicate)
 
 let inline buildDfas (reb : Regex.REBuilder) res = List.map (fun r -> reb.MakeDFA(Regex.rev r)) res
 
-let compileToIR fullName idx pred (polInfo : Ast.PolInfo option) aggInfo (reb : Regex.REBuilder) res : PrefixCompileResult = 
+let compileToIR idx pred (polInfo : Ast.PolInfo option) aggInfo (reb : Regex.REBuilder) res : PrefixCompileResult = 
   // get logging information if necessary
   let settings = Args.getSettings()
-  let fullName = fullName + "(" + (string idx) + ")"
+  let sep = string System.IO.Path.DirectorySeparatorChar
+  let name = sprintf "(%d)" idx
+  let debugName = settings.DebugDir + sep + name
   // combine topology and dfa information
   let topo = reb.Topo()
   let dfas, dfaTime = Profile.time (buildDfas reb) res
   let dfas = Array.ofList dfas
   let cg, pgTime = Profile.time (CGraph.buildFromAutomata topo) dfas
   let buildTime = dfaTime + pgTime
-  debug (fun () -> CGraph.generatePNG cg polInfo fullName)
+  debug (fun () -> CGraph.generatePNG cg polInfo debugName)
   // minimize PG and record time
   let cg, minTime = Profile.time (CGraph.Minimize.minimize idx) cg
-  debug (fun () -> CGraph.generatePNG cg polInfo (fullName + "-min"))
+  debug (fun () -> CGraph.generatePNG cg polInfo (debugName + "-min"))
   // warn for anycasts 
   if not settings.Test then warnAnycasts cg polInfo.Value pred
   // check there is a route for each location specified
@@ -1155,15 +1157,16 @@ let compileToIR fullName idx pred (polInfo : Ast.PolInfo option) aggInfo (reb : 
             Config = config }
         
         let msg = formatPred polInfo pred (snd config)
-        debug (fun () -> System.IO.File.WriteAllText(sprintf "%s.ir" fullName, msg))
+        debug 
+          (fun () -> System.IO.File.WriteAllText(sprintf "%s/%s.ir" settings.DebugDir name, msg))
         Ok(result)
       | Err((x, y)) -> Err(InconsistentPrefs(x, y))
     with
       | UncontrollableEnterException s -> Err(UncontrollableEnter s)
       | UncontrollablePeerPreferenceException s -> Err(UncontrollablePeerPreference s)
 
-let compileForSinglePrefix fullName idx (polInfo : Ast.PolInfo) aggInfo (pred, reb, res) : PrefixResult = 
-  match compileToIR fullName idx pred (Some polInfo) aggInfo reb res with
+let compileForSinglePrefix idx (polInfo : Ast.PolInfo) aggInfo (pred, reb, res) : PrefixResult = 
+  match compileToIR idx pred (Some polInfo) aggInfo reb res with
   | Ok(config) -> config
   | Err(x) -> 
     let ti = polInfo.Ast.TopoInfo
@@ -1304,7 +1307,7 @@ let moveOriginationToTop (config : T) : T =
   let rcs = Map.map aux config.RConfigs
   { config with RConfigs = rcs }
 
-let compileAllPrefixes (fullName : string) (polInfo : Ast.PolInfo) : CompilationResult = 
+let compileAllPrefixes (polInfo : Ast.PolInfo) : CompilationResult = 
   let settings = Args.getSettings()
   
   let mapi = 
@@ -1315,8 +1318,7 @@ let compileAllPrefixes (fullName : string) (polInfo : Ast.PolInfo) : Compilation
   let (aggInfo, _, _) = info
   let pairs = Array.ofList polInfo.Policy
   let timedConfigs, prefixTime = 
-    Profile.time 
-      (mapi (fun i x -> Profile.time (compileForSinglePrefix fullName (i + 1) polInfo aggInfo) x)) 
+    Profile.time (mapi (fun i x -> Profile.time (compileForSinglePrefix (i + 1) polInfo aggInfo) x)) 
       pairs
   let nAggFails = Array.map (fun (res, _) -> res.K) timedConfigs
   let k = Array.fold minFails None nAggFails
@@ -2389,7 +2391,7 @@ module Test =
       Map.add "Y" [ (Route.Prefix(10, 0, 0, 0, 31, Route.Range(31, 32)), Seq.ofList [ "PEER" ]) ] 
         aggs
     let res = 
-      compileToIR "" 0 (Route.prefix <| Route.Prefix(10, 0, 0, 0, 32)) None aggs reb 
+      compileToIR 0 (Route.prefix <| Route.Prefix(10, 0, 0, 0, 32)) None aggs reb 
         [ reb.Build Route.top 1 pol ]
     match res with
     | Err _ -> failed()
@@ -2424,7 +2426,7 @@ module Test =
         logInfo (0, msg)
       else 
         let pred = Route.top
-        match compileToIR (settings.DebugDir + test.Name) 0 pred None Map.empty reb built with
+        match compileToIR 0 pred None Map.empty reb built with
         | Err(x) -> 
           if (Option.isSome test.Receive || Option.isSome test.Originate || Option.isSome test.Prefs 
               || Option.isNone test.Fail) then 
