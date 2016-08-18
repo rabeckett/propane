@@ -250,7 +250,34 @@ let internalRouters (nc : NetworkConfiguration) : Set<string> =
     rin <- Set.add kv.Key rin
   rin
 
-let addFakeExternalConfigs (nc : NetworkConfiguration) = failwith ""
+let addFakeExternalConfigs (nc : NetworkConfiguration) = 
+  // collect all external peer connections
+  let mutable peerMap = Map.empty
+  let mutable allPeers = Set.empty
+  let mutable maxID = 0
+  // collect peer information
+  for rc in nc.RouterConfigurations do
+    maxID <- max rc.Value.RouterID maxID
+    allPeers <- Set.add rc.Key allPeers
+    for pc in rc.Value.PeerConfigurations do
+      peerMap <- Util.Map.adjust pc.Peer Set.empty (Set.add (rc.Key, pc.SourceIp, pc.PeerIp)) 
+                   peerMap
+  // add fake external peers
+  let i = ref maxID
+  let j = ref 0
+  let k = ref 0
+  Map.iter (fun exPeer neighbors -> 
+    if not (allPeers.Contains(exPeer)) then 
+      incr i
+      let nwrks = List()
+      let pcs = List()
+      nwrks.Add(Route.ConcretePfx(172, 0, !k, 0, 24))
+      incr k
+      for (n, srcIp, peerIp) in neighbors do
+        let pc = PeerConfig(n, peerIp, srcIp, None, None)
+        pcs.Add(pc)
+      let rc = RouterConfiguration(!i, exPeer, nwrks, List(), List(), List(), List(), List(), pcs)
+      nc.RouterConfigurations.[exPeer] <- rc) peerMap
 
 let generate (out : string) (res : Abgp.CompilationResult) = 
   let settings = Args.getSettings()
@@ -270,4 +297,5 @@ let generate (out : string) (res : Abgp.CompilationResult) =
     let output = quagga rInternal rc
     output |> File.writeFileWithExtension (configDir + File.sep + name) "cfg"
   // Write CORE emulator save file
+  addFakeExternalConfigs nc
   core rInternal nc |> File.writeFileWithExtension (out + File.sep + "core") "imn"

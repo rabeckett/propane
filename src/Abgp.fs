@@ -1430,7 +1430,7 @@ let peerPol ti asPathMap asPathLists (als : List<_>) alID (p : Peer) =
   | Peer.In -> als.Add("path-1")
   | Peer.Out -> als.Add("path-2")
   | Peer.Router peer -> 
-    let regexMatch = sprintf "^%s .*" (getRouter ti peer)
+    let regexMatch = sprintf "^%s_" (getRouter ti peer)
     createAsPathList (Config.Kind.Permit, asPathMap, asPathLists, als, alID, regexMatch)
 
 let matchAllPeers ti (peers : Set<string>) = 
@@ -1439,7 +1439,7 @@ let matchAllPeers ti (peers : Set<string>) =
       let v = getRouter ti peer
       if acc = "" then v
       else v + "|" + acc) "" peers // no spaces allowed
-  sprintf "^(%s) .*" str
+  sprintf "^(%s)_" str
 
 let makeInitialPathList ti peers (asMap, asLists, alID) = 
   if not (Set.isEmpty peers) then 
