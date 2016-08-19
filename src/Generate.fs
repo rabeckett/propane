@@ -265,14 +265,12 @@ let addFakeExternalConfigs (nc : NetworkConfiguration) =
   // add fake external peers
   let i = ref maxID
   let j = ref 0
-  let k = ref 0
   Map.iter (fun exPeer neighbors -> 
     if not (allPeers.Contains(exPeer)) then 
       incr i
       let nwrks = List()
       let pcs = List()
-      nwrks.Add(Route.ConcretePfx(172, 0, !k, 0, 24))
-      incr k
+      nwrks.Add(Route.ConcretePfx(172, 0, 0, 0, 24))
       for (n, srcIp, peerIp) in neighbors do
         let pc = PeerConfig(n, peerIp, srcIp, None, None)
         pcs.Add(pc)

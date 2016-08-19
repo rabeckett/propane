@@ -224,3 +224,6 @@ propane.userprefs
 *.bak
 paper/*/*.pdf
 
+# propane output directory
+output/
+
