@@ -202,7 +202,7 @@ src/Parser.fs
 src/Parser.fsi
 
 # Images
-data/compilation-times-dc.png
+data/*.png
 
 # Generated latex files
 paper/paper.bbl
