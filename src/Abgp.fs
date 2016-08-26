@@ -1069,15 +1069,16 @@ let warnAnycasts cg (polInfo : Ast.PolInfo) pred =
     let msg = 
       sprintf "Anycasting from multiple locations, e.g., %s and %s " loc1 loc2 
       + sprintf "for predicate %s. If you believe this is not a mistake, you can " 
-          (Route.toString pred) + sprintf "enable anycast by using the -anycast:on flag"
+          (Route.toString pred) + sprintf "enable anycast by using the --anycast flag"
     error msg
-  if not (Set.isEmpty bad) then 
+
+(* if not (Set.isEmpty bad) then 
     let loc1 = Topology.router (bad.MinimumElement) ti
     let msg = 
       sprintf "Anycasting from multiple locations, e.g., %s for " loc1 
       + sprintf "predicate %s, even though the location is not explicitly " (Route.toString pred) 
       + sprintf "mentioned in the policy. This is almost always a mistake."
-    warning msg
+    warning msg *)
 
 let getMinAggregateFailures (cg : CGraph.T) (pred : Route.Predicate) 
     (aggInfo : Map<string, DeviceAggregates>) = 
@@ -1597,7 +1598,7 @@ let toConfig (abgp : T) =
         assert (comms.IsEmpty) // TODO: handle this case
         match acts with
         | Originate es -> 
-          let mostGeneral = prefix.Example(mask = true)
+          let mostGeneral = prefix.Example()
           origins.Add((mostGeneral, es))
           originPfxs.Add(mostGeneral)
         | Filters fs -> 
@@ -1654,11 +1655,22 @@ let toConfig (abgp : T) =
     let name = 
       if settings.IsAbstract then Topology.router rname ti
       else rname
+    
+    // get aggregates
+    let aggs = List()
+    
+    let aggregates = 
+      rconfig.Control.Aggregates
+      |> List.map (fun (pfx, _) -> string <| pfx.Example())
+      |> Set.ofList
+    for a in aggregates do
+      aggs.Add(a)
     // unique router id
     rid <- rid + 1
     let routerConfig = 
       RouterConfiguration
-        (rid, name, originPfxs, pfxLists, asLists, cLists, polLists, rMaps, List(peerMap.Values))
+        (rid, name, originPfxs, aggs, pfxLists, asLists, cLists, polLists, rMaps, 
+         List(peerMap.Values))
     networkConfig.[name] <- routerConfig
   let config = Config.NetworkConfiguration(networkConfig)
   Config.clean config

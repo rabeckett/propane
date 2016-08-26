@@ -58,6 +58,9 @@ let quagga (rInternal : Set<string>) (rc : RouterConfiguration) : string =
   bprintf sb "  bgp router-id 192.%d.%d.%d\n" b c d
   for n in rc.Networks do
     bprintf sb "  network %s\n" (string n)
+  // generate aggregates
+  for aggPfx in rc.Aggregates do
+    bprintf sb "  aggregate-address %s as-set summary-only\n" aggPfx
   for pc in rc.PeerConfigurations do
     bprintf sb "  neighbor %s remote-as %s\n" (getPeerIp rc pc) pc.Peer
     if rInternal.Contains(pc.Peer) then 
@@ -274,7 +277,8 @@ let addFakeExternalConfigs (nc : NetworkConfiguration) =
       for (n, srcIp, peerIp) in neighbors do
         let pc = PeerConfig(n, peerIp, srcIp, None, None)
         pcs.Add(pc)
-      let rc = RouterConfiguration(!i, exPeer, nwrks, List(), List(), List(), List(), List(), pcs)
+      let rc = 
+        RouterConfiguration(!i, exPeer, nwrks, List(), List(), List(), List(), List(), List(), pcs)
       nc.RouterConfigurations.[exPeer] <- rc) peerMap
 
 let generate (out : string) (res : Abgp.CompilationResult) = 

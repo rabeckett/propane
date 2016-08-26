@@ -146,16 +146,18 @@ type RouterConfiguration =
     val Name : string
     val RouterID : int
     val Networks : List<Route.TempPrefix>
+    val Aggregates : List<string>
     val PrefixLists : List<PrefixList>
     val AsPathLists : List<AsPathList>
     val CommunityLists : List<CommunityList>
     val PolicyLists : List<PolicyList>
     val mutable RouteMaps : List<RouteMap>
     val PeerConfigurations : List<PeerConfig>
-    new(rid, name, nwrk, pls, als, cls, pols, rms, pcs) = 
+    new(rid, name, nwrk, aggs, pls, als, cls, pols, rms, pcs) = 
       { RouterID = rid
         Name = name
         Networks = nwrk
+        Aggregates = aggs
         PrefixLists = pls
         AsPathLists = als
         CommunityLists = cls

@@ -173,11 +173,11 @@ type BddBuilder(order : Var -> Var -> int) =
 module Bitwise = 
   let inline shr x bits = 
     if bits >= 32 then 0
-    else x >>> bits
+    else int (uint32 x >>> bits)
   
   let inline shl x bits = 
     if bits >= 32 then 0
-    else x <<< bits
+    else int (uint32 x <<< bits)
   
   let inline get x i = (shr x (31 - i)) &&& 1 = 1
   let inline set x i = x ||| (shl 1 (31 - i))
@@ -261,13 +261,8 @@ type Prefix =
         IsTemplate = true
         Name = n }
     
-    member v.Example(mask : bool) : TempPrefix = 
+    member v.Example() : TempPrefix = 
       if v.IsTemplate then TemplatePfx v.Name
-      else if mask then 
-        let (a, b, c, d) = Bitwise.toDotted v.Bits
-        // let (m1, m2, m3, m4) = Bitwise.toMask v.Slash
-        // sprintf "%d.%d.%d.%d mask %d.%d.%d.%d" a b c d m1 m2 m3 m4
-        ConcretePfx(a, b, c, d, v.Slash)
       else 
         let (a, b, c, d) = Bitwise.toDotted v.Bits
         ConcretePfx(a, b, c, d, v.Slash)

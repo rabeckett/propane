@@ -96,8 +96,8 @@ let builtInLocs = Set.ofList [ "in"; "out" ]
 let builtInSingle = Set.add "drop" builtInLocs
 let builtInRes = 
   Set.ofList 
-    [ "start"; "end"; "originate"; "enter"; "exit"; "valleyfree"; "always"; "through"; "avoid"; 
-      "internal"; "any"; "drop"; "in"; "out" ]
+    [ "start"; "end"; "originate"; "enter"; "exit"; "valleyfree"; "path"; "reach"; "always"; 
+      "through"; "avoid"; "internal"; "any"; "drop"; "in"; "out" ]
 let builtInConstraints = Set.ofList [ "aggregate"; "tag"; "maxroutes"; "longest_path" ]
 let builtIns = Set.union builtInRes builtInConstraints
 let routerTemplate = "router"
@@ -477,6 +477,12 @@ let rec buildRegex (ast : T) (reb : Regex.REBuilder) (r : Expr) : Regex.LazyT =
   | Asn i -> reb.Loc(string i)
   | Ident(id, args) -> 
     match id.Name with
+    | "reach" -> 
+      let locs = checkParams id 2 args
+      reb.Reach(locs.[0], locs.[1])
+    | "path" -> 
+      let locs = checkParams id args.Length args
+      reb.Path <| List.map List.head locs
     | "valleyfree" -> 
       let locs = checkParams id args.Length args
       reb.ValleyFree locs
@@ -793,7 +799,7 @@ let findTemplateViolations (ast : T) e =
 
 let inline getEndLocs (ast : T) locs e = 
   match e.Node with
-  | Ident(id, [ e ]) when id.Name = "end" || id.Name = "originate" -> 
+  | Ident(id, [ e ]) when id.Name = "end" -> 
     iter (fun e' -> 
       match e'.Node with
       | Asn i -> locs := Set.add (string i) !locs

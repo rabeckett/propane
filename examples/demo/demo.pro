@@ -5,12 +5,12 @@ define GP2 = 2.0.1.0/24
 
 define Peer = {Peer1, Peer2}
 
-define routing = {
-	GP1 => end(A),
+define destination = {
+	GP1 => end(A), 
 	GP2 => end(B),
 	LP1 => end(E),
 	LP2 => end(F),
-	true => exit(Peer1) >> exit(Peer2)
+	true => exit(Peer1) >> exit(Peer2),
 }
 
 define locality = {
@@ -20,7 +20,7 @@ define locality = {
 define transit(X,Y) = enter(X) and exit(Y)
 
 define notransit = {
-	true => not transit(Peer,Peer)
+	true => not transit(Peer,Peer) 
 }
 
-define main = routing and locality and notransit
+define main = destination and locality and notransit

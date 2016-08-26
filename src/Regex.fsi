@@ -73,6 +73,7 @@ type REBuilder =
   member Avoid : string list -> LazyT
   member End : string list -> LazyT
   member Start : string list -> LazyT
+  member Reach : string list * string list -> LazyT
   member ValleyFree : seq<string list> -> LazyT
   member Enter : string list -> LazyT
   member Exit : string list -> LazyT

@@ -490,7 +490,6 @@ type REBuilder(topo : Topology.T) =
                                this.MaybeOutside() ]
                  this.Concat [ this.MaybeOutside()
                                this.Internal()
-                               this.MaybeInside()
                                this.MaybeOutside()
                                this.Locs outs
                                this.MaybeOutside() ] ]
@@ -540,6 +539,10 @@ type REBuilder(topo : Topology.T) =
                                this.MaybeOutside()
                                this.Internal()
                                this.MaybeOutside() ] ]
+  
+  member this.Reach(xs, ys) = 
+    this.Inter [ this.Start(xs)
+                 this.End(ys) ]
   
   member this.ValleyFree(xs) = 
     let aux (last, acc) x = 

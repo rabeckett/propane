@@ -130,7 +130,7 @@ let findLinks (topo : T) (froms, tos) =
       | _, _ -> ()
   pairs
 
-type Topo = XmlProvider< "../examples/template.xml" >
+type Topo = XmlProvider< "../data/template.xml" >
 
 type TopoInfo = 
   { Graph : T
