@@ -283,8 +283,6 @@ let addFakeExternalConfigs (nc : NetworkConfiguration) =
 
 let generate (out : string) (res : Abgp.CompilationResult) = 
   let settings = Args.getSettings()
-  // Create output directory
-  File.createDir out
   // Generate intermediate representation
   File.writeFileWithExtension (out + File.sep + "configs") "ir" (Abgp.format res.Abgp)
   // Get the low-level configurations

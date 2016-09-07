@@ -2,6 +2,7 @@
 
 open System
 open System.Collections.Generic
+open System.IO
 
 let unreachable() = failwith "unreachable"
 
@@ -58,8 +59,12 @@ module File =
     System.IO.File.WriteAllText(file, text)
   
   let createDir path = 
-    let dir = System.IO.Directory.CreateDirectory(path)
-    dir.Create()
+    if Directory.Exists path then Directory.Delete(path, true)
+    try 
+      Directory.CreateDirectory(path).Create()
+    with _ -> 
+      printfn "Failed to create directory: %s" path
+      exit 0
 
 module List = 
   let inline fold f b ls = 

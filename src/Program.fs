@@ -42,6 +42,8 @@ let main argv =
   match settings.PolFile with
   | None -> errorLine "No policy file specified, use --help to see options"
   | Some polFile -> 
+    Util.File.createDir settings.OutDir
+    Util.File.createDir settings.DebugDir
     let (lines, defs, cs) = Input.readFromFile polFile
     
     let ast : Ast.T = 

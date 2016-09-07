@@ -63,14 +63,6 @@ let checkFile f =
       printfn "Invalid file: %s" f
       exit 0
 
-let createDir dir = 
-  if Directory.Exists dir then Directory.Delete(dir, true)
-  try 
-    Directory.CreateDirectory(dir).Create()
-  with _ -> 
-    printfn "Invalid directory: %s" dir
-    exit 0
-
 let exitUsage() = 
   printfn "%s" usage
   exit 0
@@ -97,9 +89,7 @@ let parse (argv : string []) : unit =
     match outDir with
     | None -> currentDir + sep + "output"
     | Some d -> d
-  createDir outDir
   debugDir := outDir + sep + "debug"
-  createDir !debugDir
   let s = 
     { PolFile = getFile vs.["--policy"]
       TopoFile = getFile vs.["--topo"]
