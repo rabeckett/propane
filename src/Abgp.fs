@@ -87,7 +87,6 @@ type T =
     RConfigs : Map<string, RouterConfig> }
 
 type CounterExample = 
-  | NoPathForRouters of Set<string>
   | InconsistentPrefs of CgState * CgState
   | UncontrollableEnter of string
   | UncontrollablePeerPreference of string
@@ -1031,7 +1030,7 @@ let inline insideOriginators cg =
   |> Seq.choose insideLoc
   |> Set.ofSeq
 
-let getLocsThatCantGetPath idx cg (reb : Regex.REBuilder) dfas = 
+let getLocsWithNoPath idx cg (reb : Regex.REBuilder) dfas = 
   let startingLocs = Array.fold (fun acc dfa -> Set.union (reb.StartingLocs dfa) acc) Set.empty dfas
   let originators = insideOriginators cg
   
@@ -1128,43 +1127,48 @@ let compileToIR idx pred (polInfo : Ast.PolInfo option) aggInfo (reb : Regex.REB
   // warn for anycasts 
   if not settings.Test then warnAnycasts cg polInfo.Value pred
   // check there is a route for each location specified
-  let lost = getLocsThatCantGetPath idx cg reb dfas
-  if not (Set.isEmpty lost) then Err(NoPathForRouters(lost))
-  else 
-    // Find unused preferences for policies that were not drop
-    let unusedPrefs = getUnusedPrefs cg res
-    if not (Set.isEmpty unusedPrefs) then 
-      let predStr = Route.toString pred
-      Set.iter (fun i -> 
-        let msg = sprintf "Unused preference %d policy " i + sprintf "for predicate %s" predStr
-        warning msg) unusedPrefs
-    try 
-      // check that BGP can ensure incoming traffic compliance
-      let inExports = Incoming.configureIncomingTraffic cg
-      // check aggregation failure consistency
-      let k = getMinAggregateFailures cg pred aggInfo
-      // check that there is a valid ordering for BGP preferences to ensure compliance
-      let (ordering, orderTime) = Profile.time (Consistency.findOrderingConservative idx) cg
-      match ordering with
-      | Ok ord -> 
-        let config, configTime = Profile.time (genConfig cg pred ord) inExports
-        
-        let result = 
-          { K = k
-            BuildTime = buildTime
-            MinimizeTime = minTime
-            OrderingTime = orderTime
-            ConfigTime = configTime
-            Config = config }
-        
-        let msg = formatPred polInfo pred (snd config)
-        debug 
-          (fun () -> System.IO.File.WriteAllText(sprintf "%s/%s.ir" settings.DebugDir name, msg))
-        Ok(result)
-      | Err((x, y)) -> Err(InconsistentPrefs(x, y))
-    with
-      | UncontrollableEnterException s -> Err(UncontrollableEnter s)
-      | UncontrollablePeerPreferenceException s -> Err(UncontrollablePeerPreference s)
+  let lost = getLocsWithNoPath idx cg reb dfas
+  if not (Set.isEmpty lost) then 
+    match polInfo with
+    | Some pi -> 
+      let ti = pi.Ast.TopoInfo
+      let locs = Set.map (fun r -> Topology.router r ti) lost |> Util.Set.joinBy ", "
+      let msg = sprintf "Routers: %s will have no path to the destination" locs
+      warning msg
+    | None -> ()
+  // Find unused preferences for policies that were not drop
+  let unusedPrefs = getUnusedPrefs cg res
+  if not (Set.isEmpty unusedPrefs) then 
+    let predStr = Route.toString pred
+    Set.iter (fun i -> 
+      let msg = sprintf "Unused preference %d policy " i + sprintf "for predicate %s" predStr
+      warning msg) unusedPrefs
+  try 
+    // check that BGP can ensure incoming traffic compliance
+    let inExports = Incoming.configureIncomingTraffic cg
+    // check aggregation failure consistency
+    let k = getMinAggregateFailures cg pred aggInfo
+    // check that there is a valid ordering for BGP preferences to ensure compliance
+    let (ordering, orderTime) = Profile.time (Consistency.findOrderingConservative idx) cg
+    match ordering with
+    | Ok ord -> 
+      let config, configTime = Profile.time (genConfig cg pred ord) inExports
+      
+      let result = 
+        { K = k
+          BuildTime = buildTime
+          MinimizeTime = minTime
+          OrderingTime = orderTime
+          ConfigTime = configTime
+          Config = config }
+      
+      let msg = formatPred polInfo pred (snd config)
+      debug (fun () -> System.IO.File.WriteAllText(sprintf "%s/%s.ir" settings.DebugDir name, msg))
+      Ok(result)
+    | Err((x, y)) -> Err(InconsistentPrefs(x, y))
+  with
+    | UncontrollableEnterException s -> Err(UncontrollableEnter s)
+    | UncontrollablePeerPreferenceException s -> Err(UncontrollablePeerPreference s)
 
 let compileForSinglePrefix idx (polInfo : Ast.PolInfo) aggInfo (pred, reb, res) : PrefixResult = 
   match compileToIR idx pred (Some polInfo) aggInfo reb res with
@@ -1172,12 +1176,6 @@ let compileForSinglePrefix idx (polInfo : Ast.PolInfo) aggInfo (pred, reb, res) 
   | Err(x) -> 
     let ti = polInfo.Ast.TopoInfo
     match x with
-    | NoPathForRouters rs -> 
-      let routers = Set.map (fun r -> Topology.router r ti) rs |> Util.Set.joinBy ", "
-      let msg = 
-        sprintf "Unable to find a path for routers: " 
-        + sprintf "%s for predicate %s" routers (Route.toString pred)
-      error msg
     | InconsistentPrefs(x, y) -> 
       let l = Topology.router (CGraph.loc x) ti
       let msg = 
@@ -1732,7 +1730,6 @@ module Test =
   
   type FailReason = 
     | FRInconsistentPrefs
-    | FRNoPathForRouters
     | FRCantControlPeers
   
   type Test = 
@@ -1781,7 +1778,8 @@ module Test =
   let rDatacenterSmall2 (pb : Route.PredicateBuilder) (reb : Regex.REBuilder) = 
     let pref1 = 
       reb.Inter [ reb.Through [ "M" ]
-                  reb.End [ "A" ] ]
+                  reb.End [ "A" ]
+                  reb.Start [ "B"; "C"; "D" ] ]
     [ reb.Build Route.top 1 pref1 ]
   
   let rDatacenterSmall3 (pb : Route.PredicateBuilder) (reb : Regex.REBuilder) = 
@@ -2098,13 +2096,13 @@ module Test =
         Prefs = Some []
         Fail = None }
       { Name = "DCsmall2"
-        Explanation = "Through spine no backup (should fail)"
+        Explanation = "Through spine no backup"
         Topo = tDatacenterSmall
         Rf = rDatacenterSmall2
-        Receive = None
-        Originate = None
-        Prefs = None
-        Fail = Some FRNoPathForRouters }
+        Receive = Some []
+        Originate = Some [ "A" ]
+        Prefs = Some []
+        Fail = None }
       { Name = "DCsmall3"
         Explanation = "Through spine with backup"
         Topo = tDatacenterSmall
@@ -2234,7 +2232,7 @@ module Test =
         Receive = None
         Originate = None
         Prefs = None
-        Fail = Some FRNoPathForRouters }
+        Fail = Some FRInconsistentPrefs }
       { Name = "DClarge2"
         Explanation = "Through spine with backup (should fail)"
         Topo = tDatacenterLarge
@@ -2447,7 +2445,6 @@ module Test =
             let msg = sprintf "[Failed]: Name: %s, should compile but did not" test.Name
             logInfo (0, msg)
           match test.Fail, x with
-          | Some FRNoPathForRouters, NoPathForRouters _ -> passed()
           | Some FRInconsistentPrefs, InconsistentPrefs _ -> passed()
           | Some FRCantControlPeers, UncontrollableEnter _ -> passed()
           | Some FRCantControlPeers, UncontrollablePeerPreference _ -> passed()
