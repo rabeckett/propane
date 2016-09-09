@@ -671,8 +671,13 @@ module Consistency =
         let n = q.Dequeue()
         let x = n.More
         let y = n.Less
-        let nsx = neighbors cg x |> Seq.fold (fun acc x -> Map.add (loc x) x acc) Map.empty
-        let nsy = neighbors cg y
+        
+        let nsx = 
+          neighbors cg x
+          |> Seq.filter isInside
+          |> Seq.fold (fun acc x -> Map.add (loc x) x acc) Map.empty
+        
+        let nsy = neighbors cg y |> Seq.filter isInside
         for y' in nsy do
           match Map.tryFind (loc y') nsx with
           | None -> 
