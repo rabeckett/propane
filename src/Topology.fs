@@ -140,18 +140,27 @@ type TopoInfo =
     AllNames : Set<string>
     IpMap : Dictionary<string * string, string * string> }
 
+let MAX_ASN = 65534
 let counter = ref 0
+let currASN = ref (MAX_ASN + 1)
 
-let inline getAsn isAbstract name (asn : string) = 
+let inline getAsn isAbstract inside name (asn : string) = 
   if isAbstract then 
-    incr counter
-    !counter
+    if asn <> "" then error (sprintf "Invalid topology: ASN included in abstract topology: %s" asn)
+    else 
+      incr counter
+      !counter
+  else if asn = "" then 
+    if not inside then error (sprintf "Invalid topology: ASN required for external peer: %s" name)
+    else 
+      decr currASN
+      !currASN
   else 
     let i = 
       try 
         int asn
       with _ -> error (sprintf "Invalid topology: Unrecognized AS number %s" asn)
-    if i < 0 then error (sprintf "Negate AS number '%s' in topology for node '%s'" asn name)
+    if i < 0 then error (sprintf "Negative AS number '%s' in topology for node '%s'" asn name)
     else i
 
 let router (asn : string) (ti : TopoInfo) = 
@@ -190,14 +199,13 @@ let readTopology (file : string) : TopoInfo =
       Topo.Load file
     with _ -> error "Invalid topology XML file"
   
+  let mutable currASN = MAX_ASN
   let mutable nodeMap = Map.empty
   let mutable asnMap = Map.empty
   let mutable internalNames = Set.empty
   let mutable externalNames = Set.empty
   for n in topo.Nodes do
-    if settings.IsAbstract && n.Asn <> "" then 
-      error (sprintf "Invalid topology: ASN included in abstract topology")
-    let asn = getAsn settings.IsAbstract n.Name n.Asn
+    let asn = getAsn settings.IsAbstract n.Internal n.Name n.Asn
     match Map.tryFind n.Name asnMap with
     | None -> asnMap <- Map.add n.Name asn asnMap
     | Some _ -> error (sprintf "Duplicate router name '%s' in topology" n.Name)

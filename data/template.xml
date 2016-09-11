@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
-<topology>
-  <node internal="true" asn="" name=""></node>
+<topology asn="">
+  <node internal="true" name=""></node>
   <node internal="true" asn="" name="" device=""></node>
   <edge source="" target="" source-ip="" target-ip=""></edge>
   <edge source="" target="" source-ip="" target-ip=""></edge>
