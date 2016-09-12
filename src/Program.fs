@@ -77,5 +77,5 @@ let main argv =
         else error msg
     | _ -> ()
     if settings.Stats then printStats res.Stats
-    Generate.generate settings.OutDir res
+    Generate.generate res
   0

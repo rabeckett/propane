@@ -58,6 +58,7 @@ val peers : T -> Node -> seq<Node>
 
 type TopoInfo = 
   { Graph : T
+    NetworkAsn : int
     AsnMap : Map<string, int>
     InternalNames : Set<string>
     ExternalNames : Set<string>

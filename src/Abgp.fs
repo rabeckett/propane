@@ -1429,16 +1429,16 @@ let peerPol ti asPathMap asPathLists (als : List<_>) alID (p : Peer) =
   | Peer.In -> als.Add("path-1")
   | Peer.Out -> als.Add("path-2")
   | Peer.Router peer -> 
-    let regexMatch = sprintf "^%s_" (getRouter ti peer)
+    let regexMatch = sprintf "^\(?%s_" (getRouter ti peer)
     createAsPathList (Config.Kind.Permit, asPathMap, asPathLists, als, alID, regexMatch)
 
 let matchAllPeers ti (peers : Set<string>) = 
   let str = 
-    Set.fold (fun acc peer -> 
-      let v = getRouter ti peer
-      if acc = "" then v
-      else v + "|" + acc) "" peers // no spaces allowed
-  sprintf "^(%s)_" str
+    peers
+    |> Set.map (getRouter ti)
+    |> Util.Set.joinBy "|"
+  if peers.Count > 1 then sprintf "^\(?(%s)_" str
+  else sprintf "^\(?%s_" str
 
 let makeInitialPathList ti peers (asMap, asLists, alID) = 
   if not (Set.isEmpty peers) then 
@@ -1644,14 +1644,14 @@ let toConfig (abgp : T) =
     for peer in allPeers do
       let export = Map.tryFind peer peerExportMap
       let routerIp, peerIp = ti.IpMap.[(rname, peer)]
-      
-      let peerName = 
-        if settings.IsAbstract then Topology.router peer ti
-        else peer
-      peerMap.[peerName] <- PeerConfig(peerName, routerIp, peerIp, Some "rm-in", export)
+      let peerName = Topology.router peer ti
+      let peerAsn = string ti.AsnMap.[peerName]
+      peerMap.[peerName] <- PeerConfig(peerName, peerAsn, routerIp, peerIp, Some "rm-in", export)
     // create the complete configuration for this router
-    let name = 
-      if settings.IsAbstract then Topology.router rname ti
+    let name = Topology.router rname ti
+    
+    let asn = 
+      if settings.IsAbstract then name
       else rname
     
     // get aggregates
@@ -1667,10 +1667,10 @@ let toConfig (abgp : T) =
     rid <- rid + 1
     let routerConfig = 
       RouterConfiguration
-        (rid, name, originPfxs, aggs, pfxLists, asLists, cLists, polLists, rMaps, 
-         List(peerMap.Values))
+        (name, string ti.NetworkAsn, asn, rid, originPfxs, aggs, pfxLists, asLists, cLists, polLists, 
+         rMaps, List(peerMap.Values))
     networkConfig.[name] <- routerConfig
-  let config = Config.NetworkConfiguration(networkConfig)
+  let config = Config.NetworkConfiguration(networkConfig, string ti.NetworkAsn)
   Config.clean config
   config
 

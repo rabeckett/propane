@@ -127,12 +127,14 @@ type RouteMap =
 type PeerConfig = 
   class
     val Peer : string
+    val PeerAsn : string
     val PeerIp : string
     val SourceIp : string
     val mutable InFilter : string option // route map name
     val mutable OutFilter : string option
-    new(p, sip, pip, i, o) = 
+    new(p, pasn, sip, pip, i, o) = 
       { Peer = p
+        PeerAsn = pasn
         SourceIp = sip
         PeerIp = pip
         InFilter = i
@@ -144,6 +146,8 @@ type PeerConfig =
 type RouterConfiguration = 
   class
     val Name : string
+    val NetworkAsn : string
+    val RouterAsn : string
     val RouterID : int
     val Networks : List<Route.TempPrefix>
     val Aggregates : List<string>
@@ -153,9 +157,11 @@ type RouterConfiguration =
     val PolicyLists : List<PolicyList>
     val mutable RouteMaps : List<RouteMap>
     val PeerConfigurations : List<PeerConfig>
-    new(rid, name, nwrk, aggs, pls, als, cls, pols, rms, pcs) = 
-      { RouterID = rid
-        Name = name
+    new(name, nasn, rasn, rid, nwrk, aggs, pls, als, cls, pols, rms, pcs) = 
+      { Name = name
+        NetworkAsn = nasn
+        RouterAsn = rasn
+        RouterID = rid
         Networks = nwrk
         Aggregates = aggs
         PrefixLists = pls
@@ -169,8 +175,11 @@ type RouterConfiguration =
 /// Network-wide configuration as a collection of router configurations
 type NetworkConfiguration = 
   class
+    val NetworkAsn : string
     val RouterConfigurations : Dictionary<string, RouterConfiguration>
-    new(rcs) = { RouterConfigurations = rcs }
+    new(rcs, nasn) = 
+      { RouterConfigurations = rcs
+        NetworkAsn = nasn }
   end
 
 /// Remove a peer route map if the route map is never used (i.e., does not exist).

@@ -134,6 +134,7 @@ type Topo = XmlProvider< "../data/template.xml" >
 
 type TopoInfo = 
   { Graph : T
+    NetworkAsn : int
     AsnMap : Map<string, int>
     InternalNames : Set<string>
     ExternalNames : Set<string>
@@ -143,6 +144,12 @@ type TopoInfo =
 let MAX_ASN = 65534
 let counter = ref 0
 let currASN = ref (MAX_ASN + 1)
+
+let parseAsn s = 
+  if s = "" then error (sprintf "Invalid topology: No asn specified")
+  try 
+    int s
+  with _ -> error (sprintf "Invalid topology: Unrecognized AS number %s" s)
 
 let inline getAsn isAbstract inside name (asn : string) = 
   if isAbstract then 
@@ -156,10 +163,7 @@ let inline getAsn isAbstract inside name (asn : string) =
       decr currASN
       !currASN
   else 
-    let i = 
-      try 
-        int asn
-      with _ -> error (sprintf "Invalid topology: Unrecognized AS number %s" asn)
+    let i = parseAsn asn
     if i < 0 then error (sprintf "Negative AS number '%s' in topology for node '%s'" asn name)
     else i
 
@@ -193,54 +197,58 @@ let readTopology (file : string) : TopoInfo =
       seen.Add(x, y) |> ignore
       let e = Edge(x, y)
       ignore (g.AddEdge e)
-  
-  let topo = 
-    try 
-      Topo.Load file
-    with _ -> error "Invalid topology XML file"
-  
-  let mutable currASN = MAX_ASN
-  let mutable nodeMap = Map.empty
-  let mutable asnMap = Map.empty
-  let mutable internalNames = Set.empty
-  let mutable externalNames = Set.empty
-  for n in topo.Nodes do
-    let asn = getAsn settings.IsAbstract n.Internal n.Name n.Asn
-    match Map.tryFind n.Name asnMap with
-    | None -> asnMap <- Map.add n.Name asn asnMap
-    | Some _ -> error (sprintf "Duplicate router name '%s' in topology" n.Name)
-    let typ = 
-      if n.Internal then Inside
-      else Outside
-    if n.Internal then internalNames <- Set.add n.Name internalNames
-    else externalNames <- Set.add n.Name externalNames
-    // TODO: duplicate names not handled
-    let state = Node(string asn, typ)
-    nodeMap <- Map.add n.Name state nodeMap
-    ignore (g.AddVertex state)
-  let ipMap = Dictionary()
-  let ip = ref 0
-  for e in topo.Edges do
-    if settings.IsAbstract && (e.SourceIp <> "" || e.TargetIp <> "") then 
-      error (sprintf "Invalid topology: source/target IP included in abstract topology")
-    if not (nodeMap.ContainsKey e.Source) then 
-      error (sprintf "Invalid edge source location %s in topology" e.Source)
-    elif not (nodeMap.ContainsKey e.Target) then 
-      error (sprintf "Invalid edge target location %s in topology" e.Target)
-    else 
-      let (s, t) = assignIps e.SourceIp e.TargetIp ip
-      let x = nodeMap.[e.Source]
-      let y = nodeMap.[e.Target]
-      addEdge x y
-      addEdge y x
-      ipMap.[(x.Loc, y.Loc)] <- (s, t)
-      ipMap.[(y.Loc, x.Loc)] <- (t, s)
-  { Graph = Topology(g)
-    AsnMap = asnMap
-    InternalNames = internalNames
-    ExternalNames = externalNames
-    AllNames = Set.union internalNames externalNames
-    IpMap = ipMap }
+  try 
+    let topo = Topo.Load file
+    let mutable currASN = MAX_ASN
+    let mutable nodeMap = Map.empty
+    let mutable asnMap = Map.empty
+    let mutable nameMap = Map.empty
+    let mutable internalNames = Set.empty
+    let mutable externalNames = Set.empty
+    for n in topo.Nodes do
+      let asn = getAsn settings.IsAbstract n.Internal n.Name n.Asn
+      match Map.tryFind n.Name asnMap with
+      | None -> 
+        asnMap <- Map.add n.Name asn asnMap
+        match Map.tryFind asn nameMap with
+        | Some e -> error (sprintf "Duplicate AS numbers for %s and %s" e n.Name)
+        | None -> ()
+        nameMap <- Map.add asn n.Name nameMap
+      | Some _ -> error (sprintf "Duplicate router name '%s' in topology" n.Name)
+      let typ = 
+        if n.Internal then Inside
+        else Outside
+      if n.Internal then internalNames <- Set.add n.Name internalNames
+      else externalNames <- Set.add n.Name externalNames
+      // TODO: duplicate names not handled
+      let state = Node(string asn, typ)
+      nodeMap <- Map.add n.Name state nodeMap
+      ignore (g.AddVertex state)
+    let ipMap = Dictionary()
+    let ip = ref 0
+    for e in topo.Edges do
+      if settings.IsAbstract && (e.SourceIp <> "" || e.TargetIp <> "") then 
+        error (sprintf "Invalid topology: source/target IP included in abstract topology")
+      if not (nodeMap.ContainsKey e.Source) then 
+        error (sprintf "Invalid edge source location %s in topology" e.Source)
+      elif not (nodeMap.ContainsKey e.Target) then 
+        error (sprintf "Invalid edge target location %s in topology" e.Target)
+      else 
+        let (s, t) = assignIps e.SourceIp e.TargetIp ip
+        let x = nodeMap.[e.Source]
+        let y = nodeMap.[e.Target]
+        addEdge x y
+        addEdge y x
+        ipMap.[(x.Loc, y.Loc)] <- (s, t)
+        ipMap.[(y.Loc, x.Loc)] <- (t, s)
+    { Graph = Topology(g)
+      NetworkAsn = parseAsn (topo.Asn)
+      AsnMap = asnMap
+      InternalNames = internalNames
+      ExternalNames = externalNames
+      AllNames = Set.union internalNames externalNames
+      IpMap = ipMap }
+  with _ -> error "Invalid topology XML file"
 
 module Examples = 
   let topoDisconnected() = 

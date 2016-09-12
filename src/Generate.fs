@@ -20,15 +20,19 @@ let writePolList sb (pol : PolicyList) =
   for aname in pol.AsPathLists do
     bprintf sb "  match as-path %s\n" aname
 
-let getRouterName (rc : RouterConfiguration) = 
+let getRouterAsn (rc : RouterConfiguration) = 
   let s = Args.getSettings()
   if s.IsAbstract then rc.Name + ".$router$"
-  else rc.Name
+  else rc.RouterAsn
 
 let getPeerIp (rc : RouterConfiguration) (pc : PeerConfig) = 
   let s = Args.getSettings()
   if s.IsAbstract then sprintf "%s.%s.$peerIP$" rc.Name pc.Peer
   else pc.PeerIp
+
+let getPeerAsn rInternal (rc : RouterConfiguration) (pc : PeerConfig) = 
+  if Set.contains rc.Name rInternal then pc.PeerAsn
+  else rc.NetworkAsn
 
 let getSourceIp (rc : RouterConfiguration) (pc : PeerConfig) = 
   let s = Args.getSettings()
@@ -45,26 +49,42 @@ let quaggaInterfaces (rc : RouterConfiguration) : string =
     i <- i + 1
   string sb
 
+let confedAsn rInternal (pc : PeerConfig) = 
+  if Set.contains pc.Peer rInternal then Some pc.PeerAsn
+  else None
+
 let quagga (rInternal : Set<string>) (rc : RouterConfiguration) : string = 
   let settings = Args.getSettings()
   let sb = System.Text.StringBuilder()
   // generate interface info
   bprintf sb "%s" (quaggaInterfaces rc)
   // bgp network and peers
-  bprintf sb "router bgp %s\n" (getRouterName rc)
+  bprintf sb "router bgp %s\n" (getRouterAsn rc)
   bprintf sb "  no synchronization\n"
   // convert router id to prefix
   let (_, b, c, d) = Route.Bitwise.toDotted rc.RouterID
   bprintf sb "  bgp router-id 192.%d.%d.%d\n" b c d
+  // Ensure private ASNs don't appear by using BGP confederations
+  if rInternal.Contains rc.Name then 
+    if rc.NetworkAsn <> rc.RouterAsn then 
+      bprintf sb "  bgp confederation identifier %s\n" rc.NetworkAsn
+      let allConfedAsns = 
+        rc.PeerConfigurations
+        |> Seq.choose (confedAsn rInternal)
+        |> List.ofSeq
+        |> Util.List.joinBy " "
+      bprintf sb "  bgp confederation peers %s\n" allConfedAsns
   for n in rc.Networks do
     bprintf sb "  network %s\n" (string n)
   // generate aggregates
   for aggPfx in rc.Aggregates do
     bprintf sb "  aggregate-address %s as-set summary-only\n" aggPfx
   for pc in rc.PeerConfigurations do
-    bprintf sb "  neighbor %s remote-as %s\n" (getPeerIp rc pc) pc.Peer
+    bprintf sb "  neighbor %s remote-as %s\n" (getPeerIp rc pc) (getPeerAsn rInternal rc pc)
     if rInternal.Contains(pc.Peer) then 
-      bprintf sb "  neighbor %s send-community both\n" (getPeerIp rc pc)
+      let peerIp = getPeerIp rc pc
+      bprintf sb "  neighbor %s next-hop-self\n" peerIp
+      bprintf sb "  neighbor %s send-community both\n" peerIp
   for pc in rc.PeerConfigurations do
     match pc.InFilter with
     | None -> ()
@@ -115,7 +135,6 @@ let core (rInternal : Set<string>) (nc : NetworkConfiguration) : string =
     i <- i + 1
   // populate the host map [router name --> network, router id, host id]
   for kv in nc.RouterConfigurations do
-    let name = kv.Key
     let rc = kv.Value
     if rc.Networks.Count > 0 then 
       let n = rc.Networks.[0]
@@ -129,24 +148,23 @@ let core (rInternal : Set<string>) (nc : NetworkConfiguration) : string =
             let y = sprintf "%d.%d.%d.%d/%d" a b c (d + 2) slash
             (x, y)
         | _ -> failwith "unreachable"
-      hostMap.[name] <- (hSub, rSub, nodeMap.[name], i)
+      hostMap.[rc.Name] <- (hSub, rSub, nodeMap.[rc.Name], i)
       i <- i + 1
   // generate router information
   let mutable i = 1
   for kv in nc.RouterConfigurations do
-    let name = kv.Key
     let rc = kv.Value
     // per router
     bprintf sb "node n%d {\n" i
     bprintf sb "    type router\n"
     bprintf sb "    model router\n"
     bprintf sb "    network-config {\n"
-    bprintf sb "\thostname AS%s\n" rc.Name
+    bprintf sb "\thostname %s\n" rc.Name
     bprintf sb "\t!\n"
     bprintf sb "%s\n" (quaggaInterfaces rc |> Util.Format.indent 1 true)
     // add host interface if needed
-    if hostMap.ContainsKey(name) then 
-      let (_, rSub, rId, hId) = hostMap.[name]
+    if hostMap.ContainsKey(rc.Name) then 
+      let (_, rSub, rId, hId) = hostMap.[rc.Name]
       bprintf sb "\tinterface eth%d\n" (rc.PeerConfigurations.Count)
       bprintf sb "\t ip address %s\n" rSub
       bprintf sb "\t!\n"
@@ -161,8 +179,8 @@ let core (rInternal : Set<string>) (nc : NetworkConfiguration) : string =
         bprintf sb "    interface-peer {eth%d n%d}\n" j nodeMap.[peer.Peer]
         j <- j + 1
     // interfaces to attached host
-    if hostMap.ContainsKey(name) then 
-      let (_, _, _, hId) = hostMap.[name]
+    if hostMap.ContainsKey(rc.Name) then 
+      let (_, _, _, hId) = hostMap.[rc.Name]
       bprintf sb "    interface-peer {eth%d n%d}" j hId
       j <- j + 1
     bprintf sb "    canvas c1\n"
@@ -208,7 +226,6 @@ let core (rInternal : Set<string>) (nc : NetworkConfiguration) : string =
     bprintf sb "}\n\n"
   // Add links for hosts
   for kv in hostMap do
-    let name = kv.Key
     let (_, _, rId, hId) = kv.Value
     bprintf sb "link l%d_%d {\n" rId hId
     bprintf sb "    nodes {n%d n%d}\n" rId hId
@@ -258,31 +275,36 @@ let addFakeExternalConfigs (nc : NetworkConfiguration) =
   let mutable peerMap = Map.empty
   let mutable allPeers = Set.empty
   let mutable maxID = 0
-  // collect peer information
-  for rc in nc.RouterConfigurations do
-    maxID <- max rc.Value.RouterID maxID
-    allPeers <- Set.add rc.Key allPeers
-    for pc in rc.Value.PeerConfigurations do
-      peerMap <- Util.Map.adjust pc.Peer Set.empty (Set.add (rc.Key, pc.SourceIp, pc.PeerIp)) 
-                   peerMap
+  // collect peer information 
+  for pair in nc.RouterConfigurations do
+    let name = pair.Key
+    let rc = pair.Value
+    maxID <- max rc.RouterID maxID
+    allPeers <- Set.add name allPeers
+    for pc in rc.PeerConfigurations do
+      peerMap <- Util.Map.adjust (pc.Peer, pc.PeerAsn) Set.empty 
+                   (Set.add (rc.Name, rc.RouterAsn, pc.SourceIp, pc.PeerIp)) peerMap
   // add fake external peers
   let i = ref maxID
   let j = ref 0
-  Map.iter (fun exPeer neighbors -> 
+  Map.iter (fun (exPeer, exAsn) neighbors -> 
     if not (allPeers.Contains(exPeer)) then 
       incr i
       let nwrks = List()
       let pcs = List()
       nwrks.Add(Route.ConcretePfx(172, 0, 0, 0, 24))
-      for (n, srcIp, peerIp) in neighbors do
-        let pc = PeerConfig(n, peerIp, srcIp, None, None)
+      for (n, asn, srcIp, peerIp) in neighbors do
+        let pc = PeerConfig(n, asn, peerIp, srcIp, None, None)
         pcs.Add(pc)
       let rc = 
-        RouterConfiguration(!i, exPeer, nwrks, List(), List(), List(), List(), List(), List(), pcs)
+        RouterConfiguration
+          (exPeer, nc.NetworkAsn, exAsn, !i, nwrks, List(), List(), List(), List(), List(), List(), 
+           pcs)
       nc.RouterConfigurations.[exPeer] <- rc) peerMap
 
-let generate (out : string) (res : Abgp.CompilationResult) = 
+let generate (res : Abgp.CompilationResult) = 
   let settings = Args.getSettings()
+  let out = settings.OutDir
   // Generate intermediate representation
   File.writeFileWithExtension (out + File.sep + "configs") "ir" (Abgp.format res.Abgp)
   // Get the low-level configurations
