@@ -22,8 +22,7 @@ type CgState =
     State : int
     Accept : int16
     Node : Topology.Node }
-  override this.ToString() = 
-    "(Id=" + string this.Id + ", State=" + string this.State + ", Loc=" + this.Node.Loc + ")"
+  override this.ToString() = "(" + string this.State + ", " + this.Node.Loc + ")"
   
   override x.Equals(other) = 
     match other with
@@ -462,6 +461,11 @@ module Domination =
     let postorderMap = Dictionary()
     for (n, i) in postorder do
       postorderMap.[n] <- i
+    let inline findBefore i preds = 
+      let aux x = 
+        let (b, v) = postorderMap.TryGetValue x
+        b && (v < i)
+      Seq.find aux preds
     for b in cg.Graph.Vertices do
       dom.[b] <- None
     dom.[root] <- Some root
@@ -471,7 +475,7 @@ module Domination =
       for b, i in postorder do
         if b <> root then 
           let preds = adj b
-          let mutable newIDom = Seq.find (fun x -> postorderMap.[x] < i) preds
+          let mutable newIDom = findBefore i preds
           for p in preds do
             if p <> newIDom then 
               if dom.[p] <> None then newIDom <- inter postorderMap dom p newIDom
@@ -658,34 +662,38 @@ module Consistency =
       
       // add nodes if preserves the preference relation
       let inline add x' y' (x, y) = 
-        let i, j = x'.Accept, y'.Accept
-        if i > j then counterEx := Some(x, y)
-        else 
-          let n' = Node(x', y')
-          if not (seen.Contains n') then 
-            ignore (seen.Add n')
-            q.Enqueue n'
+        // TODO: total hack for now
+        if isInside x && isInside y then 
+          let i, j = x'.Accept, y'.Accept
+          if i > j && (isInside x') && (isInside y') then // Hack
+            counterEx := Some(x, y)
+          else 
+            let n' = Node(x', y')
+            if not (seen.Contains n') then 
+              ignore (seen.Add n')
+              q.Enqueue n'
       // add initial node
       add n1 n2 (n1, n2)
       while q.Count > 0 && Option.isNone !counterEx do
         let n = q.Dequeue()
         let x = n.More
         let y = n.Less
-        
-        let nsx = 
-          neighbors cg x
-          |> Seq.filter isInside
-          |> Seq.fold (fun acc x -> Map.add (loc x) x acc) Map.empty
-        
-        let nsy = neighbors cg y |> Seq.filter isInside
-        for y' in nsy do
-          match Map.tryFind (loc y') nsx with
-          | None -> 
-            let inline relevantDom x' = loc x' = loc y' && cg.Graph.ContainsVertex x'
-            match doms.TryIsDominatedBy(x, relevantDom) with
-            | None -> counterEx := Some(x, y)
+        // TODO: total hack for now
+        if isInside x && isInside y then 
+          let nsx = 
+            neighbors cg x
+            |> Seq.filter (fun v -> Topology.isTopoNode v.Node)
+            |> Seq.fold (fun acc x -> Map.add (loc x) x acc) Map.empty
+          
+          let nsy = neighbors cg y |> Seq.filter (fun v -> Topology.isTopoNode v.Node)
+          for y' in nsy do
+            match Map.tryFind (loc y') nsx with
+            | None -> 
+              let inline relevantDom x' = loc x' = loc y' && cg.Graph.ContainsVertex x'
+              match doms.TryIsDominatedBy(x, relevantDom) with
+              | None -> counterEx := Some(x, y)
+              | Some x' -> add x' y' (x, y)
             | Some x' -> add x' y' (x, y)
-          | Some x' -> add x' y' (x, y)
       match !counterEx with
       | None -> Yes seen
       | Some cex -> No

@@ -1406,7 +1406,7 @@ let createAsPathList (kind, asPathMap : Dictionary<_, _>, asPathLists : List<_>,
     incr id
     als.Add(name)
     asPathLists.Add(al)
-    asPathMap.[(kind, string re)] <- name
+    asPathMap.[(kind, re)] <- name
 
 let peers (ti : Topology.TopoInfo) (router : string) = 
   let loc (x : Topology.Node) = x.Loc
@@ -1625,8 +1625,8 @@ let toConfig (abgp : T) =
                 // now match peer as well
                 peerPol ti asMap asLists als alID x
               | Match.PathRE(re) -> 
-                createAsPathList (Config.Kind.Permit, asMap, asLists, als, alID, string re) 
-                |> ignore
+                createAsPathList 
+                  (Config.Kind.Permit, asMap, asLists, als, alID, Regex.toBgpRegexp re) |> ignore
               let slp = 
                 if lp = 100 then null
                 else SetLocalPref(lp)

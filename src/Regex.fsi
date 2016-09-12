@@ -33,6 +33,8 @@ val unionAll : T list -> T
 /// Check if an automaton denotes the empty set,
 /// and if not, return an example sequence
 val emptiness : Automaton -> string list option
+/// Convert a compiler regex to a BGP regexp 
+val toBgpRegexp : T -> string
 
 /// Representation for a regex that we haven't built yet. 
 /// Since we don't have the complete alphabet until we have built the entire

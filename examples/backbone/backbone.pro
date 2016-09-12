@@ -7,7 +7,7 @@ define notransit = {
 }
 
 define preferences = { 
-	true => exit(R1) >> exit(R2) >> exit(Peer) 
+	true => exit(R1) >> exit(R2) >> exit(Peer)
 }
 
 define ownership = {
@@ -15,4 +15,4 @@ define ownership = {
 	true 		=> drop
 }
 
-define main = preferences and ownership and notransit
+define main = preferences and notransit and ownership

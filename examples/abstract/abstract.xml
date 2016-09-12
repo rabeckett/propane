@@ -1,5 +1,4 @@
-<?xml version="1.0" encoding="utf-8"?>
-<topology>
+<topology asn="100">
   <node internal="true" name="T0"></node>
   <node internal="true" name="T1"></node>
   <node internal="true" name="T2"></node>

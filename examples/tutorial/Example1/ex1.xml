@@ -1,9 +1,8 @@
-<?xml version="1.0" encoding="utf-8"?>
-<topology>
-  <node internal="true" asn="100" name="A"></node>
-  <node internal="true" asn="101" name="B"></node>
-  <node internal="true" asn="102" name="C"></node>
-  <node internal="true" asn="103" name="D"></node>
+<topology asn="100">
+  <node internal="true" name="A"></node>
+  <node internal="true" name="B"></node>
+  <node internal="true" name="C"></node>
+  <node internal="true" name="D"></node>
   <edge source="A" target="B"></edge>
   <edge source="A" target="C"></edge>
   <edge source="B" target="C"></edge>

@@ -1,5 +1,4 @@
-﻿<?xml version="1.0" encoding="UTF-8"?>
-<topology>
+﻿<topology asn="100">
 	<node internal="true" name="A"></node>
 	<node internal="true" name="B"></node>
 	<node internal="true" name="C"></node>
@@ -8,7 +7,7 @@
 	<node internal="true" name="Y"></node>
 	<node internal="true" name="M"></node>
 	<node internal="true" name="N"></node>
-	<node internal="false" name="CORE"></node>
+	<node internal="false" asn="200" name="CORE"></node>
 
 	<edge source="A" target="X"></edge>
 	<edge source="B" target="X"></edge>

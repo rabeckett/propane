@@ -1,17 +1,16 @@
-<?xml version="1.0" encoding="utf-8"?>
-<topology>
-  <node internal="true" asn="100" name="A"></node>
-  <node internal="true" asn="101" name="B"></node>
-  <node internal="true" asn="102" name="C"></node>
-  <node internal="true" asn="103" name="D"></node>
-  <node internal="true" asn="104" name="E"></node>
-  <node internal="true" asn="105" name="F"></node>
-  <node internal="true" asn="106" name="G"></node>
-  <node internal="true" asn="107" name="H"></node>
-  <node internal="true" asn="108" name="X"></node>
-  <node internal="true" asn="109" name="Y"></node>
-  <node internal="false" asn="110" name="Peer1"></node>
-  <node internal="false" asn="111" name="Peer2"></node>
+<topology asn="100">
+  <node internal="true" name="A"></node>
+  <node internal="true" name="B"></node>
+  <node internal="true" name="C"></node>
+  <node internal="true" name="D"></node>
+  <node internal="true" name="E"></node>
+  <node internal="true" name="F"></node>
+  <node internal="true" name="G"></node>
+  <node internal="true" name="H"></node>
+  <node internal="true" name="X"></node>
+  <node internal="true" name="Y"></node>
+  <node internal="false" asn="200" name="Peer1"></node>
+  <node internal="false" asn="300" name="Peer2"></node>
 
   <edge source="A" target="C"></edge>
   <edge source="A" target="D"></edge>

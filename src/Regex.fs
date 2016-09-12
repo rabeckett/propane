@@ -20,7 +20,7 @@ type T =
     match this with
     | Empty -> "{}"
     | Epsilon -> "\"\""
-    | Locs S -> "[" + (Set.toList S |> List.joinBy ",") + "]"
+    | Locs S -> "[" + (Util.Set.joinBy "," S) + "]"
     | Concat rs -> 
       List.map (fun r -> r.ToString()) rs
       |> List.joinBy ";"
@@ -54,6 +54,33 @@ type Automaton =
     
     let trans = sprintf "Transitions:\n%s" trans
     sprintf "%s%s%s%s%s%s" header states init final trans header
+
+let rec toBgpRegexpAux (re : T) = 
+  let addParens s = "(" + s + ")"
+  match re with
+  | Empty -> ""
+  | Epsilon -> "\"\""
+  | Locs S -> 
+    S
+    |> Set.map (fun s -> 
+         if s = "out" then "[0-9]+"
+         else s)
+    |> Util.Set.joinBy "|"
+    |> if S.Count > 1 then addParens
+       else id
+  | Concat rs -> 
+    List.map (fun r -> toBgpRegexpAux r) rs
+    |> List.joinBy " "
+    |> addParens
+  | Union rs -> 
+    List.map (fun r -> toBgpRegexpAux r) rs
+    |> List.joinBy "|"
+    |> addParens
+  | Inter rs -> failwith "impossible"
+  | Negate r -> failwith "impossible"
+  | Star r -> (toBgpRegexpAux r |> addParens) + "*"
+
+let toBgpRegexp (re : T) = "^" + toBgpRegexpAux re + "$"
 
 let rec rev re = 
   match re with
