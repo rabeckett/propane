@@ -12,7 +12,7 @@ define routing = {
 	PG2 => end(B),
 	PL1 => end(E),
 	PL2 => end(F),
-	true => exit(Peer1) >> exit(Peer2)
+	true => exit(Peer1 >> Peer2)
 }
 
 define locality = {

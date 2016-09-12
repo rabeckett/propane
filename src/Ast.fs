@@ -98,8 +98,9 @@ let builtInLocs = Set.ofList [ "in"; "out" ]
 let builtInSingle = Set.add "drop" builtInLocs
 let builtInRes = 
   Set.ofList 
-    [ "start"; "end"; "originate"; "enter"; "exit"; "valleyfree"; "path"; "reach"; "always"; 
-      "through"; "avoid"; "internal"; "any"; "drop"; "in"; "out" ]
+    [ "start"; "end"; "enter"; "exit"; "valleyfree"; "path"; "reach"; "always"; "through"; "avoid"; 
+      "internal"; "any"; "drop"; "in"; "out" ]
+let builtInExpandable = Set.ofList [ "start"; "end"; "enter"; "exit"; "through"; "avoid" ]
 let builtInConstraints = Set.ofList [ "aggregate"; "tag"; "maxroutes"; "longest_path" ]
 let builtIns = Set.union builtInRes builtInConstraints
 let routerTemplate = "router"
@@ -434,7 +435,17 @@ let rec pushPrefsToTop ast (e : Expr) : Expr list =
         Node = DiffExpr(a, b) })
   | NotExpr x -> mergeSingle ast e x "negation"
   | ShrExpr(x, y) -> (pushPrefsToTop ast x) @ (pushPrefsToTop ast y)
-  | Ident _ -> [ e ]
+  | Ident(id, es) -> 
+    if builtInExpandable.Contains id.Name then 
+      match es with
+      | [ e' ] -> 
+        let es = pushPrefsToTop ast e'
+        List.map (fun e' -> 
+          { Pos = e.Pos
+            Node = Ident(id, [ e' ]) }) es
+      | es -> Util.unreachable()
+    else [ e ]
+  | Asn _ -> [ e ]
   | _ -> Util.unreachable()
 
 and merge ast e (x, y) f = 
@@ -505,7 +516,7 @@ let rec buildRegex (ast : T) (reb : Regex.REBuilder) (r : Expr) : Regex.LazyT =
     | "start" -> 
       let locs = checkParams id 1 args
       reb.Start locs.Head
-    | "end" | "originate" -> 
+    | "end" -> 
       let locs = checkParams id 1 args
       reb.End locs.Head
     | "enter" -> 
@@ -771,8 +782,7 @@ let findTemplateViolations (ast : T) e =
   
   let isTemplateRegex e = 
     match e.Node with
-    | Ident(i, [ { Node = TemplateVar(ido, id) } ]) when i.Name = "end" || i.Name = "originate" -> 
-      add ido regexes
+    | Ident(i, [ { Node = TemplateVar(ido, id) } ]) when i.Name = "end" -> add ido regexes
     | TemplateVar(ido, _) -> add ido referenced
     | _ -> ()
   
@@ -790,12 +800,12 @@ let findTemplateViolations (ast : T) e =
           if count > 1 then 
             let msg = 
               sprintf "Only a single router template variable may be used, " 
-              + sprintf "and only in the end/originate constraint"
+              + sprintf "and only in the end constraint"
             Message.errorAst ast msg res.Pos
           if Set.count !regexes <> count then 
             let msg = 
               sprintf "Template router variables must only appear " 
-              + sprintf "directly in end/originate constraint"
+              + sprintf "directly in end constraint"
             Message.errorAst ast msg pred.Pos
           if Set.count !preds <> count then 
             let msg = 

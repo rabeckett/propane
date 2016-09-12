@@ -10,7 +10,7 @@ define destination = {
 	GP2 => end(B),
 	LP1 => end(E),
 	LP2 => end(F),
-	true => exit(Peer1) >> exit(Peer2),
+	true => exit(Peer1 >> Peer2),
 }
 
 define locality = {
