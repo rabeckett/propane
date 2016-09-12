@@ -7,7 +7,7 @@ define Ownership = {
     10.0.0.1/32	=> end(B),
 }
 
-define main = Routing and Ownership
+define main = Routing & Ownership
 
 control {
     aggregate(10.0.0.0/31, in -> out)

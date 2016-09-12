@@ -50,6 +50,8 @@ rule tokenize = parse
 	| ':'                   { COLON (position lexbuf) }
 	| '.'                   { DOT (position lexbuf) }
 	| ">>"                  { SHR (position lexbuf) } 
+	| "+"                   { LOR (position lexbuf) }
+	| "&"                   { LAND (position lexbuf) }
 	| [' ' '\t' '\r']       { tokenize lexbuf }
 	| '\n'                  { newline lexbuf; tokenize lexbuf }
 	| eof                   { EOF }

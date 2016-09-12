@@ -5,7 +5,7 @@ define PG2 = 2.0.1.0/24
 
 define Peer = {Peer1, Peer2}
 
-define transit(X,Y) = enter(X) and exit(Y)
+define transit(X,Y) = enter(X) & exit(Y)
 
 define routing = {
 	PG1 => end(A),
@@ -23,4 +23,4 @@ define notransit = {
 	true => not transit(Peer, Peer)
 }
 
-define main = routing and notransit and locality
+define main = routing & notransit & locality

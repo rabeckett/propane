@@ -1,6 +1,6 @@
 define Peer = {Sprint, Level3}
 
-define transit(X,Y) = (enter(X) and exit(Y)) or (enter(Y) and exit(X))
+define transit(X,Y) = (enter(X) & exit(Y)) + (enter(Y) & exit(X))
 
 define notransit = { 
 	true => not transit(Peer,Peer) 
@@ -15,4 +15,4 @@ define ownership = {
 	true 		=> drop
 }
 
-define main = preferences and notransit and ownership
+define main = preferences & notransit & ownership

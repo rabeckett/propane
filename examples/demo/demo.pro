@@ -17,10 +17,10 @@ define locality = {
 	LP1 or LP2 => internal
 }
 
-define transit(X,Y) = enter(X) and exit(Y)
+define transit(X,Y) = enter(X) & exit(Y)
 
 define notransit = {
 	true => not transit(Peer,Peer) 
 }
 
-define main = destination and locality and notransit
+define main = destination & locality & notransit

@@ -1,6 +1,6 @@
 define Peer = {Peer1, Peer2}
 
-define transit(X,Y) = enter(X) and exit(Y)
+define transit(X,Y) = enter(X) & exit(Y)
 
 define notransit = {
 	true => not transit(Peer, Peer)
@@ -11,7 +11,7 @@ define routing = {
 	true => exit(Peer1) >> exit(Peer2)
 }
 
-define main = routing and notransit
+define main = routing & notransit
 
 control {
 	aggregate($aggregatePrefix$, in -> out),

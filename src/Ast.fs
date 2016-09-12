@@ -26,6 +26,8 @@ and Node =
   | ShrExpr of Expr * Expr
   | OrExpr of Expr * Expr
   | AndExpr of Expr * Expr
+  | LOrExpr of Expr * Expr
+  | LAndExpr of Expr * Expr
   | NotExpr of Expr
   | TemplateVar of Ident option * Ident
   | PrefixLiteral of int * int * int * int * int option
@@ -111,7 +113,10 @@ let rec iter f (e : Expr) =
     List.iter (fun (e1, e2) -> 
       iter f e1
       iter f e2) es
-  | LinkExpr(e1, e2) | DiffExpr(e1, e2) | ShrExpr(e1, e2) | OrExpr(e1, e2) | AndExpr(e1, e2) -> 
+  | LinkExpr(e1, e2) | DiffExpr(e1, e2) | ShrExpr(e1, e2) -> 
+    iter f e1
+    iter f e2
+  | OrExpr(e1, e2) | AndExpr(e1, e2) | LOrExpr(e1, e2) | LAndExpr(e1, e2) -> 
     iter f e1
     iter f e2
   | NotExpr e1 -> iter f e1
@@ -260,6 +265,12 @@ let substitute (ast : T) (e : Expr) : Expr =
     | AndExpr(e1, e2) -> 
       { Pos = e.Pos
         Node = AndExpr(aux defs seen e1, aux defs seen e2) }
+    | LOrExpr(e1, e2) -> 
+      { Pos = e.Pos
+        Node = LOrExpr(aux defs seen e1, aux defs seen e2) }
+    | LAndExpr(e1, e2) -> 
+      { Pos = e.Pos
+        Node = LAndExpr(aux defs seen e1, aux defs seen e2) }
     | NotExpr e1 -> 
       { Pos = e.Pos
         Node = NotExpr(aux defs seen e1) }
@@ -353,11 +364,16 @@ let wellFormed ast (e : Expr) : Type =
       let t1 = aux block e1
       let t2 = aux block e2
       match t1, t2 with
+      | PredicateType, PredicateType -> PredicateType
+      | _, _ -> Message.errorAst ast (typeMsg2 [ PredicateType ] t1 t2) e.Pos
+    | LOrExpr(e1, e2) | LAndExpr(e1, e2) -> 
+      let t1 = aux block e1
+      let t2 = aux block e2
+      match t1, t2 with
       | LocType, LocType -> LocType
       | LocType, RegexType | RegexType, LocType | RegexType, RegexType -> RegexType
       | BlockType, BlockType -> BlockType
-      | PredicateType, PredicateType -> PredicateType
-      | _, _ -> Message.errorAst ast (typeMsg2 [ BlockType; RegexType; PredicateType ] t1 t2) e.Pos
+      | _, _ -> Message.errorAst ast (typeMsg2 [ BlockType; RegexType ] t1 t2) e.Pos
     | NotExpr e1 -> 
       let t = aux block e1
       match t with
@@ -404,14 +420,14 @@ let wellFormed ast (e : Expr) : Type =
 
 let rec pushPrefsToTop ast (e : Expr) : Expr list = 
   match e.Node with
-  | AndExpr(x, y) -> 
+  | LAndExpr(x, y) -> 
     merge ast e (x, y) (fun a b -> 
       { Pos = e.Pos
-        Node = AndExpr(a, b) })
-  | OrExpr(x, y) -> 
+        Node = LAndExpr(a, b) })
+  | LOrExpr(x, y) -> 
     merge ast e (x, y) (fun a b -> 
       { Pos = e.Pos
-        Node = OrExpr(a, b) })
+        Node = LOrExpr(a, b) })
   | DiffExpr(x, y) -> 
     merge ast e (x, y) (fun a b -> 
       { Pos = e.Pos
@@ -464,10 +480,10 @@ let rec buildRegex (ast : T) (reb : Regex.REBuilder) (r : Expr) : Regex.LazyT =
     let wf = List.map reb.SingleLocations args
     List.map (Option.get >> Set.toList) wf
   match r.Node with
-  | AndExpr(x, y) -> 
+  | LAndExpr(x, y) -> 
     reb.Inter [ (buildRegex ast reb x)
                 (buildRegex ast reb y) ]
-  | OrExpr(x, y) -> 
+  | LOrExpr(x, y) -> 
     reb.Union [ (buildRegex ast reb x)
                 (buildRegex ast reb y) ]
   | DiffExpr(x, y) -> 
@@ -530,7 +546,7 @@ let rec buildRegex (ast : T) (reb : Regex.REBuilder) (r : Expr) : Regex.LazyT =
       let msg = sprintf "Template router variable %s is not bound to an abstract router" id.Name
       Message.errorAst ast msg r.Pos
     | Some x -> reb.Loc(getAsnForTemplateVar ast x)
-  | BlockExpr _ | LinkExpr _ | IntLiteral _ | CommunityLiteral _ | PrefixLiteral _ | False | True -> 
+  | BlockExpr _ | LinkExpr _ | IntLiteral _ | CommunityLiteral _ | PrefixLiteral _ | OrExpr _ | AndExpr _ | False | True -> 
     Util.unreachable()
 
 (* Build a concrete predicate from an expression
@@ -551,7 +567,7 @@ let rec buildPredicate (e : Expr) : Predicate =
     match ido with
     | None -> Route.templateVar (sprintf "global.$%s$" id.Name)
     | Some x -> Route.templateVar (sprintf "%s.$%s$" x.Name id.Name)
-  | BlockExpr _ | DiffExpr _ | IntLiteral _ | NotExpr _ | LinkExpr _ | ShrExpr _ | Ident _ | Asn _ -> 
+  | BlockExpr _ | DiffExpr _ | IntLiteral _ | NotExpr _ | LinkExpr _ | ShrExpr _ | LAndExpr _ | LOrExpr _ | Ident _ | Asn _ -> 
     Util.unreachable()
 
 (* Helper getter functions for expressions
@@ -827,8 +843,8 @@ type BinOp =
 
 let applyOp r1 r2 op = 
   match op with
-  | OInter -> AndExpr(r1, r2)
-  | OUnion -> OrExpr(r1, r2)
+  | OInter -> LAndExpr(r1, r2)
+  | OUnion -> LOrExpr(r1, r2)
   | ODifference -> DiffExpr(r1, r2)
 
 let checkBlock ast e (pcs : (Predicate * _) list) = 
@@ -894,8 +910,8 @@ let inline collapsePrefs pos (es : Expr list) : Expr =
 
 let rec expandBlocks ast (e : Expr) : (Predicate * Expr) list = 
   match e.Node with
-  | OrExpr(e1, e2) -> combineBlocks e.Pos (expandBlocks ast e1) (expandBlocks ast e2) OUnion
-  | AndExpr(e1, e2) -> combineBlocks e.Pos (expandBlocks ast e1) (expandBlocks ast e2) OInter
+  | LOrExpr(e1, e2) -> combineBlocks e.Pos (expandBlocks ast e1) (expandBlocks ast e2) OUnion
+  | LAndExpr(e1, e2) -> combineBlocks e.Pos (expandBlocks ast e1) (expandBlocks ast e2) OInter
   | DiffExpr(e1, e2) -> combineBlocks e.Pos (expandBlocks ast e1) (expandBlocks ast e2) ODifference
   | BlockExpr es -> 
     List.map (fun (x, y) -> (buildPredicate x, pushPrefsToTop ast y)) es

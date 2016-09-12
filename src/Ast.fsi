@@ -24,6 +24,8 @@ and Node =
   | ShrExpr of Expr * Expr
   | OrExpr of Expr * Expr
   | AndExpr of Expr * Expr
+  | LOrExpr of Expr * Expr
+  | LAndExpr of Expr * Expr
   | NotExpr of Expr
   | TemplateVar of Ident option * Ident
   | PrefixLiteral of int * int * int * int * int option
