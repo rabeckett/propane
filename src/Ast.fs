@@ -30,7 +30,7 @@ and Node =
   | LAndExpr of Expr * Expr
   | NotExpr of Expr
   | TemplateVar of Ident option * Ident
-  | PrefixLiteral of int * int * int * int * int option
+  | PrefixLiteral of int * int * int * int * (int * int) option
   | CommunityLiteral of int * int
   | Asn of int
   | IntLiteral of int
@@ -309,16 +309,16 @@ let substitute (ast : T) (e : Expr) : Expr =
 
 let inline adjustBits bits = 
   match bits with
-  | None -> 32
+  | None -> (32, 32)
   | Some b -> b
 
 let wellFormedPrefix ast pos (a, b, c, d, bits) = 
-  let bits = adjustBits bits
-  if (a > 255 || b > 255 || c > 255 || d > 255 || (bits > 32)) then 
-    let p = Prefix(a, b, c, d, bits, Range(bits, 32))
+  let (lo, hi) = adjustBits bits
+  if (a > 255 || b > 255 || c > 255 || d > 255 || (lo > 32) || (hi > 32)) then 
+    let p = Prefix(a, b, c, d, lo, Range(lo, hi))
     let msg = 
       sprintf "Found an invalid prefix %s, " (string p) 
-      + sprintf "must match [0-255].[0-255].[0-255].[0-255]/[0-32]"
+      + sprintf "must match (0-255).(0-255).(0-255).(0-255)/[(0-32)..(0-32)]"
     Message.errorAst ast msg pos
 
 let typeMsg (expected : Type list) (t1 : Type) = 
@@ -570,8 +570,8 @@ let rec buildPredicate (e : Expr) : Predicate =
   | AndExpr(a, b) -> Route.conj (buildPredicate a) (buildPredicate b)
   | OrExpr(a, b) -> Route.disj (buildPredicate a) (buildPredicate b)
   | PrefixLiteral(a, b, c, d, bits) -> 
-    let bits = adjustBits bits
-    let p = Prefix(a, b, c, d, bits, Range(bits, 32))
+    let (lo, hi) = adjustBits bits
+    let p = Prefix(a, b, c, d, lo, Range(lo, hi))
     Route.prefix p
   | CommunityLiteral(x, y) -> Route.community (string x + ":" + string y)
   | TemplateVar(ido, id) -> 
@@ -587,8 +587,8 @@ let rec buildPredicate (e : Expr) : Predicate =
 let inline getPrefix x = 
   match x with
   | PrefixLiteral(a, b, c, d, bits) -> 
-    let bits = adjustBits bits
-    Prefix(a, b, c, d, bits, Range(bits, 32))
+    let (lo, hi) = adjustBits bits
+    Prefix(a, b, c, d, lo, Range(lo, hi))
   | TemplateVar(ido, id) -> 
     match ido with
     | None -> Prefix(sprintf "$%s$" id.Name)
@@ -733,8 +733,8 @@ let warnRawAsn (ast : T) =
     | None -> ()
 
 let inline buildPrefix ast (a, b, c, d, bits) = 
-  let bits = adjustBits bits
-  Prefix(a, b, c, d, bits, Range(bits, 32))
+  let (lo, hi) = adjustBits bits
+  Prefix(a, b, c, d, lo, Range(lo, hi))
 
 let inline getPrefixes ast pfxs e = 
   match e.Node with

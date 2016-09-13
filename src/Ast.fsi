@@ -28,7 +28,7 @@ and Node =
   | LAndExpr of Expr * Expr
   | NotExpr of Expr
   | TemplateVar of Ident option * Ident
-  | PrefixLiteral of int * int * int * int * int option
+  | PrefixLiteral of int * int * int * int * (int * int) option
   | CommunityLiteral of int * int
   | Asn of int
   | IntLiteral of int
