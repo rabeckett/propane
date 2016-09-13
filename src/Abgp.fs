@@ -719,11 +719,11 @@ module Incoming =
   
   let getUnique peers = Set.ofSeq (Seq.map (fun p -> p.Node.Loc) peers)
   
-  let getMostPreference f (cg : CGraph.T) (x : CgState) = 
+  let getMostPreference f g (cg : CGraph.T) (x : CgState) = 
     x
     |> CGraph.neighborsIn cg
     |> Seq.filter CGraph.isInside
-    |> Seq.map (fun v -> v.Accept)
+    |> Seq.map g
     |> f
   
   let getSeen cg (peers : seq<CgState>) = 
@@ -736,7 +736,7 @@ module Incoming =
         if CGraph.isInside n then pairs <- Set.add (n.Node.Loc, p.Node.Loc) pairs
     (nodes, pairs)
   
-  let configureIncomingTraffic cg : IncomingExportMap = 
+  let configureIncomingTraffic cg (ord : Consistency.Ordering) : IncomingExportMap = 
     let settings = Args.getSettings()
     let info = collectIncomingInfo cg
     let preferences = Seq.map (fun p -> (p, Reachable.srcAccepting cg p Down)) info.Peers
@@ -754,12 +754,25 @@ module Incoming =
       |> Seq.map (fun (x, y) -> (x, Seq.map snd y))
       |> Seq.sortBy fst
     
+    // Collect inferred preferences as map
+    let prefMap = Dictionary()
+    for kv in ord do
+      let mutable j = 0
+      for x in kv.Value do
+        j <- j + 1
+        prefMap.[x] <- j
     // Collect worst case pref for each peer
     let mutable worstCasePrefs = Map.empty
     let mutable bestCasePrefs = Map.empty
+    let mutable inferredWorstPrefs = Map.empty
+    let mutable inferredBestPrefs = Map.empty
+    let f1 = (fun v -> v.Accept)
+    let f2 = (fun v -> prefMap.[v])
     for p in info.Peers do
-      worstCasePrefs <- Map.add p (getMostPreference Seq.max cg p) worstCasePrefs
-      bestCasePrefs <- Map.add p (getMostPreference Seq.min cg p) bestCasePrefs
+      worstCasePrefs <- Map.add p (getMostPreference Seq.max f1 cg p) worstCasePrefs
+      bestCasePrefs <- Map.add p (getMostPreference Seq.min f1 cg p) bestCasePrefs
+      inferredWorstPrefs <- Map.add p (getMostPreference Seq.max f2 cg p) inferredWorstPrefs
+      inferredBestPrefs <- Map.add p (getMostPreference Seq.min f2 cg p) inferredBestPrefs
     // Run through each preference level and check for safe preference
     let exportMap = ref Map.empty
     let mutable i = 0
@@ -782,8 +795,10 @@ module Incoming =
                 | None -> ()
                 | Some v -> raise (UncontrollablePeerPreferenceException p1.Node.Loc)
             // preferences for different peers must be implementable from internal preferences
-            // TODO: use inferred preferences rather than exact
-            if not (bestCasePrefs.[p1] > worstCasePrefs.[p2]) then 
+            let p1Worse = bestCasePrefs.[p1] > worstCasePrefs.[p2]
+            let p1Worse = 
+              (loc p1 = loc p2 && inferredBestPrefs.[p1] > inferredWorstPrefs.[p2]) || p1Worse
+            if not p1Worse then 
               if p1.Node.Loc <> p2.Node.Loc then 
                 raise (UncontrollablePeerPreferenceException p1.Node.Loc)
         let mutable actions = []
@@ -1178,14 +1193,14 @@ let compileToIR idx pred (polInfo : Ast.PolInfo option) aggInfo (reb : Regex.REB
       let msg = sprintf "Unused preference %d policy " i + sprintf "for predicate %s" predStr
       warning msg) unusedPrefs
   try 
-    // check that BGP can ensure incoming traffic compliance
-    let inExports = Incoming.configureIncomingTraffic cg
     // check aggregation failure consistency
     let k = getMinAggregateFailures cg pred aggInfo
     // check that there is a valid ordering for BGP preferences to ensure compliance
     let (ordering, orderTime) = Profile.time (Consistency.findOrderingConservative idx) cg
     match ordering with
     | Ok ord -> 
+      // check that BGP can ensure incoming traffic compliance
+      let inExports = Incoming.configureIncomingTraffic cg ord
       let config, configTime = Profile.time (genConfig cg pred ord) inExports
       
       let result = 
@@ -2434,7 +2449,7 @@ module Test =
         Receive = None
         Originate = None
         Prefs = None
-        Fail = Some FRCantControlPeers }
+        Fail = Some FRInconsistentPrefs }
       { Name = "Backbone"
         Explanation = "Incoming traffic from multiple peers"
         Topo = tBackboneWAN
