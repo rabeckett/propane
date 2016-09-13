@@ -884,9 +884,12 @@ let inline getExport specialCase inExports x v =
   else [ SetComm(string x.State) ]
 
 let getExports (allPeers, inPeers, outPeers) x inExports (outgoing : seq<CgState>) unqMatchPeer = 
-  let toInside, toOutside = 
-    List.ofSeq outgoing |> List.partition (fun v -> Topology.isInside v.Node)
-  let insideExport = [ (In, [ SetComm(string x.State) ]) ]
+  let toInside, toOutside = List.ofSeq outgoing |> List.partition CGraph.isInside
+  
+  let insideExport = 
+    if toInside.Length > 0 then [ (In, [ SetComm(string x.State) ]) ]
+    else []
+  
   let specialCase = ref false
   let exports = 
     List.ofSeq toOutside 
