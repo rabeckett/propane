@@ -115,10 +115,12 @@ let quagga (rInternal : Set<string>) (rc : RouterConfiguration) : string =
     writePolList sb pol
     let lp = rm.SetLocalPref
     if lp <> null then bprintf sb "  set local-preference %d\n" lp.Value
-    let dc = rm.DeleteCommunity
-    if dc <> null then bprintf sb "  set comm-list %s delete\n" dc.Value
-    for c in rm.SetCommunity do
-      bprintf sb "  set community additive %s\n" c.Value
+    for d in rm.DeleteCommunities do
+      bprintf sb "  set comm-list %s delete\n" d.Value
+    let mutable comms = ""
+    for c in rm.SetCommunities do
+      comms <- comms + c.Value + " "
+    if comms <> "" then bprintf sb "  set community additive %s\n" comms
     if rm.SetMED <> null then bprintf sb "  set metric %d\n" rm.SetMED.Value
     if rm.SetPathPrepend <> null then 
       let asn = string rc.NetworkAsn

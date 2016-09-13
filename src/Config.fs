@@ -60,18 +60,14 @@ type CommunityList =
   end
 
 /// Simple wrapper around the new community value.
-/// Represent no update with the null value
-[<AllowNullLiteral>]
 type SetCommunity = 
   class
     val Value : string
     new(i) = { Value = i }
   end
 
-/// Simple wrapper around the community list to remove communities.
-/// A null value indicates that no such list applies.
-[<AllowNullLiteral>]
-type DeleteCommunityList = 
+/// Simple wrapper around the community to delete.
+type DeleteCommunity = 
   class
     val Value : string
     new(i) = { Value = i }
@@ -131,17 +127,17 @@ type RouteMap =
     val SetLocalPref : SetLocalPref
     val SetMED : SetMED
     val SetPathPrepend : SetPathPrepend
-    val mutable SetCommunity : List<SetCommunity>
-    val DeleteCommunity : DeleteCommunityList
-    new(n, i, pl, slp, smed, spre, sc, dc) = 
+    val mutable SetCommunities : List<SetCommunity>
+    val DeleteCommunities : List<DeleteCommunity>
+    new(n, i, pl, slp, smed, spre, sc, dcs) = 
       { Name = n
         PolicyList = pl
         Priority = i
         SetLocalPref = slp
         SetMED = smed
         SetPathPrepend = spre
-        SetCommunity = sc
-        DeleteCommunity = dc }
+        SetCommunities = sc
+        DeleteCommunities = dcs }
   end
 
 /// A peer configuration represented by a pair of incoming and outgoing 
@@ -229,11 +225,13 @@ let private deleteUnusedLists (rc : RouterConfiguration) =
     commLists <- Set.union commLists (Set.ofSeq polList.CommunityLists)
     prefixLists <- Set.union prefixLists (Set.ofSeq polList.PrefixLists)
   rc.AsPathLists.RemoveAll(fun al -> not <| asLists.Contains(al.Name)) |> ignore
-  rc.CommunityLists.RemoveAll(fun cl -> not <| commLists.Contains(cl.Name)) |> ignore
+  rc.CommunityLists.RemoveAll(fun cl -> cl.Name <> "local" && not <| commLists.Contains(cl.Name)) 
+  |> ignore
   rc.PrefixLists.RemoveAll(fun pl -> not <| prefixLists.Contains(pl.Name))
 
 /// Remove communities tagged to distinguish export actions, when
 /// the community is never needed -- i.e., the actions is already unambiguous.
+///
 /// During generation unambigous exports will avoid matching on the community
 /// and will not delete the community, but it will still get added from imports.
 /// This function removes adding the community during imports when it is never used.
@@ -241,14 +239,13 @@ let private deleteExportComms (rc : RouterConfiguration) =
   // collect all used delete communities
   let mutable deleted = Set.empty
   for rm in rc.RouteMaps do
-    let dc = rm.DeleteCommunity
-    if dc <> null then 
-      let clname = dc.Value
+    for d in rm.DeleteCommunities do
+      let clname = d.Value
       let cllist = rc.CommunityLists.Find(fun cl -> cl.Name = clname)
       deleted <- Set.union deleted (Set.ofSeq cllist.Values)
   // remove unused
   for rm in rc.RouteMaps do
-    rm.SetCommunity.RemoveAll(fun c -> c.Value.[0] = '1' && not (deleted.Contains(c.Value))) 
+    rm.SetCommunities.RemoveAll(fun c -> c.Value.[0] = '1' && not (deleted.Contains(c.Value))) 
     |> ignore
 
 /// Remove unnecessary configuration route maps, 
@@ -257,5 +254,5 @@ let clean (nc : NetworkConfiguration) =
   for kv in nc.RouterConfigurations do
     let rc = kv.Value
     deleteUnusedLists rc |> ignore
-    deleteExportComms rc |> ignore
+    //deleteExportComms rc |> ignore
     deleteMissingRouteMaps rc |> ignore
