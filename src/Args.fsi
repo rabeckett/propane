@@ -13,7 +13,6 @@ type T =
     Parallel : bool
     Test : bool
     Bench : bool
-    CheckEnter : bool
     Debug : bool
     DebugDir : string
     Failures : Option<int>

@@ -64,6 +64,8 @@ val neighborsIn : T -> CgState -> seq<CgState>
 val isRepeatedOut : T -> CgState -> bool
 /// Returns true if a node is not the special start or end node
 val isRealNode : CgState -> bool
+/// Returns true if a node is internal to the AS
+val isInside : CgState -> bool
 /// Returns true if the graph contains only the start and end nodes
 val isEmpty : T -> bool
 /// Convert the constraint graph to the DOT format for visualization

@@ -43,7 +43,7 @@ type Match =
     match x with
     | Peer p -> "peer=" + (string p)
     | State(c, p) -> sprintf "peer=%s, comm=%s" (string p) c
-    | PathRE r -> sprintf "regex(...)" // (string r)
+    | PathRE r -> sprintf "regex('%s')" (string r)
 
 type Modification = 
   | SetComm of string
@@ -116,7 +116,7 @@ let lookupMatch pi m =
 
 let formatExport pi sb peer acts = 
   let actStr = 
-    if acts <> [] then ", " + Util.List.joinBy "," (List.map string acts)
+    if acts <> [] then ", " + Util.List.joinBy ", " (List.map string acts)
     else ""
   
   let peerStr = 
@@ -581,7 +581,7 @@ module RouterWide =
   
   let minimizeForRouter (pi : Ast.PolInfo) allComms r rconf = 
     rconf |> fallThroughElimination allComms
-  // TODO: reevaluate this function
+  // TODO: reevaluate this function for soundness
   // Perform fallthrough elimination on route maps
   let minimize (config : T) = config
 
@@ -673,7 +673,7 @@ module Incoming =
   type IncomingPattern = 
     | Anything
     | Nothing of string
-    | Specific of Regex.T
+    | Specific of CGraph.CgState
   
   type IncomingInfo = 
     { Peers : seq<CgState>
@@ -693,11 +693,10 @@ module Incoming =
     match hasRepeatedOut, hasOther with
     | false, false -> Map.add peer (Nothing peer.Node.Loc) acc
     | true, false -> Map.add peer Anything acc
-    | _, true -> 
-      let cexample = CGraph.ToRegex.constructRegex (copyGraph cg) peer
-      Map.add peer (Specific cexample) acc
+    | _, true -> Map.add peer (Specific peer) acc
   
   let collectIncomingInfo (cg : CGraph.T) : IncomingInfo = 
+    // TODO: This is pretty inefficient
     let isExportPeer v = 
       Topology.isOutside v.Node && Seq.exists (fun u -> Topology.isInside u.Node) (neighborsIn cg v)
     let exportPeers = Seq.filter isExportPeer cg.Graph.Vertices
@@ -705,68 +704,99 @@ module Incoming =
     { Peers = exportPeers
       Info = info }
   
-  let getUnique peers = Set.ofSeq (Seq.map (fun p -> p.Node.Loc) peers)
-  
   let addExports (settings : Args.T) info peers actions exportMap = 
-    let mutable exportMap = exportMap
     let mutable actions = actions
     for p in peers do
       match Map.find p info.Info with
       | Anything -> ()
       | Nothing x -> 
+        printfn "Adding noexport community"
         if settings.UseNoExport then actions <- (SetComm "no-export") :: actions
-        else 
-          let msg = sprintf "enable no-export to limit incoming traffic to peer %s" x
-          raise (UncontrollableEnterException msg)
-      | Specific re -> 
-        let msg = sprintf "(%s) incoming traffic cannot conform to: %s" p.Node.Loc (string re)
-        raise (UncontrollableEnterException msg)
-      exportMap <- Map.add p actions exportMap
-    exportMap
+        else raise (UncontrollableEnterException x)
+      | Specific _ -> raise (UncontrollableEnterException p.Node.Loc)
+      exportMap := Map.add p actions !exportMap
+    !exportMap
+  
+  let getUnique peers = Set.ofSeq (Seq.map (fun p -> p.Node.Loc) peers)
+  
+  let getMostPreference f (cg : CGraph.T) (x : CgState) = 
+    x
+    |> CGraph.neighborsIn cg
+    |> Seq.filter CGraph.isInside
+    |> Seq.map (fun v -> v.Accept)
+    |> f
+  
+  let getSeen cg (peers : seq<CgState>) = 
+    let mutable pairs = Set.empty
+    let mutable nodes = Set.empty
+    for p in peers do
+      nodes <- Set.add p.Node.Loc nodes
+      let nin = CGraph.neighborsIn cg p
+      for n in nin do
+        if CGraph.isInside n then pairs <- Set.add (n.Node.Loc, p.Node.Loc) pairs
+    (nodes, pairs)
   
   let configureIncomingTraffic cg : IncomingExportMap = 
     let settings = Args.getSettings()
     let info = collectIncomingInfo cg
-    // Temporary 
-    if not settings.CheckEnter then 
-      let mutable exportMap = Map.empty
-      for p in info.Peers do
-        exportMap <- Map.add p [] exportMap
-      exportMap
-    else 
-      let byPreference = 
-        info.Peers
-        |> Seq.map (fun p -> (Set.minElement (Reachable.srcAccepting cg p Down), p))
-        |> Seq.groupBy fst
-        |> Seq.map (fun (x, y) -> (x, Seq.map snd y))
-        |> Seq.sortBy fst
-      
-      let mutable exportMap = Map.empty
-      let mutable i = 0
-      let mutable prev = None
-      for (_, peers) in byPreference do
-        match prev with
-        | None -> 
-          exportMap <- addExports settings info peers [] exportMap
-          prev <- Some peers
-        | Some ps -> 
-          let unqNow = getUnique peers
-          let unqPrev = getUnique ps
-          let pre = Set.minElement unqPrev
-          let now = Set.minElement unqNow
-          let canAvoidAggregation = (Set.count unqPrev = 1) && (Set.count unqNow = 1) && (now = pre)
-          if canAvoidAggregation && (settings.UseMed || settings.UsePrepending) then 
-            let mutable actions = []
-            if settings.UsePrepending && i > 0 then actions <- (PrependPath(3 * i)) :: actions
-            if settings.UseMed && i > 0 then actions <- (SetMed(80 + i)) :: actions
-            exportMap <- addExports settings info peers actions exportMap
-          else 
-            (* TODO: we need to use aggregates here since last time there were many *)
-            raise (UncontrollablePeerPreferenceException now)
-            ()
-          prev <- Some peers
-        i <- i + 1
-      exportMap
+    let preferences = Seq.map (fun p -> (p, Reachable.srcAccepting cg p Down)) info.Peers
+    // ensure all preferences align
+    for (p, prefs) in preferences do
+      if Set.count prefs > 1 then 
+        let x = Set.minElement prefs
+        let y = Set.maxElement prefs
+        error (sprintf "Multiple conflicting preferences (%d and %d) for peer %s" x y p.Node.Loc)
+    // Sort by most preferred entry point
+    let byPreference = 
+      preferences
+      |> Seq.map (fun (p, prefs) -> (Set.minElement prefs, p))
+      |> Seq.groupBy fst
+      |> Seq.map (fun (x, y) -> (x, Seq.map snd y))
+      |> Seq.sortBy fst
+    
+    // Collect worst case pref for each peer
+    let mutable worstCasePrefs = Map.empty
+    let mutable bestCasePrefs = Map.empty
+    for p in info.Peers do
+      worstCasePrefs <- Map.add p (getMostPreference Seq.max cg p) worstCasePrefs
+      bestCasePrefs <- Map.add p (getMostPreference Seq.min cg p) bestCasePrefs
+    // Run through each preference level and check for safe preference
+    let exportMap = ref Map.empty
+    let mutable i = 0
+    let mutable prev = None
+    let mutable seenPairs = Set.empty
+    let mutable seenPeers = Set.empty
+    for (_, peers) in byPreference do
+      match prev with
+      | None -> exportMap := addExports settings info peers [] exportMap
+      | Some ps -> 
+        for p1 in peers do
+          for p2 in ps do
+            // do we need meds or prepending?
+            if not (settings.UseMed || settings.UsePrepending) then 
+              if seenPeers.Contains p1.Node.Loc then 
+                let nin = CGraph.neighborsIn cg p1
+                let newPair = 
+                  Seq.tryFind (fun v -> not <| seenPairs.Contains(v.Node.Loc, p1.Node.Loc)) nin
+                match newPair with
+                | None -> ()
+                | Some v -> raise (UncontrollablePeerPreferenceException p1.Node.Loc)
+            // preferences for different peers must be implementable from internal preferences
+            // TODO: use inferred preferences rather than exact
+            if not (bestCasePrefs.[p1] > worstCasePrefs.[p2]) then 
+              if p1.Node.Loc <> p2.Node.Loc then 
+                raise (UncontrollablePeerPreferenceException p1.Node.Loc)
+        let mutable actions = []
+        if settings.UsePrepending && i > 0 then actions <- (PrependPath(2 * i)) :: actions
+        if settings.UseMed && i > 0 then actions <- (SetMed(80 + i)) :: actions
+        exportMap := addExports settings info peers actions exportMap
+      prev <- Some peers
+      let (nodes, pairs) = getSeen cg peers
+      seenPeers <- Set.union seenPeers nodes
+      seenPairs <- Set.union seenPairs pairs
+      i <- i + 1
+    printfn "exportMap: %A" !exportMap
+    !exportMap
 
 /// Ensure well-formedness for outgoing 
 /// traffic leaving the network. Use regex filters 
@@ -1185,14 +1215,18 @@ let compileForSinglePrefix idx (polInfo : Ast.PolInfo) aggInfo (pred, reb, res) 
     | UncontrollableEnter x -> 
       let l = Topology.router x ti
       let msg = 
-        sprintf "Cannot control inbound traffic from " 
-        + sprintf "peer: %s for predicate %s" l (Route.toString pred)
+        sprintf "Cannot control inbound traffic from peer: %s for predicate %s." l 
+          (Route.toString pred) 
+        + (sprintf 
+             "If you only want to allow traffic from neighbor %s (and not beyond), enable the --noexport flag." 
+             l)
       error msg
     | UncontrollablePeerPreference x -> 
       let l = Topology.router x ti
       let msg = 
         sprintf "Cannot control inbound preference from peer: %s for " l 
-        + sprintf "predicate %s. Possibly enable prepending: -prepending:on" (Route.toString pred)
+        + sprintf "predicate %s. Possibly enable prepending: --med or --prepending." 
+            (Route.toString pred)
       error msg
 
 let checkAggregateLocs ins _ prefix links = 
@@ -1364,9 +1398,10 @@ let createPolicyList (id, policyLists : List<_>, pls, als, cls) =
   policyLists.Add(pol)
   pol
 
-let createRouteMap (name, priority, routeMaps : List<_>, rms : List<_>, pol : string, slp, sc, dc) = 
+let createRouteMap (name, priority, routeMaps : List<_>, rms : List<_>, pol : string, slp, smed, 
+                    spre, sc, dc) = 
   let name = sprintf "rm-%s" name
-  let rm = RouteMap(name, priority, pol, slp, sc, dc)
+  let rm = RouteMap(name, priority, pol, slp, smed, spre, sc, dc)
   rms.Add(name)
   routeMaps.Add(rm)
   rm
@@ -1487,12 +1522,16 @@ let createExportRouteMap pfxInfo (origins : List<Route.TempPrefix * Export list>
     createPrefixList (Config.Kind.Permit, plID, pfxMap, pLists, pls, pfx)
     let pol = createPolicyList (polID, polLists, pls, List(), List())
     let scs = List()
+    let mutable smed = null
+    let mutable spre = null
     for (peer, ms) in es do
       for m in ms do
         match m with
         | SetComm(c) -> scs.Add(SetCommunity("200:" + c))
-        | _ -> ()
-    createRouteMap (rmname, priority, rMaps, List(), pol.Name, null, scs, null) |> ignore
+        | SetMed i -> smed <- SetMED(i)
+        | PrependPath i -> spre <- SetPathPrepend(i)
+    createRouteMap (rmname, priority, rMaps, List(), pol.Name, null, smed, spre, scs, null) 
+    |> ignore
     priority <- priority + 10
   for (i, ms) in cs do
     // Note: do this even when no export actions
@@ -1512,11 +1551,14 @@ let createExportRouteMap pfxInfo (origins : List<Route.TempPrefix * Export list>
     
     let pol = createPolicyList (polID, polLists, List(), List(), cls)
     let scs = List()
+    let mutable smed = null
+    let mutable spre = null
     for m in ms do
       match m with
       | SetComm(c) -> scs.Add(SetCommunity("200:" + c))
-      | _ -> failwith "" // TODO
-    createRouteMap (rmname, priority, rMaps, List(), pol.Name, null, scs, dc) |> ignore
+      | SetMed i -> smed <- SetMED(i)
+      | PrependPath i -> spre <- SetPathPrepend(i)
+    createRouteMap (rmname, priority, rMaps, List(), pol.Name, null, smed, spre, scs, dc) |> ignore
     priority <- priority + 10
   for peer in ps do
     peerExportMap := Map.add peer ("rm-" + rmname) !peerExportMap
@@ -1610,7 +1652,8 @@ let toConfig (abgp : T) =
               createPrefixList (Config.Kind.Deny, plID, pfxMap, pfxLists, pls, string prefix) 
               |> ignore
               let pol = createPolicyList (polID, polLists, pls, als, cls)
-              createRouteMap ("in", !priority, rMaps, rms, pol.Name, null, List(), null) |> ignore
+              createRouteMap ("in", !priority, rMaps, rms, pol.Name, null, null, null, List(), null) 
+              |> ignore
             | Allow((m, lp), es) -> 
               // must create symmetric export route-map
               createPrefixList (Config.Kind.Permit, plID, pfxMap, pfxLists, pls, string prefix) 
@@ -1634,7 +1677,8 @@ let toConfig (abgp : T) =
               // add communities to later add modifications for outgoing peers
               let scs = importFilterCommunityMods exportMap es
               let pol = createPolicyList (polID, polLists, pls, als, cls)
-              createRouteMap ("in", !priority, rMaps, rms, pol.Name, slp, scs, null) |> ignore
+              createRouteMap ("in", !priority, rMaps, rms, pol.Name, slp, null, null, scs, null) 
+              |> ignore
     // get export filter information
     let peerInfo = (allPeers, inPeers, outPeers)
     let peerExportMap = 
@@ -1689,11 +1733,11 @@ module Test =
     match m with
     | Peer y -> check y
     | State(_, y) -> check y
-    | _ -> false
+    | PathRE r -> string r = "[" + x + "]"
   
   let getPref (ain, aout) (x : string) dc = 
     match dc with
-    | Originate _ -> 100 // TODO
+    | Originate _ -> 100
     | Filters fs -> 
       let lp = 
         List.tryFind (fun f -> 

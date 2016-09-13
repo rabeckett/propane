@@ -119,6 +119,11 @@ let quagga (rInternal : Set<string>) (rc : RouterConfiguration) : string =
     if dc <> null then bprintf sb "  set comm-list %s delete\n" dc.Value
     for c in rm.SetCommunity do
       bprintf sb "  set community additive %s\n" c.Value
+    if rm.SetMED <> null then bprintf sb "  set metric %d\n" rm.SetMED.Value
+    if rm.SetPathPrepend <> null then 
+      let asn = string rc.NetworkAsn
+      let prepends = Util.Format.repeat asn rm.SetPathPrepend.Value
+      bprintf sb "  set prepend %s\n" prepends
     bprintf sb "!\n"
   string sb
 
@@ -321,3 +326,4 @@ let generate (res : Abgp.CompilationResult) =
   // Write CORE emulator save file
   addFakeExternalConfigs nc
   core rInternal nc |> File.writeFileWithExtension (out + File.sep + "core") "imn"
+// Write test files

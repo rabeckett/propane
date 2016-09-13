@@ -1,3 +1,4 @@
+define Princeton = as500
 define Peer = {Sprint, Level3}
 
 define transit(X,Y) = enter(X+Y) & exit(X+Y)
@@ -11,7 +12,7 @@ define preferences = {
 }
 
 define ownership = {
-	172.4.1.0/24 => any
+	172.4.1.0/24 => end(Princeton)
 }
 
 define main = preferences & ownership & notransit

@@ -16,7 +16,6 @@ type T =
     Parallel : bool
     Test : bool
     Bench : bool
-    CheckEnter : bool
     Debug : bool
     DebugDir : string
     Failures : Option<int>
@@ -41,7 +40,6 @@ Options:
     --parallel        Enable parallel compilation.
     --naive           Disable policy minimization.
     --stats           Display compilation statistics to stdout.
-    --checkenter      Check for valid network entry conditions.
     --anycast         Allow use of ip anycast.
     --med             Allow use of the BGP MED attribute.
     --prepending      Allow use of AS path prepending.
@@ -99,7 +97,6 @@ let parse (argv : string []) : unit =
       Parallel = vs.["--parallel"].IsTrue
       Minimize = vs.["--naive"].IsFalse
       Stats = vs.["--stats"].IsTrue
-      CheckEnter = vs.["--checkenter"].IsTrue
       Anycast = vs.["--anycast"].IsTrue
       UseMed = vs.["--med"].IsTrue
       UsePrepending = vs.["--prepending"].IsTrue

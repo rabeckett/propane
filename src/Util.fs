@@ -210,6 +210,10 @@ module Format =
   let footerSize = 80
   let offset = 9
   
+  let rec repeat (s : string) i = 
+    if i <= 1 then s
+    else s + " " + repeat s (i - 1)
+  
   let indent (i : int) (tabs : bool) (s : string) : string = 
     let ind = 
       if tabs then String.replicate i "\t"

@@ -9,7 +9,6 @@
   <node internal="false" asn="200" name="Cust"></node>
   <node internal="false" asn="300" name="Sprint"></node>
   <node internal="false" asn="400" name="Level3"></node>
-  <node internal="false" asn="500" name="Princeton"></node>
   
   <!-- Full mesh connectivity -->
   <edge source="R1" target="R2"></edge>
@@ -24,8 +23,5 @@
   <edge source="R2" target="Cust"></edge>
   <edge source="R3" target="Sprint"></edge>
   <edge source="R4" target="Level3"></edge>
-
-  <!-- External connections -->
-  <edge source="Cust" target="Princeton"></edge>
 </topology>
 

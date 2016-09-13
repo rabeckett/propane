@@ -86,6 +86,24 @@ type SetLocalPref =
     new(i) = { Value = i }
   end
 
+/// Simple wrapper around the Multi-Exit-Discriminator value.
+/// Represent the default value (80) with null.
+[<AllowNullLiteral>]
+type SetMED = 
+  class
+    val Value : int
+    new(i) = { Value = i }
+  end
+
+/// Simple wrapper for path prepending.
+/// Represent the default value (no prepending) with null.
+[<AllowNullLiteral>]
+type SetPathPrepend = 
+  class
+    val Value : int
+    new(i) = { Value = i }
+  end
+
 /// A policy list for (reusable) matching on several BGP attributes
 /// Route maps will match using a policy list, and then perform updates.
 /// Some vendors do not support policy lists, so each route-map will
@@ -111,13 +129,17 @@ type RouteMap =
     val Priority : int
     val PolicyList : string
     val SetLocalPref : SetLocalPref
+    val SetMED : SetMED
+    val SetPathPrepend : SetPathPrepend
     val mutable SetCommunity : List<SetCommunity>
     val DeleteCommunity : DeleteCommunityList
-    new(n, i, pl, slp, sc, dc) = 
+    new(n, i, pl, slp, smed, spre, sc, dc) = 
       { Name = n
         PolicyList = pl
         Priority = i
         SetLocalPref = slp
+        SetMED = smed
+        SetPathPrepend = spre
         SetCommunity = sc
         DeleteCommunity = dc }
   end
