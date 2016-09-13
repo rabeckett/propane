@@ -85,6 +85,7 @@ let quagga (rInternal : Set<string>) (rc : RouterConfiguration) : string =
       let peerIp = getPeerIp rc pc
       bprintf sb "  neighbor %s next-hop-self\n" peerIp
       bprintf sb "  neighbor %s send-community both\n" peerIp
+      bprintf sb "  neighbor %s advertisement-interval %d\n" peerIp 5
   for pc in rc.PeerConfigurations do
     match pc.InFilter with
     | None -> ()

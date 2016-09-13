@@ -324,7 +324,7 @@ module PrefixWide =
           let acts' = 
             List.filter (fun a -> 
               match a with
-              | SetComm(c) when not (Set.contains c usedMatches) -> false
+              | SetComm(c) when c <> "no-export" && not (Set.contains c usedMatches) -> false
               | _ -> true) acts
           (peer, acts')) es
       Originate es'
@@ -332,7 +332,7 @@ module PrefixWide =
       List.map (fun f -> 
         chooseAction (fun a -> 
           match a with
-          | SetComm(c) when not (Set.contains c usedMatches) -> None
+          | SetComm(c) when c <> "no-export" && not (Set.contains c usedMatches) -> None
           | _ -> Some a) f) fs
       |> Filters
   
@@ -342,7 +342,8 @@ module PrefixWide =
     | Filters fs -> 
       List.choose (fun f -> 
         match f with
-        | Allow((Match.State(c, _), _), _) when not (Set.contains c usedTags) -> None
+        | Allow((Match.State(c, _), _), _) when c <> "no-export" && not (Set.contains c usedTags) -> 
+          None
         | _ -> Some f) fs
       |> Filters
   
@@ -710,7 +711,6 @@ module Incoming =
       match Map.find p info.Info with
       | Anything -> ()
       | Nothing x -> 
-        printfn "Adding noexport community"
         if settings.UseNoExport then actions <- (SetComm "no-export") :: actions
         else raise (UncontrollableEnterException x)
       | Specific _ -> raise (UncontrollableEnterException p.Node.Loc)
@@ -939,6 +939,7 @@ let reindexPrefixCommunities (pc : PredConfig) : PredConfig =
                 | Allow((m, lp), es) -> 
                   let m = 
                     match m with
+                    | Match.State("no-export", p) -> m
                     | Match.State(c, p) -> Match.State(string (r.Index c), p)
                     | m -> m
                   
@@ -947,6 +948,7 @@ let reindexPrefixCommunities (pc : PredConfig) : PredConfig =
                       let mods = 
                         List.map (fun m -> 
                           match m with
+                          | SetComm "no-export" -> m
                           | SetComm c -> SetComm(r.Index c |> string)
                           | m -> m) mods
                       (p, mods)) es
@@ -1305,20 +1307,19 @@ let minFails x y =
     if a.NumFailures < b.NumFailures then x
     else y
 
-// TODO: don't reindex the no-export community
 let reindexCommunities (config : T) : T = 
   let reindex = Util.Reindexer(HashIdentity.Structural)
   
   let changeModComms _ _ _ _ modif = 
     match modif with
-    | SetComm(c) -> 
+    | SetComm(c) when c <> "no-export" -> 
       let c' = string (reindex.Index c)
       Some(SetComm c')
     | _ -> Some modif
   
   let changeMatchComms _ m lp es = 
     match m with
-    | State(c, p) -> 
+    | State(c, p) when c <> "no-export" -> 
       let c' = string (reindex.Index c)
       Some(Match.State(c', p), lp, es)
     | _ -> Some(m, lp, es)
