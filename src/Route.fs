@@ -34,7 +34,10 @@ type Range =
       { Lo = l
         Hi = h }
     
-    member this.IsEmpty = this.Lo < 0
+    member r1.Overlaps(r2 : Range) = 
+      (r1.Lo >= r2.Lo && r1.Lo <= r2.Hi) || (r1.Hi >= r2.Lo && r1.Hi <= r2.Hi) 
+      || (r2.Lo >= r1.Lo && r2.Lo <= r1.Hi) || (r2.Hi >= r1.Lo && r2.Hi <= r1.Hi)
+    member r.IsEmpty = r.Lo < 0
     
     member r1.Union(r2 : Range) = 
       if r1.IsEmpty then r2
@@ -45,20 +48,77 @@ type Range =
       if r1.IsEmpty || r1.IsEmpty || r1.Lo > r2.Hi || r2.Lo > r1.Hi then Range.Empty
       else Range(max r1.Lo r2.Lo, min r1.Hi r2.Hi)
     
-    member r.Negate() = 
-      if r.IsEmpty then Range.Full
+    member r.Negate() : Range list = 
+      if r.IsEmpty then [ Range.Full ]
       else 
         match r.Lo, r.Hi with
-        | 0, 32 -> Range.Empty
-        | -1, -1 -> Range.Full
-        | 0, x -> Range(x + 1, 32)
-        | x, 32 -> Range(0, x - 1)
-        | _ -> failwith "Invalid range negation"
+        | 0, 32 -> []
+        | 0, x -> [ Range(x + 1, 32) ]
+        | x, 32 -> [ Range(0, x - 1) ]
+        | x, y -> 
+          [ Range(0, x - 1)
+            Range(y + 1, 32) ]
     
     override r.ToString() = sprintf "%d..%d" r.Lo r.Hi
     static member Empty = Range(-1, -1)
     static member Full = Range(0, 32)
   end
+
+type Ranges = Range list
+
+let fromRange (r : Range) = 
+  if r = Range.Empty then []
+  else [ r ]
+
+let trueRanges = [ Range.Full ]
+let falseRanges = []
+
+let rec unionSingle (r : Range) (rs : Ranges) = 
+  match rs with
+  | [] -> [ r ]
+  | hd :: tl -> 
+    if r.Hi < hd.Lo then r :: rs
+    else if r.Overlaps(hd) then unionSingle (r.Union(hd)) tl
+    else r :: (unionSingle r tl)
+
+let rec unionRanges (rs1 : Ranges) (rs2 : Ranges) = 
+  //printfn "union of %A and %A" rs1 rs2
+  let ret = 
+    match rs1 with
+    | [] -> rs2
+    | hd :: tl -> unionRanges tl (unionSingle hd rs2)
+  //printfn "union result is: %A" ret
+  ret
+
+let rec interSingle (r : Range) (rs : Ranges) = 
+  match rs with
+  | [] -> []
+  | hd :: tl -> 
+    if r.Overlaps(hd) then r.Inter(hd) :: (interSingle r tl)
+    else interSingle r tl
+
+let rec interRanges (rs1 : Ranges) (rs2 : Ranges) = 
+  //printfn "inter of %A and %A" rs1 rs2
+  let ret = 
+    match rs1 with
+    | [] -> []
+    | hd :: [] -> interSingle hd rs2
+    | hd :: tl -> interRanges tl (interSingle hd rs2)
+  //printfn "inter result: %A" ret
+  ret
+
+let negateRanges (rs : Ranges) = 
+  //printfn "negation of %A" rs
+  if rs = falseRanges then 
+    //printfn "negation result is: %A" trueRanges
+    trueRanges
+  else 
+    let mutable acc = []
+    for r in rs do
+      let rs' = r.Negate()
+      acc <- unionRanges acc rs'
+    //printfn "negation result is: %A" acc
+    acc
 
 /// Bdd nodes are hash consed to ensure maximal sharing.
 /// This enables O(1) hashing, comparison, equality,
@@ -74,6 +134,8 @@ type HashCons =
       { Id = id
         Hash = hash node
         Node = node }
+    
+    override x.ToString() = x.Node.ToString()
     
     override x.Equals(other) = 
       match other with
@@ -95,7 +157,7 @@ type HashCons =
 /// Pointers to adjacent nodes are stored directly to avoid 
 /// lookup going through a hash table indirection 
 and Node = 
-  | Leaf of Range
+  | Leaf of Ranges
   | Node of Var * HashCons * HashCons
 
 /// Bdd builder object, which stores Bdd nodes in 
@@ -121,12 +183,12 @@ type BddBuilder(order : Var -> Var -> int) =
     if l = r then l
     else mkNode (Node(v, l, r))
   
-  let trueNode = leaf Range.Full
-  let falseNode = leaf Range.Empty
+  let trueNode = leaf [ Range.Full ]
+  let falseNode = leaf []
   
   let rec negate (n : HashCons) = 
     match n.Node with
-    | Leaf v -> leaf (v.Negate())
+    | Leaf v -> leaf (negateRanges v)
     | Node(v, l, r) -> node (v, negate l, negate r)
   
   let rec apply f (n1 : HashCons) (n2 : HashCons) = 
@@ -143,8 +205,8 @@ type BddBuilder(order : Var -> Var -> int) =
       node (v, apply f la lb, apply f ra rb)
   
   let apply f = memoize (apply f)
-  let opOr = apply (fun r1 r2 -> r1.Union(r2))
-  let opAnd = apply (fun r1 r2 -> r1.Inter(r2))
+  let opOr = apply (fun r1 r2 -> unionRanges r1 r2)
+  let opAnd = apply (fun r1 r2 -> interRanges r1 r2)
   member __.NodeCount = nextIdx - 1
   member __.Value(v) = leaf v
   member __.Var(x) = node (x, trueNode, falseNode)
@@ -159,9 +221,11 @@ type BddBuilder(order : Var -> Var -> int) =
     let rec fmt depth (n : HashCons) = 
       match n.Node with
       | Leaf v -> 
-        if v.IsEmpty then "F"
-        elif v = Range.Full then "T"
-        else sprintf "[%d..%d]" v.Lo v.Hi
+        if v = falseRanges then "F"
+        elif v = trueRanges then "T"
+        else 
+          let strs = List.map (fun (r : Range) -> sprintf "[%d..%d]" r.Lo r.Hi) v
+          Util.List.joinBy "," strs
       | Node(v, l, r) -> 
         if depth > 4 then "..."
         else sprintf "(%d => %s | %s)" v (fmt (depth + 1) l) (fmt (depth + 1) r)
@@ -349,10 +413,10 @@ type PredicateBuilder() =
   let iterPath f x = 
     let rec aux ts fs (n : HashCons) = 
       match n.Node with
-      | Node(v, ({ Node = Leaf x } as l), r) when isCommVar v && x = Range.Full -> 
+      | Node(v, ({ Node = Leaf x } as l), r) when isCommVar v && x = trueRanges -> 
         aux (Set.add v ts) fs l
         aux ts fs r
-      | Node(v, l, ({ Node = Leaf x } as r)) when isCommVar v && x = Range.Full -> 
+      | Node(v, l, ({ Node = Leaf x } as r)) when isCommVar v && x = trueRanges -> 
         aux ts fs l
         aux ts (Set.add v fs) r
       | Node(v, l, r) -> 
@@ -387,6 +451,9 @@ type PredicateBuilder() =
       let r = Range(max r.Lo largest, r.Hi)
       Seq.map (fun i -> Prefix(i, largest, r)) (aux 0 0)
   
+  let prefixes pts pfs (rs : Ranges) = 
+    List.fold (fun acc r -> Seq.append (prefixes pts pfs r) acc) Seq.empty rs
+  
   let addForString (map : Dictionary<_, _>) (idxMap : Dictionary<_, _>) v idxVar = 
     let idx = 
       let b, value = map.TryGetValue(v)
@@ -399,10 +466,20 @@ type PredicateBuilder() =
         res
     bdd.Var(idx)
   
+  /// Output predicate as traffic classifiers representation
+  member x.ToString(p) = 
+    let tcs = x.TrafficClassifiers(p)
+    match tcs with
+    | [] -> "false"
+    | ex -> 
+      if tcs.Length = 1 then sprintf "%s" (string ex)
+      else sprintf "%s or ..." (string ex)
+  
   /// Return the bdd representing a prefix x1.x2.x3.x4/s[lo..hi]
-  member __.Prefix(p : Prefix) = 
+  member this.Prefix(p : Prefix) = 
+    printfn "Got prefix : %A" p
     lock obj (fun () -> 
-      let mutable acc = bdd.Value p.Range
+      let mutable acc = bdd.Value [ p.Range ]
       for i in 0..31 do
         if p.IsExact || i < p.Slash then 
           if Bitwise.get p.Bits i then acc <- bdd.And(acc, bdd.Var(i))
@@ -437,13 +514,13 @@ type PredicateBuilder() =
   member __.TrafficClassifiers(p) : TrafficClassifier list = 
     let acc = ref []
     
-    let aux ts fs (r : Range) = 
-      if not r.IsEmpty then 
+    let aux ts fs (rs : Ranges) = 
+      if rs <> falseRanges then 
         let pts, ots = Set.partition isPrefixVar ts
         let pfs, ofs = Set.partition isPrefixVar fs
         let cts, tts = Set.partition isCommVar ots
         let cfs, tfs = Set.partition isCommVar ofs
-        let ps = prefixes pts pfs r
+        let ps = prefixes pts pfs rs
         let (cts, _) = communities cts cfs
         let (tts, _) = locations tts tfs
         for p in ps do
@@ -455,13 +532,6 @@ type PredicateBuilder() =
   member x.Example(p) : TrafficClassifier = 
     let tcs = x.TrafficClassifiers(p)
     tcs.Head
-  
-  /// Output predicate as traffic classifiers representation
-  member x.ToString(p) = 
-    let tcs = x.TrafficClassifiers(p)
-    let ex = tcs.Head
-    if tcs.Length = 1 then sprintf "%s" (string ex)
-    else sprintf "%s or ..." (string ex)
 
 /// Globally unique predicate builder to ensure hash consing uniqueness
 let pb = PredicateBuilder()
@@ -633,6 +703,7 @@ type TestBdd() =
   [<Test>]
   member __.DoubleNegation() = 
     let x = bb.Var(1)
+    let v = bb.Not x
     Assert.AreEqual(x, bb.Not(bb.Not x))
   
   [<Test>]
@@ -646,11 +717,11 @@ type TestBdd() =
   
   [<Test>]
   member __.RangeOps() = 
-    let r1 = Range(0, 20)
-    let r2 = Range(10, 30)
-    let r3 = Range(10, 20)
-    let r4 = Range(0, 30)
-    let r5 = Range(21, 32)
+    let r1 = [ Range(0, 20) ]
+    let r2 = [ Range(10, 30) ]
+    let r3 = [ Range(10, 20) ]
+    let r4 = [ Range(0, 30) ]
+    let r5 = [ Range(21, 32) ]
     let x = bb.Ite(1, bb.Value r1, bb.Value r2)
     Assert.AreEqual(x, bb.And(x, x))
     Assert.AreEqual(x, bb.Or(x, x))
@@ -708,7 +779,7 @@ type TestPredicate() =
   member __.ExactNotTheSameAsRange() = 
     let p1 = Prefix(0, 0, 0, 1, 24)
     let p2 = Prefix(0, 0, 0, 1, 24, Range(24, 24))
-    let x = pb.Prefix p1
+    let x = pb.True
     let y = pb.Prefix p2
     Assert.AreNotEqual(x, y)
   

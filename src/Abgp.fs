@@ -1067,7 +1067,7 @@ let genConfig (cg : CGraph.T) (pred : Route.Predicate) (ord : Consistency.Orderi
   reindexPrefixCommunities (pred, config)
 
 let inline insideLoc v = 
-  if Topology.isInside v.Node then Some(CGraph.loc v)
+  if Topology.isInside v.Node then Some(v)
   else None
 
 let inline insideOriginatorLoc v = 
@@ -1079,17 +1079,33 @@ let inline insideOriginators cg =
   |> Seq.choose insideLoc
   |> Set.ofSeq
 
-let getLocsWithNoPath idx cg (reb : Regex.REBuilder) dfas = 
+let getLocsWithNoPath idx (ti : Topology.TopoInfo) cg (reb : Regex.REBuilder) dfas = 
+  let settings = Args.getSettings()
   let startingLocs = Array.fold (fun acc dfa -> Set.union (reb.StartingLocs dfa) acc) Set.empty dfas
   let originators = insideOriginators cg
+  let originatorLocs = Set.map CGraph.loc originators
   
-  let canOriginate = 
+  let canSend = 
     Topology.vertices cg.Topo
     |> Seq.choose insideOriginatorLoc
     |> Set.ofSeq
   
-  let locsThatNeedPath = Set.difference (Set.intersect startingLocs canOriginate) originators
+  let needToSend = Set.intersect startingLocs canSend
+  
+  let locsThatNeedPath = 
+    if settings.IsAbstract then needToSend
+    else Set.difference needToSend originatorLocs
+  
   let locsThatGetPath = CGraph.acceptingLocations cg
+  //printfn "starting locs: %A" startingLocs
+  //printfn "originators: %A" originators
+  //printfn "can send: %A" canSend
+  //printfn "locs that need path: %A" locsThatNeedPath
+  //printfn "locs that get path: %A" locsThatGetPath
+  if settings.IsAbstract then 
+    for o in originators do
+      let k = AbstractAnalysis.reachability ti cg o
+      ()
   logInfo (idx, sprintf "Locations that need path: %s" (locsThatNeedPath.ToString()))
   logInfo (idx, sprintf "Locations that get path: %s" (locsThatGetPath.ToString()))
   Set.difference locsThatNeedPath locsThatGetPath
@@ -1106,7 +1122,7 @@ let getUnusedPrefs cg res =
 let warnAnycasts cg (polInfo : Ast.PolInfo) pred = 
   let settings = Args.getSettings()
   let origLocs = polInfo.OrigLocs.[pred]
-  let orig = insideOriginators cg
+  let orig = insideOriginators cg |> Set.map CGraph.loc
   let bad = Set.difference orig origLocs
   let ti = polInfo.Ast.TopoInfo
   if (not settings.Anycast) && (Set.count orig > 1) then 
@@ -1175,8 +1191,10 @@ let compileToIR idx pred (polInfo : Ast.PolInfo option) aggInfo (reb : Regex.REB
   debug (fun () -> CGraph.generatePNG cg polInfo (debugName + "-min"))
   // warn for anycasts 
   if not settings.Test then warnAnycasts cg polInfo.Value pred
+  // check if there is reachability
   // check there is a route for each location specified
-  let lost = getLocsWithNoPath idx cg reb dfas
+  // TODO: this can fail
+  let lost = getLocsWithNoPath idx polInfo.Value.Ast.TopoInfo cg reb dfas
   if not (Set.isEmpty lost) then 
     match polInfo with
     | Some pi -> 
@@ -1234,7 +1252,7 @@ let compileForSinglePrefix idx (polInfo : Ast.PolInfo) aggInfo (pred, reb, res) 
     | UncontrollableEnter x -> 
       let l = Topology.router x ti
       let msg = 
-        sprintf "Cannot control inbound traffic from peer: %s for predicate %s." l 
+        sprintf "Cannot control inbound traffic from peer: %s for predicate %s. " l 
           (Route.toString pred) 
         + (sprintf 
              "If you only want to allow traffic from neighbor %s (and not beyond), enable the --noexport flag." 

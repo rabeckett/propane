@@ -25,6 +25,8 @@ let printStats (stats : Abgp.Stats) =
   printfn "Total Config Min time (sec):       %f" (float stats.MinTime / 1000.0)
   printfn ""
 
+open Route
+
 [<EntryPoint>]
 let main argv = 
   ignore (Args.parse argv)

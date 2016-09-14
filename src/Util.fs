@@ -2,6 +2,7 @@
 
 open System
 open System.Collections.Generic
+open System.Diagnostics
 open System.IO
 
 let unreachable() = failwith "unreachable"
@@ -320,3 +321,38 @@ module Format =
   
   let passed() = writeFormatted "#(green)passed#\n"
   let failed() = writeFormatted "#(red)failed#\n"
+
+module Command = 
+  let run (args : string list) (input : string option) : string option = 
+    match args with
+    | [] -> failwith "Invalid command"
+    | exe :: args -> 
+      let cmd = 
+        if List.isEmpty args then ""
+        else List.joinBy " " args
+      try 
+        let p = new Process()
+        p.StartInfo.FileName <- exe
+        p.StartInfo.Arguments <- cmd
+        p.StartInfo.UseShellExecute <- false
+        p.StartInfo.RedirectStandardOutput <- true
+        if input.IsSome then p.StartInfo.RedirectStandardInput <- true
+        p.StartInfo.RedirectStandardError <- true
+        p.Start() |> ignore
+        match input with
+        | None -> ()
+        | Some txt -> 
+          let w = p.StandardInput
+          w.Write(txt)
+          w.Close()
+        let output = p.StandardOutput.ReadToEnd()
+        let err = p.StandardError.ReadToEnd()
+        p.WaitForExit()
+        match output, err with
+        | "", e -> Some e
+        | o, "" -> Some o
+        | _, _ -> Some output
+      with _ -> None
+
+module String = 
+  let toLines (s : string) : string [] = s.Split([| '\n'; '\r' |])

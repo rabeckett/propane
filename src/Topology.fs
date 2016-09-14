@@ -132,6 +132,10 @@ let findLinks (topo : T) (froms, tos) =
 
 type Topo = XmlProvider< "../data/template.xml" >
 
+type Constraint = 
+  { Name : string
+    Formula : string }
+
 type TopoInfo = 
   { Graph : T
     NetworkAsn : int
@@ -139,7 +143,9 @@ type TopoInfo =
     InternalNames : Set<string>
     ExternalNames : Set<string>
     AllNames : Set<string>
-    IpMap : Dictionary<string * string, string * string> }
+    IpMap : Dictionary<string * string, string * string>
+    NodeConstraints : Map<string, Constraint>
+    EdgeConstraints : Map<string * string, Constraint * Constraint> }
 
 let MAX_ASN = 65534
 let counter = ref 0
@@ -151,7 +157,7 @@ let parseAsn s =
     int s
   with _ -> error (sprintf "Invalid topology: Unrecognized AS number %s" s)
 
-let inline getAsn isAbstract inside name (asn : string) = 
+let getAsn isAbstract inside name (asn : string) = 
   if isAbstract then 
     if asn <> "" then error (sprintf "Invalid topology: ASN included in abstract topology: %s" asn)
     else 
@@ -186,6 +192,14 @@ let assignIps sip tip ip =
   | _, "" | "", _ -> error "Missing source or target ip in topology"
   | _, _ -> (sip, tip)
 
+let parseConstraint (c : string) : Constraint = 
+  if c = "" then error "Invalid topology: abstract topology requires constraints"
+  let vs = c.Split([| ':' |])
+  if vs.Length <> 2 then 
+    error "Invalid constraint: %s. Constraints should be of the form 'name:formula'" c
+  { Name = vs.[0]
+    Formula = vs.[1] }
+
 let readTopology (file : string) : TopoInfo = 
   let settings = Args.getSettings()
   let g = BidirectionalGraph<Node, Edge<Node>>()
@@ -205,7 +219,12 @@ let readTopology (file : string) : TopoInfo =
     let mutable nameMap = Map.empty
     let mutable internalNames = Set.empty
     let mutable externalNames = Set.empty
+    let mutable nodeConstraints = Map.empty
+    let mutable edgeConstraints = Map.empty
     for n in topo.Nodes do
+      if settings.IsAbstract then 
+        nodeConstraints <- Map.add n.Name (parseConstraint n.Constraint) nodeConstraints
+        printfn "adding node constraint for %s" n.Name
       let asn = getAsn settings.IsAbstract n.Internal n.Name n.Asn
       match Map.tryFind n.Name asnMap with
       | None -> 
@@ -220,7 +239,6 @@ let readTopology (file : string) : TopoInfo =
         else Outside
       if n.Internal then internalNames <- Set.add n.Name internalNames
       else externalNames <- Set.add n.Name externalNames
-      // TODO: duplicate names not handled
       let state = Node(string asn, typ)
       nodeMap <- Map.add n.Name state nodeMap
       ignore (g.AddVertex state)
@@ -241,13 +259,21 @@ let readTopology (file : string) : TopoInfo =
         addEdge y x
         ipMap.[(x.Loc, y.Loc)] <- (s, t)
         ipMap.[(y.Loc, x.Loc)] <- (t, s)
+        if settings.IsAbstract then 
+          let ec1 = parseConstraint e.SourceConstraint
+          let ec2 = parseConstraint e.TargetConstraint
+          edgeConstraints <- Map.add (e.Source, e.Target) (ec1, ec2) edgeConstraints
+          edgeConstraints <- Map.add (e.Target, e.Source) (ec2, ec1) edgeConstraints
+          printfn "Adding constraints for: (%s,%s)" e.Source e.Target
     { Graph = Topology(g)
       NetworkAsn = parseAsn (topo.Asn)
       AsnMap = asnMap
       InternalNames = internalNames
       ExternalNames = externalNames
       AllNames = Set.union internalNames externalNames
-      IpMap = ipMap }
+      IpMap = ipMap
+      NodeConstraints = nodeConstraints
+      EdgeConstraints = edgeConstraints }
   with _ -> error "Invalid topology XML file"
 
 module Examples = 

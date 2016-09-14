@@ -65,11 +65,11 @@
     <Reference Include="FSharp.Data">
       <HintPath>..\packages\FSharp.Data.2.3.2\lib\net40\FSharp.Data.dll</HintPath>
     </Reference>
-    <Reference Include="nunit.framework">
-      <HintPath>..\packages\NUnit.3.4.1\lib\net45\nunit.framework.dll</HintPath>
-    </Reference>
     <Reference Include="DocoptNet">
       <HintPath>..\packages\docopt.net.0.6.1.9\lib\net40\DocoptNet.dll</HintPath>
+    </Reference>
+    <Reference Include="nunit.framework">
+      <HintPath>..\packages\NUnit.2.6.4\lib\nunit.framework.dll</HintPath>
     </Reference>
   </ItemGroup>
   <ItemGroup>
@@ -97,6 +97,7 @@
     <Compile Include="Input.fs" />
     <Compile Include="CGraph.fsi" />
     <Compile Include="CGraph.fs" />
+    <Compile Include="AbstractAnalysis.fs" />
     <Compile Include="Config.fs" />
     <Compile Include="Abgp.fsi" />
     <Compile Include="Abgp.fs" />
@@ -151,5 +152,4 @@
       </Properties>
     </MonoDevelop>
   </ProjectExtensions>
-
 </Project>

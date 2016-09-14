@@ -312,6 +312,10 @@ let inline adjustBits bits =
   | None -> (32, 32)
   | Some b -> b
 
+let createPrefix (a, b, c, d, lo, hi) = 
+  if hi = -1 then Prefix(a, b, c, d, lo)
+  else Prefix(a, b, c, d, lo, Range(lo, hi))
+
 let wellFormedPrefix ast pos (a, b, c, d, bits) = 
   let (lo, hi) = adjustBits bits
   if (a > 255 || b > 255 || c > 255 || d > 255 || (lo > 32) || (hi > 32)) then 
@@ -445,7 +449,7 @@ let rec pushPrefsToTop ast (e : Expr) : Expr list =
             Node = Ident(id, [ e' ]) }) es
       | es -> Util.unreachable()
     else [ e ]
-  | Asn _ -> [ e ]
+  | Asn _ | TemplateVar _ -> [ e ]
   | _ -> Util.unreachable()
 
 and merge ast e (x, y) f = 
@@ -571,7 +575,7 @@ let rec buildPredicate (e : Expr) : Predicate =
   | OrExpr(a, b) -> Route.disj (buildPredicate a) (buildPredicate b)
   | PrefixLiteral(a, b, c, d, bits) -> 
     let (lo, hi) = adjustBits bits
-    let p = Prefix(a, b, c, d, lo, Range(lo, hi))
+    let p = createPrefix (a, b, c, d, lo, hi)
     Route.prefix p
   | CommunityLiteral(x, y) -> Route.community (string x + ":" + string y)
   | TemplateVar(ido, id) -> 
@@ -588,7 +592,7 @@ let inline getPrefix x =
   match x with
   | PrefixLiteral(a, b, c, d, bits) -> 
     let (lo, hi) = adjustBits bits
-    Prefix(a, b, c, d, lo, Range(lo, hi))
+    createPrefix (a, b, c, d, lo, hi)
   | TemplateVar(ido, id) -> 
     match ido with
     | None -> Prefix(sprintf "$%s$" id.Name)

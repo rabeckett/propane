@@ -1,12 +1,13 @@
 <topology asn="100">
-  <node internal="true" name="T0"></node>
-  <node internal="true" name="T1"></node>
-  <node internal="true" name="T2"></node>
-  <node internal="false" name="Peer1"></node>
-  <node internal="false" name="Peer2"></node>
-  
-  <edge source="T0" target="T1"></edge>
-  <edge source="T1" target="T2"></edge>
-  <edge source="T2" target="Peer1"></edge>
-  <edge source="T2" target="Peer2"></edge>
+  <!-- Node constraints -->
+  <node internal="true" name="T0" constraint="t0:true"></node>
+  <node internal="true" name="T1" constraint="t1:true"></node>
+  <node internal="true" name="T2" constraint="t2:true"></node>
+  <node internal="false" name="Peer1" constraint="p1:true"></node>
+  <node internal="false" name="Peer2" constraint="p2:true"></node>
+  <!-- Edge constraints -->
+  <edge source="T0" target="T1" source-constraint="e1:(= e1 2)" target-constraint="e2:(= e2 2)"></edge>
+  <edge source="T1" target="T2" source-constraint="e3:(= e3 t2)" target-constraint="e4:(= e4 t1)"></edge>
+  <edge source="T2" target="Peer1" source-constraint="e5:(= e5 p1)" target-constraint="e6:(= e6 t2)"></edge>
+  <edge source="T2" target="Peer2" source-constraint="e7:(= e7 p2)" target-constraint="e8:(= e8 t2)"></edge>
 </topology>

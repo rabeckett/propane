@@ -327,6 +327,6 @@ let generate (res : Abgp.CompilationResult) =
     let output = quagga rInternal rc
     output |> File.writeFileWithExtension (configDir + File.sep + name) "cfg"
   // Write CORE emulator save file
-  addFakeExternalConfigs nc
-  core rInternal nc |> File.writeFileWithExtension (out + File.sep + "core") "imn"
-// Write test files
+  if not settings.IsAbstract then 
+    addFakeExternalConfigs nc
+    core rInternal nc |> File.writeFileWithExtension (out + File.sep + "core") "imn"

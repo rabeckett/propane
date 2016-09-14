@@ -227,3 +227,8 @@ paper/*/*.pdf
 # propane output directory
 output/
 
+# generated test results
+TestResult.xml
+
+# src packages
+src/packages
