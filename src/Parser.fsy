@@ -136,7 +136,7 @@ expr:
     | LPAREN expr RPAREN                         { {Pos = range (pos $1) (pos $3); Node = $2.Node} }
 	| expr RARROW expr                           { {Pos = range $1.Pos $3.Pos; Node = Ast.LinkExpr ($1, $3)} }
     | INT DOT INT DOT INT DOT INT                { {Pos = range (pos (fst $1)) (pos (fst $7)); Node = Ast.PrefixLiteral (snd $1, snd $3, snd $5, snd $7, None)} }
-    | INT DOT INT DOT INT DOT INT SLASH INT      { {Pos = range (pos (fst $1)) (pos (fst $9)); Node = Ast.PrefixLiteral (snd $1, snd $3, snd $5, snd $7, Some (snd $9, snd $9))} }
+    | INT DOT INT DOT INT DOT INT SLASH INT      { {Pos = range (pos (fst $1)) (pos (fst $9)); Node = Ast.PrefixLiteral (snd $1, snd $3, snd $5, snd $7, Some (snd $9, 32))} }
     | INT DOT INT DOT INT DOT INT SLASH LBRACKET INT DOT DOT INT RBRACKET
                                                  { {Pos = range (pos (fst $1)) (pos $14); Node = Ast.PrefixLiteral (snd $1, snd $3, snd $5, snd $7, Some (snd $10, snd $13))} }
 	| INT COLON INT						         { {Pos = range (pos (fst $1)) (pos (fst $3)); Node = Ast.CommunityLiteral (snd $1, snd $3)} }

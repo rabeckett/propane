@@ -1439,14 +1439,18 @@ let createPrefixList (kind, id, prefixMap : Dictionary<_, _>, prefixLists : List
 let createCommunityList (kind, title : Option<string>, communityMap : Dictionary<_, _>, 
                          communityLists : List<_>, cls : List<_>, id, values) = 
   let vs = List.ofSeq values
-  let b, name = communityMap.TryGetValue((kind, vs))
-  if b then cls.Add(name)
-  else 
-    let name = 
-      match title with
-      | None -> sprintf "cl-%d" !id
-      | Some n -> n
-    
+  match title with
+  | None -> 
+    let b, name = communityMap.TryGetValue((kind, vs))
+    if b then cls.Add(name)
+    else 
+      let name = sprintf "cl-%d" !id
+      let cl = CommunityList(kind, name, values)
+      incr id
+      cls.Add(name)
+      communityLists.Add(cl)
+      communityMap.[(kind, vs)] <- name
+  | Some name -> 
     let cl = CommunityList(kind, name, values)
     incr id
     cls.Add(name)
@@ -1532,7 +1536,7 @@ let commGroupsByRelevantPeers m =
     | Some ps -> Map.add v (Set.add k ps) acc) Map.empty m
 
 let createExportRouteMap pfxInfo (origins : List<Route.TempPrefix * Export list>) peerExportMap id 
-    (cMap, cLists, clID) (polLists, polID) rMaps (allLocal : List<_>) cs ps = 
+    (cMap, cLists, clID) (polLists, polID) rMaps allLocal cs ps = 
   incr id
   let (plID, pfxMap, pLists) = pfxInfo
   let rmname = "export-" + (string !id)
@@ -1561,18 +1565,19 @@ let createExportRouteMap pfxInfo (origins : List<Route.TempPrefix * Export list>
   // implicitly deny others from being exported
   for (i, ms) in cs do
     let cls = List()
+    let dcs = List()
     match i with
     | Some i -> 
       let values = List()
       let v = "100:" + string i
       values.Add(v)
-      allLocal.Add(v)
+      allLocal := Set.add v !allLocal
       createCommunityList (Config.Kind.Permit, None, cMap, cLists, cls, clID, values)
+    //dcs.Add(DeleteCommunity("cl-" + string (!clID - 1)))
     | None -> ()
     let pol = createPolicyList (polID, polLists, List(), List(), cls)
     let scs = List()
-    let dcs = List()
-    dcs.Add(DeleteCommunity("local"))
+    dcs.Add(DeleteCommunity(LOCAL_DELETE_COMMUNITY))
     let mutable smed = null
     let mutable spre = null
     for m in ms do
@@ -1704,14 +1709,15 @@ let toConfig (abgp : T) =
               createRouteMap ("in", !priority, rMaps, rms, pol.Name, slp, null, null, scs, List()) 
               |> ignore
     // get export filter information
-    let allLocalComms = List()
+    let allLocalComms = ref Set.empty
     let peerInfo = (allPeers, inPeers, outPeers)
     let peerExportMap = 
       computeExportFilters exportMap (plID, pfxMap, pfxLists) origins peerInfo (cMap, cLists, clID) 
         (polLists, polID) rMaps allLocalComms
     // create a unique community list to delete all local communities
+    let allLocalComms = List(Set.toSeq !allLocalComms)
     createCommunityList 
-      (Config.Kind.Permit, Some "local", cMap, cLists, List(), clID, allLocalComms)
+      (Config.Kind.Permit, Some LOCAL_DELETE_COMMUNITY, cMap, cLists, List(), clID, allLocalComms)
     // add import filter for all peers
     for peer in allPeers do
       let export = Map.tryFind peer peerExportMap

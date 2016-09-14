@@ -3,6 +3,8 @@
 open System
 open System.Collections.Generic
 
+let LOCAL_DELETE_COMMUNITY = "LOCAL"
+
 /// Kind of various configuration commands. 
 /// Either permit or deny the prefix/ip/route/...
 type Kind = 
@@ -225,8 +227,8 @@ let private deleteUnusedLists (rc : RouterConfiguration) =
     commLists <- Set.union commLists (Set.ofSeq polList.CommunityLists)
     prefixLists <- Set.union prefixLists (Set.ofSeq polList.PrefixLists)
   rc.AsPathLists.RemoveAll(fun al -> not <| asLists.Contains(al.Name)) |> ignore
-  rc.CommunityLists.RemoveAll(fun cl -> cl.Name <> "local" && not <| commLists.Contains(cl.Name)) 
-  |> ignore
+  rc.CommunityLists.RemoveAll
+    (fun cl -> cl.Name <> LOCAL_DELETE_COMMUNITY && not <| commLists.Contains(cl.Name)) |> ignore
   rc.PrefixLists.RemoveAll(fun pl -> not <| prefixLists.Contains(pl.Name))
 
 /// Remove communities tagged to distinguish export actions, when
@@ -253,6 +255,7 @@ let private deleteExportComms (rc : RouterConfiguration) =
 let clean (nc : NetworkConfiguration) = 
   for kv in nc.RouterConfigurations do
     let rc = kv.Value
-    deleteUnusedLists rc |> ignore
-    //deleteExportComms rc |> ignore
-    deleteMissingRouteMaps rc |> ignore
+    ()
+//deleteUnusedLists rc |> ignore
+//deleteExportComms rc |> ignore
+//deleteMissingRouteMaps rc |> ignore
