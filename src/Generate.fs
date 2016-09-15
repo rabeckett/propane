@@ -126,7 +126,7 @@ let quagga (rInternal : Set<string>) (rc : RouterConfiguration) : string =
     if rm.SetPathPrepend <> null then 
       let asn = string rc.NetworkAsn
       let prepends = Util.Format.repeat asn rm.SetPathPrepend.Value
-      bprintf sb "  set prepend %s\n" prepends
+      bprintf sb "  set as-path prepend %s\n" prepends
     bprintf sb "!\n"
   string sb
 
@@ -152,8 +152,8 @@ let core (rInternal : Set<string>) (nc : NetworkConfiguration) : string =
         | Route.ConcretePfx(a, b, c, d, slash) -> 
           if slash = 32 then (string n, string n)
           else 
-            let x = sprintf "%d.%d.%d.%d/%d" a b c (d + 1) slash
-            let y = sprintf "%d.%d.%d.%d/%d" a b c (d + 2) slash
+            let x = sprintf "%d.%d.%d.%d/%d" a b c (d + 2) slash
+            let y = sprintf "%d.%d.%d.%d/%d" a b c (d + 1) slash
             (x, y)
         | _ -> failwith "unreachable"
       hostMap.[rc.Name] <- (hSub, rSub, nodeMap.[rc.Name], i)
