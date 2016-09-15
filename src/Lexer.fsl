@@ -14,6 +14,11 @@ let inline newline (lexbuf: LexBuffer<_>) =
 
 let inline position (lexbuf: LexBuffer<_>) =
     (lexbuf.StartPos, lexbuf.EndPos)
+
+let parseID (lexbuf: LexBuffer<_>) = 
+    let s = LexBuffer<char>.LexemeString lexbuf
+    if s = "_" then WILDCARD (position lexbuf)
+    else ID (position lexbuf, s)
 }
 
 let digits = ['0'-'9']+ 
@@ -32,7 +37,7 @@ rule tokenize = parse
 	| "false"               { FALSE (position lexbuf) }
 	| "control"             { CONTROL (position lexbuf) }
     | asn                   { ASN (position lexbuf, getAsn (LexBuffer<char>.LexemeString lexbuf)) }
-	| id                    { ID (position lexbuf, LexBuffer<char>.LexemeString lexbuf) }
+	| id                    { parseID lexbuf }
 	| digits                { INT (position lexbuf, Int32.Parse (LexBuffer<char>.LexemeString lexbuf)) }
 	| '='                   { EQUAL (position lexbuf) }
 	| '('                   { LPAREN (position lexbuf) }

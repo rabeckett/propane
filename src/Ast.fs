@@ -34,12 +34,14 @@ and Node =
   | CommunityLiteral of int * int
   | Asn of int
   | IntLiteral of int
+  | Wildcard
   | True
   | False
 
 type Type = 
   | LinkType
   | LocType
+  | WildcardType
   | RegexType
   | PredicateType
   | IntType
@@ -48,6 +50,7 @@ type Type =
     match this with
     | LinkType -> "Links"
     | LocType -> "Location"
+    | WildcardType -> "Wildcard"
     | RegexType -> "Constraint"
     | PredicateType -> "Predicate"
     | IntType -> "Int"
@@ -122,7 +125,7 @@ let rec iter f (e : Expr) =
     iter f e2
   | NotExpr e1 -> iter f e1
   | Ident(id, args) -> List.iter (iter f) args
-  | True | False | PrefixLiteral _ | CommunityLiteral _ | IntLiteral _ | Asn _ -> ()
+  | True | False | Wildcard | PrefixLiteral _ | CommunityLiteral _ | IntLiteral _ | Asn _ -> ()
   | TemplateVar(_, _) -> ()
 
 let iterAllExpr (ast : T) e f = 
@@ -275,7 +278,7 @@ let substitute (ast : T) (e : Expr) : Expr =
     | NotExpr e1 -> 
       { Pos = e.Pos
         Node = NotExpr(aux defs seen e1) }
-    | True | False | PrefixLiteral _ | CommunityLiteral _ | IntLiteral _ | Asn _ -> e
+    | True | False | Wildcard | PrefixLiteral _ | CommunityLiteral _ | IntLiteral _ | Asn _ -> e
     | TemplateVar(ido, name) -> 
       match ido with
       | None -> e
@@ -364,7 +367,7 @@ let wellFormed ast (e : Expr) : Type =
       | LocType, LocType -> LocType
       | LocType, RegexType | RegexType, LocType | RegexType, RegexType -> RegexType
       | BlockType, BlockType -> BlockType
-      | _, _ -> Message.errorAst ast (typeMsg2 [ BlockType; RegexType ] t1 t2) e.Pos
+      | _, _ -> Message.errorAst ast (typeMsg2 [ BlockType; RegexType; LocType ] t1 t2) e.Pos
     | OrExpr(e1, e2) | AndExpr(e1, e2) -> 
       let t1 = aux block e1
       let t2 = aux block e2
@@ -378,7 +381,7 @@ let wellFormed ast (e : Expr) : Type =
       | LocType, LocType -> LocType
       | LocType, RegexType | RegexType, LocType | RegexType, RegexType -> RegexType
       | BlockType, BlockType -> BlockType
-      | _, _ -> Message.errorAst ast (typeMsg2 [ BlockType; RegexType ] t1 t2) e.Pos
+      | _, _ -> Message.errorAst ast (typeMsg2 [ BlockType; RegexType; LocType ] t1 t2) e.Pos
     | NotExpr e1 -> 
       let t = aux block e1
       match t with
@@ -394,6 +397,7 @@ let wellFormed ast (e : Expr) : Type =
       wellFormedPrefix ast e.Pos (a, b, c, d, bits)
       PredicateType
     | True _ | False _ | CommunityLiteral _ -> PredicateType
+    | Wildcard -> WildcardType
     | IntLiteral _ -> IntType
     | Asn _ -> LocType
     | TemplateVar(ido, id) -> 
@@ -414,6 +418,8 @@ let wellFormed ast (e : Expr) : Type =
           let t = aux block e
           match t with
           | LocType -> ()
+          | WildcardType -> 
+            if id.Name <> "path" then Message.errorAst ast (typeMsg [ LocType ] WildcardType) e.Pos
           | _ -> Message.errorAst ast (typeMsg [ LocType ] t) e.Pos
         RegexType
       else aux block (substitute ast e)
@@ -506,6 +512,7 @@ let rec buildRegex (ast : T) (reb : Regex.REBuilder) (r : Expr) : Regex.LazyT =
                 reb.Negate(buildRegex ast reb y) ]
   | NotExpr x -> reb.Negate(buildRegex ast reb x)
   | Asn i -> reb.Loc(string i)
+  | Wildcard -> reb.Wildcard
   | Ident(id, args) -> 
     match id.Name with
     | "reach" -> 
@@ -513,7 +520,8 @@ let rec buildRegex (ast : T) (reb : Regex.REBuilder) (r : Expr) : Regex.LazyT =
       reb.Reach(locs.[0], locs.[1])
     | "path" -> 
       let locs = checkParams id args.Length args
-      reb.Path <| List.map List.head locs
+      // The wildcard "_" only appears by itself because of checking well-formedness
+      reb.Path <| locs
     | "valleyfree" -> 
       let locs = checkParams id args.Length args
       reb.ValleyFree locs
@@ -554,7 +562,8 @@ let rec buildRegex (ast : T) (reb : Regex.REBuilder) (r : Expr) : Regex.LazyT =
       ignore (checkParams id 0 args)
       reb.Outside
     | _ -> Util.unreachable()
-  | ShrExpr(e1, e2) -> error (sprintf "Preferences in built-in constraint currently not handled")
+  | ShrExpr(e1, e2) -> 
+    Message.errorAst ast (sprintf "Preferences in built-in constraint currently not handled") r.Pos
   | TemplateVar(ido, id) -> 
     match ido with
     | None -> 
@@ -582,7 +591,7 @@ let rec buildPredicate (e : Expr) : Predicate =
     match ido with
     | None -> Route.templateVar (sprintf "global.$%s$" id.Name)
     | Some x -> Route.templateVar (sprintf "%s.$%s$" x.Name id.Name)
-  | BlockExpr _ | DiffExpr _ | IntLiteral _ | NotExpr _ | LinkExpr _ | ShrExpr _ | LAndExpr _ | LOrExpr _ | Ident _ | Asn _ -> 
+  | Wildcard | BlockExpr _ | DiffExpr _ | IntLiteral _ | NotExpr _ | LinkExpr _ | ShrExpr _ | LAndExpr _ | LOrExpr _ | Ident _ | Asn _ -> 
     Util.unreachable()
 
 (* Helper getter functions for expressions

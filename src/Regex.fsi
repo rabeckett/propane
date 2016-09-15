@@ -54,6 +54,7 @@ type REBuilder =
   member Outside : LazyT
   member Empty : LazyT
   member Epsilon : LazyT
+  member Wildcard : LazyT
   member Loc : string -> LazyT
   member Locs : string list -> LazyT
   member Concat : LazyT list -> LazyT
@@ -66,7 +67,7 @@ type REBuilder =
   member MakeDFA : T -> Automaton
   member StartingLocs : Automaton -> Set<string>
   (* Constraint-based builders *)
-  member Path : string list -> LazyT
+  member Path : string list list -> LazyT
   member Internal : unit -> LazyT
   member External : unit -> LazyT
   member Any : unit -> LazyT
@@ -80,7 +81,3 @@ type REBuilder =
   member Enter : string list -> LazyT
   member Exit : string list -> LazyT
   member Only : LazyT -> LazyT
-
-/// Run unit tests
-module Test = 
-  val run : unit -> unit

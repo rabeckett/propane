@@ -7,8 +7,6 @@ open Util.Format
 let runUnitTests() = 
   writeFormatted (header "Running unit tests ")
   Topology.Test.run()
-  Regex.Test.run()
-  //Route.Test.run ()
   Abgp.Test.run()
 
 let total xs = 

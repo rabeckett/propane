@@ -32,6 +32,7 @@ and Node =
   | CommunityLiteral of int * int
   | Asn of int
   | IntLiteral of int
+  | Wildcard
   | True
   | False
 

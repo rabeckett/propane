@@ -2044,47 +2044,130 @@ module Test =
   
   let rBrokenTriangle1 (pb : Route.PredicateBuilder) (reb : Regex.REBuilder) = 
     let pref1 = 
-      reb.Inter [ reb.Union [ reb.Path [ "C"; "A"; "E"; "D" ]
-                              reb.Path [ "A"; "B"; "D" ] ]
+      reb.Inter [ reb.Union [ reb.Path [ [ "C" ]
+                                         [ "A" ]
+                                         [ "E" ]
+                                         [ "D" ] ]
+                              reb.Path [ [ "A" ]
+                                         [ "B" ]
+                                         [ "D" ] ] ]
                   reb.Start [ "A"; "C"; "D" ] ]
     [ reb.Build Route.top 1 pref1 ]
   
   let rBigDipper1 (pb : Route.PredicateBuilder) (reb : Regex.REBuilder) = 
-    let op1 = reb.Path [ "C"; "A"; "E"; "D" ]
-    let op2 = reb.Path [ "A"; "E"; "D" ]
-    let op3 = reb.Path [ "A"; "D" ]
+    let op1 = 
+      reb.Path [ [ "C" ]
+                 [ "A" ]
+                 [ "E" ]
+                 [ "D" ] ]
+    
+    let op2 = 
+      reb.Path [ [ "A" ]
+                 [ "E" ]
+                 [ "D" ] ]
+    
+    let op3 = 
+      reb.Path [ [ "A" ]
+                 [ "D" ] ]
+    
     let pref1 = reb.Union [ op1; op2; op3 ]
     [ reb.Build Route.top 1 pref1 ]
   
   let rBadGadget1 (pb : Route.PredicateBuilder) (reb : Regex.REBuilder) = 
-    let op1 = reb.Path [ "A"; "C"; "D" ]
-    let op2 = reb.Path [ "B"; "A"; "D" ]
-    let op3 = reb.Path [ "C"; "B"; "D" ]
+    let op1 = 
+      reb.Path [ [ "A" ]
+                 [ "C" ]
+                 [ "D" ] ]
+    
+    let op2 = 
+      reb.Path [ [ "B" ]
+                 [ "A" ]
+                 [ "D" ] ]
+    
+    let op3 = 
+      reb.Path [ [ "C" ]
+                 [ "B" ]
+                 [ "D" ] ]
+    
     let pref1 = reb.Union [ op1; op2; op3 ]
-    let op4 = reb.Path [ "A"; "D" ]
-    let op5 = reb.Path [ "B"; "D" ]
-    let op6 = reb.Path [ "C"; "D" ]
+    
+    let op4 = 
+      reb.Path [ [ "A" ]
+                 [ "D" ] ]
+    
+    let op5 = 
+      reb.Path [ [ "B" ]
+                 [ "D" ] ]
+    
+    let op6 = 
+      reb.Path [ [ "C" ]
+                 [ "D" ] ]
+    
     let pref2 = reb.Union [ op4; op5; op6 ]
     [ reb.Build Route.top 1 pref1
       reb.Build Route.top 2 pref2 ]
   
   let rBadGadget2 (pb : Route.PredicateBuilder) (reb : Regex.REBuilder) = 
-    let op1 = reb.Path [ "A"; "C"; "D" ]
-    let op2 = reb.Path [ "B"; "A"; "D" ]
-    let op3 = reb.Path [ "C"; "B"; "D" ]
-    let op4 = reb.Path [ "A"; "D" ]
-    let op5 = reb.Path [ "B"; "D" ]
-    let op6 = reb.Path [ "C"; "D" ]
+    let op1 = 
+      reb.Path [ [ "A" ]
+                 [ "C" ]
+                 [ "D" ] ]
+    
+    let op2 = 
+      reb.Path [ [ "B" ]
+                 [ "A" ]
+                 [ "D" ] ]
+    
+    let op3 = 
+      reb.Path [ [ "C" ]
+                 [ "B" ]
+                 [ "D" ] ]
+    
+    let op4 = 
+      reb.Path [ [ "A" ]
+                 [ "D" ] ]
+    
+    let op5 = 
+      reb.Path [ [ "B" ]
+                 [ "D" ] ]
+    
+    let op6 = 
+      reb.Path [ [ "C" ]
+                 [ "D" ] ]
+    
     let pref1 = reb.Union [ op1; op2; op3; op4; op5; op6 ]
     [ reb.Build Route.top 1 pref1 ]
   
   let rSeesaw1 (pb : Route.PredicateBuilder) (reb : Regex.REBuilder) = 
-    let op1 = reb.Path [ "A"; "X"; "N"; "M" ]
-    let op2 = reb.Path [ "B"; "X"; "N"; "M" ]
-    let op3 = reb.Path [ "A"; "X"; "O"; "M" ]
-    let op4 = reb.Path [ "X"; "O"; "M" ]
+    let op1 = 
+      reb.Path [ [ "A" ]
+                 [ "X" ]
+                 [ "N" ]
+                 [ "M" ] ]
+    
+    let op2 = 
+      reb.Path [ [ "B" ]
+                 [ "X" ]
+                 [ "N" ]
+                 [ "M" ] ]
+    
+    let op3 = 
+      reb.Path [ [ "A" ]
+                 [ "X" ]
+                 [ "O" ]
+                 [ "M" ] ]
+    
+    let op4 = 
+      reb.Path [ [ "X" ]
+                 [ "O" ]
+                 [ "M" ] ]
+    
     let pref1 = reb.Union [ op1; op2; op3; op4 ]
-    let pref2 = reb.Path [ "X"; "N"; "M" ]
+    
+    let pref2 = 
+      reb.Path [ [ "X" ]
+                 [ "N" ]
+                 [ "M" ] ]
     [ reb.Build Route.top 1 pref1
       reb.Build Route.top 2 pref2 ]
   

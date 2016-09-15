@@ -297,6 +297,7 @@ type LazyT =
   | LOut
   | LEmpty
   | LEpsilon
+  | LWildcard
   | LLocs of Set<string>
   | LConcat of LazyT list
   | LInter of LazyT list
@@ -316,6 +317,7 @@ let singleLocations (topo : Topology.T) r =
     match r with
     | LIn -> Some(Set.map (fun (v : Topology.Node) -> v.Loc) ain)
     | LOut -> Some(Set.map (fun (v : Topology.Node) -> v.Loc) aout)
+    | LWildcard -> Some(Set.singleton "_")
     | LLocs s -> Some s
     | LInter rs -> List.map inner rs |> Util.List.fold1 (aux Set.intersect)
     | LUnion rs -> List.map inner rs |> Util.List.fold1 (aux Set.union)
@@ -424,6 +426,7 @@ type REBuilder(topo : Topology.T) =
     | LUnion xs -> unionAll (List.map convert xs)
     | LNegate x -> negate alphabet (convert x)
     | LStar x -> star (convert x)
+    | LWildcard -> failwith "unreachable"
   
   member __.Alphabet() = alphabet
   member __.Topo() = topo
@@ -457,6 +460,7 @@ type REBuilder(topo : Topology.T) =
   member __.Negate x = LNegate x
   member __.Inside = LIn
   member __.Outside = LOut
+  member __.Wildcard = LWildcard
   
   member __.Loc x = 
     if not (alphabet.Contains x) then 
@@ -484,7 +488,17 @@ type REBuilder(topo : Topology.T) =
     if not finalAlphabet then failwith "Builder must be final before computing starting locations"
     startingLocs dfa
   
-  member this.Path(ls) = this.Concat(List.map this.Loc ls)
+  member this.Path(lss : string list list) = 
+    let cs = 
+      List.map (fun ls -> 
+        let vs = 
+          List.map (fun l -> 
+            if l = "_" then this.Star(this.Sigma())
+            else this.Loc l) ls
+        this.Union vs) lss
+    this.Inter [ this.Concat cs
+                 this.Any() ]
+  
   member this.MaybeOutside() = this.Star this.Outside
   member this.MaybeInside() = this.Star this.Inside
   
@@ -615,31 +629,3 @@ type REBuilder(topo : Topology.T) =
   member this.Only(xs) = 
     this.Concat [ xs
                   this.Star xs ]
-
-module Test = 
-  let testRegexWellFormedness() = 
-    writeFormatted "Regex well-formedness "
-    let pb = Route.PredicateBuilder()
-    let reb = REBuilder(Examples.topoStretchingManWAN())
-    let pref1 = reb.Path [ "X"; "B"; "X"; "B" ]
-    
-    let pref2 = 
-      reb.Concat [ reb.External()
-                   reb.Internal()
-                   reb.External()
-                   reb.Internal() ]
-    
-    let pref3 = 
-      reb.Concat [ reb.Internal()
-                   reb.External()
-                   reb.Internal() ]
-    
-    let mutable fail = false
-    for p in [ pref1; pref2; pref3 ] do
-      match reb.WellFormed p with
-      | None -> fail <- true
-      | Some _ -> ()
-    if fail then failed()
-    else passed()
-  
-  let run() = testRegexWellFormedness()
