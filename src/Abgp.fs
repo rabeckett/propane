@@ -1079,6 +1079,17 @@ let inline insideOriginators cg =
   |> Seq.choose insideLoc
   |> Set.ofSeq
 
+let warnNonExactOrigins cg pred = 
+  let originators = insideOriginators cg
+  if originators.Count > 0 then 
+    for tc in Route.trafficClassifiers pred do
+      let (Route.TrafficClassifier(p, _)) = tc
+      if not p.IsExact then 
+        let msg = 
+          sprintf "Use of a range of prefixes: (%s) originated in your network. " (string p) 
+          + sprintf "This will default to the concrete prefix: %s" (string <| p.Example())
+        warning msg
+
 let getLocsWithNoPath idx (ti : Topology.TopoInfo) cg (reb : Regex.REBuilder) dfas = 
   let settings = Args.getSettings()
   let startingLocs = Array.fold (fun acc dfa -> Set.union (reb.StartingLocs dfa) acc) Set.empty dfas
@@ -1136,14 +1147,6 @@ let warnAnycasts cg (polInfo : Ast.PolInfo) pred =
           (Route.toString pred) + sprintf "enable anycast by using the --anycast flag"
     error msg
 
-(* if not (Set.isEmpty bad) then 
-    let loc1 = Topology.router (bad.MinimumElement) ti
-    let msg = 
-      sprintf "Anycasting from multiple locations, e.g., %s for " loc1 
-      + sprintf "predicate %s, even though the location is not explicitly " (Route.toString pred) 
-      + sprintf "mentioned in the policy. This is almost always a mistake."
-    warning msg *)
-
 let getMinAggregateFailures (cg : CGraph.T) (pred : Route.Predicate) 
     (aggInfo : Map<string, DeviceAggregates>) = 
   let originators = CGraph.neighbors cg cg.Start
@@ -1190,19 +1193,21 @@ let compileToIR idx pred (polInfo : Ast.PolInfo option) aggInfo (reb : Regex.REB
   let cg, minTime = Profile.time (CGraph.Minimize.minimize idx) cg
   debug (fun () -> CGraph.generatePNG cg polInfo (debugName + "-min"))
   // warn for anycasts 
-  if not settings.Test then warnAnycasts cg polInfo.Value pred
-  // check if there is reachability
-  // check there is a route for each location specified
-  // TODO: this can fail
-  let lost = getLocsWithNoPath idx polInfo.Value.Ast.TopoInfo cg reb dfas
-  if not (Set.isEmpty lost) then 
-    match polInfo with
-    | Some pi -> 
-      let ti = pi.Ast.TopoInfo
-      let locs = Set.map (fun r -> Topology.router r ti) lost |> Util.Set.joinBy ", "
-      let msg = sprintf "Routers: %s will have no path to the destination" locs
-      warning msg
-    | None -> ()
+  if not settings.Test then 
+    warnNonExactOrigins cg pred
+    warnAnycasts cg polInfo.Value pred
+    // check if there is reachability
+    // check there is a route for each location specified
+    // TODO: this can fail
+    let lost = getLocsWithNoPath idx polInfo.Value.Ast.TopoInfo cg reb dfas
+    if not (Set.isEmpty lost) then 
+      match polInfo with
+      | Some pi -> 
+        let ti = pi.Ast.TopoInfo
+        let locs = Set.map (fun r -> Topology.router r ti) lost |> Util.Set.joinBy ", "
+        let msg = sprintf "Routers: %s will have no path to the destination" locs
+        warning msg
+      | None -> ()
   // Find unused preferences for policies that were not drop
   let unusedPrefs = getUnusedPrefs cg res
   if not (Set.isEmpty unusedPrefs) then 

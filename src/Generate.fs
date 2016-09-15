@@ -320,7 +320,7 @@ let generate (res : Abgp.CompilationResult) =
   let configDir = out + File.sep + "configs"
   File.createDir configDir
   let rInternal = internalRouters nc
-  // Create each router configuration, specialized by type
+  // Create each router configuration, specialized by type (just quagga now)
   for kv in nc.RouterConfigurations do
     let name = kv.Key
     let rc = kv.Value

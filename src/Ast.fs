@@ -861,43 +861,54 @@ let applyOp r1 r2 op =
   | OUnion -> LOrExpr(r1, r2)
   | ODifference -> DiffExpr(r1, r2)
 
-let checkBlock ast e (pcs : (Predicate * _) list) = 
-  let mutable remaining = pb.True
+let warnDeadPrefixes ast e (pcs : (Predicate * _) list) = 
   let mutable matched = pb.False
   let mutable matchedVars = Set.empty
   for (pred, es) in pcs do
     match pred with
     | TemplatePred rs -> 
       if Set.isEmpty (Set.difference rs matchedVars) then 
-        warning (sprintf "Dead prefix match for %s will never apply" (Route.toString pred))
+        Message.warningAst ast 
+          (sprintf "Dead prefix match for %s will never apply" (Route.toString pred)) e.Pos
       matchedVars <- Set.union rs matchedVars
     | ConcretePred p -> 
-      remaining <- pb.And(remaining, pb.Not(pb.And(p, remaining)))
       let p' = pb.Or(p, matched)
       if p' = matched then 
-        warning (sprintf "Dead prefix match for %s will never apply" (Route.toString pred))
+        Message.warningAst ast 
+          (sprintf "Dead prefix match for %s will never apply" (Route.toString pred)) e.Pos
       matched <- p'
+
+let warnIncompleteBlock ast e (pcs : (Predicate * _) list) = 
+  let mutable remaining = pb.True
+  for (pred, es) in pcs do
+    match pred with
+    | TemplatePred rs -> ()
+    | ConcretePred p -> remaining <- pb.And(remaining, pb.Not(pb.And(p, remaining)))
   if remaining <> pb.False then 
-    // let s = Predicate.example remaining
-    // let msg = sprintf "Incomplete prefixes in block. An example of a prefix that is not matched: %s" s
-    // Message.warningAst ast msg e.Pos
-    let e = 
-      pcs
-      |> List.head
-      |> snd
-      |> List.head
-    // TODO: what is the right thing here?
-    pcs @ [ (Route.top, 
-             [ { Pos = e.Pos
-                 Node = 
-                   Ident({ Pos = e.Pos
-                           Name = "any" }, []) } ]) ]
-  else pcs
+    let s = pb.Example remaining
+    let msg = 
+      sprintf 
+        "Incomplete prefix matches found in block. An example of a prefix that is not matched: %s" 
+        (string s)
+    Message.warningAst ast msg e.Pos
+
+let identity (op : BinOp) pos = 
+  let aux n = 
+    { Pos = pos
+      Node = 
+        Ident({ Pos = pos
+                Name = n }, []) }
+  match op with
+  | OUnion | ODifference -> aux "drop"
+  | OInter -> aux "any"
 
 let combineBlocks pos pcs1 pcs2 (op : BinOp) = 
+  let pcs1 = pcs1 @ [ (Route.top, identity op pos) ]
+  let pcs2 = pcs2 @ [ (Route.top, identity op pos) ]
   let mutable combined = []
   let mutable rollingPred = pb.False
   let mutable rollingVars = Set.empty
+  let mutable lastChange = false
   for (ps, res) in pcs1 do
     for (ps', res') in pcs2 do
       let comb = Route.conj ps ps'
@@ -906,16 +917,23 @@ let combineBlocks pos pcs1 pcs2 (op : BinOp) =
         match comb with
         | TemplatePred rs -> Set.isEmpty (Set.difference rs rollingVars) |> not
         | ConcretePred p -> pb.And(p, (pb.Not rollingPred)) <> pb.False
+      lastChange <- change
       if change then 
         match comb with
         | TemplatePred rs -> rollingVars <- Set.union rs rollingVars
         | ConcretePred p -> rollingPred <- pb.Or(rollingPred, p)
         let both = (comb, applyOp res res' op)
         combined <- both :: combined
-  List.rev combined |> List.map (fun (pred, n) -> 
-                         pred, 
-                         { Pos = pos
-                           Node = n })
+  let combined = 
+    match combined with
+    | [] -> []
+    | hd :: tl -> 
+      List.rev (if lastChange then tl
+                else combined)
+  List.map (fun (p, n) -> 
+    p, 
+    { Pos = pos
+      Node = n }) combined
 
 let inline collapsePrefs pos (es : Expr list) : Expr = 
   Util.List.fold1 (fun e1 e2 -> 
@@ -923,15 +941,18 @@ let inline collapsePrefs pos (es : Expr list) : Expr =
       Node = ShrExpr(e1, e2) }) es
 
 let rec expandBlocks ast (e : Expr) : (Predicate * Expr) list = 
-  match e.Node with
-  | LOrExpr(e1, e2) -> combineBlocks e.Pos (expandBlocks ast e1) (expandBlocks ast e2) OUnion
-  | LAndExpr(e1, e2) -> combineBlocks e.Pos (expandBlocks ast e1) (expandBlocks ast e2) OInter
-  | DiffExpr(e1, e2) -> combineBlocks e.Pos (expandBlocks ast e1) (expandBlocks ast e2) ODifference
-  | BlockExpr es -> 
-    List.map (fun (x, y) -> (buildPredicate x, pushPrefsToTop ast y)) es
-    |> checkBlock ast e
-    |> List.map (fun (p, es) -> (p, collapsePrefs e.Pos es))
-  | _ -> Util.unreachable()
+  let block = 
+    match e.Node with
+    | LOrExpr(e1, e2) -> combineBlocks e.Pos (expandBlocks ast e1) (expandBlocks ast e2) OUnion
+    | LAndExpr(e1, e2) -> combineBlocks e.Pos (expandBlocks ast e1) (expandBlocks ast e2) OInter
+    | DiffExpr(e1, e2) -> 
+      combineBlocks e.Pos (expandBlocks ast e1) (expandBlocks ast e2) ODifference
+    | BlockExpr es -> 
+      List.map (fun (x, y) -> (buildPredicate x, pushPrefsToTop ast y)) es 
+      |> List.map (fun (p, es) -> (p, collapsePrefs e.Pos es))
+    | _ -> Util.unreachable()
+  warnDeadPrefixes ast e block
+  block
 
 let addTopoDefinitions (ast : T) : T = 
   let asnDefs = 
@@ -978,6 +999,8 @@ let makePolicyPairs (ast : T) =
     warnUnusedAggregates ast e
     // Expand all blocks, pushing preferences to the top of the expr
     let topLevel = expandBlocks ast e |> List.map (fun (p, e) -> (p, pushPrefsToTop ast e))
+    // Warn about dead prefixes/incomplete matches in top-level block
+    warnIncompleteBlock ast e topLevel
     // Get all syntactically specified origination points
     let origLocs = ref Map.empty
     

@@ -477,7 +477,6 @@ type PredicateBuilder() =
   
   /// Return the bdd representing a prefix x1.x2.x3.x4/s[lo..hi]
   member this.Prefix(p : Prefix) = 
-    printfn "Got prefix : %A" p
     lock obj (fun () -> 
       let mutable acc = bdd.Value [ p.Range ]
       for i in 0..31 do
