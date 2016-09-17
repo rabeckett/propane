@@ -59,11 +59,12 @@ let quagga (rInternal : Set<string>) (rc : RouterConfiguration) : string =
   // generate interface info
   bprintf sb "%s" (quaggaInterfaces rc)
   // bgp network and peers
-  bprintf sb "router bgp %s\n" (getRouterAsn rc)
+  bprintf sb "router bgp %s\n" rc.RouterAsn
   bprintf sb "  no synchronization\n"
   // convert router id to prefix
   let (_, b, c, d) = Route.Bitwise.toDotted rc.RouterID
   bprintf sb "  bgp router-id 192.%d.%d.%d\n" b c d
+  bprintf sb "  bgp bestpath as-path confed\n"
   // Ensure private ASNs don't appear by using BGP confederations
   if rInternal.Contains rc.Name then 
     if rc.NetworkAsn <> rc.RouterAsn then 
@@ -80,12 +81,13 @@ let quagga (rInternal : Set<string>) (rc : RouterConfiguration) : string =
   for aggPfx in rc.Aggregates do
     bprintf sb "  aggregate-address %s as-set summary-only\n" aggPfx
   for pc in rc.PeerConfigurations do
-    bprintf sb "  neighbor %s remote-as %s\n" (getPeerIp rc pc) (getPeerAsn rInternal rc pc)
+    let peerIp = getPeerIp rc pc
+    bprintf sb "  neighbor %s remote-as %s\n" peerIp (getPeerAsn rInternal rc pc)
     if rInternal.Contains(pc.Peer) then 
-      let peerIp = getPeerIp rc pc
       bprintf sb "  neighbor %s next-hop-self\n" peerIp
       bprintf sb "  neighbor %s send-community both\n" peerIp
       bprintf sb "  neighbor %s advertisement-interval %d\n" peerIp 5
+  //else bprintf sb "  neighbor %s local-as %s\n" peerIp rc.NetworkAsn
   for pc in rc.PeerConfigurations do
     match pc.InFilter with
     | None -> ()
