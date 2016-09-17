@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>contactEmailRot13</key>
+	<string>eorpxrgg@pf.cevaprgba.rqh</string>
+	<key>contactName</key>
+	<string>Ryan Beckett</string>
+	<key>description</key>
+	<string>Simple syntax highlighting support for Propane</string>
+	<key>name</key>
+	<string>Propane</string>
+	<key>uuid</key>
+	<string>458BF390-E99A-4BC0-9B7A-0A1839E9DC29</string>
+</dict>
+</plist>
