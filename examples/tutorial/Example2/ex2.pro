@@ -1,4 +1,4 @@
-# Give meaningful names to (groups of) ASes/prefixes
+# Give meaningful names to ASes/prefixes
 define Princeton = as500
 define Peer = {Sprint, Level3}
 define private = 
@@ -22,10 +22,10 @@ define notransit = {
 	true => not transit(Peer,Peer) 
 }
 
-# Ensure traffic for the prefix 172.4.1.0/24 ends up at Princeton
+# Ensure traffic for the prefix 140.180.0.0/16 ends up at Princeton
 # This can prevent certain types of route hijacks
 define ownership = {
-	172.4.1.0/24 => end(Princeton)
+	140.180.0.0/16 => end(Princeton)
 }
 
 define main = preferences & ownership & notransit

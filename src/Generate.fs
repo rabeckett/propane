@@ -64,6 +64,9 @@ let quagga (rInternal : Set<string>) (rc : RouterConfiguration) : string =
   // convert router id to prefix
   let (_, b, c, d) = Route.Bitwise.toDotted rc.RouterID
   bprintf sb "  bgp router-id 192.%d.%d.%d\n" b c d
+  bprintf sb "  bgp always-compare-med\n"
+  bprintf sb "  bgp deterministic-med\n"
+  bprintf sb "  bgp bestpath compare-routerid\n"
   bprintf sb "  bgp bestpath as-path confed\n"
   // Ensure private ASNs don't appear by using BGP confederations
   if rInternal.Contains rc.Name then 
