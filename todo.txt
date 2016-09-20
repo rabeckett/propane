@@ -1,8 +1,6 @@
 Issues:
   - Aggregation can leak local prefixes (lint?) 
   - Aggregation can be filtered
-  - Avoid duplicate constraints (do this at router level after expanding predicates)
-  - Warn when originating no-exact match
 
 Features:
   - Add syntax for building ranges of ASes (e.g., as[101-500])

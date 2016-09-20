@@ -67,11 +67,11 @@ type Actions =
   | Originate of Export list
   | Filters of Filter list
 
-type DeviceAggregates = (Route.Prefix * seq<string>) list
+type DeviceAggregates = Set<Route.Prefix * string list>
 
-type DeviceTags = ((string * Route.Prefix list) * seq<string>) list
+type DeviceTags = Set<(string * Route.Prefix list) * string list>
 
-type DeviceMaxRoutes = (int * seq<string>) list
+type DeviceMaxRoutes = Set<int * string list>
 
 type DeviceControl = 
   { Aggregates : DeviceAggregates
@@ -656,9 +656,9 @@ let joinConfigs polInfo (aggs, comms, maxroutes) (results : PrefixResult list) :
       | Some x -> result <- Map.add router (value :: x) result
   let routerConfigs = 
     Map.map (fun router vs -> 
-      let a = Util.Map.getOrDefault router [] aggs
-      let b = Util.Map.getOrDefault router [] comms
-      let c = Util.Map.getOrDefault router [] maxroutes
+      let a = Util.Map.getOrDefault router Set.empty aggs
+      let b = Util.Map.getOrDefault router Set.empty comms
+      let c = Util.Map.getOrDefault router Set.empty maxroutes
       { Actions = List.rev vs
         Control = 
           { Aggregates = a
@@ -1134,9 +1134,9 @@ let getMinAggregateFailures (cg : CGraph.T) (pred : Route.Predicate)
   let pairs = ref None
   for (Route.TrafficClassifier(p, _)) in prefixes do
     Map.iter (fun aggRouter aggs -> 
-      let relevantAggs = List.filter (fun (prefix, _) -> Route.mightApplyTo prefix p) aggs
+      let relevantAggs = Set.filter (fun (prefix, _) -> Route.mightApplyTo prefix p) aggs
       if not relevantAggs.IsEmpty then 
-        let rAgg, _ = relevantAggs.Head
+        let rAgg, _ = relevantAggs.MinimumElement
         match CGraph.Failure.disconnectLocs cg originators aggRouter with
         | None -> ()
         | Some(k, x, y) -> 
@@ -1299,9 +1299,9 @@ let splitByLocation f topo (vs : _ list) =
       links
       |> List.map (fun (x, y) -> (x.Loc, y.Loc))
       |> Seq.groupBy fst
-      |> Seq.map (fun (x, y) -> (x, [ (k, Seq.map snd y) ]))
+      |> Seq.map (fun (x, y) -> (x, Set.singleton (k, Seq.map snd y |> List.ofSeq)))
       |> Map.ofSeq
-    acc <- Util.Map.merge acc pairs (fun _ (xs, ys) -> xs @ ys)
+    acc <- Util.Map.merge acc pairs (fun _ (xs, ys) -> Set.union xs ys)
   acc
 
 let splitConstraints (pi : Ast.PolInfo) = 
@@ -1740,11 +1740,7 @@ let toConfig (abgp : T) =
     
     // get aggregates
     let aggs = List()
-    
-    let aggregates = 
-      rconfig.Control.Aggregates
-      |> List.map (fun (pfx, _) -> string <| pfx.Example())
-      |> Set.ofList
+    let aggregates = rconfig.Control.Aggregates |> Set.map (fun (pfx, _) -> string <| pfx.Example())
     for a in aggregates do
       aggs.Add(a)
     // unique router id
@@ -2563,10 +2559,10 @@ module Test =
     let reb = Regex.REBuilder(topo)
     let pol = reb.End [ "A" ]
     let aggs = 
-      Map.add "X" [ (Route.Prefix(10, 0, 0, 0, 31, Route.Range(31, 32)), Seq.ofList [ "PEER" ]) ] 
+      Map.add "X" (Set.singleton (Route.Prefix(10, 0, 0, 0, 31, Route.Range(31, 32)), [ "PEER" ])) 
         Map.empty
     let aggs = 
-      Map.add "Y" [ (Route.Prefix(10, 0, 0, 0, 31, Route.Range(31, 32)), Seq.ofList [ "PEER" ]) ] 
+      Map.add "Y" (Set.singleton (Route.Prefix(10, 0, 0, 0, 31, Route.Range(31, 32)), [ "PEER" ])) 
         aggs
     let res = 
       compileToIR 0 (Route.prefix <| Route.Prefix(10, 0, 0, 0, 32)) None aggs reb 
