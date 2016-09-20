@@ -34,16 +34,14 @@ type PrefixList =
 /// AS Path list, consists of 
 /// Name:   as-path list name
 /// Kind:   either permit or deny routes
-/// Regex:  The path regex to match
+/// Regex:  A list of regex of the form deny, deny, ..., allow
 type AsPathList = 
   class
     val Name : string
-    val Kind : Kind
-    val Regex : string
-    new(k, n, r) = 
-      { Kind = k
-        Name = n
-        Regex = r }
+    val Regex : List<string>
+    new(n, rs) = 
+      { Name = n
+        Regex = rs }
   end
 
 /// Community list consists of 

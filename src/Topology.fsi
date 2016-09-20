@@ -8,7 +8,7 @@ type NodeType =
   | End
   | Outside
   | Inside
-  | Unknown
+  | Unknown of Set<string>
 
 [<Struct>]
 type Node = 
@@ -38,7 +38,9 @@ val isTopoNode : Node -> bool
 val isOutside : Node -> bool
 /// Check if a node represents an internal location (under AS control)
 val isInside : Node -> bool
-/// Check if a node can originate traffice (e.g., TOR in DC)
+/// Check if a node is the special 'out' node
+val isUnknown : Node -> bool
+/// Check if a node can originate traffic (e.g., TOR in DC)
 val canOriginateTraffic : Node -> bool
 /// Checks if a topology is well-formed. This involves checking 
 /// for duplicate names, as well as checking that the inside is fully connected

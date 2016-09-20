@@ -845,7 +845,10 @@ module Outgoing =
     if Topology.isOutside x.Node then 
       let nin = neighborsIn cg x
       if peerOnly cg nin then PeerMatch x
-      else RegexMatch(CGraph.ToRegex.constructRegex (CGraph.copyReverseGraph cg) x)
+      else 
+        let cgRev = CGraph.copyReverseGraph cg
+        let re = CGraph.ToRegex.constructRegex cgRev x
+        RegexMatch(re)
     else PeerMatch x
 
 let getMatches (allPeers, inPeers, outPeers) outgoingMatches = 
@@ -1021,30 +1024,6 @@ let genConfig (cg : CGraph.T) (pred : Route.Predicate) (ord : Consistency.Orderi
           | _ -> None
         
         exports <- getExports outPeerInfo cgstate inExports sendTo unqMatchPeer
-        // use ibgp configurations
-        (* let matches = 
-                    if settings.UseIBGP then 
-                        List.choose (fun m -> 
-                            match m with 
-                            | Match.Peer Any -> Some (Match.Peer Out) 
-                            | Match.Peer In -> None 
-                            | Match.Peer (Router x) -> if ain.Contains x then None else Some m
-                            | Match.State(c,Any) -> Some (Match.State(c,Out))
-                            | Match.State(_,In) -> None 
-                            | Match.State (_,Router x) -> if ain.Contains x then None else Some m
-                            | _ -> Some m) matches
-                    else matches
-                let exports =
-                    if settings.UseIBGP then
-                        List.choose (fun ((peer, mods) as e) ->
-                            match peer with 
-                            | Out -> Some e
-                            | In -> None
-                            | Any -> Some (Out, mods)
-                            | Router x -> if ain.Contains x then Some e else None
-                        ) exports
-                    else exports *)
-
         // match/export local minimizations
         for m in matches do
           let exps, m = 
@@ -1177,14 +1156,14 @@ let getMinAggregateFailures (cg : CGraph.T) (pred : Route.Predicate)
 let inline buildDfas (reb : Regex.REBuilder) res = List.map (fun r -> reb.MakeDFA(Regex.rev r)) res
 
 let compileToIR idx pred (polInfo : Ast.PolInfo option) aggInfo (reb : Regex.REBuilder) res : PrefixCompileResult = 
-  // get logging information if necessary
   let settings = Args.getSettings()
   let sep = string System.IO.Path.DirectorySeparatorChar
   let name = sprintf "(%d)" idx
   let debugName = settings.DebugDir + sep + name
-  // combine topology and dfa information
   let topo = reb.Topo()
   let dfas, dfaTime = Profile.time (buildDfas reb) res
+  //for re in res do
+  //  printfn "re:\n%s" (string re)
   let dfas = Array.ofList dfas
   let cg, pgTime = Profile.time (CGraph.buildFromAutomata topo) dfas
   let buildTime = dfaTime + pgTime
@@ -1480,17 +1459,18 @@ let createCommunityList (kind, title : Option<string>, communityMap : Dictionary
     communityLists.Add(cl)
     communityMap.[(kind, vs)] <- name
 
-let createAsPathList (kind, asPathMap : Dictionary<_, _>, asPathLists : List<_>, als : List<_>, id, 
-                      re) = 
-  let b, name = asPathMap.TryGetValue((kind, re))
+let createAsPathList (asPathMap : Dictionary<_, _>, asPathLists : List<_>, als : List<_>, id, 
+                      re : string list) = 
+  let b, name = asPathMap.TryGetValue(re)
   if b then als.Add(name)
   else 
     let name = sprintf "path-%d" !id
-    let al = AsPathList(kind, name, re)
+    let rs = List(re)
+    let al = AsPathList(name, rs)
     incr id
     als.Add(name)
     asPathLists.Add(al)
-    asPathMap.[(kind, re)] <- name
+    asPathMap.[re] <- name
 
 let peers (ti : Topology.TopoInfo) (router : string) = 
   let loc (x : Topology.Node) = x.Loc
@@ -1514,7 +1494,7 @@ let peerPol ti asPathMap asPathLists (als : List<_>) alID (p : Peer) =
   | Peer.Out -> als.Add("path-2")
   | Peer.Router peer -> 
     let regexMatch = sprintf "^\(?%s_" (getRouter ti peer)
-    createAsPathList (Config.Kind.Permit, asPathMap, asPathLists, als, alID, regexMatch)
+    createAsPathList (asPathMap, asPathLists, als, alID, [ regexMatch ])
 
 let matchAllPeers ti (peers : Set<string>) = 
   let str = 
@@ -1527,7 +1507,7 @@ let matchAllPeers ti (peers : Set<string>) =
 let makeInitialPathList ti peers (asMap, asLists, alID) = 
   if not (Set.isEmpty peers) then 
     let str = matchAllPeers ti peers
-    createAsPathList (Config.Kind.Permit, asMap, asLists, List(), alID, str) |> ignore
+    createAsPathList (asMap, asLists, List(), alID, [ str ]) |> ignore
 
 let getExportComm (p : Peer) maxComm commExportMap = 
   match p with
@@ -1720,8 +1700,11 @@ let toConfig (abgp : T) =
                 // now match peer as well
                 peerPol ti asMap asLists als alID x
               | Match.PathRE(re) -> 
-                createAsPathList 
-                  (Config.Kind.Permit, asMap, asLists, als, alID, Regex.toBgpRegexp re) |> ignore
+                let (deny, allow) = Regex.split re
+                createAsPathList (asMap, asLists, als, alID, 
+                                  [ Regex.toBgpRegexp deny
+                                    Regex.toBgpRegexp allow ])
+                |> ignore
               let slp = 
                 if lp = 100 then null
                 else SetLocalPref(lp)

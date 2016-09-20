@@ -112,7 +112,16 @@ let quagga (rInternal : Set<string>) (rc : RouterConfiguration) : string =
   if rc.CommunityLists.Count > 0 then bprintf sb "!\n"
   // as path lists
   for al in rc.AsPathLists do
-    bprintf sb "ip as-path access-list %s %s %s\n" al.Name (stringOfKind al.Kind) al.Regex // name should be a number
+    let len = al.Regex.Count - 1
+    for i = 0 to len do
+      let allow = (i = len)
+      
+      let kind = 
+        (if allow then "allow"
+         else "deny")
+      
+      let re = al.Regex.[i]
+      bprintf sb "ip as-path access-list %s %s %s\n" al.Name kind re
   if rc.AsPathLists.Count > 0 then bprintf sb "!\n"
   // route maps
   for rm in rc.RouteMaps do

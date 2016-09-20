@@ -205,8 +205,11 @@ let buildFromAutomata (topo : Topology.T) (autos : Regex.Automaton array) : T =
     let adj = uniqueNeighbors canOrigin topo t
     
     let adj = 
-      if t.Typ = Topology.Unknown then Set.add t adj
-      else adj
+      match t.Typ with
+      | Topology.Unknown _ -> Set.add t adj
+      | _ -> adj
+    //if t.Typ = Topology.Unknown then Set.add t adj
+    //else adj
     for c in adj do
       let dead = ref true
       
@@ -275,7 +278,11 @@ let neighborsIn (cg : T) (state : CgState) =
   }
 
 let isRepeatedOut (cg : T) (state : CgState) = 
-  (state.Node.Typ = Topology.Unknown) && (Seq.contains state (neighbors cg state))
+  match state.Node.Typ, Seq.contains state (neighbors cg state) with
+  | Topology.Unknown vs, true -> Set.isEmpty vs
+  | _, _ -> false
+
+//(state.Node.Typ = Topology.Unknown) && (Seq.contains state (neighbors cg state))
 let isInside x = Topology.isInside x.Node
 let isOutside x = Topology.isOutside x.Node
 let isEmpty (cg : T) = cg.Graph.VertexCount = 2
@@ -287,11 +294,19 @@ let toDot (cg : T) (pi : Ast.PolInfo option) : string =
     let state = string v.Vertex.State
     
     let location = 
-      match pi with
-      | None -> loc v.Vertex
-      | Some pi -> 
-        let ti = pi.Ast.TopoInfo
-        Topology.router (loc v.Vertex) ti
+      let l = 
+        match pi with
+        | None -> loc v.Vertex
+        | Some pi -> 
+          let ti = pi.Ast.TopoInfo
+          Topology.router (loc v.Vertex) ti
+      match v.Vertex.Node.Typ with
+      | Topology.Unknown excls -> 
+        let s = 
+          if Set.isEmpty excls then "{}"
+          else sprintf "{%s}" (Util.Set.joinBy "," excls)
+        sprintf "out-%s" s
+      | _ -> l
     match v.Vertex.Node.Typ with
     | Topology.Start -> v.VertexFormatter.Label <- "Start"
     | Topology.End -> v.VertexFormatter.Label <- "End"
@@ -507,6 +522,8 @@ module Minimize =
       ignore (acc.Add e)
     acc
   
+  /// Remove nodes/edges that are never on any non-loop path.
+  /// There are 4 symmetric cases.
   let removeDominated (cg : T) = 
     let dom = Domination.dominators cg cg.Start Down
     let domRev = Domination.dominators cg cg.End Up
@@ -530,6 +547,68 @@ module Minimize =
       (not (isRepeatedOut cg e.Source || isRepeatedOut cg e.Target)) 
       && (domRev.IsDominatedByFun(y, shadows x)))
     |> ignore
+  
+  /// Combines a node out-{N} with a node N into a new state: out
+  let mergeNodes (cg : T) out state (merged, candidates) = 
+    let nsOut = neighbors cg out
+    let nsIn = neighborsIn cg out
+    // remove old node
+    cg.Graph.RemoveVertex out |> ignore
+    // remove all nodes to be merged
+    for n in merged do
+      cg.Graph.RemoveVertex n |> ignore
+    // add new state
+    cg.Graph.AddVertex state |> ignore
+    // add back edges
+    for neigh in nsOut do
+      if not (Set.contains neigh merged) then 
+        let edge = 
+          if neigh = out then Edge<CgState>(state, state)
+          else Edge<CgState>(state, neigh)
+        cg.Graph.AddEdge edge |> ignore
+    for neigh in nsIn do
+      if not (Set.contains neigh merged) then 
+        if neigh <> out then 
+          let edge = Edge<CgState>(neigh, state)
+          cg.Graph.AddEdge edge |> ignore
+  
+  let getCandidates out = 
+    match out.Node.Typ with
+    | Topology.Unknown vs -> vs
+    | _ -> Set.empty
+  
+  /// Combines nodes out-{X,Y} and Y into out-{X} 
+  /// when they share all neighbors and have edges to each other
+  let combineAsOut (cg : T) = 
+    let outs = Seq.filter (fun v -> Topology.isUnknown v.Node) cg.Graph.Vertices
+    let mutable toMerge = Seq.empty
+    for out in outs do
+      let mutable candidates = getCandidates out
+      if candidates.Count > 0 then 
+        let nsOut = neighbors cg out |> Set.ofSeq
+        let nsIn = neighborsIn cg out |> Set.ofSeq
+        for n in nsOut do
+          if n.Accept = out.Accept && candidates.Contains(loc n) then 
+            let nsOut' = neighbors cg n |> Set.ofSeq
+            let nsIn' = neighborsIn cg n |> Set.ofSeq
+            if (nsOut' = Set.remove n nsOut) && (nsIn' = Set.remove n nsIn) then 
+              candidates <- Set.remove n.Node.Loc candidates
+              let x = Seq.singleton (out, n)
+              toMerge <- Seq.append x toMerge
+    let groups = Seq.groupBy fst toMerge
+    for (out, gs) in groups do
+      let candidates = getCandidates out
+      let mutable merged = Set.empty
+      for (_, n) in gs do
+        merged <- Set.add n merged
+      let node = Topology.Node(out.Node.Loc, Topology.Unknown candidates)
+      
+      let newState = 
+        { Accept = out.Accept
+          Id = out.Id
+          State = out.State
+          Node = node }
+      mergeNodes cg out newState (merged, candidates)
   
   let removeNodesThatCantReachEnd (cg : T) = 
     let canReach = Reachable.dfs cg cg.End Up
@@ -592,6 +671,8 @@ module Minimize =
     let inline prune() = 
       removeNodesThatCantReachEnd cg
       logInfo (idx, sprintf "Node count (cant reach end): %d" cg.Graph.VertexCount)
+      combineAsOut cg
+      logInfo (idx, sprintf "Node count (combine external nodes): %d" cg.Graph.VertexCount)
       removeRedundantExternalNodes cg
       logInfo (idx, sprintf "Node count (redundant external nodes): %d" cg.Graph.VertexCount)
       removeConnectionsToOutStar cg
@@ -832,7 +913,12 @@ module ToRegex =
     cg.Graph.AddEdge(Edge(cg.End, state)) |> ignore
     add (cg.End, state) Regex.epsilon
     for e in cg.Graph.Edges do
-      if e.Source <> cg.End then add (e.Source, e.Target) (Regex.loc (loc e.Source))
+      if e.Source <> cg.End then 
+        let r = 
+          match e.Source.Node.Typ with
+          | Topology.Unknown S -> Regex.out S
+          | _ -> Regex.loc (loc e.Source)
+        add (e.Source, e.Target) r
     let queue = Queue()
     for v in cg.Graph.Vertices do
       if isRealNode v then queue.Enqueue v

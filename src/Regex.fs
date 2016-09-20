@@ -10,6 +10,7 @@ type T =
   | Empty
   | Epsilon
   | Locs of Set<string>
+  | Out of Set<string>
   | Concat of T list
   | Inter of T list
   | Union of T list
@@ -21,6 +22,7 @@ type T =
     | Empty -> "{}"
     | Epsilon -> "\"\""
     | Locs S -> "[" + (Util.Set.joinBy "," S) + "]"
+    | Out S -> sprintf "out-%s" (Util.Set.toString S)
     | Concat rs -> 
       List.map (fun r -> r.ToString()) rs
       |> List.joinBy ";"
@@ -55,36 +57,9 @@ type Automaton =
     let trans = sprintf "Transitions:\n%s" trans
     sprintf "%s%s%s%s%s%s" header states init final trans header
 
-let rec toBgpRegexpAux (re : T) = 
-  let addParens s = "(" + s + ")"
-  match re with
-  | Empty -> ""
-  | Epsilon -> "\"\""
-  | Locs S -> 
-    S
-    |> Set.map (fun s -> 
-         if s = "out" then "[0-9]+"
-         else s)
-    |> Util.Set.joinBy "|"
-    |> if S.Count > 1 then addParens
-       else id
-  | Concat rs -> 
-    List.map (fun r -> toBgpRegexpAux r) rs
-    |> List.joinBy " "
-    |> addParens
-  | Union rs -> 
-    List.map (fun r -> toBgpRegexpAux r) rs
-    |> List.joinBy "|"
-    |> addParens
-  | Inter rs -> failwith "impossible"
-  | Negate r -> failwith "impossible"
-  | Star r -> (toBgpRegexpAux r |> addParens) + "*"
-
-let toBgpRegexp (re : T) = "^" + toBgpRegexpAux re + "$"
-
 let rec rev re = 
   match re with
-  | Empty | Epsilon | Locs _ -> re
+  | Empty | Epsilon | Locs _ | Out _ -> re
   | Concat rs -> Concat(List.rev rs |> List.map rev)
   | Inter rs -> Inter(List.map rev rs)
   | Union rs -> Union(List.map rev rs)
@@ -109,6 +84,7 @@ let empty = Empty
 let epsilon = Epsilon
 let locs s = Locs s
 let loc s = Locs(Set.singleton s)
+let out S = Out S
 
 let star r = 
   match r with
@@ -162,23 +138,26 @@ let rec union r1 r2 =
   if r1 = r2 then r1
   else 
     match r1, r2 with
-    (*
     (* rewrite x;y + x;z = x;(y+z) *)
-    | x, Concat (hd::tl) when x = hd -> concat hd (union epsilon (concatAll tl))
-    | Concat (hd::tl), x when x = hd -> concat hd (union epsilon (concatAll tl))
-    | Concat (hd1::tl1), Concat (hd2::tl2) when hd1 = hd2 -> concat hd1 (union (concatAll tl1) (concatAll tl2))
-    | x, Concat ys when (List.rev ys).Head = x -> concat (union epsilon (concatAll (List.rev (List.tail (List.rev ys))))) x
-    | Concat ys, x when (List.rev ys).Head = x -> concat (union epsilon (concatAll (List.rev (List.tail (List.rev ys))))) x
-    | Concat xs, Concat ys when (List.rev xs).Head = (List.rev ys).Head ->
-        let revx, revy = List.rev xs, List.rev ys
-        let tlx = List.rev (List.tail revx)
-        let tly = List.rev (List.tail revy)
-        concat (union (concatAll tlx) (concatAll tly)) (List.head revx)
+    | x, Concat(hd :: tl) when x = hd -> concat hd (union epsilon (concatAll tl))
+    | Concat(hd :: tl), x when x = hd -> concat hd (union epsilon (concatAll tl))
+    | Concat(hd1 :: tl1), Concat(hd2 :: tl2) when hd1 = hd2 -> 
+      concat hd1 (union (concatAll tl1) (concatAll tl2))
+    | x, Concat ys when (List.rev ys).Head = x -> 
+      concat (union epsilon (concatAll (List.rev (List.tail (List.rev ys))))) x
+    | Concat ys, x when (List.rev ys).Head = x -> 
+      concat (union epsilon (concatAll (List.rev (List.tail (List.rev ys))))) x
+    | Concat xs, Concat ys when (List.rev xs).Head = (List.rev ys).Head -> 
+      let revx, revy = List.rev xs, List.rev ys
+      let tlx = List.rev (List.tail revx)
+      let tly = List.rev (List.tail revy)
+      concat (union (concatAll tlx) (concatAll tly)) (List.head revx)
     (* rewrite variants of 1 + y;y* = y* *)
-    | Epsilon, Concat [y1; Star y2] when y1 = y2 -> star y2
-    | Epsilon, Concat [Star y1; y2] when y1 = y2 -> star y2
-    | Concat [y1; Star y2], Epsilon when y1 = y2 -> star y2
-    | Concat [y1; Star y2], Epsilon when y1 = y2 -> star y2 *)
+    | Epsilon, Concat [ y1; Star y2 ] when y1 = y2 -> star y2
+    | Epsilon, Concat [ Star y1; y2 ] when y1 = y2 -> star y2
+    | Concat [ y1; Star y2 ], Epsilon when y1 = y2 -> star y2
+    | Concat [ y1; Star y2 ], Epsilon when y1 = y2 -> star y2
+    (* smart constructors *)
     | _, Empty -> r1
     | Empty, _ -> r2
     | _, Negate Empty -> r2
@@ -206,6 +185,7 @@ let rec nullable r =
     match nullable r with
     | Empty -> epsilon
     | _ -> empty
+  | Out _ -> unreachable()
 
 let conserv r s = 
   seq { 
@@ -233,6 +213,7 @@ let rec dclasses alphabet r =
     List.fold (fun acc r -> conserv acc (dclasses alphabet r)) (Set.singleton alphabet) rs
   | Star r -> dclasses alphabet r
   | Negate r -> dclasses alphabet r
+  | Out _ -> unreachable()
 
 let rec derivative alphabet a r = 
   match r with
@@ -255,6 +236,7 @@ let rec derivative alphabet a r =
   | Union rs -> List.fold (fun acc r -> union acc (derivative alphabet a r)) empty rs
   | Negate r' -> negate alphabet (derivative alphabet a r')
   | Star r' -> concat (derivative alphabet a r') r
+  | Out _ -> unreachable()
 
 let rec goto alphabet q (Q, trans) S = 
   let c = Set.minElement S
@@ -291,6 +273,98 @@ let makeDFA alphabet r =
     Q = Q'
     F = F'
     trans = trans' }
+
+let rec positive r = 
+  match r with
+  | Epsilon -> r
+  | Locs _ -> r
+  | Empty -> r
+  | Concat rs -> List.map positive rs |> Concat
+  | Inter rs -> List.map positive rs |> Inter
+  | Union rs -> List.map positive rs |> Union
+  | Star r -> Star(positive r)
+  | Negate r -> unreachable()
+  | Out _ -> loc "out"
+
+let rec negative r = 
+  match r with
+  | Epsilon -> Empty
+  | Locs _ -> Empty
+  | Empty -> Empty
+  | Concat rs -> 
+    let pos = List.map positive rs |> Array.ofList
+    let neg = List.map negative rs |> Array.ofList
+    let mutable acc = empty
+    for i = 0 to List.length rs - 1 do
+      let x = 
+        List.mapi (fun j v -> 
+          if i = j then negative v
+          else positive v) rs
+      acc <- union acc (concatAll x)
+    acc
+  | Inter rs -> List.map negative rs |> interAll
+  | Union rs -> List.map negative rs |> unionAll
+  | Star r -> 
+    let s = Star(positive r)
+    
+    let ret = 
+      concatAll [ s
+                  negative r
+                  s ]
+    ret
+  | Negate r -> unreachable()
+  | Out S -> locs S
+
+let split r = (negative r, positive r)
+
+let rec hasNonStar ls = 
+  match ls with
+  | [] -> false
+  | (Star _) :: tl -> hasNonStar tl
+  | _ :: tl -> true
+
+let rec toBgpRegexpConcatAux acc useSpace rs = 
+  match rs with
+  | [] -> acc
+  | r :: tl -> 
+    let space = 
+      if useSpace then " "
+      else ""
+    match r with
+    | Star r' -> 
+      let s = toBgpRegexpAux r'
+      if hasNonStar tl then toBgpRegexpConcatAux (sprintf "%s%s(%s_)*" acc space s) false tl
+      else toBgpRegexpConcatAux (sprintf "%s%s(_%s)*" acc space s) false tl
+    | _ -> 
+      let s = toBgpRegexpAux r
+      toBgpRegexpConcatAux (acc + space + s) (hasNonStar tl) tl
+
+and toBgpRegexpAux (re : T) = 
+  let addParens s = "(" + s + ")"
+  match re with
+  | Empty -> ""
+  | Epsilon -> "\"\""
+  | Locs S -> 
+    S
+    |> Set.map (fun s -> 
+         if s = "out" then "[0-9]+"
+         else s)
+    |> Util.Set.joinBy "|"
+    |> if S.Count > 1 then addParens
+       else id
+  | Concat rs -> toBgpRegexpConcatAux "" false rs |> addParens
+  | Union rs -> 
+    List.map (fun r -> toBgpRegexpAux r) rs
+    |> List.joinBy "|"
+    |> addParens
+  | Inter rs -> failwith "impossible"
+  | Negate r -> failwith "impossible"
+  | Star r -> 
+    let s = toBgpRegexpAux r
+    sprintf "(%s)*" s
+  | Out _ -> unreachable()
+
+let toBgpRegexp (re : T) = "^" + toBgpRegexpAux re + "$"
 
 type LazyT = 
   | LIn
@@ -395,19 +469,10 @@ type REBuilder(topo : Topology.T) =
   let (ins, outs, alph) = getAlphabet topo
   let mutable inside = ins
   let mutable outside = Set.add unknownName outs
+  let mutable addedOutside = Set.empty
   let mutable alphabet = Set.add unknownName alph
   let mutable finalAlphabet = false
-  let unknown : Topology.Node = Node(unknownName, Topology.Unknown)
-  
-  let topo = 
-    let t = Topology.copyTopology topo
-    Topology.addVertices t [ unknown ]
-    for v in Topology.vertices t do
-      if Topology.isOutside v then 
-        if v = unknown then Topology.addEdgesDirected t [ (v, v) ]
-        else Topology.addEdgesUndirected t [ (v, unknown) ]
-    t
-  
+  let mutable topo = Topology.copyTopology topo
   let isInternal l = inside.Contains l
   
   let rec convert (re : LazyT) : T = 
@@ -439,12 +504,21 @@ type REBuilder(topo : Topology.T) =
     let dfa = this.MakeDFA(convert r)
     emptiness dfa
   
+  member this.AddUnknownVertex() = 
+    let unknown = Node(unknownName, Topology.Unknown addedOutside)
+    let topo = this.Topo()
+    Topology.addVertices topo [ unknown ]
+    for v in Topology.vertices topo do
+      if Topology.isOutside v then 
+        if v = unknown then Topology.addEdgesDirected topo [ (v, v) ]
+        else Topology.addEdgesUndirected topo [ (v, unknown) ]
+  
   member this.Build (pred : Route.Predicate) (pref : int) re = 
+    this.AddUnknownVertex()
     finalAlphabet <- true
     match this.WellFormed re with
     | None -> convert re
     | Some cs -> 
-      // TODO: how to convert predicate to string?
       let msg = 
         sprintf "Invalid path shape for prefix %s, preference %d. " (string pred) pref 
         + sprintf "Paths must go through the internal network exactly once, " 
@@ -465,6 +539,7 @@ type REBuilder(topo : Topology.T) =
   member __.Loc x = 
     if not (alphabet.Contains x) then 
       outside <- Set.add x outside
+      addedOutside <- Set.add x addedOutside
       alphabet <- Set.add x alphabet
       let v = Node(x, Topology.Outside)
       Topology.addVertices topo [ v ]

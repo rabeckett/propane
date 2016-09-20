@@ -14,7 +14,7 @@ type NodeType =
   | End
   | Outside
   | Inside
-  | Unknown
+  | Unknown of Set<string>
 
 type Node = 
   struct
@@ -42,7 +42,7 @@ let alphabet (Topology(topo) : T) : Set<Node> * Set<Node> =
   for v in topo.Vertices do
     match v.Typ with
     | Inside -> ain <- Set.add v ain
-    | Outside | Unknown -> aout <- Set.add v aout
+    | Outside | Unknown _ -> aout <- Set.add v aout
     | Start | End -> failwith "unreachable"
   (ain, aout)
 
@@ -60,7 +60,7 @@ let isTopoNode (t : Node) =
 let isOutside (t : Node) = 
   match t.Typ with
   | Outside -> true
-  | Unknown -> true
+  | Unknown _ -> true
   | _ -> false
 
 let isInside (t : Node) = 
@@ -68,10 +68,15 @@ let isInside (t : Node) =
   | Inside -> true
   | _ -> false
 
+let isUnknown (t : Node) = 
+  match t.Typ with
+  | Unknown _ -> true
+  | _ -> false
+
 let canOriginateTraffic (t : Node) = 
   match t.Typ with
   | Outside -> true
-  | Unknown -> true
+  | Unknown _ -> true
   | Inside -> true
   | Start | End -> false
 
