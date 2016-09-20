@@ -1,0 +1,50 @@
+{
+    "docs_directory": "docs",
+    "themes_directory": "themes",
+
+    "title": "My Project",
+    "tagline": "My Stylish Documentation",
+    "author": "I, Me & Myself",
+    "image": "",
+    "languages": {},
+
+    "format": "html",
+    "processor": "",
+
+    "ignore": {
+        "files": [],
+        "folders": []
+    },
+
+    "timezone": "America/Los_Angeles",
+
+    "live": {
+        "clean_urls": false
+    },
+
+    "html": {
+        "theme": "daux-blue",
+        "breadcrumbs": false,
+        "toggle_code": false,
+        "date_modified": false,
+        "float": false,
+        "auto_landing": true,
+        "search": true,
+        "auto_toc": false,
+        "inherit_index": false,
+
+        "repo": "",
+        "twitter": [],
+        "links": {
+        },
+
+        "google_analytics": false,
+        "piwik_analytics": false,
+        "piwik_analytics_id": "0"
+    },
+
+    "confluence": {
+        "prefix": "",
+        "delete": false
+    }
+}

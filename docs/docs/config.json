@@ -1,0 +1,24 @@
+{
+    "title": "Propane Language",
+    "tagline": "Programming Distributed Control Planes",
+    "author": "Ryan Beckett",
+    "image": "img/app.png",
+    "ignore": {
+            "files": ["Work_In_Progress.md"],
+            "folders": ["99_Not_Ready"]
+    },
+    "live": {
+        "clean_urls": true
+    },
+    "html": {
+        "theme": "daux-blue",
+        "breadcrumbs": true,
+        "breadcrumb_separator": "Chevrons",
+        "toggle_code": true,
+        "date_modified": true,
+        "float": false,
+        "toggle_code": false,
+        "inherit_index": true,
+        "google_analytics": "UA-12653604-10"
+    }
+}
