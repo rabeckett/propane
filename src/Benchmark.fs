@@ -84,15 +84,14 @@ let writeDcPol file
 let writeDcTopo file (topo : Topology.T) = 
    let sb = StringBuilder()
    let mutable asn = 0
-   bprintf sb "<topology>\n"
+   bprintf sb "<topology asn=\"100\">\n"
    for n in Topology.vertices topo do
       asn <- asn + 1
       let intern = (string (Topology.isInside n)).ToLower()
-      let canOrig = (string (Topology.canOriginateTraffic n)).ToLower()
-      bprintf sb "  <node internal=\"%s\" can-originate=\"%s\" asn=\"%s\" name=\"%s\"></node>\n" 
-         intern canOrig (string asn) n.Loc
+      bprintf sb "  <node internal=\"%s\" asn=\"%s\" name=\"%s\"></node>\n" intern (string asn) 
+         n.Loc
    for (x, y) in Topology.edges topo do
-      bprintf sb "  <edge source=\"%s\" target=\"%s\" directed=\"%s\"></edge>\n" x.Loc y.Loc "false"
+      bprintf sb "  <edge source=\"%s\" target=\"%s\"></edge>\n" x.Loc y.Loc
    bprintf sb "</topology>\n"
    System.IO.File.WriteAllText(file, string sb)
 
