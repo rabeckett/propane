@@ -550,8 +550,8 @@ module Minimize =
   
   /// Combines a node out-{N} with a node N into a new state: out
   let mergeNodes (cg : T) out state (merged, candidates) = 
-    let nsOut = neighbors cg out
-    let nsIn = neighborsIn cg out
+    let nsOut = neighbors cg out |> Set.ofSeq
+    let nsIn = neighborsIn cg out |> Set.ofSeq
     // remove old node
     cg.Graph.RemoveVertex out |> ignore
     // remove all nodes to be merged
@@ -599,9 +599,11 @@ module Minimize =
     for (out, gs) in groups do
       let candidates = getCandidates out
       let mutable merged = Set.empty
+      let mutable notMerged = candidates
       for (_, n) in gs do
         merged <- Set.add n merged
-      let node = Topology.Node(out.Node.Loc, Topology.Unknown candidates)
+        notMerged <- Set.remove n.Node.Loc notMerged
+      let node = Topology.Node(out.Node.Loc, Topology.Unknown notMerged)
       
       let newState = 
         { Accept = out.Accept
