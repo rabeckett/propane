@@ -194,19 +194,12 @@ let rec union (r1 : T) (r2 : T) =
       let (Regex(re2)) = r2
       match re1.Node, re2.Node with
       (* rewrite x;y + x;z = x;(y+z) *)
-      (*| x, Concat(hd :: tl) when x = hd.Node -> concat hd (union epsilon (concatAll tl))
-      | Concat(hd :: tl), x when x = hd.Node -> concat hd (union epsilon (concatAll tl))
+      | x, Concat(Regex(hd') as hd :: tl) when x = hd'.Node -> 
+         concat hd (union epsilon (concatAll tl))
+      | Concat(Regex(hd') as hd :: tl), x when x = hd'.Node -> 
+         concat hd (union epsilon (concatAll tl))
       | Concat(hd1 :: tl1), Concat(hd2 :: tl2) when hd1 = hd2 -> 
          concat hd1 (union (concatAll tl1) (concatAll tl2))
-      | x, Concat ys when (List.rev ys).Head.Node = x -> 
-         concat (union epsilon (concatAll (List.rev (List.tail (List.rev ys))))) r1
-      | Concat ys, x when (List.rev ys).Head.Node = x -> 
-         concat (union epsilon (concatAll (List.rev (List.tail (List.rev ys))))) r2
-      | Concat xs, Concat ys when (List.rev xs).Head = (List.rev ys).Head -> 
-         let revx, revy = List.rev xs, List.rev ys
-         let tlx = List.rev (List.tail revx)
-         let tly = List.rev (List.tail revy)
-         concat (union (concatAll tlx) (concatAll tly)) (List.head revx) *)
       (* rewrite variants of 1 + y;y* = y* *)
       | Epsilon, Concat [ y1; Regex({ Node = Star y2 }) ] when y1 = y2 -> star y2
       | Epsilon, Concat [ Regex({ Node = Star y1 }); y2 ] when y1 = y2 -> star y2

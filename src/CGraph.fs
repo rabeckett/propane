@@ -910,25 +910,23 @@ module ToRegex =
       let reMap = ref Map.empty
       let inline get v = Util.Map.getOrDefault v Regex.empty !reMap
       let inline add k v = reMap := Map.add k v !reMap
-      let canReach = Reachable.dfs cg state Down
-      cg.Graph.RemoveVertexIf(fun v -> not (canReach.Contains v) && Topology.isTopoNode v.Node) 
-      |> ignore
-      cg.Graph.AddEdge(Edge(cg.End, state)) |> ignore
+      let canReach = Reachable.dfs cg state Up
       add (cg.End, state) Regex.epsilon
       for e in cg.Graph.Edges do
-         if e.Source <> cg.End then 
+         if canReach.Contains e.Target then 
             let r = 
-               match e.Source.Node.Typ with
+               match e.Target.Node.Typ with
                | Topology.Unknown S -> Regex.out S
-               | _ -> Regex.loc (loc e.Source)
-            add (e.Source, e.Target) r
+               | _ -> Regex.loc (loc e.Target)
+            add (e.Target, e.Source) r
       let queue = Queue()
-      for v in cg.Graph.Vertices do
+      for v in canReach do
          if isRealNode v then queue.Enqueue v
+      canReach.Add cg.End |> ignore
       while queue.Count > 0 do
          let q = queue.Dequeue()
-         for q1 in cg.Graph.Vertices do
-            for q2 in cg.Graph.Vertices do
+         for q1 in canReach do
+            for q2 in canReach do
                if q1 <> q && q2 <> q then 
                   let x = get (q1, q2)
                   let y1 = get (q1, q)
@@ -940,7 +938,7 @@ module ToRegex =
                                                       Regex.star y2
                                                       y3 ])
                   reMap := Map.add (q1, q2) re !reMap
-         cg.Graph.RemoveVertex q |> ignore
+         canReach.Remove q |> ignore
       (!reMap).[(cg.End, cg.Start)]
 
 /// Module for reasoning about failures related to aggregation.

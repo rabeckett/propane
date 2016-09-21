@@ -851,8 +851,7 @@ module Outgoing =
          let nin = neighborsIn cg x
          if peerOnly cg nin then PeerMatch x
          else 
-            let cgRev = CGraph.copyReverseGraph cg
-            let re = CGraph.ToRegex.constructRegex cgRev x
+            let re = CGraph.ToRegex.constructRegex cg x
             RegexMatch(re)
       else PeerMatch x
 
