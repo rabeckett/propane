@@ -5,33 +5,33 @@ type T
 
 /// Compilation statistics for the polilcy
 type Stats = 
-  { NumPrefixes : int
-    ConfigSize : int
-    PrefixTime : int64
-    PerPrefixTimes : int64 array
-    PerPrefixBuildTimes : int64 array
-    PerPrefixMinTimes : int64 array
-    PerPrefixOrderTimes : int64 array
-    PerPrefixGenTimes : int64 array
-    JoinTime : int64
-    MinTime : int64 }
+   { NumPrefixes : int
+     ConfigSize : int
+     PrefixTime : int64
+     PerPrefixTimes : int64 array
+     PerPrefixBuildTimes : int64 array
+     PerPrefixMinTimes : int64 array
+     PerPrefixOrderTimes : int64 array
+     PerPrefixGenTimes : int64 array
+     JoinTime : int64
+     MinTime : int64 }
 
 /// Safety information related to aggregation
 type AggregationSafety = 
-  { NumFailures : int
-    PrefixLoc : string
-    AggregateLoc : string
-    Prefix : Route.Prefix
-    Aggregate : Route.Prefix }
+   { NumFailures : int
+     PrefixLoc : string
+     AggregateLoc : string
+     Prefix : Route.Prefix
+     Aggregate : Route.Prefix }
 
 /// Result from compilation, including:
 /// (1) The final, compiled policy
 /// (2) Aggregation safety information
 /// (3) Compilation statistics
 type CompilationResult = 
-  { Abgp : T
-    AggSafety : AggregationSafety option
-    Stats : Stats }
+   { Abgp : T
+     AggSafety : AggregationSafety option
+     Stats : Stats }
 
 /// Display the ABGP policy in a readable format
 val format : T -> string
@@ -41,4 +41,4 @@ val compileAllPrefixes : Ast.PolInfo -> CompilationResult
 val toConfig : T -> Config.NetworkConfiguration
 
 module Test = 
-  val run : unit -> unit
+   val run : unit -> unit

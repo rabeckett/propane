@@ -8,10 +8,10 @@ type T
 /// expression derivatives. Works well with complement,
 /// intersection, and character classes. Produces near-minimal DFAs
 type Automaton = 
-  { q0 : int
-    Q : Set<int>
-    F : Set<int>
-    trans : Map<int * Set<string>, int> }
+   { q0 : int
+     Q : Set<int>
+     F : Set<int>
+     trans : Map<int * Set<string>, int> }
 
 /// Reverse a regular expression
 val rev : T -> T
@@ -49,38 +49,38 @@ type LazyT
 /// not support ML-style functors, different objects can use different
 /// alphabets. Client code must ensure a single object is used.
 type REBuilder = 
-  new : Topology.T -> REBuilder
-  member Alphabet : unit -> Set<string>
-  member Topo : unit -> Topology.T
-  member Build : Route.Predicate -> int -> LazyT -> T
-  member Inside : LazyT
-  member Outside : LazyT
-  member Empty : LazyT
-  member Epsilon : LazyT
-  member Wildcard : LazyT
-  member Loc : string -> LazyT
-  member Locs : string list -> LazyT
-  member Concat : LazyT list -> LazyT
-  member Inter : LazyT list -> LazyT
-  member Union : LazyT list -> LazyT
-  member Negate : LazyT -> LazyT
-  member Star : LazyT -> LazyT
-  (* *)
-  member SingleLocations : LazyT -> Set<string> option
-  member MakeDFA : T -> Automaton
-  member StartingLocs : Automaton -> Set<string>
-  (* Constraint-based builders *)
-  member Path : string list list -> LazyT
-  member Internal : unit -> LazyT
-  member External : unit -> LazyT
-  member Any : unit -> LazyT
-  member Always : string list -> LazyT
-  member Through : string list -> LazyT
-  member Avoid : string list -> LazyT
-  member End : string list -> LazyT
-  member Start : string list -> LazyT
-  member Reach : string list * string list -> LazyT
-  member ValleyFree : seq<string list> -> LazyT
-  member Enter : string list -> LazyT
-  member Exit : string list -> LazyT
-  member Only : LazyT -> LazyT
+   new : Topology.T -> REBuilder
+   member Alphabet : unit -> Set<string>
+   member Topo : unit -> Topology.T
+   member Build : Route.Predicate -> int -> LazyT -> T
+   member Inside : LazyT
+   member Outside : LazyT
+   member Empty : LazyT
+   member Epsilon : LazyT
+   member Wildcard : LazyT
+   member Loc : string -> LazyT
+   member Locs : string list -> LazyT
+   member Concat : LazyT list -> LazyT
+   member Inter : LazyT list -> LazyT
+   member Union : LazyT list -> LazyT
+   member Negate : LazyT -> LazyT
+   member Star : LazyT -> LazyT
+   (* *)
+   member SingleLocations : LazyT -> Set<string> option
+   member MakeDFA : T -> Automaton
+   member StartingLocs : Automaton -> Set<string>
+   (* Constraint-based builders *)
+   member Path : string list list -> LazyT
+   member Internal : unit -> LazyT
+   member External : unit -> LazyT
+   member Any : unit -> LazyT
+   member Always : string list -> LazyT
+   member Through : string list -> LazyT
+   member Avoid : string list -> LazyT
+   member End : string list -> LazyT
+   member Start : string list -> LazyT
+   member Reach : string list * string list -> LazyT
+   member ValleyFree : seq<string list> -> LazyT
+   member Enter : string list -> LazyT
+   member Exit : string list -> LazyT
+   member Only : LazyT -> LazyT

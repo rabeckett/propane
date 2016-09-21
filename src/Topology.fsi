@@ -4,17 +4,17 @@ open QuickGraph
 open System.Collections.Generic
 
 type NodeType = 
-  | Start
-  | End
-  | Outside
-  | Inside
-  | Unknown of Set<string>
+   | Start
+   | End
+   | Outside
+   | Inside
+   | Unknown of Set<string>
 
 [<Struct>]
 type Node = 
-  val Loc : string
-  val Typ : NodeType
-  new : string * NodeType -> Node
+   val Loc : string
+   val Typ : NodeType
+   new : string * NodeType -> Node
 
 type T
 
@@ -59,19 +59,19 @@ val findByLoc : T -> string -> Node option
 val peers : T -> Node -> seq<Node>
 
 type Constraint = 
-  { Name : string
-    Formula : string }
+   { Name : string
+     Formula : string }
 
 type TopoInfo = 
-  { Graph : T
-    NetworkAsn : int
-    AsnMap : Map<string, int>
-    InternalNames : Set<string>
-    ExternalNames : Set<string>
-    AllNames : Set<string>
-    IpMap : Dictionary<string * string, string * string>
-    NodeConstraints : Map<string, Constraint>
-    EdgeConstraints : Map<string * string, Constraint * Constraint> }
+   { Graph : T
+     NetworkAsn : int
+     AsnMap : Map<string, int>
+     InternalNames : Set<string>
+     ExternalNames : Set<string>
+     AllNames : Set<string>
+     IpMap : Dictionary<string * string, string * string>
+     NodeConstraints : Map<string, Constraint>
+     EdgeConstraints : Map<string * string, Constraint * Constraint> }
 
 val router : string -> TopoInfo -> string
 /// Read a topology from an XML file
@@ -79,27 +79,27 @@ val readTopology : string -> TopoInfo
 
 /// Examples of useful topologies for testing
 module Examples = 
-  type Tiers = Dictionary<Node, int>
-  
-  type Prefixes = Dictionary<Node, Route.Prefix>
-  
-  val topoDisconnected : unit -> T
-  val topoDiamond : unit -> T
-  val topoDatacenterSmall : unit -> T
-  val topoDatacenterMedium : unit -> T
-  val topoDatacenterMediumAggregation : unit -> T
-  val topoDatacenterLarge : unit -> T
-  val topoBadGadget : unit -> T
-  val topoBrokenTriangle : unit -> T
-  val topoBigDipper : unit -> T
-  val topoSeesaw : unit -> T
-  val topoStretchingManWAN : unit -> T
-  val topoStretchingManWAN2 : unit -> T
-  val topoPinCushionWAN : unit -> T
-  val topoBackboneWAN : unit -> T
-  val fatTree : int -> T * Prefixes * Tiers
-  val complete : int -> T
+   type Tiers = Dictionary<Node, int>
+   
+   type Prefixes = Dictionary<Node, Route.Prefix>
+   
+   val topoDisconnected : unit -> T
+   val topoDiamond : unit -> T
+   val topoDatacenterSmall : unit -> T
+   val topoDatacenterMedium : unit -> T
+   val topoDatacenterMediumAggregation : unit -> T
+   val topoDatacenterLarge : unit -> T
+   val topoBadGadget : unit -> T
+   val topoBrokenTriangle : unit -> T
+   val topoBigDipper : unit -> T
+   val topoSeesaw : unit -> T
+   val topoStretchingManWAN : unit -> T
+   val topoStretchingManWAN2 : unit -> T
+   val topoPinCushionWAN : unit -> T
+   val topoBackboneWAN : unit -> T
+   val fatTree : int -> T * Prefixes * Tiers
+   val complete : int -> T
 
 /// Module with unit tests
 module Test = 
-  val run : unit -> unit
+   val run : unit -> unit

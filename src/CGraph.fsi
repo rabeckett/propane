@@ -14,11 +14,11 @@ open Util.Error
 /// .Node   the underlying topology node, including name + internal/external
 [<CustomEquality; CustomComparison>]
 type CgState = 
-  { Id : int
-    State : int
-    Accept : int16
-    Node : Topology.Node }
-  interface System.IComparable
+   { Id : int
+     State : int
+     Accept : int16
+     Node : Topology.Node }
+   interface System.IComparable
 
 /// Type of the Product Graph. Contains:
 /// 
@@ -28,16 +28,16 @@ type CgState =
 ///         nodes. This is included to simplify some algorithms
 /// .Topo   The underlying topology object
 type T = 
-  { Start : CgState
-    End : CgState
-    Graph : BidirectionalGraph<CgState, Edge<CgState>>
-    Topo : Topology.T }
+   { Start : CgState
+     End : CgState
+     Graph : BidirectionalGraph<CgState, Edge<CgState>>
+     Topo : Topology.T }
 
 /// Direction of search. We often need to search in the reverse graph,
 /// yet do not want to make a copy of the graph every time
 type Direction = 
-  | Up
-  | Down
+   | Up
+   | Down
 
 /// Make a shallow-ish copy of the graph. Does not clone node values.
 val copyGraph : T -> T
@@ -74,43 +74,43 @@ val toDot : T -> Ast.PolInfo option -> string
 val generatePNG : T -> Ast.PolInfo option -> string -> unit
 
 module Reachable = 
-  /// Find all destinations reachable from src
-  val dfs : T -> CgState -> Direction -> HashSet<CgState>
-  /// Find all accepting preferences reachable from a given src
-  val srcAccepting : T -> CgState -> Direction -> Set<int16>
+   /// Find all destinations reachable from src
+   val dfs : T -> CgState -> Direction -> HashSet<CgState>
+   /// Find all accepting preferences reachable from a given src
+   val srcAccepting : T -> CgState -> Direction -> Set<int16>
 
 module Minimize = 
-  /// Remove nodes and edges not relevant to the BGP decision process
-  val minimize : int -> T -> T
+   /// Remove nodes and edges not relevant to the BGP decision process
+   val minimize : int -> T -> T
 
 module Consistency = 
-  /// An explanation for why a policy is unimplementable with BGP
-  type CounterExample = CgState * CgState
-  
-  /// Preference ranking for each router based on possible routes
-  type Preferences = seq<CgState>
-  
-  /// Preferences for each internal router
-  type Ordering = Dictionary<string, Preferences>
-  
-  /// Conservative check if the BGP routers can make local decisions not knowing about failures
-  /// Takes an optional file name for debugging intermediate information
-  val findOrderingConservative : (int -> T -> Result<Ordering, CounterExample>)
+   /// An explanation for why a policy is unimplementable with BGP
+   type CounterExample = CgState * CgState
+   
+   /// Preference ranking for each router based on possible routes
+   type Preferences = seq<CgState>
+   
+   /// Preferences for each internal router
+   type Ordering = Dictionary<string, Preferences>
+   
+   /// Conservative check if the BGP routers can make local decisions not knowing about failures
+   /// Takes an optional file name for debugging intermediate information
+   val findOrderingConservative : (int -> T -> Result<Ordering, CounterExample>)
 
 module ToRegex = 
-  /// Construct a compact regular expression describing the paths
-  /// from a given node in the graph
-  val constructRegex : T -> CgState -> Regex.T
+   /// Construct a compact regular expression describing the paths
+   /// from a given node in the graph
+   val constructRegex : T -> CgState -> Regex.T
 
 module Failure = 
-  /// A single node or link falure
-  type FailType = 
-    | NodeFailure of Topology.Node
-    | LinkFailure of Topology.Node * Topology.Node
-  
-  /// Enumerate all failures up to a given size
-  val allFailures : int -> Topology.T -> seq<FailType list>
-  /// Create the corresponding failed product graph
-  val failedGraph : T -> FailType list -> T
-  /// Find the minimal number of failures to disconnect from an aggregate
-  val disconnectLocs : T -> seq<CgState> -> string -> (int * string * string) option
+   /// A single node or link falure
+   type FailType = 
+      | NodeFailure of Topology.Node
+      | LinkFailure of Topology.Node * Topology.Node
+   
+   /// Enumerate all failures up to a given size
+   val allFailures : int -> Topology.T -> seq<FailType list>
+   /// Create the corresponding failed product graph
+   val failedGraph : T -> FailType list -> T
+   /// Find the minimal number of failures to disconnect from an aggregate
+   val disconnectLocs : T -> seq<CgState> -> string -> (int * string * string) option

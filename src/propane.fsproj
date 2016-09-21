@@ -76,6 +76,7 @@
     <Compile Include="Args.fsi" />
     <Compile Include="Args.fs" />
     <Compile Include="Util.fs" />
+    <Compile Include="Hashcons.fs" />
     <Compile Include="Route.fs" />
     <Compile Include="Topology.fsi" />
     <Compile Include="Topology.fs" />
@@ -144,7 +145,7 @@
     <MonoDevelop>
       <Properties>
         <Policies>
-          <TextStylePolicy FileWidth="100" TabWidth="2" IndentWidth="2" inheritsSet="VisualStudio" inheritsScope="text/plain" scope="text/x-fsharp" />
+          <TextStylePolicy FileWidth="100" TabWidth="3" IndentWidth="3" inheritsSet="VisualStudio" inheritsScope="text/plain" scope="text/x-fsharp" />
           <FSharpFormattingPolicy scope="text/x-fsharp">
             <DefaultFormat IndentOnTryWith="True" ReorderOpenDeclaration="True" SpaceAfterComma="True" SpaceAfterSemicolon="True" SpaceAroundDelimiter="True" SpaceBeforeArgument="True" SpaceBeforeColon="True" />
           </FSharpFormattingPolicy>
