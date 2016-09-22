@@ -1,8 +1,8 @@
 <topology asn="100">
   <!-- Node constraints -->
-  <node internal="true" name="T0" constraint="t0:true"></node>
-  <node internal="true" name="T1" constraint="t1:true"></node>
-  <node internal="true" name="T2" constraint="t2:true"></node>
+  <node internal="true" name="T0" constraint="t0:(>= t0 4)"></node>
+  <node internal="true" name="T1" constraint="t1:(>= t1 4)"></node>
+  <node internal="true" name="T2" constraint="t2:(>= t2 4)"></node>
   <node internal="false" name="Peer1" constraint="p1:true"></node>
   <node internal="false" name="Peer2" constraint="p2:true"></node>
   <!-- Edge constraints -->

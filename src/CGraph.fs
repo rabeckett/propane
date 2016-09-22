@@ -901,10 +901,6 @@ module Consistency =
 /// the standard automata-to-regex algorithm by walking 
 /// backwards through the product graph from a given router
 /// and constructing the regex matching any path to that router.
-///
-/// Note: This function is destructive, so the caller should create
-///       a defensive copy of the product graph beforehand.
-///       TODO: make this non-destructive to avoid repeated copies
 module ToRegex = 
    let constructRegex (cg : T) (state : CgState) : Regex.T = 
       let reMap = ref Map.empty

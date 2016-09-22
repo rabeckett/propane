@@ -16,7 +16,8 @@ type T =
      Debug : bool
      DebugDir : string
      Failures : Option<int>
-     Stats : bool }
+     Stats : bool
+     CheckOnly : bool }
 
 /// Get the command-line settings
 val getSettings : unit -> T

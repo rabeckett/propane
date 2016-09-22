@@ -983,71 +983,73 @@ let reindexPrefixCommunities (pc : PredConfig) : PredConfig =
 let genConfig (cg : CGraph.T) (pred : Route.Predicate) (ord : Consistency.Ordering) 
     (inExports : Incoming.IncomingExportMap) : PredConfig = 
    let settings = Args.getSettings()
-   let ain, aout = Topology.alphabet cg.Topo
-   let ain = ain |> Set.map (fun v -> v.Loc)
-   let aout = aout |> Set.map (fun v -> v.Loc)
-   let eCounts = edgeCounts cg
-   let mutable config = Map.empty
-   // generate a config for each internal router
-   for router in ain do
-      let mutable filters = []
-      let mutable originates = false
-      // look at the nodes according to preference
-      let mutable prefs = Seq.empty
-      // keep most recent exports for origination
-      let mutable exports = []
-      if ord.TryGetValue(router, &prefs) then 
-         let mutable rules = []
-         let mutable lp = 101
-         for cgstate in prefs do
-            lp <- lp - 1
-            // get incoming and outgoing topology peer information
-            let allInPeers = Topology.neighbors cg.Topo cgstate.Node
-            let allOutPeers = Topology.neighbors cg.Topo cgstate.Node
-            let inPeerInfo = getPeerInfo allInPeers
-            let outPeerInfo = getPeerInfo allOutPeers
-            let nsIn = neighborsIn cg cgstate
-            let nsOut = neighbors cg cgstate
-            // find who this node needs to send to and receive from
-            let receiveFrom = Seq.filter CGraph.isRealNode nsIn
-            let sendTo = Seq.filter CGraph.isRealNode nsOut
-            // helps to minimize configuration
-            let peerTypes = Seq.map (Outgoing.getOutPeerType cg) receiveFrom
-            let origin = Seq.exists ((=) cg.Start) nsIn
-            
-            // get the compressed set of matches using *, in, out when possible
-            let matches = 
-               if origin then []
-               else getMatches inPeerInfo peerTypes
-            
-            // get the compressed set of exports taking into account if there is a unique receive peer
-            let unqMatchPeer = 
-               match matches with
-               | [ Match.Peer(Router x) ] -> Some x
-               | [ Match.State(_, (Router x)) ] -> Some x
-               | _ -> None
-            
-            exports <- getExports outPeerInfo cgstate inExports sendTo unqMatchPeer
-            // match/export local minimizations
-            for m in matches do
-               let exps, m = 
-                  if settings.Minimize then NodeWide.minimize cg eCounts cgstate m exports
-                  else exports, m
-               filters <- Allow((m, lp), exps) :: filters
-            originates <- origin || originates
-      // no need for explicit deny if we allow everything
-      match filters with
-      | [ Allow((Match.Peer Any, _), _) ] -> ()
-      | _ -> filters <- List.rev (Deny :: filters)
-      // build the final configuration
-      let deviceConf = 
-         if originates then Originate exports
-         else Filters filters
-      config <- Map.add router deviceConf config
-   // prefix-wide minimizations
-   config <- if settings.Minimize then PrefixWide.minimize cg config
-             else config
-   reindexPrefixCommunities (pred, config)
+   if settings.CheckOnly then (pred, Map.empty)
+   else 
+      let ain, aout = Topology.alphabet cg.Topo
+      let ain = ain |> Set.map (fun v -> v.Loc)
+      let aout = aout |> Set.map (fun v -> v.Loc)
+      let eCounts = edgeCounts cg
+      let mutable config = Map.empty
+      // generate a config for each internal router
+      for router in ain do
+         let mutable filters = []
+         let mutable originates = false
+         // look at the nodes according to preference
+         let mutable prefs = Seq.empty
+         // keep most recent exports for origination
+         let mutable exports = []
+         if ord.TryGetValue(router, &prefs) then 
+            let mutable rules = []
+            let mutable lp = 101
+            for cgstate in prefs do
+               lp <- lp - 1
+               // get incoming and outgoing topology peer information
+               let allInPeers = Topology.neighbors cg.Topo cgstate.Node
+               let allOutPeers = Topology.neighbors cg.Topo cgstate.Node
+               let inPeerInfo = getPeerInfo allInPeers
+               let outPeerInfo = getPeerInfo allOutPeers
+               let nsIn = neighborsIn cg cgstate
+               let nsOut = neighbors cg cgstate
+               // find who this node needs to send to and receive from
+               let receiveFrom = Seq.filter CGraph.isRealNode nsIn
+               let sendTo = Seq.filter CGraph.isRealNode nsOut
+               // helps to minimize configuration
+               let peerTypes = Seq.map (Outgoing.getOutPeerType cg) receiveFrom
+               let origin = Seq.exists ((=) cg.Start) nsIn
+               
+               // get the compressed set of matches using *, in, out when possible
+               let matches = 
+                  if origin then []
+                  else getMatches inPeerInfo peerTypes
+               
+               // get the compressed set of exports taking into account if there is a unique receive peer
+               let unqMatchPeer = 
+                  match matches with
+                  | [ Match.Peer(Router x) ] -> Some x
+                  | [ Match.State(_, (Router x)) ] -> Some x
+                  | _ -> None
+               
+               exports <- getExports outPeerInfo cgstate inExports sendTo unqMatchPeer
+               // match/export local minimizations
+               for m in matches do
+                  let exps, m = 
+                     if settings.Minimize then NodeWide.minimize cg eCounts cgstate m exports
+                     else exports, m
+                  filters <- Allow((m, lp), exps) :: filters
+               originates <- origin || originates
+         // no need for explicit deny if we allow everything
+         match filters with
+         | [ Allow((Match.Peer Any, _), _) ] -> ()
+         | _ -> filters <- List.rev (Deny :: filters)
+         // build the final configuration
+         let deviceConf = 
+            if originates then Originate exports
+            else Filters filters
+         config <- Map.add router deviceConf config
+      // prefix-wide minimizations
+      config <- if settings.Minimize then PrefixWide.minimize cg config
+                else config
+      reindexPrefixCommunities (pred, config)
 
 let inline insideLoc v = 
    if Topology.isInside v.Node then Some(v)
@@ -1063,15 +1065,17 @@ let inline insideOriginators cg =
    |> Set.ofSeq
 
 let warnNonExactOrigins cg pred = 
-   let originators = insideOriginators cg
-   if originators.Count > 0 then 
-      for tc in Route.trafficClassifiers pred do
-         let (Route.TrafficClassifier(p, _)) = tc
-         if not p.IsExact then 
-            let msg = 
-               sprintf "Use of a range of prefixes: (%s) originated in your network. " (string p) 
-               + sprintf "This will default to the concrete prefix: %s" (string <| p.Example())
-            warning msg
+   let settings = Args.getSettings()
+   if not settings.IsAbstract then 
+      let originators = insideOriginators cg
+      if originators.Count > 0 then 
+         for tc in Route.trafficClassifiers pred do
+            let (Route.TrafficClassifier(p, _)) = tc
+            if not p.IsExact then 
+               let msg = 
+                  sprintf "Use of a range of prefixes: (%s) originated in your network. " (string p) 
+                  + sprintf "This will default to the concrete prefix: %s" (string <| p.Example())
+               warning msg
 
 let getLocsWithNoPath idx (ti : Topology.TopoInfo) cg (reb : Regex.REBuilder) dfas = 
    let settings = Args.getSettings()
@@ -1162,8 +1166,6 @@ let compileToIR idx pred (polInfo : Ast.PolInfo option) aggInfo (reb : Regex.REB
    let debugName = settings.DebugDir + sep + name
    let topo = reb.Topo()
    let dfas, dfaTime = Profile.time (buildDfas reb) res
-   //for re in res do
-   //  printfn "re:\n%s" (string re)
    let dfas = Array.ofList dfas
    let cg, pgTime = Profile.time (CGraph.buildFromAutomata topo) dfas
    let buildTime = dfaTime + pgTime
