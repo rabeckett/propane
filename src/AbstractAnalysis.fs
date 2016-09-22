@@ -110,6 +110,7 @@ let reachability (ti : Topology.TopoInfo) (cg : CGraph.T) (src : CgState) : int 
    // Run to a fixed point using inference rules
    printfn "adding initial node: %s" src.Node.Loc
    let changed = ref (Set.singleton src)
+   let first = ref true
    
    let inline pop() = 
       let ret = Set.minElement !changed
@@ -134,7 +135,6 @@ let reachability (ti : Topology.TopoInfo) (cg : CGraph.T) (src : CgState) : int 
          let namev = Topology.router v.Node.Loc ti
          let nameu = Topology.router u.Node.Loc ti
          printfn "  for nodes: (%s,%s)" namev nameu
-         //
          printfn "  got labels: (%s,%s,%s,%s)" m n e1 e2
          // if we have an A label, then we have an S label
          if kS < kA then learned.[v] <- (kA, kA)
@@ -148,8 +148,11 @@ let reachability (ti : Topology.TopoInfo) (cg : CGraph.T) (src : CgState) : int 
                match findMin enc e1 with
                | Some k -> 
                   printfn "   found min: %d" k
-                  if k > kS' then 
-                     learned.[u] <- (k, kA)
+                  let m = 
+                     if !first then k
+                     else min k kS
+                  if m > kS' then 
+                     learned.[u] <- (m, kA)
                      printfn "     adding: %s to the stack" (Topology.router u.Node.Loc ti)
                      push u
                | None -> ()
@@ -160,8 +163,11 @@ let reachability (ti : Topology.TopoInfo) (cg : CGraph.T) (src : CgState) : int 
                printfn "   Rule 1-2"
                match findMin enc e1 with
                | Some k -> 
-                  if k > kS' then 
-                     learned.[u] <- (k, kA)
+                  let m = 
+                     if !first then k
+                     else min k kA
+                  if m > kS' then 
+                     learned.[u] <- (m, kA)
                      printfn "     adding: %s to the stack" (Topology.router u.Node.Loc ti)
                      push u
                | None -> ()
@@ -174,8 +180,11 @@ let reachability (ti : Topology.TopoInfo) (cg : CGraph.T) (src : CgState) : int 
                match findMin enc n with
                | Some k -> 
                   printfn "   found min: %d" k
-                  if k > kA' then 
-                     learned.[u] <- (kS, k)
+                  let m = 
+                     if !first then k
+                     else min k kS
+                  if m > kA' then 
+                     learned.[u] <- (kS, m)
                      printfn "     adding: %s to the stack" (Topology.router u.Node.Loc ti)
                      push u
                | None -> ()
@@ -186,8 +195,11 @@ let reachability (ti : Topology.TopoInfo) (cg : CGraph.T) (src : CgState) : int 
                printfn "   Rule 2-2"
                match findMin enc n with
                | Some k -> 
-                  if k > kA' then 
-                     learned.[u] <- (kS, k)
+                  let m = 
+                     if !first then k
+                     else min k kA
+                  if m > kA' then 
+                     learned.[u] <- (kS, m)
                      printfn "     adding: %s to the stack" (Topology.router u.Node.Loc ti)
                      push u
                | None -> ()
@@ -199,10 +211,14 @@ let reachability (ti : Topology.TopoInfo) (cg : CGraph.T) (src : CgState) : int 
                printfn "  was able to prove the 3rd"
                match findMin enc e2 with
                | Some k -> 
-                  if k > kA' then 
-                     learned.[u] <- (kS, k)
+                  let m = 
+                     if !first then k
+                     else min k kA
+                  if m > kA' then 
+                     learned.[u] <- (kS, m)
                      printfn "     adding: %s to the stack" (Topology.router u.Node.Loc ti)
                      push u
                | None -> ()
+      first := false
       debugLearned learned ti
    None
