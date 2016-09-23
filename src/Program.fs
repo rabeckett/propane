@@ -23,8 +23,6 @@ let printStats (stats : Abgp.Stats) =
    printfn "Total Config Min time (sec):       %f" (float stats.MinTime / 1000.0)
    printfn ""
 
-open Route
-
 [<EntryPoint>]
 let main argv = 
    ignore (Args.parse argv)
@@ -35,10 +33,11 @@ let main argv =
    if settings.Bench then 
       Benchmark.generate()
       exit 0
-   let topoInfo = 
+   let topoInfo, settings = 
       match settings.TopoFile with
       | None -> errorLine "No topology file specified, use --help to see options"
       | Some f -> Topology.readTopology f
+   if settings.IsAbstract then AbstractAnalysis.checkWellformedTopology topoInfo
    match settings.PolFile with
    | None -> errorLine "No policy file specified, use --help to see options"
    | Some polFile -> 

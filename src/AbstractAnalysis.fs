@@ -4,6 +4,7 @@ open CGraph
 open Core.Printf
 open System.Collections.Generic
 open System.Text
+open Util.Format
 
 module Z3 = 
    type Result = 
@@ -37,10 +38,9 @@ let inline writeDeclaration sb name = bprintf sb "(declare-const %s Int)\n" name
 let inline writeFormula sb form = 
    if form <> "true" then bprintf sb "(assert %s)\n" form
 
-let inline writeWellFormedness sb name = bprintf sb "(assert (>= %s 0))\n" name
-
 let baseEncoding (ti : Topology.TopoInfo) = 
    let sb = StringBuilder()
+   // Base constraints
    for kv in ti.NodeLabels do
       let n = kv.Value
       writeDeclaration sb n
@@ -49,12 +49,22 @@ let baseEncoding (ti : Topology.TopoInfo) =
       writeDeclaration sb n
    for kv in ti.NodeLabels do
       let n = kv.Value
-      writeWellFormedness sb n
+      bprintf sb "(assert (>= %s 0))\n" n
    for kv in ti.EdgeLabels do
       let n = kv.Value
-      writeWellFormedness sb n
+      bprintf sb "(assert (>= %s 0))\n" n
    for c in ti.Constraints do
       writeFormula sb c
+   // Edge multiplicities do not exceed the node multiplicity
+   let agi = ti.AbstractGraphInfo
+   let topoA = agi.Graph
+   let abs = ti.Abstraction
+   for (n1, n2) in Topology.edges topoA do
+      let a1 = Topology.routerMap agi.AsnMap n1.Loc ti
+      let a2 = Topology.routerMap agi.AsnMap n2.Loc ti
+      let labelN = ti.NodeLabels.[a2]
+      let labelE1 = ti.EdgeLabels.[(a1, a2)]
+      bprintf sb "(assert (>= %s %s))\n" labelN labelE1
    sb
 
 let inline getNodeConstraintName (ti : Topology.TopoInfo) v = 
@@ -79,13 +89,84 @@ let isUnsat enc a =
    let check = enc + constr
    match Z3.run check with
    | Z3.Unsat -> true
-   | _ -> false
+   | Z3.Sat -> false
+   | Z3.Error s -> failwith (sprintf "Invalid command: %s" s)
+   | Z3.Minimized k -> failwith (sprintf "Invalid result: minimized")
 
 let findMin enc x = 
    let check = enc + (minimumEncoding x)
    match Z3.run check with
    | Z3.Minimized k -> Some k
    | _ -> None
+
+let checkIsGraphHomomorphism (ti : Topology.TopoInfo) = 
+   let topoC = ti.ConcreteGraphInfo.Graph
+   let topoA = ti.AbstractGraphInfo.Graph
+   let abstractEdges = HashSet()
+   for (n1, n2) in Topology.edges topoA do
+      let a1 = Topology.router n1.Loc ti
+      let a2 = Topology.router n2.Loc ti
+      abstractEdges.Add(a1, a2) |> ignore
+      abstractEdges.Add(a2, a1) |> ignore
+   let abs = ti.Abstraction
+   for (n1, n2) in Topology.edges topoC do
+      let c1 = Topology.routerMap ti.ConcreteGraphInfo.AsnMap n1.Loc ti
+      let c2 = Topology.routerMap ti.ConcreteGraphInfo.AsnMap n2.Loc ti
+      match abs.TryFind c1, abs.TryFind c2 with
+      | Some a1, Some a2 -> 
+         if not <| abstractEdges.Contains(a1, a2) then 
+            let msg = 
+               sprintf "The concrete topology is not valid for the given abstract topology. " 
+               + sprintf "For example, the concrete edge: (%s,%s) does not have a corresponding " c1 
+                    c2 + sprintf "abstract edge between: (%s,%s)" a1 a2
+            error msg
+      | None, _ -> error (sprintf "Missing group definition for concrete node: %s" c1)
+      | _, None -> error (sprintf "Missing group definition for concrete node: %s" c2)
+
+let checkHasValidConstraints (ti : Topology.TopoInfo) = 
+   let cgi = ti.ConcreteGraphInfo
+   let agi = ti.AbstractGraphInfo
+   let (topoC, topoA) = cgi.Graph, agi.Graph
+   let abs = ti.Abstraction
+   // Count the actual node + edge multiplicities
+   let mutable nodeCounts = Map.empty
+   let mutable edgeCounts = Map.empty
+   for n1 in Topology.vertices topoC do
+      let c1 = Topology.routerMap cgi.AsnMap n1.Loc ti
+      let a1 = abs.[c1]
+      nodeCounts <- Util.Map.adjust a1 0 ((+) 1) nodeCounts
+      let mutable countByGroup = Map.empty
+      for n2 in Topology.neighbors cgi.Graph n1 do
+         let c2 = Topology.routerMap cgi.AsnMap n2.Loc ti
+         let a2 = abs.[c2]
+         countByGroup <- Util.Map.adjust a2 0 ((+) 1) countByGroup
+      for kv in countByGroup do
+         let a2 = kv.Key
+         let x = kv.Value
+         match Map.tryFind (a1, a2) edgeCounts with
+         | None -> edgeCounts <- Map.add (a1, a2) x edgeCounts
+         | Some y -> edgeCounts <- Map.add (a1, a2) (min x y) edgeCounts
+   // Add exact value constraints
+   let sb = baseEncoding ti
+   for kv in nodeCounts do
+      let label = ti.NodeLabels.[kv.Key]
+      bprintf sb "(assert (= %s %d))\n" label kv.Value
+   for kv in edgeCounts do
+      let label = ti.EdgeLabels.[kv.Key]
+      bprintf sb "(assert (>= %s %d))\n" label kv.Value
+   //printfn "Encoding:\n%s" (string sb)
+   if isUnsat (string sb) "" then 
+      let msg = 
+         sprintf 
+            "Invalid concrete topology. The topology did not satisfy the abstract constraints provided"
+      error msg
+
+let checkWellformedTopology (ti : Topology.TopoInfo) = 
+   match ti.Kind with
+   | Topology.Concrete | Topology.Template -> ()
+   | Topology.Abstract -> 
+      checkIsGraphHomomorphism ti
+      checkHasValidConstraints ti
 
 let debugLearned (learned : Dictionary<_, _>) ti = 
    let pretty x = 

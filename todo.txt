@@ -14,12 +14,6 @@ Nice to have:
   - When preferences can be equal, don't force an ordering (helps multipath)
 
 Abstract Analysis:
-  - Separate constraints from nodes/edges (DONE)
-  - Give a concrete topology w/abstract labels (DONE)
-  - Make concrete nodes optional (DONE)
-  - Remove the --abstract flag and infer this (DONE)
-  
-  - Check well-formedness of concrete topology
   - Perform substitution at the ABGP-level for each router to concretize
   - What is the invariant for the analysis?
   - Pigeon-hole inference rule(s) for k-paths

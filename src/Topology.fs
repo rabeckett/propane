@@ -157,15 +157,19 @@ type TopoInfo =
       val AbstractGraphInfo : GraphInfo
       val EdgeLabels : Map<string * string, string>
       val NodeLabels : Map<string, string>
+      val Concretization : Map<string, Set<string>>
+      val Abstraction : Map<string, string>
       val Constraints : List<string>
       
-      new(nasn, k, cg, ag, els, nls, cs) = 
+      new(nasn, k, cg, ag, els, nls, con, abs, cs) = 
          { NetworkAsn = nasn
            Kind = k
            ConcreteGraphInfo = cg
            AbstractGraphInfo = ag
            EdgeLabels = els
            NodeLabels = nls
+           Concretization = con
+           Abstraction = abs
            Constraints = cs }
       
       member this.SelectGraphInfo = 
@@ -207,13 +211,15 @@ let getAsn isAbstract inside name (asn : string) =
       if i < 0 then error (sprintf "Negative AS number '%s' in topology for node '%s'" asn name)
       else i
 
-let router (asn : string) (ti : TopoInfo) = 
+let routerMap (asnMap : Map<string, int>) (asn : string) (ti : TopoInfo) = 
    let inline eqAsn _ v = string v = asn
-   match Map.tryFindKey eqAsn ti.SelectGraphInfo.AsnMap with
+   match Map.tryFindKey eqAsn asnMap with
    | None -> 
       if asn = "out" then asn
       else "AS" + asn
    | Some r -> r
+
+let router (asn : string) (ti : TopoInfo) = routerMap ti.SelectGraphInfo.AsnMap asn ti
 
 let assignIps sip tip ip = 
    match (sip, tip) with
@@ -252,7 +258,7 @@ let addForGraph (asnMap, nameMap, nodeMap, internalNames, externalNames,
    nodeMap := Map.add name state !nodeMap
    ignore (g.AddVertex state)
 
-let readTopology (file : string) : TopoInfo = 
+let readTopology (file : string) : TopoInfo * Args.T = 
    let settings = Args.getSettings()
    try 
       let concreteSeen = HashSet() // avoid adding edges twice
@@ -274,6 +280,8 @@ let readTopology (file : string) : TopoInfo =
       let abstractIpMap = Dictionary()
       let abstractNodeLabels = ref Map.empty
       let abstractEdgeLabels = ref Map.empty
+      let concretization = ref Map.empty
+      let abstraction = ref Map.empty
       let currASN = ref MAX_ASN
       // collect constraints
       let constraints = List()
@@ -282,12 +290,12 @@ let readTopology (file : string) : TopoInfo =
       // Build the concretization map and determine if we are using an abstract topology
       let isPureAbstract = (topo.Nodes.Length = 0)
       let mutable isAbstract = isPureAbstract
-      let concretization = ref Map.empty
       for an in topo.Abstractnodes do
          concretization := Map.add an.Label Set.empty !concretization
       for n in topo.Nodes do
          if n.Group <> "" then 
             isAbstract <- true
+            abstraction := Map.add n.Name n.Group !abstraction
             match Map.tryFind n.Group !concretization with
             | None -> 
                error (sprintf "Concrete node: %s refers to non-existant group %s" n.Name n.Group)
@@ -397,9 +405,11 @@ let readTopology (file : string) : TopoInfo =
       printfn "concreteIpMap: %A" concreteIpMap
       printfn "abstractIpMap: %A" abstractIpMap *)
       let netAsn = parseAsn (topo.Asn)
-      TopoInfo
-         (netAsn, kind, concreteGI, abstractGI, !abstractEdgeLabels, !abstractNodeLabels, 
-          constraints)
+      let ti = 
+         TopoInfo
+            (netAsn, kind, concreteGI, abstractGI, !abstractEdgeLabels, !abstractNodeLabels, 
+             !concretization, !abstraction, constraints)
+      (ti, Args.getSettings())
    with _ -> error (sprintf "Invalid topology XML file")
 
 module Examples = 

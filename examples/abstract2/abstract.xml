@@ -1,0 +1,34 @@
+<topology asn="100">
+  <!-- Concrete graph -->
+  <node internal="true" name="A" group="T0"></node>
+  <node internal="true" name="B" group="T0"></node>
+  <node internal="true" name="C" group="T1"></node>
+  <node internal="true" name="D" group="T1"></node>
+  <edge source="A" target="C"></edge>
+  <edge source="B" target="C"></edge>
+  <edge source="A" target="D"></edge>
+  <edge source="B" target="D"></edge>
+  <!-- Abstract Nodes -->
+  <abstractnode internal="true" label="T0"></abstractnode>
+  <abstractnode internal="true" label="T1"></abstractnode>
+  <abstractnode internal="true" label="T2"></abstractnode>
+  <abstractnode internal="false" label="Peer1"></abstractnode>
+  <abstractnode internal="false" label="Peer2"></abstractnode>
+  <!-- Abstract Edges -->
+  <abstractedge source="T0" target="T1" source-label="E1" target-label="E2"></abstractedge>
+  <abstractedge source="T1" target="T2" source-label="E3" target-label="E4"></abstractedge>
+  <abstractedge source="T2" target="Peer1" source-label="E5" target-label="E6"></abstractedge>
+  <abstractedge source="T2" target="Peer2" source-label="E7" target-label="E8"></abstractedge>
+  <!-- Abstract topology constraints -->
+  <constraint assertion="(>= T0 4)"></constraint>
+  <constraint assertion="(>= T1 4)"></constraint>
+  <constraint assertion="(>= T2 4)"></constraint>
+  <constraint assertion="(>= E1 2)"></constraint>
+  <constraint assertion="(>= E2 2)"></constraint>
+  <constraint assertion="(>= E3 T2)"></constraint>
+  <constraint assertion="(>= E4 T1)"></constraint>
+  <constraint assertion="(>= E5 Peer1)"></constraint>
+  <constraint assertion="(>= E6 T2)"></constraint>
+  <constraint assertion="(>= E7 Peer2)"></constraint>
+  <constraint assertion="(>= E8 T2)"></constraint>
+</topology>
