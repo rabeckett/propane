@@ -137,20 +137,48 @@ let findLinks (topo : T) (froms, tos) =
 
 type Topo = XmlProvider< "../data/template.xml" >
 
-type Constraint = 
-   { Name : string
-     Formula : string }
+type Kind = 
+   | Concrete
+   | Abstract
+   | Template
 
-type TopoInfo = 
+type GraphInfo = 
    { Graph : T
-     NetworkAsn : int
-     AsnMap : Map<string, int>
      InternalNames : Set<string>
      ExternalNames : Set<string>
-     AllNames : Set<string>
-     IpMap : Dictionary<string * string, string * string>
-     NodeConstraints : Map<string, Constraint>
-     EdgeConstraints : Map<string * string, Constraint * Constraint> }
+     AsnMap : Map<string, int>
+     IpMap : Dictionary<string * string, string * string> }
+
+type TopoInfo = 
+   class
+      val NetworkAsn : int
+      val Kind : Kind
+      val ConcreteGraphInfo : GraphInfo
+      val AbstractGraphInfo : GraphInfo
+      val EdgeLabels : Map<string * string, string>
+      val NodeLabels : Map<string, string>
+      val Constraints : List<string>
+      
+      new(nasn, k, cg, ag, els, nls, cs) = 
+         { NetworkAsn = nasn
+           Kind = k
+           ConcreteGraphInfo = cg
+           AbstractGraphInfo = ag
+           EdgeLabels = els
+           NodeLabels = nls
+           Constraints = cs }
+      
+      member this.SelectGraphInfo = 
+         match this.Kind with
+         | Concrete -> this.ConcreteGraphInfo
+         | Abstract | Template -> this.AbstractGraphInfo
+      
+      member this.IsTemplate = 
+         match this.Kind with
+         | Concrete -> false
+         | Abstract -> false
+         | Template -> true
+   end
 
 let MAX_ASN = 65534
 let counter = ref 0
@@ -181,7 +209,7 @@ let getAsn isAbstract inside name (asn : string) =
 
 let router (asn : string) (ti : TopoInfo) = 
    let inline eqAsn _ v = string v = asn
-   match Map.tryFindKey eqAsn ti.AsnMap with
+   match Map.tryFindKey eqAsn ti.SelectGraphInfo.AsnMap with
    | None -> 
       if asn = "out" then asn
       else "AS" + asn
@@ -198,89 +226,181 @@ let assignIps sip tip ip =
    | _, "" | "", _ -> error "Missing source or target ip in topology"
    | _, _ -> (sip, tip)
 
-let parseConstraint (c : string) : Constraint = 
-   if c = "" then error "Invalid topology: abstract topology requires constraints"
-   let vs = c.Split([| ':' |])
-   if vs.Length <> 2 then 
-      error "Invalid constraint: %s. Constraints should be of the form 'name:formula'" c
-   { Name = vs.[0]
-     Formula = vs.[1] }
+let addEdge (g : BidirectionalGraph<Node, Edge<Node>>) (seen : HashSet<_>) x y = 
+   if not (seen.Contains(x, y)) then 
+      seen.Add(x, y) |> ignore
+      let e = Edge(x, y)
+      ignore (g.AddEdge e)
+
+let addForGraph (asnMap, nameMap, nodeMap, internalNames, externalNames, 
+                 g : BidirectionalGraph<Node, Edge<Node>>) isAbstract intern name asn = 
+   let asn = getAsn isAbstract intern name asn
+   match Map.tryFind name !asnMap with
+   | None -> 
+      asnMap := Map.add name asn !asnMap
+      match Map.tryFind asn !nameMap with
+      | Some e -> error (sprintf "Duplicate AS numbers for %s and %s" e name)
+      | None -> ()
+      nameMap := Map.add asn name !nameMap
+   | Some _ -> error (sprintf "Duplicate name '%s' in topology" name)
+   let typ = 
+      if intern then Inside
+      else Outside
+   if intern then internalNames := Set.add name !internalNames
+   else externalNames := Set.add name !externalNames
+   let state = Node(string asn, typ)
+   nodeMap := Map.add name state !nodeMap
+   ignore (g.AddVertex state)
 
 let readTopology (file : string) : TopoInfo = 
    let settings = Args.getSettings()
-   let g = BidirectionalGraph<Node, Edge<Node>>()
-   // avoid adding edges twice
-   let seen = HashSet()
-   
-   let inline addEdge x y = 
-      if not (seen.Contains(x, y)) then 
-         seen.Add(x, y) |> ignore
-         let e = Edge(x, y)
-         ignore (g.AddEdge e)
    try 
+      let concreteSeen = HashSet() // avoid adding edges twice
+      let abstractSeen = HashSet()
       let topo = Topo.Load file
-      let mutable currASN = MAX_ASN
-      let mutable nodeMap = Map.empty
-      let mutable asnMap = Map.empty
-      let mutable nameMap = Map.empty
-      let mutable internalNames = Set.empty
-      let mutable externalNames = Set.empty
-      let mutable nodeConstraints = Map.empty
-      let mutable edgeConstraints = Map.empty
+      let concreteG = BidirectionalGraph<Node, Edge<Node>>()
+      let abstractG = BidirectionalGraph<Node, Edge<Node>>()
+      let concreteNodeMap = ref Map.empty
+      let abstractNodeMap = ref Map.empty
+      let concreteAsnMap = ref Map.empty
+      let abstractAsnMap = ref Map.empty
+      let concreteInternalNames = ref Set.empty
+      let abstractInternalNames = ref Set.empty
+      let concreteExternalNames = ref Set.empty
+      let abstractExternalNames = ref Set.empty
+      let concreteNameMap = ref Map.empty
+      let abstractNameMap = ref Map.empty
+      let concreteIpMap = Dictionary()
+      let abstractIpMap = Dictionary()
+      let abstractNodeLabels = ref Map.empty
+      let abstractEdgeLabels = ref Map.empty
+      let currASN = ref MAX_ASN
+      // collect constraints
+      let constraints = List()
+      for c in topo.Constraints do
+         constraints.Add c.Assertion
+      // Build the concretization map and determine if we are using an abstract topology
+      let isPureAbstract = (topo.Nodes.Length = 0)
+      let mutable isAbstract = isPureAbstract
+      let concretization = ref Map.empty
+      for an in topo.Abstractnodes do
+         concretization := Map.add an.Label Set.empty !concretization
       for n in topo.Nodes do
-         if settings.IsAbstract then 
-            nodeConstraints <- Map.add n.Name (parseConstraint n.Constraint) nodeConstraints
-            printfn "adding node constraint for %s" n.Name
-         let asn = getAsn settings.IsAbstract n.Internal n.Name n.Asn
-         match Map.tryFind n.Name asnMap with
-         | None -> 
-            asnMap <- Map.add n.Name asn asnMap
-            match Map.tryFind asn nameMap with
-            | Some e -> error (sprintf "Duplicate AS numbers for %s and %s" e n.Name)
-            | None -> ()
-            nameMap <- Map.add asn n.Name nameMap
-         | Some _ -> error (sprintf "Duplicate router name '%s' in topology" n.Name)
-         let typ = 
-            if n.Internal then Inside
-            else Outside
-         if n.Internal then internalNames <- Set.add n.Name internalNames
-         else externalNames <- Set.add n.Name externalNames
-         let state = Node(string asn, typ)
-         nodeMap <- Map.add n.Name state nodeMap
-         ignore (g.AddVertex state)
-      let ipMap = Dictionary()
+         if n.Group <> "" then 
+            isAbstract <- true
+            match Map.tryFind n.Group !concretization with
+            | None -> 
+               error (sprintf "Concrete node: %s refers to non-existant group %s" n.Name n.Group)
+            | Some s -> 
+               let s' = Set.add n.Group s
+               concretization := Map.add n.Group s' !concretization
+      // Add nodes to the concrete graph
+      for n in topo.Nodes do
+         let args = 
+            (concreteAsnMap, concreteNameMap, concreteNodeMap, concreteInternalNames, 
+             concreteExternalNames, concreteG)
+         addForGraph args isAbstract n.Internal n.Name n.Asn
+      // Addo nodes to the abstract graph
+      if isAbstract then 
+         for n in topo.Abstractnodes do
+            if n.Label = "" then error (sprintf "Invalid abstract node label - found empty string")
+            abstractNodeLabels := Map.add n.Label n.Label !abstractNodeLabels
+            let args = 
+               (abstractAsnMap, abstractNameMap, abstractNodeMap, abstractInternalNames, 
+                abstractExternalNames, abstractG)
+            addForGraph args isAbstract n.Internal n.Label ""
+      // Perform IP address asssignment and add edges to graph
       let ip = ref 0
       for e in topo.Edges do
-         if settings.IsAbstract && (e.SourceIp <> "" || e.TargetIp <> "") then 
-            error (sprintf "Invalid topology: source/target IP included in abstract topology")
-         if not (nodeMap.ContainsKey e.Source) then 
+         if not ((!concreteNodeMap).ContainsKey e.Source) then 
             error (sprintf "Invalid edge source location %s in topology" e.Source)
-         elif not (nodeMap.ContainsKey e.Target) then 
+         elif not ((!concreteNodeMap).ContainsKey e.Target) then 
             error (sprintf "Invalid edge target location %s in topology" e.Target)
          else 
+            let x = (!concreteNodeMap).[e.Source]
+            let y = (!concreteNodeMap).[e.Target]
+            addEdge concreteG concreteSeen x y
+            addEdge concreteG concreteSeen y x
             let (s, t) = assignIps e.SourceIp e.TargetIp ip
-            let x = nodeMap.[e.Source]
-            let y = nodeMap.[e.Target]
-            addEdge x y
-            addEdge y x
-            ipMap.[(x.Loc, y.Loc)] <- (s, t)
-            ipMap.[(y.Loc, x.Loc)] <- (t, s)
-            if settings.IsAbstract then 
-               let ec1 = parseConstraint e.SourceConstraint
-               let ec2 = parseConstraint e.TargetConstraint
-               edgeConstraints <- Map.add (e.Source, e.Target) (ec1, ec2) edgeConstraints
-               edgeConstraints <- Map.add (e.Target, e.Source) (ec2, ec1) edgeConstraints
-               printfn "Adding constraints for: (%s,%s)" e.Source e.Target
-      { Graph = Topology(g)
-        NetworkAsn = parseAsn (topo.Asn)
-        AsnMap = asnMap
-        InternalNames = internalNames
-        ExternalNames = externalNames
-        AllNames = Set.union internalNames externalNames
-        IpMap = ipMap
-        NodeConstraints = nodeConstraints
-        EdgeConstraints = edgeConstraints }
-   with _ -> error "Invalid topology XML file"
+            concreteIpMap.[(x.Loc, y.Loc)] <- (s, t)
+            concreteIpMap.[(y.Loc, x.Loc)] <- (t, s)
+      // Add abstract edges if applicable
+      if isAbstract then 
+         for e in topo.Abstractedges do
+            if not ((!abstractNodeMap).ContainsKey e.Source) then 
+               error (sprintf "Invalid abstract edge source location %s in topology" e.Source)
+            elif not ((!abstractNodeMap).ContainsKey e.Target) then 
+               error (sprintf "Invalid abstract edge target location %s in topology" e.Target)
+            else 
+               if e.SourceLabel = "" then 
+                  let msg = 
+                     sprintf "Missing abstract edge source label for edge: (%s,%s)" e.Source 
+                        e.Target
+                  error msg
+               if e.TargetLabel = "" then 
+                  let msg = 
+                     sprintf "Missing abstract edge target label for edge: (%s,%s)" e.Source 
+                        e.Target
+                  error msg
+               abstractEdgeLabels := Map.add (e.Source, e.Target) e.SourceLabel !abstractEdgeLabels
+               abstractEdgeLabels := Map.add (e.Target, e.Source) e.TargetLabel !abstractEdgeLabels
+               let x = (!abstractNodeMap).[e.Source]
+               let y = (!abstractNodeMap).[e.Target]
+               addEdge abstractG abstractSeen x y
+               addEdge abstractG abstractSeen y x
+         // Check for duplicate labels
+         let ves = Map.toSeq !abstractEdgeLabels |> Seq.map snd
+         let vns = Map.toSeq !abstractNodeLabels |> Seq.map snd
+         let all = Seq.append ves vns
+         let bySize = Seq.groupBy id all
+         for (label, vs) in bySize do
+            if Seq.length vs > 1 then 
+               let msg = sprintf "Duplicate label (%s) found in the topology. " label
+               error msg
+      let kind = 
+         if isPureAbstract then Template
+         else if isAbstract then Abstract
+         else Concrete
+      // Warn if using a template that certain checks can't be done
+      if isPureAbstract then 
+         let msg = 
+            sprintf 
+               "The topology provided is purely abstract. This means that the safety checks will only hold " 
+            + sprintf "if the concrete topology is a true instantiation of the abstract topology."
+         warning msg
+      // Update the settings so we know if we are compiling an abstract topology
+      Args.changeSettings { settings with IsAbstract = isAbstract }
+      let concreteGI = 
+         { Graph = Topology(concreteG)
+           InternalNames = !concreteInternalNames
+           ExternalNames = !concreteExternalNames
+           AsnMap = !concreteAsnMap
+           IpMap = concreteIpMap }
+      
+      let abstractGI = 
+         { Graph = Topology(abstractG)
+           InternalNames = !abstractInternalNames
+           ExternalNames = !abstractExternalNames
+           AsnMap = !abstractAsnMap
+           IpMap = abstractIpMap }
+      
+      (* printfn "concreteNodeMap: %A" !concreteNodeMap
+      printfn "abstractNodeMap: %A" !abstractNodeMap
+      printfn "concreteAsnMap: %A" !concreteAsnMap
+      printfn "abstractAsnMap: %A" !abstractAsnMap
+      printfn "concreteInternalNames: %A" !concreteInternalNames
+      printfn "abstractInternalNames: %A" !abstractInternalNames
+      printfn "concreteExternalNames: %A" !concreteExternalNames
+      printfn "abstractExternalNames: %A" !abstractExternalNames
+      printfn "concreteNameMap: %A" !concreteNameMap
+      printfn "abstractNameMap: %A" !abstractNameMap
+      printfn "concreteIpMap: %A" concreteIpMap
+      printfn "abstractIpMap: %A" abstractIpMap *)
+      let netAsn = parseAsn (topo.Asn)
+      TopoInfo
+         (netAsn, kind, concreteGI, abstractGI, !abstractEdgeLabels, !abstractNodeLabels, 
+          constraints)
+   with _ -> error (sprintf "Invalid topology XML file")
 
 module Examples = 
    let topoDisconnected() = 

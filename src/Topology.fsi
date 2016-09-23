@@ -58,21 +58,34 @@ val findByLoc : T -> string -> Node option
 /// Find peer topology nodes
 val peers : T -> Node -> seq<Node>
 
-type Constraint = 
-   { Name : string
-     Formula : string }
+type Kind = 
+   | Concrete
+   | Abstract
+   | Template
 
-type TopoInfo = 
+type GraphInfo = 
    { Graph : T
-     NetworkAsn : int
-     AsnMap : Map<string, int>
      InternalNames : Set<string>
      ExternalNames : Set<string>
-     AllNames : Set<string>
-     IpMap : Dictionary<string * string, string * string>
-     NodeConstraints : Map<string, Constraint>
-     EdgeConstraints : Map<string * string, Constraint * Constraint> }
+     AsnMap : Map<string, int>
+     IpMap : Dictionary<string * string, string * string> }
 
+type TopoInfo = 
+   class
+      val NetworkAsn : int
+      val Kind : Kind
+      val ConcreteGraphInfo : GraphInfo
+      val AbstractGraphInfo : GraphInfo
+      val EdgeLabels : Map<string * string, string>
+      val NodeLabels : Map<string, string>
+      val Constraints : List<string>
+      new : int * Kind * GraphInfo * GraphInfo * Map<string * string, string> * Map<string, string> * List<string>
+          -> TopoInfo
+      member SelectGraphInfo : GraphInfo
+      member IsTemplate : bool
+   end
+
+/// Get the string representation of the router
 val router : string -> TopoInfo -> string
 /// Read a topology from an XML file
 val readTopology : string -> TopoInfo

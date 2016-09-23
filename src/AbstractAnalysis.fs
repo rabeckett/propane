@@ -39,35 +39,34 @@ let inline writeFormula sb form =
 
 let inline writeWellFormedness sb name = bprintf sb "(assert (>= %s 0))\n" name
 
-let inline writeConstraints sb (c : Topology.Constraint) = 
-   writeWellFormedness sb c.Name
-   writeFormula sb c.Formula
-
 let baseEncoding (ti : Topology.TopoInfo) = 
    let sb = StringBuilder()
-   for kv in ti.NodeConstraints do
-      let c = kv.Value
-      writeDeclaration sb c.Name
-   for kv in ti.EdgeConstraints do
-      let (c1, c2) = kv.Value
-      writeDeclaration sb c1.Name
-   for kv in ti.NodeConstraints do
-      let c = kv.Value
-      writeConstraints sb c
-   for kv in ti.EdgeConstraints do
-      let (c1, c2) = kv.Value
-      writeConstraints sb c1
+   for kv in ti.NodeLabels do
+      let n = kv.Value
+      writeDeclaration sb n
+   for kv in ti.EdgeLabels do
+      let n = kv.Value
+      writeDeclaration sb n
+   for kv in ti.NodeLabels do
+      let n = kv.Value
+      writeWellFormedness sb n
+   for kv in ti.EdgeLabels do
+      let n = kv.Value
+      writeWellFormedness sb n
+   for c in ti.Constraints do
+      writeFormula sb c
    sb
 
 let inline getNodeConstraintName (ti : Topology.TopoInfo) v = 
    let name = Topology.router v.Node.Loc ti
-   ti.NodeConstraints.[name].Name
+   ti.NodeLabels.[name]
 
 let inline getEdgeConstraintNames (ti : Topology.TopoInfo) v u = 
    let namev = Topology.router v.Node.Loc ti
    let nameu = Topology.router u.Node.Loc ti
-   let (e1, e2) = ti.EdgeConstraints.[(namev, nameu)]
-   (e1.Name, e2.Name)
+   let e1 = ti.EdgeLabels.[(namev, nameu)]
+   let e2 = ti.EdgeLabels.[(nameu, namev)]
+   (e1, e2)
 
 let minimumEncoding e = 
    let x = sprintf "(declare-const m Int)\n"

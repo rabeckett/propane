@@ -1,13 +1,25 @@
 <topology asn="100">
-  <!-- Node constraints -->
-  <node internal="true" name="T0" constraint="t0:(>= t0 4)"></node>
-  <node internal="true" name="T1" constraint="t1:(>= t1 4)"></node>
-  <node internal="true" name="T2" constraint="t2:(>= t2 4)"></node>
-  <node internal="false" name="Peer1" constraint="p1:true"></node>
-  <node internal="false" name="Peer2" constraint="p2:true"></node>
-  <!-- Edge constraints -->
-  <edge source="T0" target="T1" source-constraint="e1:(= e1 2)" target-constraint="e2:(= e2 2)"></edge>
-  <edge source="T1" target="T2" source-constraint="e3:(= e3 t2)" target-constraint="e4:(= e4 t1)"></edge>
-  <edge source="T2" target="Peer1" source-constraint="e5:(= e5 p1)" target-constraint="e6:(= e6 t2)"></edge>
-  <edge source="T2" target="Peer2" source-constraint="e7:(= e7 p2)" target-constraint="e8:(= e8 t2)"></edge>
+  <!-- Abstract Nodes -->
+  <abstractnode internal="true" label="T0"></abstractnode>
+  <abstractnode internal="true" label="T1"></abstractnode>
+  <abstractnode internal="true" label="T2"></abstractnode>
+  <abstractnode internal="false" label="Peer1"></abstractnode>
+  <abstractnode internal="false" label="Peer2"></abstractnode>
+  <!-- Abstract Edges -->
+  <abstractedge source="T0" target="T1" source-label="E1" target-label="E2"></abstractedge>
+  <abstractedge source="T1" target="T2" source-label="E3" target-label="E4"></abstractedge>
+  <abstractedge source="T2" target="Peer1" source-label="E5" target-label="E6"></abstractedge>
+  <abstractedge source="T2" target="Peer2" source-label="E7" target-label="E8"></abstractedge>
+  <!-- Abstract topology constraints -->
+  <constraint assertion="(>= T0 4)"></constraint>
+  <constraint assertion="(>= T1 4)"></constraint>
+  <constraint assertion="(>= T2 4)"></constraint>
+  <constraint assertion="(= E1 2)"></constraint>
+  <constraint assertion="(= E2 2)"></constraint>
+  <constraint assertion="(= E3 T2)"></constraint>
+  <constraint assertion="(= E4 T1)"></constraint>
+  <constraint assertion="(= E5 Peer1)"></constraint>
+  <constraint assertion="(= E6 T2)"></constraint>
+  <constraint assertion="(= E7 Peer2)"></constraint>
+  <constraint assertion="(= E8 T2)"></constraint>
 </topology>

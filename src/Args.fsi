@@ -4,7 +4,6 @@ type T =
    { PolFile : string option
      TopoFile : string option
      OutDir : string
-     IsAbstract : bool
      Anycast : bool
      UseMed : bool
      UsePrepending : bool
@@ -17,9 +16,12 @@ type T =
      DebugDir : string
      Failures : Option<int>
      Stats : bool
-     CheckOnly : bool }
+     CheckOnly : bool
+     IsAbstract : bool }
 
 /// Get the command-line settings
 val getSettings : unit -> T
+/// Update the settings
+val changeSettings : T -> unit
 /// Parse command line arguments and return the compiler settings
 val parse : string [] -> unit

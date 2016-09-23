@@ -283,8 +283,14 @@ let substitute (ast : T) (e : Expr) : Expr =
          match ido with
          | None -> e
          | Some id -> 
-            if ast.TopoInfo.InternalNames.Contains id.Name then e
-            else Message.errorAst ast (sprintf "Invalid template variable name %s" id.Name) id.Pos
+            match ast.TopoInfo.Kind with
+            | Abstract | Template -> 
+               if ast.TopoInfo.SelectGraphInfo.InternalNames.Contains id.Name then e
+               else 
+                  Message.errorAst ast (sprintf "Invalid template variable name %s" id.Name) id.Pos
+            | Concrete -> 
+               Message.errorAst ast ("Invalid use of template variable for a concrete topology") 
+                  id.Pos
       | Ident(id, es) -> 
          if Set.contains id.Name seen then 
             Message.errorAst ast (sprintf "Recursive definition of %s" id.Name) id.Pos
@@ -656,7 +662,7 @@ let rec wellFormedCCs ast id args argsOrig =
             Message.errorAst ast msg origE.Pos
 
 let buildCConstraint ast (cc : Ident * Expr list) = 
-   let reb = Regex.REBuilder(ast.TopoInfo.Graph)
+   let reb = Regex.REBuilder(ast.TopoInfo.SelectGraphInfo.Graph)
    let (id, argsOrig) = cc
    let args = List.map (fun e -> substitute ast e) argsOrig
    wellFormedCCs ast id args argsOrig
@@ -708,7 +714,7 @@ let warnUnusedDefs ast e =
       let notMain = (id <> "main")
       let notUnder = (id.[0] <> '_')
       let notUsed = (not (Set.contains id !used))
-      let notRouter = (not (ast.TopoInfo.AsnMap.ContainsKey id))
+      let notRouter = (not (ast.TopoInfo.SelectGraphInfo.AsnMap.ContainsKey id))
       if notMain && notUnder && notUsed && notRouter then 
          let msg = sprintf "Unused definition of '%s'" id
          Message.warningAst ast msg p) defs
@@ -737,11 +743,15 @@ let warnRawAsn (ast : T) =
    let rawAsns = ref Set.empty
    Map.iter (fun def (_, _, e) -> 
       let isRouter = 
-         (ast.TopoInfo.InternalNames.Contains def) || (ast.TopoInfo.ExternalNames.Contains def)
+         (ast.TopoInfo.SelectGraphInfo.InternalNames.Contains def) 
+         || (ast.TopoInfo.SelectGraphInfo.ExternalNames.Contains def)
       if not isRouter then iter (getAsns rawAsns) e) ast.Defs
    for (e, asn) in !rawAsns do
-      let inline isRouter r n = n = asn && ast.TopoInfo.AllNames.Contains r
-      match Map.tryFindKey isRouter ast.TopoInfo.AsnMap with
+      let inline isRouter r n = 
+         n = asn 
+         && (ast.TopoInfo.SelectGraphInfo.InternalNames.Contains r 
+             || ast.TopoInfo.SelectGraphInfo.ExternalNames.Contains r)
+      match Map.tryFindKey isRouter ast.TopoInfo.SelectGraphInfo.AsnMap with
       | Some router -> 
          let msg = 
             sprintf "Raw ASN literal %s used for named topology router. " (string asn) 
@@ -821,9 +831,9 @@ let findTemplateViolations (ast : T) e =
                   Message.errorAst ast msg res.Pos
                if Set.count !regexes <> count then 
                   let msg = 
-                     sprintf "Template router variables must only appear " 
+                     sprintf "Template router variables may only appear " 
                      + sprintf "directly in end constraint"
-                  Message.errorAst ast msg pred.Pos
+                  Message.errorAst ast msg res.Pos
                if Set.count !preds <> count then 
                   let msg = 
                      sprintf "Different number of template variables in expression: " 
@@ -975,7 +985,7 @@ let addTopoDefinitions (ast : T) : T =
          let node = Asn asn
          pos, [], 
          { Pos = pos
-           Node = node }) ast.TopoInfo.AsnMap
+           Node = node }) ast.TopoInfo.SelectGraphInfo.AsnMap
    
    let defs = 
       Util.Map.merge ast.Defs asnDefs (fun name ((p, _, _), _) -> 
@@ -1023,7 +1033,7 @@ let makePolicyPairs (ast : T) =
          List.map (fun (p : Predicate, res) -> 
             let locs = orginationLocationsList ast res
             origLocs := Map.add p locs !origLocs
-            let reb = Regex.REBuilder(ast.TopoInfo.Graph)
+            let reb = Regex.REBuilder(ast.TopoInfo.SelectGraphInfo.Graph)
             let res = List.map (buildRegex ast reb) res
             let res = List.mapi (fun i re -> reb.Build p (i + 1) re) res
             (p, reb, res)) topLevel

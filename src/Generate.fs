@@ -330,17 +330,18 @@ let generate (res : Abgp.CompilationResult) =
    // Generate intermediate representation
    File.writeFileWithExtension (out + File.sep + "configs") "ir" (Abgp.format res.Abgp)
    // Get the low-level configurations
-   let nc : NetworkConfiguration = Abgp.toConfig res.Abgp
-   let configDir = out + File.sep + "configs"
-   File.createDir configDir
-   let rInternal = internalRouters nc
-   // Create each router configuration, specialized by type (just quagga now)
-   for kv in nc.RouterConfigurations do
-      let name = kv.Key
-      let rc = kv.Value
-      let output = quagga rInternal rc
-      output |> File.writeFileWithExtension (configDir + File.sep + name) "cfg"
-   // Write CORE emulator save file
    if not settings.IsAbstract then 
-      addFakeExternalConfigs nc
-      core rInternal nc |> File.writeFileWithExtension (out + File.sep + "core") "imn"
+      let nc : NetworkConfiguration = Abgp.toConfig res.Abgp
+      let configDir = out + File.sep + "configs"
+      File.createDir configDir
+      let rInternal = internalRouters nc
+      // Create each router configuration, specialized by type (just quagga now)
+      for kv in nc.RouterConfigurations do
+         let name = kv.Key
+         let rc = kv.Value
+         let output = quagga rInternal rc
+         output |> File.writeFileWithExtension (configDir + File.sep + name) "cfg"
+      // Write CORE emulator save file
+      if not settings.IsAbstract then 
+         addFakeExternalConfigs nc
+         core rInternal nc |> File.writeFileWithExtension (out + File.sep + "core") "imn"

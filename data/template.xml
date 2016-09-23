@@ -1,7 +1,16 @@
-<?xml version="1.0" encoding="utf-8"?>
 <topology asn="">
-  <node internal="true" name="" constraint=""></node>
-  <node internal="true" asn="" name="" device=""></node>
-  <edge source="" target="" source-ip="" target-ip="" source-constraint="" target-constraint=""></edge>
+  <node internal="true" name=""></node>
+  <node internal="true" name="" asn="" device="" group=""></node>
+  
   <edge source="" target="" source-ip="" target-ip=""></edge>
+  <edge source="" target="" source-ip="" target-ip=""></edge>
+  
+  <abstractnode internal="false" label=""></abstractnode>
+  <abstractnode internal="true" label=""></abstractnode>
+  
+  <abstractedge source="" target="" source-label="" target-label=""></abstractedge>
+  <abstractedge source="" target="" source-label="" target-label=""></abstractedge>
+  
+  <constraint assertion=""></constraint>
+  <constraint assertion=""></constraint>
 </topology>

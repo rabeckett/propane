@@ -1316,7 +1316,7 @@ let splitConstraints (pi : Ast.PolInfo) =
          | Ast.CMaxRoutes(i, ins, outs) -> (x, y, (i, ins, outs) :: z)
          | _ -> acc) ([], [], []) pi.CConstraints
    
-   let topo = pi.Ast.TopoInfo.Graph
+   let topo = pi.Ast.TopoInfo.SelectGraphInfo.Graph
    let aggInfo = splitByLocation checkAggregateLocs topo aggs
    let commInfo = splitByLocation checkCommunityTagLocs topo comms
    let maxRouteInfo = splitByLocation checkMaxRouteLocs topo maxroutes
@@ -1477,10 +1477,10 @@ let createAsPathList (asPathMap : Dictionary<_, _>, asPathLists : List<_>, als :
 
 let peers (ti : Topology.TopoInfo) (router : string) = 
    let loc (x : Topology.Node) = x.Loc
-   match Topology.findByLoc ti.Graph router with
+   match Topology.findByLoc ti.SelectGraphInfo.Graph router with
    | None -> failwith "unreachable"
    | Some s -> 
-      let peers = Topology.neighbors ti.Graph s
+      let peers = Topology.neighbors ti.SelectGraphInfo.Graph s
       let inPeers, outPeers = Set.ofSeq peers |> Set.partition Topology.isInside
       let inPeers, outPeers = Set.map loc inPeers, Set.map loc outPeers
       Set.union inPeers outPeers, inPeers, outPeers
@@ -1734,9 +1734,9 @@ let toConfig (abgp : T) =
       // add import filter for all peers
       for peer in allPeers do
          let export = Map.tryFind peer peerExportMap
-         let routerIp, peerIp = ti.IpMap.[(rname, peer)]
+         let routerIp, peerIp = ti.SelectGraphInfo.IpMap.[(rname, peer)]
          let peerName = Topology.router peer ti
-         let peerAsn = string ti.AsnMap.[peerName]
+         let peerAsn = string ti.SelectGraphInfo.AsnMap.[peerName]
          peerMap.[peerName] <- PeerConfig(peerName, peerAsn, routerIp, peerIp, Some "rm-in", export)
       // create the complete configuration for this router
       let name = Topology.router rname ti

@@ -7,7 +7,6 @@ type T =
    { PolFile : string option
      TopoFile : string option
      OutDir : string
-     IsAbstract : bool
      Anycast : bool
      UseMed : bool
      UsePrepending : bool
@@ -20,7 +19,8 @@ type T =
      DebugDir : string
      Failures : Option<int>
      Stats : bool
-     CheckOnly : bool }
+     CheckOnly : bool
+     IsAbstract : bool }
 
 let currentDir = System.Environment.CurrentDirectory
 let sep = string Path.DirectorySeparatorChar
@@ -38,7 +38,6 @@ Options:
     --output DIR      Specify output directory.
     --failures K      Guarantee k failure safety for aggregation.
     --check           Only check for correctness, don't generate configs
-    --abstract        Compile for abstract topology.
     --parallel        Enable parallel compilation.
     --naive           Disable policy minimization.
     --stats           Display compilation statistics to stdout.
@@ -96,7 +95,6 @@ let parse (argv : string []) : unit =
         OutDir = outDir
         Failures = getFailures vs.["--failures"]
         CheckOnly = vs.["--check"].IsTrue
-        IsAbstract = vs.["--abstract"].IsTrue
         Parallel = vs.["--parallel"].IsTrue
         Minimize = vs.["--naive"].IsFalse
         Stats = vs.["--stats"].IsTrue
@@ -107,7 +105,8 @@ let parse (argv : string []) : unit =
         Test = vs.["--test"].IsTrue
         Bench = vs.["--bench"].IsTrue
         Debug = vs.["--debug"].IsTrue
-        DebugDir = !debugDir }
+        DebugDir = !debugDir
+        IsAbstract = false } // this gets set from the topology
    settings := Some s
 
 let getSettings() = 
@@ -116,3 +115,5 @@ let getSettings() =
    | None -> 
       printfn "Error: no settings found"
       exit 0
+
+let changeSettings s = settings := Some s
