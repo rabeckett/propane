@@ -60,8 +60,8 @@ let baseEncoding (ti : Topology.TopoInfo) =
    let topoA = agi.Graph
    let abs = ti.Abstraction
    for (n1, n2) in Topology.edges topoA do
-      let a1 = Topology.routerMap agi.AsnMap n1.Loc ti
-      let a2 = Topology.routerMap agi.AsnMap n2.Loc ti
+      let a1 = Topology.routerMap agi.RouterMap n1.Loc
+      let a2 = Topology.routerMap agi.RouterMap n2.Loc
       let labelN = ti.NodeLabels.[a2]
       let labelE1 = ti.EdgeLabels.[(a1, a2)]
       bprintf sb "(assert (>= %s %s))\n" labelN labelE1
@@ -110,8 +110,8 @@ let checkIsGraphHomomorphism (ti : Topology.TopoInfo) =
       abstractEdges.Add(a2, a1) |> ignore
    let abs = ti.Abstraction
    for (n1, n2) in Topology.edges topoC do
-      let c1 = Topology.routerMap ti.ConcreteGraphInfo.AsnMap n1.Loc ti
-      let c2 = Topology.routerMap ti.ConcreteGraphInfo.AsnMap n2.Loc ti
+      let c1 = Topology.routerMap ti.ConcreteGraphInfo.RouterMap n1.Loc
+      let c2 = Topology.routerMap ti.ConcreteGraphInfo.RouterMap n2.Loc
       match abs.TryFind c1, abs.TryFind c2 with
       | Some a1, Some a2 -> 
          if not <| abstractEdges.Contains(a1, a2) then 
@@ -132,12 +132,12 @@ let checkHasValidConstraints (ti : Topology.TopoInfo) =
    let mutable nodeCounts = Map.empty
    let mutable edgeCounts = Map.empty
    for n1 in Topology.vertices topoC do
-      let c1 = Topology.routerMap cgi.AsnMap n1.Loc ti
+      let c1 = Topology.routerMap cgi.RouterMap n1.Loc
       let a1 = abs.[c1]
       nodeCounts <- Util.Map.adjust a1 0 ((+) 1) nodeCounts
       let mutable countByGroup = Map.empty
       for n2 in Topology.neighbors cgi.Graph n1 do
-         let c2 = Topology.routerMap cgi.AsnMap n2.Loc ti
+         let c2 = Topology.routerMap cgi.RouterMap n2.Loc
          let a2 = abs.[c2]
          countByGroup <- Util.Map.adjust a2 0 ((+) 1) countByGroup
       for kv in countByGroup do
@@ -154,7 +154,6 @@ let checkHasValidConstraints (ti : Topology.TopoInfo) =
    for kv in edgeCounts do
       let label = ti.EdgeLabels.[kv.Key]
       bprintf sb "(assert (>= %s %d))\n" label kv.Value
-   //printfn "Encoding:\n%s" (string sb)
    if isUnsat (string sb) "" then 
       let msg = 
          sprintf 
@@ -169,20 +168,21 @@ let checkWellformedTopology (ti : Topology.TopoInfo) =
       checkHasValidConstraints ti
 
 let debugLearned (learned : Dictionary<_, _>) ti = 
-   let pretty x = 
+   let inline pretty x = 
       if x = -1 then "UNREACH"
       else string x
    printfn "========================="
    for kv in learned do
-      let (s, a) = kv.Value
-      printfn "%s --> (%s,%s)" (Topology.router kv.Key.Node.Loc ti) (pretty s) (pretty a)
+      if CGraph.isRealNode kv.Key then 
+         let (s, a) = kv.Value
+         printfn "%s --> (%s,%s)" (Topology.router kv.Key.Node.Loc ti) (pretty s) (pretty a)
    printfn "========================="
 
 let reachability (ti : Topology.TopoInfo) (cg : CGraph.T) (src : CgState) : int option = 
    printfn "Got call for src: %s" (string src)
    // Capture the base constraints
    let enc = string (baseEncoding ti)
-   // Start with infinity for S and A labels
+   // Represent UNREACH with -1
    let learned = Dictionary()
    for n in cg.Graph.Vertices do
       if n = src then learned.[n] <- (1, -1)
@@ -220,7 +220,7 @@ let reachability (ti : Topology.TopoInfo) (cg : CGraph.T) (src : CgState) : int 
          if kS < kA then learned.[v] <- (kA, kA)
          // lookup existing values of k
          // if third rule applies
-         if kS > 0 then 
+         if kS > 0 || kA > 0 then 
             printfn "  checking rule 1 - S"
             let a = sprintf "(assert (= %s 0))" e1
             if isUnsat enc a then 
@@ -230,13 +230,13 @@ let reachability (ti : Topology.TopoInfo) (cg : CGraph.T) (src : CgState) : int 
                   printfn "   found min: %d" k
                   let m = 
                      if !first then k
-                     else min k kS
+                     else min k (max kS kA)
                   if m > kS' then 
                      learned.[u] <- (m, kA)
                      printfn "     adding: %s to the stack" (Topology.router u.Node.Loc ti)
                      push u
                | None -> ()
-         if kA > 0 then 
+         (* if kA > 0 then 
             printfn "  checking rule 1 - A"
             let a = sprintf "(assert (= %s 0))" e1
             if isUnsat enc a then 
@@ -250,9 +250,9 @@ let reachability (ti : Topology.TopoInfo) (cg : CGraph.T) (src : CgState) : int 
                      learned.[u] <- (m, kA)
                      printfn "     adding: %s to the stack" (Topology.router u.Node.Loc ti)
                      push u
-               | None -> ()
+               | None -> () *)
          // if second rule applies
-         if kS > 0 then 
+         if kS > 0 || kA > 0 then 
             printfn "  checking rule 2 - S"
             let a = sprintf "(assert (not (= %s %s)))" e1 n
             if isUnsat enc a then 
@@ -262,13 +262,13 @@ let reachability (ti : Topology.TopoInfo) (cg : CGraph.T) (src : CgState) : int 
                   printfn "   found min: %d" k
                   let m = 
                      if !first then k
-                     else min k kS
+                     else min k (max kS kA)
                   if m > kA' then 
                      learned.[u] <- (kS, m)
                      printfn "     adding: %s to the stack" (Topology.router u.Node.Loc ti)
                      push u
                | None -> ()
-         if kA > 0 then 
+         (*if kA > 0 then 
             printfn "  checking rule 1 - A"
             let a = sprintf "(assert (= %s %s))" e1 n
             if isUnsat enc a then 
@@ -282,7 +282,7 @@ let reachability (ti : Topology.TopoInfo) (cg : CGraph.T) (src : CgState) : int 
                      learned.[u] <- (kS, m)
                      printfn "     adding: %s to the stack" (Topology.router u.Node.Loc ti)
                      push u
-               | None -> ()
+               | None -> () *)
          // if first rule applies
          if kA > 0 then 
             printfn "  checking rule 3 - A"

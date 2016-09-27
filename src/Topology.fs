@@ -144,9 +144,11 @@ type Kind =
 
 type GraphInfo = 
    { Graph : T
+     Pods : Map<string, Set<string>>
      InternalNames : Set<string>
      ExternalNames : Set<string>
      AsnMap : Map<string, int>
+     RouterMap : Map<string, string>
      IpMap : Dictionary<string * string, string * string> }
 
 type TopoInfo = 
@@ -157,17 +159,23 @@ type TopoInfo =
       val AbstractGraphInfo : GraphInfo
       val EdgeLabels : Map<string * string, string>
       val NodeLabels : Map<string, string>
+      val PodLabels : Set<string>
+      val NonLocalScopes : Map<string * string, string>
+      val EnclosingScopes : Map<string, string list>
       val Concretization : Map<string, Set<string>>
       val Abstraction : Map<string, string>
       val Constraints : List<string>
       
-      new(nasn, k, cg, ag, els, nls, con, abs, cs) = 
+      new(nasn, k, cg, ag, els, nls, pls, scopes, escopes, con, abs, cs) = 
          { NetworkAsn = nasn
            Kind = k
            ConcreteGraphInfo = cg
            AbstractGraphInfo = ag
            EdgeLabels = els
            NodeLabels = nls
+           PodLabels = pls
+           NonLocalScopes = scopes
+           EnclosingScopes = escopes
            Concretization = con
            Abstraction = abs
            Constraints = cs }
@@ -211,15 +219,14 @@ let getAsn isAbstract inside name (asn : string) =
       if i < 0 then error (sprintf "Negative AS number '%s' in topology for node '%s'" asn name)
       else i
 
-let routerMap (asnMap : Map<string, int>) (asn : string) (ti : TopoInfo) = 
-   let inline eqAsn _ v = string v = asn
-   match Map.tryFindKey eqAsn asnMap with
+let routerMap (routerMap : Map<string, string>) (asn : string) = 
+   match Map.tryFind asn routerMap with
    | None -> 
       if asn = "out" then asn
       else "AS" + asn
-   | Some r -> r
+   | Some x -> x
 
-let router (asn : string) (ti : TopoInfo) = routerMap ti.SelectGraphInfo.AsnMap asn ti
+let router (asn : string) (ti : TopoInfo) = routerMap ti.SelectGraphInfo.RouterMap asn
 
 let assignIps sip tip ip = 
    match (sip, tip) with
@@ -238,12 +245,13 @@ let addEdge (g : BidirectionalGraph<Node, Edge<Node>>) (seen : HashSet<_>) x y =
       let e = Edge(x, y)
       ignore (g.AddEdge e)
 
-let addForGraph (asnMap, nameMap, nodeMap, internalNames, externalNames, 
+let addForGraph (asnMap, revAsnMap, nameMap, nodeMap, internalNames, externalNames, 
                  g : BidirectionalGraph<Node, Edge<Node>>) isAbstract intern name asn = 
    let asn = getAsn isAbstract intern name asn
    match Map.tryFind name !asnMap with
    | None -> 
       asnMap := Map.add name asn !asnMap
+      revAsnMap := Map.add (string asn) name !revAsnMap
       match Map.tryFind asn !nameMap with
       | Some e -> error (sprintf "Duplicate AS numbers for %s and %s" e name)
       | None -> ()
@@ -258,6 +266,54 @@ let addForGraph (asnMap, nameMap, nodeMap, internalNames, externalNames,
    nodeMap := Map.add name state !nodeMap
    ignore (g.AddVertex state)
 
+let checkForDuplicateNames names s = 
+   let bySize = Seq.groupBy id (names |> List.toSeq)
+   for (label, vs) in bySize do
+      if Seq.length vs > 1 then 
+         let msg = sprintf "Duplicate %s (%s) found in the topology. " s label
+         error msg
+
+let checkForNonNestedScopes (pods : Map<string, Set<string>>) = 
+   for kv1 in pods do
+      for kv2 in pods do
+         if kv1.Key <> kv2.Key then 
+            let xs, ys = kv1.Value, kv2.Value
+            let inter = Set.intersect xs ys
+            if inter.Count > 0 then 
+               let both = Set.union xs ys
+               if both.Count > max xs.Count ys.Count then 
+                  error (sprintf "Invalid topology, overlapping pods: %s and %s" kv1.Key kv2.Key)
+
+// Ensure custom "scope" labels are a common parent for both
+let checkForValidScopes (edgeScopes : Map<string * string, string>) enclosing = 
+   let rec isParent x xs = 
+      match xs with
+      | [] -> false
+      | hd :: tl -> 
+         if hd = x then true
+         else isParent x tl
+   for kv in edgeScopes do
+      let (x, y) = kv.Key
+      let label = kv.Value
+      let scopex = Map.find x enclosing
+      let scopey = Map.find y enclosing
+      if not (isParent label scopex && isParent label scopey) then 
+         error 
+            (sprintf "Invalid scope: %s. Must be an enclosing scope for both source and target." 
+                label)
+
+let getEnclosingScopes (all : Set<string>) (pods : Map<string, Set<string>>) : Map<string, string list> = 
+   let mutable acc = Map.empty
+   for r in all do
+      acc <- Map.add r [ "global" ] acc
+   for kv in pods do
+      let label = kv.Key
+      let routers = kv.Value
+      for r in routers do
+         let e = Map.find r acc
+         acc <- Map.add r (label :: e) acc
+   acc
+
 let readTopology (file : string) : TopoInfo * Args.T = 
    let settings = Args.getSettings()
    try 
@@ -266,10 +322,14 @@ let readTopology (file : string) : TopoInfo * Args.T =
       let topo = Topo.Load file
       let concreteG = BidirectionalGraph<Node, Edge<Node>>()
       let abstractG = BidirectionalGraph<Node, Edge<Node>>()
+      let concretePods = ref Map.empty
+      let abstractPods = ref Map.empty
       let concreteNodeMap = ref Map.empty
       let abstractNodeMap = ref Map.empty
       let concreteAsnMap = ref Map.empty
       let abstractAsnMap = ref Map.empty
+      let concreteRevAsnMap = ref Map.empty
+      let abstractRevAsnMap = ref Map.empty
       let concreteInternalNames = ref Set.empty
       let abstractInternalNames = ref Set.empty
       let concreteExternalNames = ref Set.empty
@@ -280,8 +340,12 @@ let readTopology (file : string) : TopoInfo * Args.T =
       let abstractIpMap = Dictionary()
       let abstractNodeLabels = ref Map.empty
       let abstractEdgeLabels = ref Map.empty
+      let abstractPodLabels = ref Set.empty
+      let concreteNames = ref []
+      let abstractNames = ref [ "global" ] // reserve name for outer-most scope
       let concretization = ref Map.empty
       let abstraction = ref Map.empty
+      let nonLocalScopes = ref Map.empty
       let currASN = ref MAX_ASN
       // collect constraints
       let constraints = List()
@@ -302,20 +366,38 @@ let readTopology (file : string) : TopoInfo * Args.T =
             | Some s -> 
                let s' = Set.add n.Group s
                concretization := Map.add n.Group s' !concretization
+      // Add the pods to the graph
+      for p in topo.Abstractpods do
+         if p.Label = "" then error (sprintf "Invalid abstract pod label - found empty string")
+         abstractPods := Map.add p.Label (p.Elements |> Set.ofArray) !abstractPods
+         abstractPodLabels := Set.add p.Label !abstractPodLabels
+         abstractNames := p.Label :: !abstractNames
+      for p in topo.Pods do
+         if p.Name = "" then error (sprintf "Invalid concrete pod name - found empty string")
+         match Map.tryFind p.Group !abstractPods with
+         | None -> error (sprintf "Invalid abstract pod group: %s" p.Group)
+         | Some _ -> 
+            concretePods := Map.add p.Name (p.Elements |> Set.ofArray) !concretePods
+            concreteNames := p.Name :: !concreteNames
+      // Ensure pods do not overlap (i.e., always contain a strict superset of the nodes)
+      checkForNonNestedScopes !concretePods
+      checkForNonNestedScopes !abstractPods
       // Add nodes to the concrete graph
       for n in topo.Nodes do
+         concreteNames := n.Name :: !concreteNames
          let args = 
-            (concreteAsnMap, concreteNameMap, concreteNodeMap, concreteInternalNames, 
-             concreteExternalNames, concreteG)
+            (concreteAsnMap, concreteRevAsnMap, concreteNameMap, concreteNodeMap, 
+             concreteInternalNames, concreteExternalNames, concreteG)
          addForGraph args isAbstract n.Internal n.Name n.Asn
       // Addo nodes to the abstract graph
       if isAbstract then 
          for n in topo.Abstractnodes do
+            abstractNames := n.Label :: !abstractNames
             if n.Label = "" then error (sprintf "Invalid abstract node label - found empty string")
             abstractNodeLabels := Map.add n.Label n.Label !abstractNodeLabels
             let args = 
-               (abstractAsnMap, abstractNameMap, abstractNodeMap, abstractInternalNames, 
-                abstractExternalNames, abstractG)
+               (abstractAsnMap, abstractRevAsnMap, abstractNameMap, abstractNodeMap, 
+                abstractInternalNames, abstractExternalNames, abstractG)
             addForGraph args isAbstract n.Internal n.Label ""
       // Perform IP address asssignment and add edges to graph
       let ip = ref 0
@@ -340,31 +422,40 @@ let readTopology (file : string) : TopoInfo * Args.T =
             elif not ((!abstractNodeMap).ContainsKey e.Target) then 
                error (sprintf "Invalid abstract edge target location %s in topology" e.Target)
             else 
-               if e.SourceLabel = "" then 
+               let (sl, tl) = e.SourceLabel, e.TargetLabel
+               if sl = "" then 
                   let msg = 
                      sprintf "Missing abstract edge source label for edge: (%s,%s)" e.Source 
                         e.Target
                   error msg
-               if e.TargetLabel = "" then 
+               if tl = "" then 
                   let msg = 
                      sprintf "Missing abstract edge target label for edge: (%s,%s)" e.Source 
                         e.Target
                   error msg
-               abstractEdgeLabels := Map.add (e.Source, e.Target) e.SourceLabel !abstractEdgeLabels
-               abstractEdgeLabels := Map.add (e.Target, e.Source) e.TargetLabel !abstractEdgeLabels
+               if e.Scope <> "" then 
+                  match Map.tryFind e.Scope !abstractPods with
+                  | None when e.Scope <> "global" -> 
+                     error 
+                        (sprintf "Invalid edge scope: %s. Must refer to valid pod label." e.Scope)
+                  | _ -> 
+                     nonLocalScopes := Map.add (e.Source, e.Target) e.Scope !nonLocalScopes
+                     nonLocalScopes := Map.add (e.Target, e.Source) e.Scope !nonLocalScopes
+               abstractNames := sl :: tl :: !abstractNames
+               abstractEdgeLabels := Map.add (e.Source, e.Target) sl !abstractEdgeLabels
+               abstractEdgeLabels := Map.add (e.Target, e.Source) tl !abstractEdgeLabels
                let x = (!abstractNodeMap).[e.Source]
                let y = (!abstractNodeMap).[e.Target]
                addEdge abstractG abstractSeen x y
                addEdge abstractG abstractSeen y x
-         // Check for duplicate labels
-         let ves = Map.toSeq !abstractEdgeLabels |> Seq.map snd
-         let vns = Map.toSeq !abstractNodeLabels |> Seq.map snd
-         let all = Seq.append ves vns
-         let bySize = Seq.groupBy id all
-         for (label, vs) in bySize do
-            if Seq.length vs > 1 then 
-               let msg = sprintf "Duplicate label (%s) found in the topology. " label
-               error msg
+      // Check for duplicate names
+      checkForDuplicateNames !abstractNames "label"
+      checkForDuplicateNames !concreteNames "name"
+      // Compute enclosing scopes and check for well-formedness
+      let escopes = 
+         getEnclosingScopes (Set.union !abstractInternalNames !abstractExternalNames) !abstractPods
+      checkForValidScopes !nonLocalScopes escopes
+      // Get the kind of compilation to perform
       let kind = 
          if isPureAbstract then Template
          else if isAbstract then Abstract
@@ -380,16 +471,20 @@ let readTopology (file : string) : TopoInfo * Args.T =
       Args.changeSettings { settings with IsAbstract = isAbstract }
       let concreteGI = 
          { Graph = Topology(concreteG)
+           Pods = !concretePods
            InternalNames = !concreteInternalNames
            ExternalNames = !concreteExternalNames
            AsnMap = !concreteAsnMap
+           RouterMap = !concreteRevAsnMap
            IpMap = concreteIpMap }
       
       let abstractGI = 
          { Graph = Topology(abstractG)
+           Pods = !abstractPods
            InternalNames = !abstractInternalNames
            ExternalNames = !abstractExternalNames
            AsnMap = !abstractAsnMap
+           RouterMap = !abstractRevAsnMap
            IpMap = abstractIpMap }
       
       (* printfn "concreteNodeMap: %A" !concreteNodeMap
@@ -408,7 +503,8 @@ let readTopology (file : string) : TopoInfo * Args.T =
       let ti = 
          TopoInfo
             (netAsn, kind, concreteGI, abstractGI, !abstractEdgeLabels, !abstractNodeLabels, 
-             !concretization, !abstraction, constraints)
+             !abstractPodLabels, !nonLocalScopes, escopes, !concretization, !abstraction, 
+             constraints)
       (ti, Args.getSettings())
    with _ -> error (sprintf "Invalid topology XML file")
 

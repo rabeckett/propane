@@ -1,34 +1,45 @@
 <topology asn="100">
-  <!-- Concrete graph -->
+  <!-- Concrete nodes -->
   <node internal="true" name="A" group="T0"></node>
   <node internal="true" name="B" group="T0"></node>
-  <node internal="true" name="C" group="T1"></node>
-  <node internal="true" name="D" group="T1"></node>
-  <edge source="A" target="C"></edge>
-  <edge source="B" target="C"></edge>
-  <edge source="A" target="D"></edge>
-  <edge source="B" target="D"></edge>
+  <node internal="true" name="C" group="T0"></node>
+  <node internal="true" name="D" group="T0"></node>
+  <node internal="true" name="L" group="T1"></node>
+  <node internal="true" name="M" group="T1"></node>
+  <node internal="true" name="N" group="T1"></node>
+  <node internal="true" name="O" group="T1"></node>
+  <node internal="true" name="X" group="T2"></node>
+  <node internal="true" name="Y" group="T2"></node>
+  <!-- Concrete edges -->
+  <edge source="A" target="L"></edge>
+  <edge source="A" target="M"></edge>
+  <edge source="B" target="L"></edge>
+  <edge source="B" target="M"></edge>
+  <edge source="C" target="N"></edge>
+  <edge source="C" target="O"></edge>
+  <edge source="D" target="N"></edge>
+  <edge source="D" target="O"></edge>
+  <edge source="L" target="X"></edge>
+  <edge source="L" target="Y"></edge>
+  <edge source="M" target="X"></edge>
+  <edge source="M" target="Y"></edge>
+  <edge source="N" target="X"></edge>
+  <edge source="N" target="Y"></edge>
+  <edge source="O" target="X"></edge>
+  <edge source="O" target="Y"></edge>
   <!-- Abstract Nodes -->
   <abstractnode internal="true" label="T0"></abstractnode>
   <abstractnode internal="true" label="T1"></abstractnode>
   <abstractnode internal="true" label="T2"></abstractnode>
-  <abstractnode internal="false" label="Peer1"></abstractnode>
-  <abstractnode internal="false" label="Peer2"></abstractnode>
   <!-- Abstract Edges -->
   <abstractedge source="T0" target="T1" source-label="E1" target-label="E2"></abstractedge>
   <abstractedge source="T1" target="T2" source-label="E3" target-label="E4"></abstractedge>
-  <abstractedge source="T2" target="Peer1" source-label="E5" target-label="E6"></abstractedge>
-  <abstractedge source="T2" target="Peer2" source-label="E7" target-label="E8"></abstractedge>
   <!-- Abstract topology constraints -->
   <constraint assertion="(>= T0 4)"></constraint>
   <constraint assertion="(>= T1 4)"></constraint>
-  <constraint assertion="(>= T2 4)"></constraint>
+  <constraint assertion="(>= T2 2)"></constraint>
   <constraint assertion="(>= E1 2)"></constraint>
   <constraint assertion="(>= E2 2)"></constraint>
   <constraint assertion="(>= E3 T2)"></constraint>
   <constraint assertion="(>= E4 T1)"></constraint>
-  <constraint assertion="(>= E5 Peer1)"></constraint>
-  <constraint assertion="(>= E6 T2)"></constraint>
-  <constraint assertion="(>= E7 Peer2)"></constraint>
-  <constraint assertion="(>= E8 T2)"></constraint>
 </topology>

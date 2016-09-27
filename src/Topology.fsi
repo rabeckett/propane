@@ -65,9 +65,11 @@ type Kind =
 
 type GraphInfo = 
    { Graph : T
+     Pods : Map<string, Set<string>>
      InternalNames : Set<string>
      ExternalNames : Set<string>
      AsnMap : Map<string, int>
+     RouterMap : Map<string, string>
      IpMap : Dictionary<string * string, string * string> }
 
 type TopoInfo = 
@@ -78,17 +80,20 @@ type TopoInfo =
       val AbstractGraphInfo : GraphInfo
       val EdgeLabels : Map<string * string, string>
       val NodeLabels : Map<string, string>
+      val PodLabels : Set<string>
+      val NonLocalScopes : Map<string * string, string>
+      val EnclosingScopes : Map<string, string list>
       val Concretization : Map<string, Set<string>>
       val Abstraction : Map<string, string>
       val Constraints : List<string>
-      new : int * Kind * GraphInfo * GraphInfo * Map<string * string, string> * Map<string, string> * Map<string, Set<string>> * Map<string, string> * List<string>
+      new : int * Kind * GraphInfo * GraphInfo * Map<string * string, string> * Map<string, string> * Set<string> * Map<string * string, string> * Map<string, string list> * Map<string, Set<string>> * Map<string, string> * List<string>
           -> TopoInfo
       member SelectGraphInfo : GraphInfo
       member IsTemplate : bool
    end
 
 /// Get the string representation of the router using a given asn map
-val routerMap : Map<string, int> -> string -> TopoInfo -> string
+val routerMap : Map<string, string> -> string -> string
 /// Get the string representation of the router
 val router : string -> TopoInfo -> string
 /// Read a topology from an XML file
