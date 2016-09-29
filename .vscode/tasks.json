@@ -1,0 +1,23 @@
+{
+  // See https://go.microsoft.com/fwlink/?LinkId=733558
+  // for the documentation about the tasks.json format
+  "version": "0.1.0",
+  "command": "/usr/local/bin/xbuild",
+  "isShellCommand": true,
+  "args": ["/Users/ryanbeckett/Desktop/Research/propane/propane.sln"],
+  "showOutput": "silent",
+  "echoCommand": true,
+  "isBuildCommand": true,
+  "problemMatcher": {
+      "owner": "F#",
+      "fileLocation": ["relative", "${workspaceRoot}"],
+      "pattern": {
+          "regexp": "^(.*)\\((\\d+),(\\d+)\\):\\s+(warning|error)\\s+(.*)$",
+          "file": 1,
+          "line": 2,
+          "column": 3,
+          "severity": 4,
+          "message": 5
+      }
+  }
+}
