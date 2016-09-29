@@ -5,6 +5,15 @@ open Core.Printf
 open System.Collections.Generic
 open System.Text
 open Util.Format
+open Util.Debug
+
+(* 
+
+TODO LIST
+- Ensure the number of pods is at least 1, ... does this actually matter?
+- Well-formedness for concrete pods
+
+*)
 
 module Z3 = 
    type Result = 
@@ -171,121 +180,12 @@ let checkWellformedTopology (ti : Topology.TopoInfo) =
       checkIsGraphHomomorphism ti
       checkHasValidConstraints ti
 
-(*
-let debugLearned (learned : Dictionary<_, _>) ti = 
-   let inline pretty x = 
-      if x = -1 then "UNREACH"
-      else string x
-   printfn "========================="
-   for kv in learned do
-      if CGraph.isRealNode kv.Key then 
-         let (s, a) = kv.Value
-         printfn "%s --> (%s,%s)" (Topology.router kv.Key.Node.Loc ti) (pretty s) (pretty a)
-   printfn "========================="
-
-let reachability2 (ti : Topology.TopoInfo) (cg : CGraph.T) (src : CgState) : int option = 
-   printfn "Got call for src: %s" (string src)
-   // Capture the base constraints
-   let enc = string (baseEncoding ti)
-   // Represent UNREACH with -1
-   let learned = Dictionary()
-   for n in cg.Graph.Vertices do
-      if n = src then learned.[n] <- (1, -1)
-      else learned.[n] <- (-1, -1)
-   // Run to a fixed point using inference rules
-   printfn "adding initial node: %s" src.Node.Loc
-   let changed = ref (Set.singleton src)
-   let first = ref true
-   
-   let inline pop() = 
-      let ret = Set.minElement !changed
-      changed := Set.remove ret !changed
-      ret
-   
-   let inline push x = 
-      if isInside x then changed := Set.add x !changed
-   
-   while (!changed).Count > 0 do
-      debugLearned learned ti
-      let v = pop()
-      printfn "looking at node: %s" v.Node.Loc
-      let (kS, kA) = learned.[v]
-      for u in CGraph.neighbors cg v |> Seq.filter CGraph.isRealNode do
-         let (kS', kA') = learned.[u]
-         printfn "  looking at neighbor: %s" u.Node.Loc
-         let m = getNodeConstraintName ti v
-         let n = getNodeConstraintName ti u
-         let (e1, e2) = getEdgeConstraintNames ti v u
-         // for debugging
-         let namev = Topology.router v.Node.Loc ti
-         let nameu = Topology.router u.Node.Loc ti
-         printfn "  for nodes: (%s,%s)" namev nameu
-         printfn "  got labels: (%s,%s,%s,%s)" m n e1 e2
-         // if we have an A label, then we have an S label
-         if kS < kA then learned.[v] <- (kA, kA)
-         // lookup existing values of k
-         // if third rule applies
-         if kS > 0 || kA > 0 then 
-            printfn "  checking rule 1 - S"
-            let a = sprintf "(assert (= %s 0))" e1
-            if isUnsat enc a then 
-               printfn "   Rule 1-1"
-               match findMin enc e1 with
-               | Some k -> 
-                  printfn "   found min: %d" k
-                  let m = 
-                     if !first then k
-                     else min k (max kS kA)
-                  if m > kS' then 
-                     learned.[u] <- (m, kA)
-                     printfn "     adding: %s to the stack" (Topology.router u.Node.Loc ti)
-                     push u
-               | None -> ()
-         // if second rule applies
-         if kS > 0 || kA > 0 then 
-            printfn "  checking rule 2 - S"
-            let a = sprintf "(assert (not (= %s %s)))" e1 n
-            if isUnsat enc a then 
-               printfn "   Rule 2-1"
-               match findMin enc n with
-               | Some k -> 
-                  printfn "   found min: %d" k
-                  let m = 
-                     if !first then k
-                     else min k (max kS kA)
-                  if m > kA' then 
-                     learned.[u] <- (kS, m)
-                     printfn "     adding: %s to the stack" (Topology.router u.Node.Loc ti)
-                     push u
-               | None -> ()
-         // if first rule applies
-         if kA > 0 then 
-            printfn "  checking rule 3 - A"
-            let a = sprintf "(assert (= %s 0))" e2
-            if isUnsat enc a then 
-               printfn "  was able to prove the 3rd"
-               match findMin enc e2 with
-               | Some k -> 
-                  let m = 
-                     if !first then k
-                     else min k kA
-                  if m > kA' then 
-                     learned.[u] <- (kS, m)
-                     printfn "     adding: %s to the stack" (Topology.router u.Node.Loc ti)
-                     push u
-               | None -> ()
-      first := false
-      debugLearned learned ti
-   None *)
-
-///
-///
-///
-///
-/// T0, (S S 1) --> T1, (S S 2)
-/// T1, (S S 2) --> T2, (S A 2) <- unq
-/// T2, (S A 2) --> T2, (A S 2) <- unq
-///
+/// Abstract k-disjoint path analysis
+/// 
+/// Uses abstract interpretation to find a minimum bound on 
+/// the number of disjoint paths from a src to all other destinations.
+/// The analysis will return the minimum for all possible concrete
+/// topologies satisfying the topology constraints.
 
 type Label = 
    | S of string
@@ -302,14 +202,14 @@ type Inference =
       let s = Util.List.toString labels
       sprintf "(%s,%d)" s k
 
-let debugLearned2 (learned : Dictionary<_, Inference list>) ti = 
-   printfn "========================="
+let debugLearned (learned : Dictionary<_, Inference list>) ti = 
+   log "========================="
    for kv in learned do
       if CGraph.isRealNode kv.Key then 
          let infs = kv.Value
          let s = Util.List.toString infs
-         printfn "%s --> %s" (Topology.router kv.Key.Node.Loc ti) s
-   printfn "========================="
+         log (sprintf "%s --> %s" (Topology.router kv.Key.Node.Loc ti) s)
+   log "========================="
 
 let rec mostRecentAncestor vs us = 
    match vs with 
@@ -330,22 +230,6 @@ let rec takeBeyond (labels : Label list) (s : string) =
       if s = s' then labels
       else takeBeyond tl s
 
-(*
-let sameAfter isSome (labels : Label list) (s : string) = 
-   let rec aux ls seen =
-      match ls with 
-      | [] -> [] 
-      | hd::tl -> 
-         let s' = getScope hd 
-         if seen then hd :: aux tl seen 
-         else (A s') :: aux tl (s' = s)
-   match labels with 
-   | [] -> failwith "unreachable"
-   | hd::tl ->
-      let s' = getScope hd
-      let hd' = if isSome then S s' else A s'
-      hd' :: (aux tl (s' = s)) *)
-
 let changeFirst isSome ls = 
    match ls with 
    | [] -> failwith "unreachable"
@@ -354,23 +238,24 @@ let changeFirst isSome ls =
       if isSome then (S s) :: tl else (A s) :: tl
 
 let newLabels (isSome : bool) (labels: Label list) namev nameu (ti : Topology.TopoInfo) =
-   //printfn "labels entering: %A" labels
+   // printfn "labels entering: %A" labels
    let vs = ti.EnclosingScopes.[namev]
    let us = ti.EnclosingScopes.[nameu]
-   //printfn "enclosing scopes of v: %A" vs
-   //printfn "enclosing scopes of u: %A" us
-   match Map.tryFind (namev, nameu) ti.NonLocalScopes with 
-   | None ->
-      let mra = mostRecentAncestor vs us
-      // printfn "most recent ancestor: %A" mra
-      let labels' = takeBeyond labels mra      
-      // printfn "labels': %A" labels'
-      let toAdd = List.takeWhile ((<>) mra) us |> List.map A
-      // printfn "toAdd: %A" toAdd
-      let ret =  changeFirst isSome (toAdd @ labels') // sameAfter isSome labels mra 
-      // printfn "ret: %A" ret
-      ret
-   | Some l -> failwith ""
+   // printfn "enclosing scopes of v: %A" vs
+   // printfn "enclosing scopes of u: %A" us
+   let ancestor, nonLocal = 
+      match Map.tryFind (namev, nameu) ti.NonLocalScopes with 
+      | None -> (mostRecentAncestor vs us, false)
+      | Some l -> (l, true)
+   // printfn "most recent ancestor: %A" ancestor
+   let labels' = takeBeyond labels ancestor
+   let labels' = if nonLocal then changeFirst false labels' else labels' 
+   // printfn "labels': %A" labels'
+   let toAdd = List.takeWhile ((<>) ancestor) us |> List.map A
+   // printfn "toAdd: %A" toAdd
+   let ret =  changeFirst isSome ((S nameu)::(toAdd @ labels'))
+   // printfn "ret: %A" ret
+   ret
 
 let rec isStrictlyMoreGeneralThan (xs : Label list) (ys : Label list) = 
    match xs, ys with 
@@ -389,7 +274,7 @@ let addInference (inf : Inference) (learned : Inference list) changed : Inferenc
       | (Inference(ys,k') as hd) :: tl -> 
          if k' >= k && isStrictlyMoreGeneralThan ys xs then (ls, false)
          else if k >= k' && isStrictlyMoreGeneralThan xs ys then 
-            changed := Set.filter (fun (_,inf') -> inf' <> hd) !changed // Major hack
+            changed := Set.filter (fun (_,inf',_) -> inf' <> hd) !changed // Major hack
             aux tl
          else 
             let (tl', isAdded) = aux tl
@@ -410,15 +295,16 @@ let reachability (ti : Topology.TopoInfo) (cg : CGraph.T) (src : CgState) : int 
       | None -> ()
       | Some vs -> 
          if n = src then
-            let baseInference = List.map S vs
-            learned.[n] <- [Inference(baseInference, 1)]
+            let name = Topology.router n.Node.Loc ti
+            let baseInference = List.map S (name::vs)
+            learned.[n] <- [Inference(baseInference, 0)]
          else learned.[n] <- []
    // Run to a fixed point using inference rules
-   printfn "adding initial node: %s" src.Node.Loc
+   log (sprintf "adding initial node: %s" src.Node.Loc)
    let baseInf = List.head learned.[src]
    let (Inference(ls,_)) = baseInf
-   let changed = ref (Set.singleton (src, baseInf))
-   let best = ref (Map.add (src,ls) 1  Map.empty)
+   let changed = ref (Set.singleton (src, baseInf, Set.empty))
+   let best = ref (Map.add (src,ls) (0,Set.empty) Map.empty)
    let first = ref true
 
    let inline pop() = 
@@ -426,74 +312,80 @@ let reachability (ti : Topology.TopoInfo) (cg : CGraph.T) (src : CgState) : int 
       changed := Set.remove ret !changed
       ret
    
-   // TODO: retroactively remove changed inferences when a more general one becomes known
-   let inline push (x, inf) = 
-      printfn "   attempting to add inference: %A" inf
-      let vs = learned.[x]
+   let inline push (v,u,edges) inf = 
+      log (sprintf "   attempting to add inference: %A" inf)
+      let vs = learned.[u]
       let (lx, isAdded) = addInference inf vs changed
       if isAdded then
-         learned.[x] <- lx
-         if isInside x then
-            changed := Set.add (x, inf) !changed
+         learned.[u] <- lx
+         if isInside u then
+            let es = Set.add (v,u) edges |> Set.add (u,v)
+            changed := Set.add (u, inf, es) !changed
    
-   let updateBest ls (x,k) = 
-      match Map.tryFind (x,ls) !best with 
+   let updateBest ls (v,u) k edges = 
+      let es = Set.add (v,u) edges |> Set.add (u,v)
+      match Map.tryFind (u,ls) !best with 
       | None -> 
-         best := Map.add (x,ls) k !best 
-         true
-      | Some k' -> 
-         best := Map.add (x,ls) (max k k') !best
-         k > k'
+         best := Map.add (u,ls) (k,es) !best 
+         true, k
+      | Some (k',edges') ->
+         if Set.intersect edges edges' |> Set.isEmpty then
+            best := Map.add (u,ls) (k+k', Set.union es edges') !best
+            true, k+k'
+         else if k' >= k then false, k
+         else 
+            best := Map.add (u,ls) (k,es) !best
+            true, k
 
    while (!changed).Count > 0 do
-      debugLearned2 learned ti
-      let (v, inf) = pop()
-      printfn "looking at node: %s" v.Node.Loc
-      printfn "looking at inference: %A" inf
+      let (v, inf, edges) = pop()
+      log (sprintf "looking at inference: %A" inf)
+      log (sprintf "edges so far: %A" (Set.map (fun (x,y) -> (string x, string y)) edges))
+      // Get the existing value k 
+      let (Inference(labels,k)) = inf
       for u in CGraph.neighbors cg v |> Seq.filter CGraph.isRealNode do
-         printfn "  looking at neighbor: %s" u.Node.Loc
+         debugLearned learned ti
          let m = getNodeConstraintName ti v
+
          let n = getNodeConstraintName ti u
          let (e1, e2) = getEdgeConstraintNames ti v u
          // for debugging
          let namev = Topology.router v.Node.Loc ti
          let nameu = Topology.router u.Node.Loc ti
-         printfn "  for nodes: (%s,%s)" namev nameu
-         printfn "  got labels: (%s,%s,%s,%s)" m n e1 e2
-         // Get the existing value k 
-         let (Inference(labels,k)) = inf
+         log (sprintf "  for nodes: (%s,%s)" namev nameu)
+         log (sprintf "  got labels: (%s,%s,%s,%s)" m n e1 e2)
 
          // TODO: don't allocate on every loop iteration
          let update k k' isSome = 
-            printfn "   found min: %d" k'
+            log (sprintf "   found min: %d" k')
             // get the new k value
             let m = 
                if !first then k'
                else min k' k
-            printfn "   new min is: %d" m
+            log (sprintf "   new min is: %d" m)
             // update the best
             let labels' = newLabels isSome labels namev nameu ti 
-            printfn "   new labels: %A" labels'
-            if updateBest labels' (u,m) then
-               printfn "   better than before"
-               let newFact = Inference(labels',m)
-               printfn "   new derived fact: %A" newFact
-               push (u,newFact)
+            log (sprintf "   new labels: %A" labels')
+            let isBetter, value = updateBest labels' (v,u) m edges
+            if isBetter then
+               log (sprintf "   better than before: %d" value)
+               let newFact = Inference(labels',value)
+               log (sprintf "   new derived fact: %A" newFact)
+               push (v,u,edges) newFact
 
          match List.head labels with 
          | (S _) as l ->
             // Rule 2
             let a = sprintf "(assert (not (= %s %s)))" e1 n
             if isUnsat a then 
-               printfn "   Rule 2(S)"
+               log "   Rule 2(S)"
                match findMin n with 
                | Some k' -> update k k' false
                | None -> ()
             // Rule 3
-            printfn "  checking rule 1 - S"
             let a = sprintf "(assert (= %s 0))" e1
             if isUnsat a then 
-               printfn "   Rule 1(S)"
+               log "   Rule 1(S)"
                match findMin e1 with
                | Some k' -> update k k' true
                | None -> () // TODO: error case
@@ -501,34 +393,24 @@ let reachability (ti : Topology.TopoInfo) (cg : CGraph.T) (src : CgState) : int 
             // Rule 1
             let a = sprintf "(assert (= %s 0))" e2
             if isUnsat a then 
-               printfn "   Rule 3(A)"
+               log "   Rule 3(A)"
                match findMin e2, findMin n with
                | Some k1, Some k2 -> update k (k1*k2) false
                | _, _ -> ()
             // Rule 2
             let a = sprintf "(assert (not (= %s %s)))" e1 n
             if isUnsat a then 
-               printfn "   Rule 2(A)"
+               log "   Rule 2(A)"
                match findMin n with 
                | Some k' -> update k k' false
                | None -> ()
             // Rule 3
-            printfn "  checking rule 1 - S"
             let a = sprintf "(assert (= %s 0))" e1
             if isUnsat a then 
-               printfn "   Rule 1(A)"
+               log "   Rule 1(A)"
                match findMin e1 with
                | Some k' -> update k k' true
-               | None -> () // TODO: error case
+               | None -> ()
       first := false
-      debugLearned2 learned ti
+      debugLearned learned ti
    None
-
-(* 
-
-TODO LIST
-- Ensure the number of pods is at least 1, ... does this actually matter?
-- Implementation for non-local scopes
-- Well-formedness for concrete pods
-
-*)

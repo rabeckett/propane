@@ -1,0 +1,25 @@
+<topology asn="100">  
+  <!-- Abstract Nodes -->
+  <abstractnode internal="true" label="A"></abstractnode>
+  <abstractnode internal="true" label="B"></abstractnode>
+  <abstractnode internal="true" label="C"></abstractnode>
+  <abstractnode internal="true" label="D"></abstractnode>
+  <!-- Abstract Edges -->
+  <abstractedge source="A" target="B" source-label="E1" target-label="E2"></abstractedge>
+  <abstractedge source="A" target="C" source-label="E3" target-label="E4"></abstractedge>
+  <abstractedge source="B" target="D" source-label="E5" target-label="E6"></abstractedge>
+  <abstractedge source="C" target="D" source-label="E7" target-label="E8"></abstractedge>  
+  <!-- Abstract topology constraints -->
+  <constraint assertion="(= A 3)"></constraint>
+  <constraint assertion="(= B 3)"></constraint>
+  <constraint assertion="(= C 3)"></constraint>
+  <constraint assertion="(= D 3)"></constraint>
+  <constraint assertion="(= E1 3)"></constraint>
+  <constraint assertion="(= E2 3)"></constraint>
+  <constraint assertion="(= E3 3)"></constraint>
+  <constraint assertion="(= E4 3)"></constraint>
+  <constraint assertion="(= E5 3)"></constraint>
+  <constraint assertion="(= E6 3)"></constraint>
+  <constraint assertion="(= E7 3)"></constraint>
+  <constraint assertion="(= E8 3)"></constraint>
+</topology>

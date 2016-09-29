@@ -15,16 +15,16 @@ Nice to have:
 
 Abstract Analysis:
   - Perform substitution at the ABGP-level for each router to concretize
-  - Pigeon-hole inference rule(s) for k-paths
+  - Allow translation of templates to Router level rather than ABGP level
+  - Pigeon-hole inference rule(s) for k-paths. Is this needed?
   - Existential constraints help pods + DCell
-  - Figure out how to implement pods
-      * Fixed number or symbolic?
-      * Edges between pods? (check)
-      * Self loops for pods? (check)
-      * Nested pods? (check) 
+  - Benchmarks!!!
 
+Future Ideas
   - Automatically abstract topology for concrete networks using these mechanisms
       * Speed up compilation
       * Generate a set of templates
-
-  - Benchmarks!!!
+  - Synthesize OSPF configurations, or iBGP, or both
+  - Ensure at least k paths between routers
+      * Requires analysis of the PGIR
+      * Can leverage k disjoint paths abstract interpretation

@@ -44,6 +44,9 @@ module Debug =
          let logFile = settings.DebugDir + sep + "debug(" + string idx + ").log"
          System.IO.File.AppendAllText(logFile, str + "\n")
 
+   let log str = logInfo(0,str)
+
+
 module Profile = 
    let time f x = 
       let s = System.Diagnostics.Stopwatch()

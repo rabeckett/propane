@@ -192,9 +192,9 @@ type TopoInfo =
          | Template -> true
    end
 
-let MAX_ASN = 65534
+let MAXASN = 65534
 let counter = ref 0
-let currASN = ref (MAX_ASN + 1)
+let currASN = ref (MAXASN + 1)
 
 let parseAsn s = 
    if s = "" then error (sprintf "Invalid topology: No asn specified")
@@ -346,7 +346,7 @@ let readTopology (file : string) : TopoInfo * Args.T =
       let concretization = ref Map.empty
       let abstraction = ref Map.empty
       let nonLocalScopes = ref Map.empty
-      let currASN = ref MAX_ASN
+      let currASN = ref MAXASN
       // collect constraints
       let constraints = List()
       for c in topo.Constraints do
