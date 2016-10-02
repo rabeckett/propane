@@ -18,8 +18,11 @@
   <abstractnode internal="false" label=""></abstractnode>
   <abstractnode internal="true" label=""></abstractnode>
   
-  <abstractedge source="" target="" source-label="" target-label="" scope=""></abstractedge>
-  <abstractedge source="" target="" source-label="" target-label=""></abstractedge>
+  <abstractedge source="" target="" labels=""></abstractedge>
+  <abstractedge source="" target="" labels="">
+  	  <custom-label>foo</custom-label>
+	  <custom-label>foo</custom-label>
+  </abstractedge>
   
   <abstractpod label="">
 	  <element>X</element>

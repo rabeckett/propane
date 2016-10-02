@@ -253,7 +253,6 @@ let private deleteExportComms (rc : RouterConfiguration) =
 let clean (nc : NetworkConfiguration) = 
    for kv in nc.RouterConfigurations do
       let rc = kv.Value
-      ()
-//deleteUnusedLists rc |> ignore
-//deleteExportComms rc |> ignore
-//deleteMissingRouteMaps rc |> ignore
+      deleteUnusedLists rc |> ignore
+      deleteExportComms rc |> ignore
+      deleteMissingRouteMaps rc |> ignore

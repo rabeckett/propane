@@ -72,21 +72,36 @@ type GraphInfo =
      RouterMap : Map<string, string>
      IpMap : Dictionary<string * string, string * string> }
 
+type CustomLabel = 
+   | SomeLabel of string 
+   | AllLabel of string 
+   | NameLabel of string
+
+type EdgeInfo = 
+   { Label : string
+     Source : string 
+     Target : string 
+     Scope : string
+     Front : CustomLabel list 
+     Back : CustomLabel list }
+
+type EdgeLabelInfo = 
+   Map<string*string, EdgeInfo list>
+
 type TopoInfo = 
    class
       val NetworkAsn : int
       val Kind : Kind
       val ConcreteGraphInfo : GraphInfo
       val AbstractGraphInfo : GraphInfo
-      val EdgeLabels : Map<string * string, string>
+      val EdgeLabels : EdgeLabelInfo
       val NodeLabels : Map<string, string>
       val PodLabels : Set<string>
-      val NonLocalScopes : Map<string * string, string>
       val EnclosingScopes : Map<string, string list>
       val Concretization : Map<string, Set<string>>
       val Abstraction : Map<string, string>
       val Constraints : List<string>
-      new : int * Kind * GraphInfo * GraphInfo * Map<string * string, string> * Map<string, string> * Set<string> * Map<string * string, string> * Map<string, string list> * Map<string, Set<string>> * Map<string, string> * List<string>
+      new : int * Kind * GraphInfo * GraphInfo * EdgeLabelInfo * Map<string, string> * Set<string> * Map<string, string list> * Map<string, Set<string>> * Map<string, string> * List<string>
           -> TopoInfo
       member SelectGraphInfo : GraphInfo
       member IsTemplate : bool
