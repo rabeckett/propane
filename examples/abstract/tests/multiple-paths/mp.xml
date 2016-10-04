@@ -5,10 +5,10 @@
   <abstractnode internal="true" label="C"></abstractnode>
   <abstractnode internal="true" label="D"></abstractnode>
   <!-- Abstract Edges -->
-  <abstractedge source="A" target="B" source-label="E1" target-label="E2"></abstractedge>
-  <abstractedge source="A" target="C" source-label="E3" target-label="E4"></abstractedge>
-  <abstractedge source="B" target="D" source-label="E5" target-label="E6"></abstractedge>
-  <abstractedge source="C" target="D" source-label="E7" target-label="E8"></abstractedge>  
+  <abstractedge source="A" target="B" labels="(E1,E2)"></abstractedge>
+  <abstractedge source="A" target="C" labels="(E3,E4)"></abstractedge>
+  <abstractedge source="B" target="D" labels="(E5,E6)"></abstractedge>
+  <abstractedge source="C" target="D" labels="(E7,E8)"></abstractedge>  
   <!-- Abstract topology constraints -->
   <constraint assertion="(= A 3)"></constraint>
   <constraint assertion="(= B 3)"></constraint>

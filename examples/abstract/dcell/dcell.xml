@@ -17,5 +17,5 @@
   <constraint assertion="(= B 1)"></constraint>
   <constraint assertion="(= E1 1)"></constraint>
   <constraint assertion="(= E2 4)"></constraint>
-  <constraint assertion="(= E4 4)"></constraint>
+  <constraint assertion="(= E4 1)"></constraint>
 </topology>

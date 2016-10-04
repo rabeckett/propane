@@ -250,23 +250,23 @@ let rec refill (xs : string list) (ys : Topology.CustomLabel list) =
       | _ -> failwith "unreachable"
 
 let newLabels (isSome : bool) (labels: Label list) (e : Topology.EdgeInfo) (namev, nameu) (ti : Topology.TopoInfo) =
-   log (sprintf "     labels entering: %A" labels)
+   // log (sprintf "     labels entering: %A" labels)
    let vs = ti.EnclosingScopes.[namev]
    let us = ti.EnclosingScopes.[nameu]
-   log (sprintf "     enclosing scopes of v: %A" vs)
-   log (sprintf "     enclosing scopes of u: %A" us)
+   // log (sprintf "     enclosing scopes of v: %A" vs)
+   // log (sprintf "     enclosing scopes of u: %A" us)
    let ancestor = e.Scope
-   log (sprintf "     scope: %A" ancestor)
+   // log (sprintf "     scope: %A" ancestor)
    let nonLocal = e.Scope <> (List.head vs) || e.Scope <> (List.head us)
-   log (sprintf "     nonLocal: %A" nonLocal)
+   // log (sprintf "     nonLocal: %A" nonLocal)
    let labels' = takeBeyond labels ancestor
    let labels' = if nonLocal then changeFirst false labels' else labels' 
-   log (sprintf "     labels': %A" labels')
+   // log (sprintf "     labels': %A" labels')
    let toRefill = List.takeWhile ((<>) ancestor) us
    let toAdd = refill toRefill (List.tail e.Back)
-   log (sprintf "     toAdd: %A" toAdd)
+   // log (sprintf "     toAdd: %A" toAdd)
    let ret =  changeFirst isSome ((S nameu)::(toAdd @ labels'))
-   log (sprintf "     ret: %A" ret)
+   // log (sprintf "     ret: %A" ret)
    ret
 
 let rec isStrictlyMoreGeneralThan (xs : Label list) (ys : Label list) = 
@@ -399,7 +399,7 @@ let reachability (ti : Topology.TopoInfo) (cg : CGraph.T) (src : CgState) : int 
                log "  is relevant"
                log (sprintf "  is existential? %A" isExistential)
                
-               // TODO: don't allocate on every loop iteration
+               // TODO: don't allocate this function on every loop iteration
                let update k k' isSome isGroup = 
                   log (sprintf "   found min: %d" k')
                   // get the new k value
@@ -422,6 +422,17 @@ let reachability (ti : Topology.TopoInfo) (cg : CGraph.T) (src : CgState) : int 
    
                match List.head labels, isExistential with 
                | S _, false ->
+                  if isTarget then
+                     let e2 = e.Label
+                     // Rule 1
+                     let a = sprintf "(assert (not (= %s %s)))" e2 m
+                     if isUnsat a then 
+                        log "   Rule 1(S)"
+                        match findMin e2 with
+                        | Some k' ->
+                           update k 1 false false
+                           update k k' false true
+                        | _ -> ()
                   if isSource then 
                      let e1 = e.Label
                      // Rule 2
@@ -449,12 +460,11 @@ let reachability (ti : Topology.TopoInfo) (cg : CGraph.T) (src : CgState) : int 
                      let a = sprintf "(assert (= %s 0))" e2
                      if isUnsat a then 
                         log "   Rule 1(A)"
-                        match findMin e2, findMin n with
-                        | Some k1, Some k2 -> 
-                           let k' = if isGroup then k1 else k1*k2
-                           update k k1 false false
+                        match findMin e2 with
+                        | Some k' -> 
+                           update k (if isGroup then k' else 1) false false
                            update k k' false true
-                        | _, _ -> ()
+                        | _ -> ()
                   if isSource then
                      let e1 = e.Label
                      // Rule 2
@@ -463,9 +473,8 @@ let reachability (ti : Topology.TopoInfo) (cg : CGraph.T) (src : CgState) : int 
                         log "   Rule 2(A)"
                         match findMin n with 
                         | Some k' ->
-                           let k' = (if isExistential && isGroup then 1 else k')
-                           update k 1 false false
-                           update k k' false true
+                           update k (if isGroup then k' else 1) false false
+                           update k (if isExistential && isGroup then 1 else k') false true
                         | None -> ()
                      // Rule 3
                      let a = sprintf "(assert (= %s 0))" e1
@@ -473,9 +482,8 @@ let reachability (ti : Topology.TopoInfo) (cg : CGraph.T) (src : CgState) : int 
                         log "   Rule 3(A)"
                         match findMin e1 with
                         | Some k' ->
-                           let k' = (if isExistential && isGroup then 1 else k')
                            update k 1 true false
-                           update k k' true true 
+                           update k (if isExistential && isGroup then 1 else k') true true 
                         | None -> ()
                | _, _ -> ()
       first := false
