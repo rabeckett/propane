@@ -26,6 +26,7 @@ let currentDir = System.Environment.CurrentDirectory
 let sep = string Path.DirectorySeparatorChar
 let debugDir = ref (currentDir + sep + "debug" + sep)
 let settings = ref None
+
 let usage = """
 Usage: propane [options]
        propane (--help | --version)

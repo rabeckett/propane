@@ -197,9 +197,6 @@ script/generated/*
 *.DS_Store
 
 # Generated Lexers/Parsers
-src/Lexer.fs
-src/Parser.fs
-src/Parser.fsi
 
 # Images
 data/*.png
