@@ -13,6 +13,7 @@ type T =
      UseNoExport : bool
      Minimize : bool
      Parallel : bool
+     Cbgp : bool
      Test : bool
      Bench : bool
      Debug : bool
@@ -46,6 +47,7 @@ Options:
     --med             Allow use of the BGP MED attribute.
     --prepending      Allow use of AS path prepending.
     --noexport        Allow use of the BGP no-export community.
+    --cbgp            Generate C-BGP tests
     --test            Run compiler unit tests.
     --bench           Generate benchmark policies.
     --debug           Output debugging information.
@@ -103,6 +105,7 @@ let parse (argv : string []) : unit =
         UseMed = vs.["--med"].IsTrue
         UsePrepending = vs.["--prepending"].IsTrue
         UseNoExport = vs.["--noexport"].IsTrue
+        Cbgp = vs.["--cbgp"].IsTrue
         Test = vs.["--test"].IsTrue
         Bench = vs.["--bench"].IsTrue
         Debug = vs.["--debug"].IsTrue

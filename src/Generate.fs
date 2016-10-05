@@ -324,6 +324,9 @@ let addFakeExternalConfigs (nc : NetworkConfiguration) =
                 List(), pcs)
          nc.RouterConfigurations.[exPeer] <- rc) peerMap
 
+let createInterestingTests abgp = 
+   ["hello"]
+
 let generate (res : Abgp.CompilationResult) = 
    let settings = Args.getSettings()
    let out = settings.OutDir
@@ -342,6 +345,13 @@ let generate (res : Abgp.CompilationResult) =
          let output = quagga rInternal rc
          output |> File.writeFileWithExtension (configDir + File.sep + name) "cfg"
       // Write CORE emulator save file
-      if not settings.IsAbstract then 
-         addFakeExternalConfigs nc
-         core rInternal nc |> File.writeFileWithExtension (out + File.sep + "core") "imn"
+      addFakeExternalConfigs nc
+      core rInternal nc |> File.writeFileWithExtension (out + File.sep + "core") "imn"
+      // C-BGP testing code
+      if settings.Cbgp then 
+          let cbgpDir = out + File.sep + "cbgp"
+          File.createDir cbgpDir
+          let tests = createInterestingTests res.Abgp
+          for test in tests do 
+             let name = "foo"
+             string test |> File.writeFileWithExtension (cbgpDir + File.sep + name) "cbgp"

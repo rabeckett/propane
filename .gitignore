@@ -229,3 +229,6 @@ TestResult.xml
 
 # src packages
 src/packages
+
+# static doc files
+docs/static

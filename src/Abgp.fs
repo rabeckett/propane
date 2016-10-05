@@ -384,10 +384,7 @@ module PrefixWide =
       let aux router actions = 
          let nodes = Topology.vertices cg.Topo |> Seq.filter (fun x -> x.Loc = router)
          
-         let peers = 
-            nodes
-            |> Seq.map (Topology.neighbors cg.Topo)
-            |> Seq.concat
+         let peers = Seq.collect (Topology.neighbors cg.Topo) nodes
          
          let peersIn = 
             peers

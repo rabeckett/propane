@@ -10,6 +10,7 @@ type T =
      UseNoExport : bool
      Minimize : bool
      Parallel : bool
+     Cbgp : bool
      Test : bool
      Bench : bool
      Debug : bool
