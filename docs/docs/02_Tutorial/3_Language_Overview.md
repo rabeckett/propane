@@ -24,7 +24,7 @@ What does this error mean? The compiler has recognized that we have not constrai
       1.2.3.4 => avoid(B) & end(D)
     }
 
-Intuitively, the `&` operator ensures that both constraints are satsified. This can be thought of as taking the set intersection of the allowed paths. The `avoid(B)` constraint defines paths that do not go through `B`, and the `end(D)` constraint defines all paths with a final hop of `D`. By intersecting these constraints, we are left with a set of paths both ending at `D` **and** avoiding `B`. Suppose now we wish to allow traffic to end up at either router `C` or router `D` (e.g., to anycast a service). We can allow this possibility using the `+` operator:
+Intuitively, the `&` operator ensures that both constraints are satisfied. This can be thought of as taking the set intersection of the allowed paths. The `avoid(B)` constraint defines paths that do not go through `B`, and the `end(D)` constraint defines all paths with a final hop of `D`. By intersecting these constraints, we are left with a set of paths both ending at `D` **and** avoiding `B`. Suppose now we wish to allow traffic to end up at either router `C` or router `D` (e.g., to anycast a service). We can allow this possibility using the `+` operator:
 
     define main = {
       1.2.3.4 => avoid(B) & end(C + D)
@@ -39,7 +39,7 @@ Now suppose we want to allow traffic to reach C or D from every router in our ne
 
 The `not` combinator negates a set of paths. In this case `start(A)` describes all paths that start at router `A`, while `not start(A)` describes all paths that do not start at `A`. The `not` operator binds more tightly than other operators, so it applies only to the `start(A)` constraint in this example. 
 
-The last combinator is the preference `>>` operator. The semantics of `>>` is that the constraint on the left should always be satisfied when possible. When it is not possible to satisfy the constraint (e.g., due to network failures), the constraint on the right should be satisfied instead. For example, suppose we prefer that traffic traverses middlebox `M` when possible, by any path is fine when this is not possible. We might write a policy that looks like the following:
+The last combinator is the preference `>>` operator. The semantics of `>>` is that the constraint on the left should always be satisfied when possible. When it is not possible to satisfy the constraint (e.g., due to network failures), the constraint on the right should be satisfied instead. For example, suppose we prefer that traffic traverses middlebox `M` when possible, but any path is fine when this is not possible. We might write a policy that looks like the following:
 
     define main = {
       1.2.3.4 => (through(B) >> any) & end(D)
@@ -138,12 +138,12 @@ Lets start by creating a few definitions to name prefixes and peers.
       192.168.0.0/[16..32] or 
       169.254.0.0/[16..32]
 
-This defines `Princeton` to be AS number 500. Even though it is not included in our topology file, we can refer to other ASes such `Princeton` by directly referring to its AS number. The second line defines a `Peer` (with free exchange of traffic) to be the set containing `Sprint` and `Level3`. The set notation is just syntactic sugar for set union (`Sprint + Level3`). The last definition defines private address space as a range of different prefixes. The notation `10.0.0.0/[8..32]` means any prefix for `10.*.*.*` with length between 8 and 32 inclusive. We use the `or` operator to match any of a number of different prefixes. 
+This defines `Princeton` to be AS number 500. Even though it is not included in our topology file, we can refer to other ASes such as `Princeton` by directly referring to its AS number. The second line defines a `Peer` (with free exchange of traffic) to be the set containing `Sprint` and `Level3`. The set notation is just syntactic sugar for set union (`Sprint + Level3`). The last definition defines private address space as a range of different prefixes. The notation `10.0.0.0/[8..32]` means any prefix for `10.*.*.*` with length between 8 and 32 inclusive. We use the `or` operator to match any of a number of different prefixes. 
 
 Let us now implement the first three parts of the specification. For all traffic, we want to prefer `Cust` over peers, and to prefer `R2` over `R1`. We can add these constraints with the following Propane definition:
 
     define prefs = {
-      private => drop
+      private => drop,
       true => exit(R2 >> Cust >> Peer)
     }
 

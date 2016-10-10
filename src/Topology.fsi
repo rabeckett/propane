@@ -79,6 +79,7 @@ type CustomLabel =
 
 type EdgeInfo = 
    { Label : string
+     OtherLabel : string option
      Source : string 
      Target : string 
      Scope : string
@@ -101,7 +102,8 @@ type TopoInfo =
       val Concretization : Map<string, Set<string>>
       val Abstraction : Map<string, string>
       val Constraints : List<string>
-      new : int * Kind * GraphInfo * GraphInfo * EdgeLabelInfo * Map<string, string> * Set<string> * Map<string, string list> * Map<string, Set<string>> * Map<string, string> * List<string>
+      val EqConstraints : Set<string>
+      new : int * Kind * GraphInfo * GraphInfo * EdgeLabelInfo * Map<string, string> * Set<string> * Map<string, string list> * Map<string, Set<string>> * Map<string, string> * List<string> * Set<string>
           -> TopoInfo
       member SelectGraphInfo : GraphInfo
       member IsTemplate : bool
@@ -117,7 +119,7 @@ val readTopology : string -> TopoInfo * Args.T
 /// Examples of useful topologies for testing
 module Examples = 
    type Tiers = Dictionary<Node, int>
-   
+
    type Prefixes = Dictionary<Node, Route.Prefix>
    
    val topoDisconnected : unit -> T

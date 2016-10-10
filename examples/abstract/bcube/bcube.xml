@@ -19,4 +19,7 @@
   <constraint assertion="(= E2 4)"></constraint>
   <constraint assertion="(= E3 1)"></constraint>
   <constraint assertion="(= E4 1)"></constraint>
+  
+  <constraint assertion="equal(E3)"></constraint>
+  <constraint assertion="equal(E4)"></constraint>
 </topology>

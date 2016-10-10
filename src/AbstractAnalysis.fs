@@ -7,13 +7,6 @@ open System.Text
 open Util.Format
 open Util.Debug
 
-(* 
-
-TODO LIST
-- Ensure the number of pods is at least 1, ... does this actually matter?
-- Well-formedness for concrete pods
-
-*)
 
 module Z3 = 
    type Result = 
@@ -23,7 +16,7 @@ module Z3 =
       | Unsat
    
    let run (input : string) : Result = 
-      let cmds = [ "z3"; "-smt2"; "-in" ]
+      let cmds = [ "z3"; "-smt2"; "-in"; "-t:200" ]
       let input = input + "(check-sat)"
       let output = Util.Command.run cmds (Some input)
       match output with
@@ -33,11 +26,9 @@ module Z3 =
             let lines = Util.String.toLines txt
             if lines.Length >= 3 then 
                let l = lines.[2]
-               if l.Length >= 5 then 
-                  try 
-                     Minimized(int (l.Substring(4, l.Length - 1 - 4)))
-                  with _ -> Sat
-               else Sat
+               match Util.String.sscanf " (minval %d)" l with 
+               | Some x -> Minimized x
+               | _ -> Sat
             else Sat
          else if txt.StartsWith("unsat") then Unsat
          else Error txt
@@ -97,9 +88,9 @@ let inline getEdgeConstraintNames (ti : Topology.TopoInfo) v u =
    ti.EdgeLabels.[(namev, nameu)]
 
 let minimumEncoding e = 
-   let x = sprintf "(declare-const m Int)\n"
-   let y = sprintf "(assert (= m %s))\n" e
-   let z = sprintf "(minimize m)\n"
+   let x = sprintf "(declare-const minval Int)\n"
+   let y = sprintf "(assert (= minval %s))\n" e
+   let z = sprintf "(minimize minval)\n"
    x + y + z
 
 let isUnsat enc a = 
@@ -204,11 +195,11 @@ type Label =
       | A l -> sprintf "A(%s)" l
 
 type Inference = 
-   | Inference of Label list * int * bool
+   | Inference of Label list * int * int * Set<CgState*CgState>
    override this.ToString() = 
-      let (Inference(labels, k, group)) = this
+      let (Inference(labels,j,k,_)) = this
       let s = Util.List.toString labels
-      sprintf "(%s,%d,%s)" s k (if group then "group" else "single")
+      sprintf "%s (%d,%d)" s j k
 
 let debugLearned (learned : Dictionary<_, Inference list>) ti = 
    log "========================="
@@ -222,6 +213,11 @@ let debugLearned (learned : Dictionary<_, Inference list>) ti =
 let inline getScope (l : Label) = 
    match l with 
    | A x | S x -> x
+
+let inline isAll (l : Label) = 
+   match l with 
+   | A _ -> true 
+   | S _ -> false
 
 let rec takeBeyond (labels : Label list) (s : string) = 
    match labels with 
@@ -250,53 +246,56 @@ let rec refill (xs : string list) (ys : Topology.CustomLabel list) =
       | _ -> failwith "unreachable"
 
 let newLabels (isSome : bool) (labels: Label list) (e : Topology.EdgeInfo) (namev, nameu) (ti : Topology.TopoInfo) =
-   // log (sprintf "     labels entering: %A" labels)
+   //log (sprintf "     labels entering: %A" labels)
    let vs = ti.EnclosingScopes.[namev]
    let us = ti.EnclosingScopes.[nameu]
-   // log (sprintf "     enclosing scopes of v: %A" vs)
-   // log (sprintf "     enclosing scopes of u: %A" us)
+   //log (sprintf "     enclosing scopes of v: %A" vs)
+   //log (sprintf "     enclosing scopes of u: %A" us)
    let ancestor = e.Scope
-   // log (sprintf "     scope: %A" ancestor)
+   //log (sprintf "     scope: %A" ancestor)
    let nonLocal = e.Scope <> (List.head vs) || e.Scope <> (List.head us)
-   // log (sprintf "     nonLocal: %A" nonLocal)
+   //log (sprintf "     nonLocal: %A" nonLocal)
    let labels' = takeBeyond labels ancestor
    let labels' = if nonLocal then changeFirst false labels' else labels' 
-   // log (sprintf "     labels': %A" labels')
+   //log (sprintf "     labels': %A" labels')
    let toRefill = List.takeWhile ((<>) ancestor) us
    let toAdd = refill toRefill (List.tail e.Back)
-   // log (sprintf "     toAdd: %A" toAdd)
+   //log (sprintf "     toAdd: %A" toAdd)
    let ret =  changeFirst isSome ((S nameu)::(toAdd @ labels'))
-   // log (sprintf "     ret: %A" ret)
+   //log (sprintf "     ret: %A" ret)
    ret
 
-let rec isStrictlyMoreGeneralThan (xs : Label list) (ys : Label list) = 
+let rec betterLabels (xs : Label list) (ys : Label list) = 
    match xs, ys with 
    | [], [] -> true
    | x::xtl, y::ytl -> 
       match x, y with 
       | (S _), (A _) -> false
-      | _, _ -> isStrictlyMoreGeneralThan xtl ytl
+      | _, _ -> xtl = ytl // betterLabels xtl ytl
    | _::_, [] | [], _::_ -> failwith "unreachable"
 
+let inline isStrictlyBetter (j,k,xs) (j',k',ys) =
+   (j >= j' && k >= k' && betterLabels xs ys) //(List.tail (List.rev xs) = List.tail (List.rev ys)))
+
 let addInference (inf : Inference) (learned : Inference list) changed : Inference list * bool = 
-   let (Inference(xs,k,bx)) = inf
+   let (Inference(xs,j,k,es)) = inf
    let rec aux ls =
       match ls with 
       | [] -> ([inf], true)
-      | (Inference(ys,k',by) as hd) :: tl -> 
-         if by = bx && k' >= k && isStrictlyMoreGeneralThan ys xs then (ls, false)
-         else if by = bx && k >= k' && isStrictlyMoreGeneralThan xs ys then 
-            changed := Set.filter (fun (_,inf',_) -> inf' <> hd) !changed // Major hack
+      | (Inference(ys,j',k',es') as hd) :: tl -> 
+         if isStrictlyBetter (j',k',ys) (j,k,xs) then (ls,false)
+         else if isStrictlyBetter (j,k,xs) (j',k',ys) then
+            // remove pending learned facts if strictly worse
+            changed := Set.filter (fun (_,inf') -> inf' <> hd) !changed 
             aux tl
          else 
             let (tl', isAdded) = aux tl
             (hd::tl', isAdded)
-   aux learned
+   if j <= 0 || k <= 0 then (learned, false) 
+   else aux learned
 
 let inferenceRelevant (inf : Inference) (e : Topology.EdgeInfo) =
-   let (Inference(labels,k,_)) = inf  
-   // printfn "inf: %A" labels
-   // printfn "e: %A" e
+   let (Inference(labels,_,_,_)) = inf  
    let mutable required = Set.empty 
    for v in e.Front do 
       match v with 
@@ -307,19 +306,45 @@ let inferenceRelevant (inf : Inference) (e : Topology.EdgeInfo) =
       match l with 
       | A x -> given <- Set.add x given 
       | S _ -> ()
-   // printfn "Required: %A" required
-   // printfn "Given: %A" given
    let canApply = Set.isEmpty (Set.difference required given)
    let isExistential = 
       match List.head e.Front with 
       | Topology.AllLabel _ -> false 
       | Topology.SomeLabel _ -> true
       | _ -> failwith "unreachable"
-   // printfn "can apply: %A" canApply
-   // printfn "is existential: %A" isExistential
    (canApply, isExistential)
 
-let reachability (ti : Topology.TopoInfo) (cg : CGraph.T) (src : CgState) : int option = 
+let inline nodeUsed (x : CgState) (edges : Set<CgState*CgState>) = 
+   false //Seq.exists (fun (a,b) -> a = x || b = x) edges
+
+let inline removeGlobal inf = 
+   let (Inference(ls,j,k,es)) = inf
+   let ls' = List.rev ls |> List.tail |> List.rev
+   Inference(ls',j,k,es)
+
+let combineAllInferences (learned : Dictionary<CgState,Inference list>) = 
+   let mutable acc = Map.empty
+   for kv in learned do 
+      let v = kv.Key
+      let allInfs = kv.Value |> List.map removeGlobal
+      let (all,some) = allInfs |> List.partition (fun (Inference(ls,_,_,_)) -> isAll ls.Head)
+      let mutable minAll = System.Int32.MaxValue
+      let mutable maxSome = 0
+      let mutable numLabels = 0
+      for inf in all do 
+         let (Inference(ls,j,k,es)) = inf
+         if numLabels = 0 then
+            numLabels <- List.length ls - 1
+         minAll <- min minAll k
+      for inf in allInfs do 
+         let (Inference(ls,j,k,es)) = inf
+         maxSome <- max maxSome k
+      let x = if minAll = System.Int32.MaxValue || all.Length < pown 2 numLabels then None else Some minAll
+      let y = if maxSome = 0 then None else Some maxSome
+      acc <- Map.add v (x,y) acc
+   acc
+
+let reachability (ti : Topology.TopoInfo) (cg : CGraph.T) (src : CgState) = 
    // Capture the base constraints
    let enc = string (baseEncoding ti)
    // Cache results to z3 calls
@@ -335,56 +360,68 @@ let reachability (ti : Topology.TopoInfo) (cg : CGraph.T) (src : CgState) : int 
          if n = src then
             let name = Topology.router n.Node.Loc ti
             let baseInference = List.map S (name::vs)
-            learned.[n] <- [Inference(baseInference, 0, false)]
+            learned.[n] <- [Inference(baseInference, 1, 1, Set.empty)]
          else learned.[n] <- []
    // Run to a fixed point using inference rules
-   log (sprintf "adding initial node: %s" src.Node.Loc)
    let baseInf = List.head learned.[src]
-   let (Inference(ls,_,_)) = baseInf
-   let changed = ref (Set.singleton (src, baseInf, Set.empty))
-   let best = ref (Map.add (src,ls,false) (0,Set.empty) Map.empty)
+   let (Inference(ls,_,_,_)) = baseInf
+   let best = ref Map.empty
+   let changed = ref (Set.singleton (src, baseInf))
    let first = ref true
 
-   let inline pop() = 
+   let pop() = 
       let ret = Set.minElement !changed
       changed := Set.remove ret !changed
       ret
    
-   let inline push (v,u,edges) inf = 
-      log (sprintf "   attempting to add inference: %A" inf)
+   let push (_,u) inf =
+      let (Inference(_,_,_,edges)) = inf 
+      log (sprintf "   attempting to add inference: %s" (string inf))
       let vs = learned.[u]
       let (lx, isAdded) = addInference inf vs changed
       if isAdded then
+         log (sprintf "   adding inference")
          learned.[u] <- lx
          if isInside u then
-            let es = Set.add (v,u) edges |> Set.add (u,v)
-            changed := Set.add (u, inf, es) !changed
-   
-   let updateBest ls isGroup (v,u) k edges = 
+            changed := Set.add (u, inf) !changed
+
+   let updateBest ls (j,k) (v,u) edges = 
       let es = Set.add (v,u) edges |> Set.add (u,v)
-      match Map.tryFind (u,ls,isGroup) !best with 
+      match Map.tryFind (u,ls,j) !best with 
       | None -> 
-         best := Map.add (u,ls,isGroup) (k,es) !best 
-         true, k
+         best := Map.add (u,ls,j) (k,es) !best 
+         true, (j,k,es)
       | Some (k',edges') ->
-         if Set.intersect es edges' |> Set.isEmpty then
-            best := Map.add (u,ls,isGroup) (k+k', Set.union es edges') !best
-            true, k+k'
-         else if k' >= k then false, k
-         else 
-            best := Map.add (u,ls,isGroup) (k,es) !best
-            true, k
+         if Set.isEmpty (Set.intersect es edges') && isAll (List.head ls) then
+            let both = Set.union es edges'
+            best := Map.add (u,ls,j) (k+k', both) !best
+            true, (j,k+k',both)
+         else if k' >= k then false, (j,k',edges')
+         else
+            best := Map.add (u,ls,j) (k,es) !best
+            true, (j,k,es)
+
+   let updateAux useNewLabels (labels,e,edges) (namev,nameu) (v,u) (j,k) isSome =             
+      log (sprintf "   adding fact for: (%d,%d)" j k)
+      // update the best
+      let labels' = if useNewLabels then newLabels isSome labels e (namev,nameu) ti else labels
+      log (sprintf "   new labels: %A" labels')
+      let isBetter, (j',k',edges') = updateBest labels' (j,k) (v,u) edges
+      if isBetter then
+         log (sprintf "   better than before: (%d,%d)" j k)
+         let newFact = Inference(labels',j',k',edges')
+         log (sprintf "   new derived fact: %s" (string newFact))
+         push (v,u) newFact
 
    while (!changed).Count > 0 do
-      let (v, inf, edges) = pop()
-      log (sprintf "looking at inference: %A" inf)
-      log (sprintf "edges so far: %A" (Set.map (fun (x,y) -> (string x, string y)) edges))
+      let (v, inf) = pop()
       // Get the existing value k 
-      let (Inference(labels,k,isGroup)) = inf
+      let (Inference(labels,j,k,edges)) = inf
+      log (sprintf "looking at inference: %s" (string inf))
+      log (sprintf "edges so far: %A" (Set.map (fun (x,y) -> (string x, string y)) edges))
       for u in CGraph.neighbors cg v |> Seq.filter CGraph.isRealNode do
          debugLearned learned ti
          let m = getNodeConstraintName ti v
-
          let n = getNodeConstraintName ti u
          let es = getEdgeConstraintNames ti v u
          // for debugging
@@ -392,100 +429,101 @@ let reachability (ti : Topology.TopoInfo) (cg : CGraph.T) (src : CgState) : int 
          let nameu = Topology.router u.Node.Loc ti
 
          for e in es do            
-            log (sprintf "  for nodes: (%s,%s)" namev nameu)
-            log (sprintf "  got labels: (%s,%s,%s)" m n e.Label)
+            log (sprintf " for nodes: (%s,%s)" namev nameu)
+            log (sprintf " got labels: (%s,%s,%s)" m n e.Label)
             let isRelevant, isExistential = inferenceRelevant inf e
             if isRelevant then
                log "  is relevant"
                log (sprintf "  is existential? %A" isExistential)
-               
-               // TODO: don't allocate this function on every loop iteration
-               let update k k' isSome isGroup = 
-                  log (sprintf "   found min: %d" k')
-                  // get the new k value
-                  let m = 
-                     if !first then k'
-                     else min k' k
-                  log (sprintf "   new min is: %d" m)
-                  // update the best
-                  let labels' = newLabels isSome labels e (namev,nameu) ti 
-                  log (sprintf "   new labels: %A" labels')
-                  let isBetter, value = updateBest labels' isGroup (v,u) m edges
-                  if isBetter then
-                     log (sprintf "   better than before: %d" value)
-                     let newFact = Inference(labels',value,isGroup)
-                     log (sprintf "   new derived fact: %A" newFact)
-                     push (v,u,edges) newFact
 
+               let update = updateAux true (labels,e,edges) 
                let isSource = (e.Source = namev)
                let isTarget = (e.Target = namev)
-   
-               match List.head labels, isExistential with 
-               | S _, false ->
-                  if isTarget then
-                     let e2 = e.Label
-                     // Rule 1
-                     let a = sprintf "(assert (not (= %s %s)))" e2 m
-                     if isUnsat a then 
-                        log "   Rule 1(S)"
-                        match findMin e2 with
-                        | Some k' ->
-                           update k 1 false false
-                           update k k' false true
+               let weakMin x y = if !first then y else min x y
+                  
+               // Special case for src
+               if v = src && isAll (List.head labels) then 
+                  let a = sprintf "(assert (<= %s 1))" m
+                  if isUnsat a then 
+                     log "  Rule SPECIAL CASE"
+                     let labels' = List.map (getScope >> S) labels
+                     updateAux false (labels',e,edges) (namev,namev) (v,v) (2,1) true
+               // Existential Case
+               if isExistential && isSource then
+                  match List.head labels with 
+                  | A _ ->
+                     let e1 = e.Label 
+                     let a1 = sprintf "(assert (= %s 0))" e1
+                     let a2 = sprintf "(assert (not (= %s %s)))" e1 n
+                     let b1, b2 = isUnsat a1, isUnsat a2
+                     if b1 || b2 then
+                        log "  Rule existential"
+                        match findMin e1 with 
+                        | Some z -> update (namev,nameu) (v,u) (weakMin k z, 1) (not b2)
+                        | None -> ()
+                  | _ -> ()
+               else 
+                  // Striping pattern
+                  match isSource, e.Label, e.OtherLabel with 
+                  | true, e1, Some e2
+                  | false, e2, Some e1 -> 
+                     let a1 = sprintf "(assert (= %s 0))" e1
+                     if ti.EqConstraints.Contains(e1) && isUnsat a1 then
+                        log "  Rule striping 1"
+                        let s = sprintf "(- %s (div (* (- %s %d) %s) %s))" n m j e2 e1
+                        match findMin s with
+                        | Some z ->
+                           update (namev,nameu) (v,u) (weakMin j z, 1) true
                         | _ -> ()
-                  if isSource then 
+                        log "  Rule striping 2"
+                        let s = sprintf "(- %d (mod %s (div %s %s)))" j m n e1
+                        match findMin e1, findMin s with
+                        | Some ze, Some zo ->
+                           let numEdges = if nodeUsed u edges then 1 else min k ze
+                           update (namev,namev) (v,v) (zo,numEdges) (not (isAll (List.head labels)))
+                        | _ -> ()
+                  | _, _, _ -> ()
+                  // Other Inference rules
+                  if isSource then
                      let e1 = e.Label
+                     // Rule 1
+                     let a = sprintf "(assert (= %s 0))" e1
+                     if isUnsat a then 
+                        log "  Rule e1>0"
+                        match findMin e1 with
+                        | Some z -> update (namev,nameu) (v,u) (weakMin (j*k) z, 1) true
+                        | _ -> ()
                      // Rule 2
                      let a = sprintf "(assert (not (= %s %s)))" e1 n
                      if isUnsat a then 
-                        log "   Rule 2(S)"
-                        match findMin n with 
-                        | Some k' ->
-                           update k 1 false false
-                           update k k' false true
-                        | None -> ()
-                     // Rule 3
-                     let a = sprintf "(assert (= %s 0))" e1
-                     if isUnsat a then 
-                        log "   Rule 1(S)"
+                        log "  Rule e1=n"
                         match findMin e1 with
-                        | Some k' ->
-                           update k 1 true false
-                           update k k' true true
-                        | None -> ()
-               | A _, _ -> 
-                  if isTarget then
+                        | Some z -> 
+                           let numEdges = if nodeUsed u edges then 1 else min k z
+                           update (namev,nameu) (v,u) (weakMin (j*k) z, numEdges) false
+                           update (namev,nameu) (v,u) (1, min j z) false
+                        | _ -> ()
+                  if isTarget then 
                      let e2 = e.Label
                      // Rule 1
                      let a = sprintf "(assert (= %s 0))" e2
-                     if isUnsat a then 
-                        log "   Rule 1(A)"
+                     if isAll (List.head labels) && isUnsat a then 
+                        log "  Rule e2>0"
                         match findMin e2 with
-                        | Some k' -> 
-                           update k (if isGroup then k' else 1) false false
-                           update k k' false true
+                        | Some z -> 
+                           let numEdges = if nodeUsed u edges then 1 else min j z
+                           update (namev,nameu) (v,u) (1, numEdges) false
                         | _ -> ()
-                  if isSource then
-                     let e1 = e.Label
                      // Rule 2
-                     let a = sprintf "(assert (not (= %s %s)))" e1 n
+                     let a = sprintf "(assert (not (= %s %s)))" e2 m
                      if isUnsat a then 
-                        log "   Rule 2(A)"
-                        match findMin n with 
-                        | Some k' ->
-                           update k (if isGroup then k' else 1) false false
-                           update k (if isExistential && isGroup then 1 else k') false true
-                        | None -> ()
-                     // Rule 3
-                     let a = sprintf "(assert (= %s 0))" e1
-                     if isUnsat a then 
-                        log "   Rule 3(A)"
-                        match findMin e1 with
-                        | Some k' ->
-                           update k 1 true false
-                           update k (if isExistential && isGroup then 1 else k') true true 
-                        | None -> ()
-               | _, _ -> ()
+                        log "  Rule e2=m"
+                        match findMin e2, findMin n with
+                        | Some ze, Some zn ->
+                           let numEdges = if nodeUsed u edges then 1 else min k ze
+                           update (namev,nameu) (v,u) (weakMin (j*k) zn, numEdges) false
+                           update (namev,nameu) (v,u) (1, min j ze) false
+                        | _ -> ()
       first := false
       debugLearned learned ti
-   None
+   combineAllInferences learned

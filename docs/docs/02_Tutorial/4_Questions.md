@@ -5,7 +5,7 @@ Consider the topology shown below:
 
 <img style="width:50%;height:50%" src="../img/Topology3.jpg" />
 
-Here we are configuring the routing policy for AS 100. Our network connects to peer AS 200 at both router A and router B. We have subnet `1.2.3.4/24` located at router E, and our peer owns the prefix subnet `172.0.0.0/24`. For this example, assume that A and B are located on different ends of the country (e.g., west coast for A and east cost for B).
+Here we are configuring the routing policy for AS 100. Our network connects to peer AS 200 at both router A and router B. We have subnet `1.2.3.4/24` located at router E, and our peer owns the prefix subnet `172.0.0.0/24`. For this example, assume that A and B are located on different ends of the country (e.g., west coast for A and east coast for B).
 
 #### Hot Potato Routing
 
@@ -24,13 +24,12 @@ Write a Propane policy that implements cold potato routing for this toy example.
   2. Prefer to carry return traffic for addresses in the subnet `1.2.3.4/24` through router A as well
   3. Allow going through B as a backup in case of failures
 
-**Question**: What BGP mechanism(s) does Propane use to implement each of these policies? 
-
+**Question**: What BGP mechanism(s) does Propane use to implement each of the constraints (1-3) for your policy?
 
 ## 2) BGP Instability 
 
 Recall the BGP Bad Gadget example from before.
-Do you think the Propane language can express the BGP Bad Gadget example? If so, give the policy and see it will compile the example. If not, why can't this policy be expressed in Propane?
+Can the Propane language express the BGP Bad Gadget example? If so, give the policy + topology and report whether or not the compiler will accept the policy or reject it. If not, why can't this policy be expressed in Propane?
 
 <img style="width:50%;height:50%" src="../img/BadGadget.jpg" />
 

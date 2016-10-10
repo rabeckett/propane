@@ -42,9 +42,11 @@ The second file `ex1.pro` is a Propane file with the following policy:
       true => drop
     }
 
-Every Propane policy contains a series of definitions, along with a `main` definition that describes the overall routing policy. In this case, the `main` definition is describing a constraint block, denoted by the curly braces. Constraint blocks associate traffic predicates (left) with path constraints (right) and describe how traffic matching the predicate on the left is allowed to move through the network.
+Every Propane policy contains a series of definitions, along with a `main` definition that describes the overall routing policy. In this case, the `main` definition is describing a constraint block, denoted by the curly braces. Constraint blocks associate traffic predicates (left) with path constraints (right) and describe how traffic matching the predicate on the left is allowed to move through the network. 
 
-The first line says that traffic destined for the `1.0.0.0/24` subnet should follow the top path `A,B,D` whenever possible. If this is not possible due to failures, then any path that starts at `A` and ends at `D` can be used as a backup. The underscore `_` matches any sequence of locations. When neither of these is possible, for example if the network becomes partitioned and A can no longer reach D, then there is an implicit lowest preference to `drop` the traffic.
+For example, the first line has a predicate that matches the exact prefix `1.0.0.0/24`. In general we can combine multiple prefixes with `and` and `or` operators (e.g., `1.0.0.0/24 or 1.1.1.0/24`). The first line also has the path constraints: `path(A,B,D) >> path(A,_,D)`. The first constraint, `path(A,B,D)`, says to use the exact path `A,B,D`. The second constraint, `path(A,_,D)`, says that any path that starts at `A` and ends at `D` can be used, where the underscore `_` matches any sequence of locations. Finally, the `>>` operator denotes a preference among paths. It means that the constraint on the left should be satisfied whenever possible. If this is not possible due to failures, then the constraint on the right should be satisfied.
+
+Taken all together, this line means that traffic destined for the `1.0.0.0/24` subnet should follow the top path `A,B,D` whenever possible. If this is not possible due to failures, then any path that starts at `A` and ends at `D` can be used as a backup path. When neither of these is possible, for example if the network becomes partitioned and A can no longer reach D, then there is an implicit lowest preference to `drop` the traffic.
 
 The second line matches any other traffic that did not match `1.0.0.0/24` (`true`) and adds the constraint that the traffic should be dropped. In other words, there is no valid path allowed for any other type of traffic. Note that this is a network-wide `drop`.
 
@@ -244,7 +246,7 @@ The emulator also offers a convenient traceroute tool to visualize the path(s) t
 
 Here we have added a new line to our policy that adds the constraint `end(A)` for the prefix `2.0.0.0/24`. This constraint captures the fact that `A` owns the prefix. It says that the only paths allowed in the network for this prefix are those that end at router `A`. In other words, every other router is allowed to use any path to reach `A`. 
 
-Compile the new policy as before `propane --policy ex1.pro --topo ex1.xml` and load the policy in the emulator `core-gui output/core.imn`. Run the emulator. Once BGP has converged, open the traceroute tool in the toolbar on the left. It is the second button from the bottom that shows a link between two nodes. Select the source node as router A and the destination node as router D. Make sure the traceroute option is selected. This should populate the text box with a traceroute command. Change the end of the command from `traceroute -n -t 0 10.0.3.2` to the following:
+Compile the new policy as before and load the policy in the emulator. Run the emulator. Once BGP has converged, open the traceroute tool in the toolbar on the left. It is the second button from the bottom that shows a link between two nodes. Select the source node as router A and the destination node as router D. Make sure the traceroute option is selected. This should populate the text box with a traceroute command. Change the end of the command from `traceroute -n -t 0 10.0.3.2` to the following:
 
     traceroute -n -t 0 -N 1 -q 1 -s 2.0.0.1 1.0.0.1
 
@@ -252,9 +254,9 @@ Compile the new policy as before `propane --policy ex1.pro --topo ex1.xml` and l
 <br/>
 
 The flags `-N 1 -q 1` are used to avoid issues related to ICMP rate limiting. The flag `-s 2.0.0.1` tells traceroute to use `2.0.0.1` as the source IP address since this interface IP belongs to the subnet for which BGP has learned routes. We use the `1.0.0.1` interface IP at router D for the same reason. The emulator should highlight the path taken. As expected, the path `A,B,D` is used since that was our primary path preference to D. 
-If you prefer to run traceroute manually, without the gui, you can simply double click on router A to bring up a terminal for the router. Enter the same command as before. Using the terminal, lets us use other tools like `tcpdump`. 
+If you prefer to run traceroute manually, without the gui, you can simply double click on router A to bring up a terminal for the router. Enter the same command as before. Using the terminal lets us use other tools like `tcpdump`. 
 
-### Checking failures (Optional)
+### Checking failures
 
 Finally, we can make sure that the policy is operating correctly even when failures occur. Unfortunately, the CORE emulator does not provide a convenient way to fail/delete links in the topology. However, we can do this manually. Stop the emulator from running and mouse over router B. In the status bar on the bottom of the screen it should say `{n3} B (router) ...`. This means that CORE has associated router B with an identifier `n3`. Do the same thing for router D. This should correspond to `n1`.
 

@@ -12,5 +12,6 @@
   <!-- Abstract topology constraints -->
   <constraint assertion="(= X 4)"></constraint>
   <constraint assertion="(= E1 X)"></constraint>
-  <constraint assertion="(= E2 X)"></constraint>
+  <constraint assertion="(= E2 1)"></constraint>
+  <constraint assertion="equal(E2)"></constraint>
 </topology>

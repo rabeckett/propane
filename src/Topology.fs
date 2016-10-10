@@ -159,6 +159,7 @@ type CustomLabel =
 
 type EdgeInfo = 
    { Label : string
+     OtherLabel : string option
      Source : string 
      Target : string 
      Scope : string
@@ -181,8 +182,9 @@ type TopoInfo =
       val Concretization : Map<string, Set<string>>
       val Abstraction : Map<string, string>
       val Constraints : List<string>
+      val EqConstraints : Set<string>
 
-      new(nasn, k, cg, ag, els, nls, pls, escopes, con, abs, cs) = 
+      new(nasn, k, cg, ag, els, nls, pls, escopes, con, abs, cs, ecs) = 
          { NetworkAsn = nasn
            Kind = k
            ConcreteGraphInfo = cg
@@ -193,7 +195,8 @@ type TopoInfo =
            EnclosingScopes = escopes
            Concretization = con
            Abstraction = abs
-           Constraints = cs }
+           Constraints = cs
+           EqConstraints = ecs }
       
       member this.SelectGraphInfo = 
          match this.Kind with
@@ -359,7 +362,7 @@ let parseCustomLabels (ls : string []) =
       | _, _ -> ()
       match seen with 
       | None -> error (sprintf "No label specified in custom label")
-      | Some y -> (y, front, back)
+      | Some y -> (y, None, front, back)
    let mutable acc = []
    for l in ls do 
       let vs = l.Split(',') |> Array.map parseLabel
@@ -442,12 +445,12 @@ let checkWellFormedLabels (front,back) (es,et) escopes =
       checkValidNesting front scopesA
       checkValidNesting back scopesB
       let scope = getLeastScope (front,back) (es,et) (scopesA, scopesB)
-      (true, scope) 
+      (true, fstA=fstB, scope) 
    else if fstA = et && fstB = es then 
       checkValidNesting front scopesB
       checkValidNesting back scopesA
       let scope = getLeastScope (front,back) (et,es) (scopesB, scopesA)
-      (false, scope) 
+      (false, fstA=fstB, scope) 
    else error (sprintf "Invalid end points: (%s,%s)" fstA fstB)
 
 let readTopology (file : string) : TopoInfo * Args.T = 
@@ -484,8 +487,11 @@ let readTopology (file : string) : TopoInfo * Args.T =
       let currASN = ref MAXASN
       // collect constraints
       let constraints = List()
+      let eqConstraints = ref Set.empty
       for c in topo.Constraints do
-         constraints.Add c.Assertion
+         match Util.String.sscanf "equal(%s)" c.Assertion with 
+         | None -> constraints.Add c.Assertion
+         | Some e -> eqConstraints := Set.add e !eqConstraints
       // Build the concretization map and determine if we are using an abstract topology
       let isPureAbstract = (topo.Nodes.Length = 0)
       let mutable isAbstract = isPureAbstract
@@ -567,16 +573,17 @@ let readTopology (file : string) : TopoInfo * Args.T =
                | Some (sl,tl) -> 
                   if es = et && sl <> tl then
                      error (sprintf "Self loop for %s must contain identical edge labels" e.Source)
-                  cls <- (sl, [AllLabel es], [SomeLabel et]) :: cls
+                  cls <- (sl, Some tl, [AllLabel es], [SomeLabel et]) :: cls
                   if es <> et then
-                     cls <- (tl, [AllLabel et], [SomeLabel es]) :: cls
+                     cls <- (tl, Some sl, [AllLabel et], [SomeLabel es]) :: cls
 
                let mutable edgeInfo = []
                for info in cls do
-                  let (label, front, back) = info
-                  let isSource, scope = checkWellFormedLabels (front,back) (es,et) escopes
+                  let (label, otherLabel, front, back) = info
+                  let isSource, eqLabels, scope = checkWellFormedLabels (front,back) (es,et) escopes
                   let v = 
-                     { Label = label 
+                     { Label = label
+                       OtherLabel = if eqLabels then Some label else otherLabel 
                        Source = if isSource then es else et 
                        Target = if isSource then et else es
                        Scope = scope 
@@ -595,6 +602,14 @@ let readTopology (file : string) : TopoInfo * Args.T =
       // Check for duplicate names
       checkForDuplicateNames !abstractNames "label"
       checkForDuplicateNames !concreteNames "name"
+      // Check eq constraints reference real labels
+      let mutable acc = Set.empty
+      for kv in !abstractEdgeLabelInfo do 
+         for e in kv.Value do 
+            acc <- Set.add e.Label acc
+      let bad = Set.difference !eqConstraints acc
+      if not (Set.isEmpty bad) then 
+         error (sprintf "Invalid label referenced: %s" (Set.minElement bad))
       // Get the kind of compilation to perform
       let kind = 
          if isPureAbstract then Template
@@ -644,7 +659,7 @@ let readTopology (file : string) : TopoInfo * Args.T =
          TopoInfo
             (netAsn, kind, concreteGI, abstractGI, !abstractEdgeLabelInfo, !abstractNodeLabels, 
              !abstractPodLabels, escopes, !concretization, !abstraction, 
-             constraints)
+             constraints, !eqConstraints)
       (ti, Args.getSettings())
    with _ -> error (sprintf "Invalid topology XML file")
 
