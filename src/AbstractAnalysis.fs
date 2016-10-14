@@ -195,7 +195,7 @@ type Label =
       | A l -> sprintf "A(%s)" l
 
 type Inference = 
-   | Inference of Label list * int * int * Set<CgState*CgState>
+   | Inference of Label list * int * int * Set<CgState*CgState*Label list>
    override this.ToString() = 
       let (Inference(labels,j,k,_)) = this
       let s = Util.List.toString labels
@@ -275,7 +275,7 @@ let rec betterLabels (xs : Label list) (ys : Label list) =
    | _::_, [] | [], _::_ -> failwith "unreachable"
 
 let inline isStrictlyBetter (j,k,xs) (j',k',ys) =
-   (j >= j' && k >= k' && betterLabels xs ys) //(List.tail (List.rev xs) = List.tail (List.rev ys)))
+   (j = j' && k >= k' && betterLabels xs ys) //(List.tail (List.rev xs) = List.tail (List.rev ys)))
 
 let addInference (inf : Inference) (learned : Inference list) changed : Inference list * bool = 
    let (Inference(xs,j,k,es)) = inf
@@ -322,26 +322,33 @@ let inline removeGlobal inf =
    let ls' = List.rev ls |> List.tail |> List.rev
    Inference(ls',j,k,es)
 
+let inline greatest xs = 
+   let mutable acc = 0
+   for (Inference(_,_,k,_)) in xs do 
+      acc <- max acc k
+   acc
+
 let combineAllInferences (learned : Dictionary<CgState,Inference list>) = 
    let mutable acc = Map.empty
+   let numLabels = ref 0
    for kv in learned do 
       let v = kv.Key
       let allInfs = kv.Value |> List.map removeGlobal
-      let (all,some) = allInfs |> List.partition (fun (Inference(ls,_,_,_)) -> isAll ls.Head)
+      let all =
+         allInfs 
+         |> List.filter (fun (Inference(ls,_,_,_)) -> numLabels := List.length ls - 1; isAll ls.Head)
+         |> Seq.groupBy (fun (Inference(ls,_,_,_)) -> ls)
+         |> Seq.map (fun (_,ys) -> greatest ys)
+
       let mutable minAll = System.Int32.MaxValue
       let mutable maxSome = 0
-      let mutable numLabels = 0
-      for inf in all do 
-         let (Inference(ls,j,k,es)) = inf
-         if numLabels = 0 then
-            numLabels <- List.length ls - 1
+      for k in all do 
          minAll <- min minAll k
-      for inf in allInfs do 
+      for inf in allInfs do
          let (Inference(ls,j,k,es)) = inf
          maxSome <- max maxSome k
-      let x = if minAll = System.Int32.MaxValue || all.Length < pown 2 numLabels then None else Some minAll
-      let y = if maxSome = 0 then None else Some maxSome
-      acc <- Map.add v (x,y) acc
+      let x = if minAll = System.Int32.MaxValue || Seq.length all < pown 2 !numLabels then 0 else minAll
+      acc <- Map.add v (x,maxSome) acc
    acc
 
 let reachability (ti : Topology.TopoInfo) (cg : CGraph.T) (src : CgState) = 
@@ -384,9 +391,10 @@ let reachability (ti : Topology.TopoInfo) (cg : CGraph.T) (src : CgState) =
          learned.[u] <- lx
          if isInside u then
             changed := Set.add (u, inf) !changed
-
-   let updateBest ls (j,k) (v,u) edges = 
-      let es = Set.add (v,u) edges |> Set.add (u,v)
+ 
+   let updateBest ls (j,k) (v,u) edges =
+      let ls' = List.tail ls |> List.rev |> List.tail
+      let es = Set.add (v,u,ls') edges // |> Set.add (u,v,ls')
       match Map.tryFind (u,ls,j) !best with 
       | None -> 
          best := Map.add (u,ls,j) (k,es) !best 
@@ -418,7 +426,6 @@ let reachability (ti : Topology.TopoInfo) (cg : CGraph.T) (src : CgState) =
       // Get the existing value k 
       let (Inference(labels,j,k,edges)) = inf
       log (sprintf "looking at inference: %s" (string inf))
-      log (sprintf "edges so far: %A" (Set.map (fun (x,y) -> (string x, string y)) edges))
       for u in CGraph.neighbors cg v |> Seq.filter CGraph.isRealNode do
          debugLearned learned ti
          let m = getNodeConstraintName ti v
@@ -463,24 +470,22 @@ let reachability (ti : Topology.TopoInfo) (cg : CGraph.T) (src : CgState) =
                         | None -> ()
                   | _ -> ()
                else 
-                  // Striping pattern
+                  // Striping patterns
                   match isSource, e.Label, e.OtherLabel with 
                   | true, e1, Some e2
                   | false, e2, Some e1 -> 
                      let a1 = sprintf "(assert (= %s 0))" e1
                      if ti.EqConstraints.Contains(e1) && isUnsat a1 then
                         log "  Rule striping 1"
-                        let s = sprintf "(- %s (div (* (- %s %d) %s) %s))" n m j e2 e1
+                        let s = sprintf "(- %s (div (* (- %s %d) %s) %s))" n m j e1 e2
                         match findMin s with
-                        | Some z ->
-                           update (namev,nameu) (v,u) (weakMin j z, 1) true
+                        | Some z -> update (namev,nameu) (v,u) (weakMin (j*k) z, 1) true
                         | _ -> ()
                         log "  Rule striping 2"
                         let s = sprintf "(- %d (mod %s (div %s %s)))" j m n e1
-                        match findMin e1, findMin s with
-                        | Some ze, Some zo ->
-                           let numEdges = if nodeUsed u edges then 1 else min k ze
-                           update (namev,namev) (v,v) (zo,numEdges) (not (isAll (List.head labels)))
+                        match findMin e1, findMin e2, findMin s with
+                        | Some ze1, Some ze2, Some zo ->
+                           update (namev,namev) (v,v) (zo, min k (min ze1 ze2)) (not (isAll (List.head labels)))
                         | _ -> ()
                   | _, _, _ -> ()
                   // Other Inference rules
@@ -499,8 +504,8 @@ let reachability (ti : Topology.TopoInfo) (cg : CGraph.T) (src : CgState) =
                         log "  Rule e1=n"
                         match findMin e1 with
                         | Some z -> 
-                           let numEdges = if nodeUsed u edges then 1 else min k z
-                           update (namev,nameu) (v,u) (weakMin (j*k) z, numEdges) false
+                           let t = weakMin (j*k) z
+                           update (namev,nameu) (v,u) (t, max 1 ((j*k)/t)) false
                            update (namev,nameu) (v,u) (1, min j z) false
                         | _ -> ()
                   if isTarget then 
@@ -511,8 +516,7 @@ let reachability (ti : Topology.TopoInfo) (cg : CGraph.T) (src : CgState) =
                         log "  Rule e2>0"
                         match findMin e2 with
                         | Some z -> 
-                           let numEdges = if nodeUsed u edges then 1 else min j z
-                           update (namev,nameu) (v,u) (1, numEdges) false
+                           update (namev,nameu) (v,u) (1, min j z) false
                         | _ -> ()
                      // Rule 2
                      let a = sprintf "(assert (not (= %s %s)))" e2 m
@@ -520,10 +524,15 @@ let reachability (ti : Topology.TopoInfo) (cg : CGraph.T) (src : CgState) =
                         log "  Rule e2=m"
                         match findMin e2, findMin n with
                         | Some ze, Some zn ->
-                           let numEdges = if nodeUsed u edges then 1 else min k ze
-                           update (namev,nameu) (v,u) (weakMin (j*k) zn, numEdges) false
+                           let t = weakMin (j*k) zn
+                           update (namev,nameu) (v,u) (t, max 1 ((j*k)/t)) false
                            update (namev,nameu) (v,u) (1, min j ze) false
                         | _ -> ()
       first := false
       debugLearned learned ti
-   combineAllInferences learned
+   let b = combineAllInferences learned
+   for kv in b do 
+      let v = Topology.router kv.Key.Node.Loc ti
+      let (x,y) = kv.Value 
+      printfn "%s --> (all=%d, some=%d)" v x y
+   b

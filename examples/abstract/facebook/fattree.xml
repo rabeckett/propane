@@ -1,0 +1,24 @@
+<topology asn="100">  
+  <!-- Abstract Nodes -->
+  <abstractnode internal="true" label="T0"></abstractnode>
+  <abstractnode internal="true" label="T1"></abstractnode>
+  <abstractnode internal="true" label="T2"></abstractnode>
+  <!-- Abstract Edges -->
+  <abstractedge source="T0" target="T1" labels="(E1,E2)"></abstractedge>
+  <abstractedge source="T1" target="T2" labels="(E3,E4)"></abstractedge>
+  <!-- Abstract Pods -->
+  <abstractpod label="P">
+	  <element>T0</element>
+	  <element>T1</element>
+  </abstractpod>
+  <!-- Abstract topology constraints -->
+  <constraint assertion="(= T0 48)"></constraint>
+  <constraint assertion="(= T1 4)"></constraint>
+  <constraint assertion="(= T2 4)"></constraint>
+  <constraint assertion="(= E1 T1)"></constraint>
+  <constraint assertion="(= E2 T0)"></constraint>
+  <constraint assertion="(= E3 T2)"></constraint>
+  <constraint assertion="(= E4 1)"></constraint>
+  <constraint assertion="equal(E3)"></constraint>
+  <constraint assertion="equal(E4)"></constraint>
+</topology>
