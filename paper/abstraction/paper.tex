@@ -34,7 +34,7 @@
 \newcommand{\ETC}{\emph{etc.}}
 \newcommand{\ETAL}{\emph{et al.}}
 
-\newcommand{\sysname}{{\small \sf Diesel}\xspace}
+\newcommand{\sysname}{{\small \sf Propane}\xspace}
 
 \newcommand{\para}[1]{\paragraph*{\textbf{#1}}}
 
@@ -89,7 +89,7 @@
 \setlength{\pdfpageheight}{\paperheight}
 \setlength{\pdfpagewidth}{\paperwidth}
 
-\title{Abstraction Compilation Techniques}
+\title{An Abstraction-based Approach to Network Synthesis}
 
 %\author{Paper \#324, 14 pages}
 
@@ -147,17 +147,18 @@ David Walker\\
 %
 % (3) Enables reusability (e.g., across datacenters) and expansion (e.g., within a datacenter)
 %
-% (4) lets us scale compilation/algorithms to large-scale topologies
+% (4) lets us scale synthesis to large-scale topologies
 
 
 \textbf{Abstract---}
-We develop \sysname, a tool for automated reasoning about end-to-end properties of abstract network topologies. \sysname allows network operators to write a centralized routing policy over a high-level abstraction of their network topology. From such a specification, it generates a distributed collection of BGP router configurations that are guaranteed to implement the centralized routing policy for any concrete instantiation of the abstract topology, and for any combination of network failures in the resulting concrete topology.
+We develop techniques for automated reasoning about end-to-end properties of abstract network topologies. We extend a network synthesis tool, \sysname, to allow network operators to write a high-level routing policy over an abstraction of their network topology. From such a specification, \sysname synthesizes a collection router configurations running the distributed Border Gateway Protocol (BGP) that are guaranteed to implement the centralized routing policy for any concrete instantiation of the abstract topology, and for any combination of network failures in the resulting concrete topology.
 %
 Additionally, properties proven by \sysname over the abstract topology, such as reachability between a source and destination under k-failures, are also guaranteed to hold under any concrete instantiation of the abstract topology.
 %
-These strong guarantees allow operators to reason about the routing behavior of their network at a high-level abstraction, while also generating an efficient low-level implementation.
+Something something, expandable/incremental networks. Something something scales compilation to large networks. Something something, templates easier to understand.
+%These strong guarantees allow operators to reason about the routing behavior of their network at a high-level abstraction, while also generating an efficient low-level implementation.
 %
-In addition, operators are able to safely change or expand their network in any way, so long as the new resulting topology also respects the abstraction.
+%In addition, operators are able to safely change or expand their network in any way, so long as the new resulting topology also respects the abstraction.
 %
 We test \sysname out on ... blah blah blah
 
@@ -197,7 +198,7 @@ We test \sysname out on ... blah blah blah
 
 \begin{easylist}[itemize]
 & Network configuration is difficult/error-prone. Operators think of policy at 
-  a high level of abstraction, yet implementations:
+  a high level of abstraction, yet for implementations:
 && Often configs must be decomposed device-by-device
 && Often need to create reusable configurations for different topologies/policies
 && Ensure different devices/networks kept consistent when policy changes
@@ -213,25 +214,26 @@ We test \sysname out on ... blah blah blah
 &&& In addition, operators must reason about possible network failures that
     might arise in one concrete network versus another
 
-& To this end, we develop a language called \sysname to simplify the operators task.
+& To this end, we build a language called \sysname to simplify the operators task.
 && \sysname allows the operator to define high-level network abstractions to reflect
    the operator's mental model, and then to write a centralized routing policy over the
    abstraction.
-&& We develop an intermediate graph-based representation for compiled, abstract policies,
-   and show how to compile \sysname policies to this representation. 
-&& We develop several algorithms that operate over this graph representation and verify 
-   if properties, such as reachability or no black holes under k-failures, are guaranteed
-   to hold under any possible concrete instantiation of the network.
+&& We extend the \sysname intermediate graph-based representation to support abstract policies,
+   and show how to compile abstract \sysname policies to this representation. 
 && As a major use-case, we show how the compilation and failure-safety analysis
    of the Propane configuration-synthesis tool can be extended over abstract topologies.
-   Explain what Propane is first...
-   Our major result is an abstraction theorem, which states that ...
-   The result is that policies compiled with the Propane compiler to distributed configurations 
+&& We develop an abstract interpretation that operates over this graph representation and verifies 
+   if properties, such as reachability or k-disjoint paths between two nodes, are guaranteed
+   to hold for any possible concrete instantiation of the network.
+&& Our major result is an abstraction theorem, which states that ...
+&& The result is that policies compiled with the Propane compiler to distributed configurations 
    are guaranteed to have correct forwarding behavior for any possible concrete instantiation 
    of the network, and for any possible combination of failures in the given concrete network.
 &&& Finally, we show how abstract compilation makes it possible to dramatically speed up compilation 
-    time for the Propane policies, ...
+    time for the Propane policies, cite some numbers here ... 
 \end{easylist}
+
+% Some useful citations from the previous paper listed below
 
 %It is well known that configuring networks is error
 %prone and that such errors can lead to disruptive
@@ -290,13 +292,6 @@ We test \sysname out on ... blah blah blah
 %multi-controller systems with interacting controllers, thus bringing back distributed
 %control planes~\cite{mccauley2013extending,onos} and their current programming difficulties.%
 
-%Hence, in this paper, we have two central goals:
-%\begin{enumerate}
-%\item Foo
-%\item Bar
-%\end{enumerate}
-
-
 
 %=====================================================
 %
@@ -330,6 +325,14 @@ We test \sysname out on ... blah blah blah
 \end{easylist}
 
 
+\subsection{Example:  The Backbone}
+
+\begin{easylist}[itemize]
+& Example of a backbone network with multiple peers
+&& Maybe have a couple of different roles (e.g., special handling to keep traffic in the US)
+&& Could show different abstractions here (e.g., one big switch)
+&& Could be useful to hint at things to come, e.g., takes 2 sec to compile the abstract one
+\end{easylist}
 
 %=====================================================
 %
@@ -360,10 +363,17 @@ We test \sysname out on ... blah blah blah
 & Suppose now we wanted to expand this network, or configure a similar network...
 \end{easylist}
 
+\subsection{Example: The Backbone}
+
+\begin{easylist}[itemize]
+& Give the policy over the abstract network
+\end{easylist}
+
 \subsection{Language}
 
-Placeholder for formal language definition
+Placeholder for formal language definition syntax + semantics
 
+% Examples of code given below
 
 %\sysname lets operators configure the network with the
 %abstraction that they have centralized control over routing.
@@ -506,30 +516,6 @@ Placeholder for formal language definition
 
 %Once \sysname compiles the policy, it is guaranteed to remain compliant under all possible failure scenarios, modulo any aggregation-induced black holes. In the presence of aggregation, the \sysname compiler will also efficiently find a lower bound on the number of failures required to create an aggregation-induced black hole.
 
-
-%=====================================================
-%
-%
-%  **Abstractions**
-%
-%
-%=====================================================
-
-
-\section{Abstraction}
-\label{sec:abstraction}
-
-\begin{easylist}[itemize]
-& Define abstractions more formally,
-&& e.g., homomorphism between graphs + node/edge constraints
-
-& Give formal semantics of abstract, labelled graph
-&& i.e., if a concrete graph + homomorphism is valid
-   given an abstract, labelled graph
-
-
-\end{easylist}
-
 %=====================================================
 %
 %
@@ -550,11 +536,27 @@ We borrow the intermediate graph-based representation from Propane:
 && Note that preferences are general, and it could potentially
    use any implementation (including SDN). But for the sake of 
    simplicity, we will assume a BGP backend like Propane.
+\end{easylist}
 
-& Use the datacenter example from before
+%=====================================================
+%
+%
+%  **Abstractions**
+%
+%
+%=====================================================
+
+
+\section{Abstraction}
+\label{sec:abstraction}
+
+\begin{easylist}[itemize]
+& Define abstractions more formally,
+&& e.g., homomorphism between graphs + node/edge constraints
+&& Use the datacenter example from before
 && First define the concretization function for translating the abstract policy
    into the concrete policy
-&& Next, show the Product Graphfor both the concrete and abstract policies.
+&& Next, show the Product Graph for both the concrete and abstract policies.
 
 & Show/Define safety analysis simulation relation for both concrete and abstract product graphs
   and how it holds for both.
@@ -942,13 +944,12 @@ We borrow the intermediate graph-based representation from Propane:
 \label{sec:property-checking}
 
 \begin{easylist}[itemize]
-& Reachability analysis (i.e., are all locations specified in the policy reachable
-  after taking topology into account) 
-&& Inference rules for reachability
-&& Fixed point computation using SMT solver
-
-& Reachability under k-failures (e.g., aggregation black holes)
-&& translation to ILP problem
+& Graph homomorphism is not enough -- to coarse an overapproximation
+&& Use node/edge multiplicites to capture more precise constraints on concrete topologies
+&& Show a bunch of examples of fattree, bcube, dcell, hyperX, facebook, google, F10, etc.
+& K-disjoint path analysis 
+&& Useful for aggregation safety (black holes) & reachability
+&& Inference rules as an abstract interpretation using Z3
 \end{easylist}
 
 
@@ -975,8 +976,6 @@ We borrow the intermediate graph-based representation from Propane:
 %The final stage of our compiler translates policies from PGIR to a vendor-neutral abstraction of BGP (ABGP).
 
 %\para{From PGIR to ABGP}
-
-
 
 %\newcommand{\highlight}[1]{%
 %  \colorbox{red!50}{$\displaystyle#1$}}
@@ -1028,6 +1027,12 @@ We borrow the intermediate graph-based representation from Propane:
 \section{Implementation}
 \label{sec:implementation}
 
+\begin{easylist}
+& Extension to \sysname
+& lines of code
+& optimizations
+&& Are there any?
+\end{easylist}
 
 
 %=====================================================
@@ -1045,16 +1050,15 @@ We borrow the intermediate graph-based representation from Propane:
 
 \subsection{Networks studied}
 
+\begin{easylist}
+& Fattree, F10, Facebook, DCell, BCube, hyperX
+& Shortest path routing for each of these topologies but varying different size parameters
+\end{easylist}
+
+\subsection{Analysis Precision}
+
 
 \subsection{Compilation time}
-
-
-
-\subsection{Expressiveness}
-
-\begin{easylist}[itemize]
-& DCell, BCube, Fattree, others ...
-\end{easylist}
 
 
 %=====================================================
@@ -1069,10 +1073,9 @@ We borrow the intermediate graph-based representation from Propane:
 \label{sec:related}
 
 \begin{easylist}[itemize]
-& Topology abstraction
-&& DCell, BCube, Fattree, ...
-&& Condor ...
-
+& Topologies: DCell, BCube, Fattree, ...
+& Topology Abstraction: Condor
+& Memory Shape Analysis: Sagiv, others
 & Configuration automation
 & Configuration analysis
 & Configuration synthesis

@@ -351,7 +351,9 @@ let combineAllInferences (learned : Dictionary<CgState,Inference list>) =
       acc <- Map.add v (x,maxSome) acc
    acc
 
-let reachability (ti : Topology.TopoInfo) (cg : CGraph.T) (src : CgState) = 
+type AnalysisResult = Map<CgState, (int*int)>
+
+let reachability (ti : Topology.TopoInfo) (cg : CGraph.T) (src : CgState) : AnalysisResult = 
    // Capture the base constraints
    let enc = string (baseEncoding ti)
    // Cache results to z3 calls

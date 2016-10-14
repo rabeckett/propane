@@ -129,15 +129,15 @@ let quagga (rInternal : Set<string>) (rc : RouterConfiguration) : string =
       let pol = lookupPolicyList rm.PolicyList rc.PolicyLists
       writePolList sb pol
       let lp = rm.SetLocalPref
-      if lp <> null then bprintf sb "  set local-preference %d\n" lp.Value
+      if not (isNull lp) then bprintf sb "  set local-preference %d\n" lp.Value
       for d in rm.DeleteCommunities do
          bprintf sb "  set comm-list %s delete\n" d.Value
       let mutable comms = ""
       for c in rm.SetCommunities do
          comms <- comms + c.Value + " "
       if comms <> "" then bprintf sb "  set community additive %s\n" comms
-      if rm.SetMED <> null then bprintf sb "  set metric %d\n" rm.SetMED.Value
-      if rm.SetPathPrepend <> null then 
+      if not (isNull rm.SetMED) then bprintf sb "  set metric %d\n" rm.SetMED.Value
+      if not (isNull rm.SetPathPrepend) then 
          let asn = string rc.NetworkAsn
          let prepends = Util.Format.repeat asn rm.SetPathPrepend.Value
          bprintf sb "  set as-path prepend %s\n" prepends
@@ -160,7 +160,6 @@ let core (rInternal : Set<string>) (nc : NetworkConfiguration) : string =
       let rc = kv.Value
       if rc.Networks.Count > 0 then 
          let n = rc.Networks.[0]
-         
          let (hSub, rSub) = 
             match n with
             | Route.ConcretePfx(a, b, c, d, slash) -> 
@@ -333,7 +332,7 @@ let generate (res : Abgp.CompilationResult) =
    // Generate intermediate representation
    File.writeFileWithExtension (out + File.sep + "configs") "ir" (Abgp.format res.Abgp)
    // Get the low-level configurations
-   if not settings.IsAbstract then 
+   if true then 
       let nc : NetworkConfiguration = Abgp.toConfig res.Abgp
       let configDir = out + File.sep + "configs"
       File.createDir configDir
@@ -345,8 +344,9 @@ let generate (res : Abgp.CompilationResult) =
          let output = quagga rInternal rc
          output |> File.writeFileWithExtension (configDir + File.sep + name) "cfg"
       // Write CORE emulator save file
-      addFakeExternalConfigs nc
-      core rInternal nc |> File.writeFileWithExtension (out + File.sep + "core") "imn"
+      if not settings.IsAbstract then
+         addFakeExternalConfigs nc
+         core rInternal nc |> File.writeFileWithExtension (out + File.sep + "core") "imn"
       // C-BGP testing code
       if settings.Cbgp then 
           let cbgpDir = out + File.sep + "cbgp"
