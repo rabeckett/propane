@@ -25,10 +25,16 @@ type PrefixList =
       val Name : string
       val Kind : Kind
       val Prefix : string
+      
       new(k, n, p) = 
          { Kind = k
            Name = n
            Prefix = p }
+      
+      new(o : PrefixList) = 
+         { Kind = o.Kind
+           Name = o.Name
+           Prefix = o.Prefix }
    end
 
 /// AS Path list, consists of 
@@ -39,9 +45,14 @@ type AsPathList =
    class
       val Name : string
       val Regex : List<string>
+      
       new(n, rs) = 
          { Name = n
            Regex = rs }
+      
+      new(o : AsPathList) = 
+         { Name = o.Name
+           Regex = List(o.Regex) }
    end
 
 /// Community list consists of 
@@ -53,10 +64,16 @@ type CommunityList =
       val Name : string
       val Kind : Kind
       val Values : List<string> // List<Community>
+      
       new(k, n, vs) = 
          { Kind = k
            Name = n
            Values = vs }
+      
+      new(o : CommunityList) = 
+         { Kind = o.Kind
+           Name = o.Name
+           Values = List(o.Values) }
    end
 
 /// Simple wrapper around the new community value.
@@ -89,6 +106,7 @@ type SetMED =
    class
       val Value : int
       new(i) = { Value = i }
+      new(o : SetMED) = { Value = o.Value }
    end
 
 /// Simple wrapper for path prepending.
@@ -98,6 +116,7 @@ type SetPathPrepend =
    class
       val Value : int
       new(i) = { Value = i }
+      new(o : SetPathPrepend) = { Value = o.Value }
    end
 
 /// A policy list for (reusable) matching on several BGP attributes
@@ -110,11 +129,18 @@ type PolicyList =
       val PrefixLists : List<string>
       val AsPathLists : List<string>
       val CommunityLists : List<string>
+      
       new(n, pls, als, cls) = 
          { Name = n
            PrefixLists = pls
            AsPathLists = als
            CommunityLists = cls }
+      
+      new(o : PolicyList) = 
+         { Name = o.Name
+           PrefixLists = List(o.PrefixLists)
+           AsPathLists = List(o.AsPathLists)
+           CommunityLists = List(o.CommunityLists) }
    end
 
 /// A route map, which matches using various filter lists.
@@ -129,6 +155,7 @@ type RouteMap =
       val SetPathPrepend : SetPathPrepend
       val mutable SetCommunities : List<SetCommunity>
       val DeleteCommunities : List<DeleteCommunity>
+      
       new(n, i, pl, slp, smed, spre, sc, dcs) = 
          { Name = n
            PolicyList = pl
@@ -138,6 +165,16 @@ type RouteMap =
            SetPathPrepend = spre
            SetCommunities = sc
            DeleteCommunities = dcs }
+      
+      new(o : RouteMap) = 
+         { Name = o.Name
+           PolicyList = o.PolicyList
+           Priority = o.Priority
+           SetLocalPref = o.SetLocalPref
+           SetMED = o.SetMED
+           SetPathPrepend = o.SetPathPrepend
+           SetCommunities = List(o.SetCommunities)
+           DeleteCommunities = List(o.DeleteCommunities) }
    end
 
 /// A peer configuration represented by a pair of incoming and outgoing 
@@ -150,6 +187,7 @@ type PeerConfig =
       val SourceIp : string
       val mutable InFilter : string option // route map name
       val mutable OutFilter : string option
+      
       new(p, pasn, sip, pip, i, o) = 
          { Peer = p
            PeerAsn = pasn
@@ -157,24 +195,33 @@ type PeerConfig =
            PeerIp = pip
            InFilter = i
            OutFilter = o }
+      
+      new(o : PeerConfig) = 
+         { Peer = o.Peer
+           PeerAsn = o.PeerAsn
+           SourceIp = o.SourceIp
+           PeerIp = o.PeerIp
+           InFilter = o.InFilter
+           OutFilter = o.OutFilter }
    end
 
 /// BGP router configuration contains a group of peer configurations.
 /// If there is no network, then the string will be empty.
 type RouterConfiguration = 
    class
-      val Name : string
+      val mutable Name : string
       val NetworkAsn : string
-      val RouterAsn : string
+      val mutable RouterAsn : string
       val RouterID : int
-      val Networks : List<Route.TempPrefix>
+      val mutable Networks : List<Route.TempPrefix>
       val Aggregates : List<string>
-      val PrefixLists : List<PrefixList>
+      val mutable PrefixLists : List<PrefixList>
       val AsPathLists : List<AsPathList>
       val CommunityLists : List<CommunityList>
       val PolicyLists : List<PolicyList>
       val mutable RouteMaps : List<RouteMap>
-      val PeerConfigurations : List<PeerConfig>
+      val mutable PeerConfigurations : List<PeerConfig>
+      
       new(name, nasn, rasn, rid, nwrk, aggs, pls, als, cls, pols, rms, pcs) = 
          { Name = name
            NetworkAsn = nasn
@@ -188,6 +235,20 @@ type RouterConfiguration =
            PolicyLists = pols
            RouteMaps = rms
            PeerConfigurations = pcs }
+      
+      new(o : RouterConfiguration) = 
+         { Name = o.Name
+           NetworkAsn = o.NetworkAsn
+           RouterAsn = o.RouterAsn
+           RouterID = o.RouterID
+           Networks = List(o.Networks)
+           Aggregates = List(o.Aggregates)
+           PrefixLists = Util.MutableList.map PrefixList o.PrefixLists
+           AsPathLists = Util.MutableList.map AsPathList o.AsPathLists
+           CommunityLists = Util.MutableList.map CommunityList o.CommunityLists
+           PolicyLists = Util.MutableList.map PolicyList o.PolicyLists
+           RouteMaps = Util.MutableList.map RouteMap o.RouteMaps
+           PeerConfigurations = Util.MutableList.map PeerConfig o.PeerConfigurations }
    end
 
 /// Network-wide configuration as a collection of router configurations

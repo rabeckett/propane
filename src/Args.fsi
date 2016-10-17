@@ -18,7 +18,8 @@ type T =
      Failures : Option<int>
      Stats : bool
      CheckOnly : bool
-     IsAbstract : bool }
+     IsAbstract : bool
+     IsTemplate : bool }
 
 /// Get the command-line settings
 val getSettings : unit -> T

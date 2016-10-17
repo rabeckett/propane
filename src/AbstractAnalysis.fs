@@ -477,7 +477,8 @@ let reachability (ti : Topology.TopoInfo) (cg : CGraph.T) (src : CgState) : Anal
                   | true, e1, Some e2
                   | false, e2, Some e1 -> 
                      let a1 = sprintf "(assert (= %s 0))" e1
-                     if ti.EqConstraints.Contains(e1) && isUnsat a1 then
+                     let a2 = sprintf "(assert (= %s 0))" e2
+                     if isUnsat a1 && isUnsat a2 then
                         log "  Rule striping 1"
                         let s = sprintf "(- %s (div (* (- %s %d) %s) %s))" n m j e1 e2
                         match findMin s with

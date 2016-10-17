@@ -1732,7 +1732,7 @@ let toConfig (abgp : T) =
       for peer in allPeers do
          let export = Map.tryFind peer peerExportMap
          let routerIp, peerIp = 
-            if ti.IsTemplate then ("$routerIp$", "peerIp")
+            if settings.IsAbstract || settings.IsTemplate then ("$routerIp$", "peerIp")
             else ti.SelectGraphInfo.IpMap.[(rname, peer)]
          let peerName = Topology.router peer ti
          let peerAsn = string ti.SelectGraphInfo.AsnMap.[peerName]
@@ -1743,7 +1743,7 @@ let toConfig (abgp : T) =
       let asn = 
          if settings.IsAbstract then name
          else rname
-      
+    
       // get aggregates
       let aggs = List()
       let aggregates = 

@@ -1,15 +1,15 @@
 <topology asn="100">
   <!-- Concrete nodes -->
-  <node internal="true" name="A" group="T0"></node>
-  <node internal="true" name="B" group="T0"></node>
-  <node internal="true" name="C" group="T0"></node>
-  <node internal="true" name="D" group="T0"></node>
-  <node internal="true" name="L" group="T1"></node>
-  <node internal="true" name="M" group="T1"></node>
-  <node internal="true" name="N" group="T1"></node>
-  <node internal="true" name="O" group="T1"></node>
-  <node internal="true" name="X" group="T2"></node>
-  <node internal="true" name="Y" group="T2"></node>
+  <node internal="true" name="A" group="T0" vars="prefix=1.0.0.0/32"></node>
+  <node internal="true" name="B" group="T0" vars="prefix=1.0.0.1/32"></node>
+  <node internal="true" name="C" group="T0" vars="prefix=1.0.0.2/32"></node>
+  <node internal="true" name="D" group="T0" vars="prefix=1.0.0.3/32"></node>
+  <node internal="true" name="L" group="T1" vars="prefix=1.0.0.4/32"></node>
+  <node internal="true" name="M" group="T1" vars="prefix=1.0.0.5/32"></node>
+  <node internal="true" name="N" group="T1" vars="prefix=1.0.0.6/32"></node>
+  <node internal="true" name="O" group="T1" vars="prefix=1.0.0.7/32"></node>
+  <node internal="true" name="X" group="T2" vars="prefix=1.0.0.8/32"></node>
+  <node internal="true" name="Y" group="T2" vars="prefix=1.0.0.9/32"></node>
   <!-- Concrete edges -->
   <edge source="A" target="L"></edge>
   <edge source="A" target="M"></edge>
@@ -32,8 +32,8 @@
   <abstractnode internal="true" label="T1"></abstractnode>
   <abstractnode internal="true" label="T2"></abstractnode>
   <!-- Abstract Edges -->
-  <abstractedge source="T0" target="T1" source-label="E1" target-label="E2"></abstractedge>
-  <abstractedge source="T1" target="T2" source-label="E3" target-label="E4"></abstractedge>
+  <abstractedge source="T0" target="T1" labels="(E1,E2)"></abstractedge>
+  <abstractedge source="T1" target="T2" labels="(E3,E4)"></abstractedge>
   <!-- Abstract topology constraints -->
   <constraint assertion="(>= T0 4)"></constraint>
   <constraint assertion="(>= T1 4)"></constraint>

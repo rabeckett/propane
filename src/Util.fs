@@ -123,6 +123,13 @@ module Set =
          let s = joinBy "," (Set.map string ss)
          sprintf "{%s}" s
 
+module MutableList = 
+   let inline map f ls = 
+      let acc = List()
+      for l in ls do 
+         acc.Add( f(l) )
+      acc
+
 module Dictionary = 
    let inline fold f b (d : Dictionary<_, _>) = 
       let mutable acc = b

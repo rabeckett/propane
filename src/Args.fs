@@ -21,7 +21,8 @@ type T =
      Failures : Option<int>
      Stats : bool
      CheckOnly : bool
-     IsAbstract : bool }
+     IsAbstract : bool
+     IsTemplate : bool }
 
 let currentDir = System.Environment.CurrentDirectory
 let sep = string Path.DirectorySeparatorChar
@@ -110,7 +111,8 @@ let parse (argv : string []) : unit =
         Bench = vs.["--bench"].IsTrue
         Debug = vs.["--debug"].IsTrue
         DebugDir = !debugDir
-        IsAbstract = false } // this gets set from the topology
+        IsAbstract = false 
+        IsTemplate = false } // these get set from the topology
    settings := Some s
 
 let getSettings() = 

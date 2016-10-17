@@ -99,7 +99,7 @@ let paramInfo =
 
 let builtInLocs = Set.ofList [ "in"; "out" ]
 let builtInSingle = Set.add "drop" builtInLocs
-let builtInRes = 
+let builtInRes =
    Set.ofList 
       [ "start"; "end"; "enter"; "exit"; "valleyfree"; "path"; "reach"; "always"; "through"; "avoid"; 
         "internal"; "any"; "drop"; "in"; "out" ]

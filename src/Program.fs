@@ -76,5 +76,5 @@ let main argv =
             else error msg
       | _ -> ()
       if settings.Stats then printStats res.Stats
-      if not settings.CheckOnly then Generate.generate res
+      if not settings.CheckOnly then Generate.generate res topoInfo
    0

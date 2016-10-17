@@ -1,6 +1,6 @@
 <topology asn="">
   <node internal="true" name=""></node>
-  <node internal="true" name="" asn="" device="" group=""></node>
+  <node internal="true" name="" asn="" device="" group="" vars="prefix=1.2.3.4/24, pfx=5.5.5.5/32"></node>
   
   <edge source="" target="" source-ip="" target-ip=""></edge>
   <edge source="" target="" source-ip="" target-ip=""></edge>

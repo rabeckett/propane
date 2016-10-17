@@ -153,21 +153,20 @@ type GraphInfo =
      IpMap : Dictionary<string * string, string * string> }
 
 type CustomLabel = 
-   | SomeLabel of string 
-   | AllLabel of string 
+   | SomeLabel of string
+   | AllLabel of string
    | NameLabel of string
 
 type EdgeInfo = 
    { Label : string
      OtherLabel : string option
-     Source : string 
-     Target : string 
+     Source : string
+     Target : string
      Scope : string
-     Front : CustomLabel list 
+     Front : CustomLabel list
      Back : CustomLabel list }
 
-type EdgeLabelInfo = 
-   Map<string*string, EdgeInfo list>
+type EdgeLabelInfo = Map<string * string, EdgeInfo list>
 
 type TopoInfo = 
    class
@@ -182,13 +181,13 @@ type TopoInfo =
       val Concretization : Map<string, Set<string>>
       val Abstraction : Map<string, string>
       val Constraints : List<string>
-      val EqConstraints : Set<string>
-
-      new(nasn, k, cg, ag, els, nls, pls, escopes, con, abs, cs, ecs) = 
+      val TemplateVars : Map<string * string, int * int * int * int * int>
+      
+      new(nasn, k, cg, ag, els, nls, pls, escopes, con, abs, cs, tvs) = 
          { NetworkAsn = nasn
            Kind = k
            ConcreteGraphInfo = cg
-           AbstractGraphInfo = ag 
+           AbstractGraphInfo = ag
            EdgeLabels = els
            NodeLabels = nls
            PodLabels = pls
@@ -196,7 +195,7 @@ type TopoInfo =
            Concretization = con
            Abstraction = abs
            Constraints = cs
-           EqConstraints = ecs }
+           TemplateVars = tvs }
       
       member this.SelectGraphInfo = 
          match this.Kind with
@@ -339,87 +338,84 @@ let parseLabel (v : string) =
    match sscanf "all(%s)" v with
    | Some x -> AllLabel x
    | None -> 
-      match sscanf "some(%s)" v with 
-      | Some x -> SomeLabel x 
+      match sscanf "some(%s)" v with
+      | Some x -> SomeLabel x
       | None -> NameLabel v
 
 let parseCustomLabels (ls : string []) = 
-   let split vs =
+   let split vs = 
       let mutable seen = None
-      let mutable front = [] 
+      let mutable front = []
       let mutable back = []
-      for v in vs do 
-         match v, seen with 
-         | NameLabel _, Some y -> 
-            error (sprintf "Invalid custom label. Multiple labels")
+      for v in vs do
+         match v, seen with
+         | NameLabel _, Some y -> error (sprintf "Invalid custom label. Multiple labels")
          | NameLabel x, None -> seen <- Some x
-         | AllLabel x, None
-         | SomeLabel x, None -> front <- v :: front
-         | AllLabel x, Some _ 
-         | SomeLabel x, Some _ -> back <- v :: back
-      match front, back with 
+         | AllLabel x, None | SomeLabel x, None -> front <- v :: front
+         | AllLabel x, Some _ | SomeLabel x, Some _ -> back <- v :: back
+      match front, back with
       | [], _ | _, [] -> error (sprintf "Invalid custom label expression")
       | _, _ -> ()
-      match seen with 
+      match seen with
       | None -> error (sprintf "No label specified in custom label")
       | Some y -> (y, None, front, back)
+   
    let mutable acc = []
-   for l in ls do 
+   for l in ls do
       let vs = l.Split(',') |> Array.map parseLabel
       acc <- (split vs) :: acc
    acc
 
 let labelName x = 
-   match x with 
-   | AllLabel l 
-   | SomeLabel l
-   | NameLabel l -> l
+   match x with
+   | AllLabel l | SomeLabel l | NameLabel l -> l
 
 let checkValidNesting ls scopes = 
    //printfn "ls: %A" ls 
    //printfn "scopes: %A" scopes
    let mutable idx = -1
-   for label in ls do 
+   for label in ls do
       match label with
       | AllLabel x | SomeLabel x -> 
          //printfn "  found label: %A" x
          let i = List.findIndex ((=) x) scopes
          //printfn "  got index : %d" i
-         if i <= idx then 
-            error (sprintf "Invalid scope ordering in custom label for %s." x)
+         if i <= idx then error (sprintf "Invalid scope ordering in custom label for %s." x)
          idx <- i
       | _ -> failwith "unreachable"
 
 let rec mostRecentAncestor vs us = 
-   match vs with 
+   match vs with
    | [] -> failwith "unreachable"
-   | hd::tl ->
-      if List.contains hd us then hd 
+   | hd :: tl -> 
+      if List.contains hd us then hd
       else mostRecentAncestor tl us
 
 let rec takeAfter (vs : string list) (s : string) = 
-   match vs with 
-   | [] -> []  
-   | hd::tl -> 
+   match vs with
+   | [] -> []
+   | hd :: tl -> 
       if s = hd then tl
       else takeAfter tl s
 
-let lastRelevant (labels : CustomLabel list) =
+let lastRelevant (labels : CustomLabel list) = 
    let rec aux last ls = 
-      match ls with 
+      match ls with
       | [] -> last
-      | hd::tl -> 
-         match hd with 
+      | hd :: tl -> 
+         match hd with
          | SomeLabel x -> aux (Some x) tl
          | _ -> aux last tl
    aux None labels
 
 let getLeastScope (front, back) (es, et) (scopesA, scopesB) = 
    let startB = List.head (List.rev back) |> labelName
+   
    let startA = 
-      match lastRelevant front with 
+      match lastRelevant front with
       | None -> List.head front |> labelName
       | Some x -> x
+   
    let vs = takeAfter scopesA startA
    let us = takeAfter scopesB startB
    let ret = mostRecentAncestor vs us
@@ -436,21 +432,21 @@ let getLeastScope (front, back) (es, et) (scopesA, scopesB) =
    printfn "  ret: %A" ret *)
    mostRecentAncestor vs us
 
-let checkWellFormedLabels (front,back) (es,et) escopes =
-   let scopesA = es :: (Map.find es escopes) 
+let checkWellFormedLabels (front, back) (es, et) escopes = 
+   let scopesA = es :: (Map.find es escopes)
    let scopesB = et :: (Map.find et escopes)
    let fstA = labelName (List.head front)
    let fstB = labelName (List.head back)
    if fstA = es && fstB = et then 
       checkValidNesting front scopesA
       checkValidNesting back scopesB
-      let scope = getLeastScope (front,back) (es,et) (scopesA, scopesB)
-      (true, fstA=fstB, scope) 
+      let scope = getLeastScope (front, back) (es, et) (scopesA, scopesB)
+      (true, fstA = fstB, scope)
    else if fstA = et && fstB = es then 
       checkValidNesting front scopesB
       checkValidNesting back scopesA
-      let scope = getLeastScope (front,back) (et,es) (scopesB, scopesA)
-      (false, fstA=fstB, scope) 
+      let scope = getLeastScope (front, back) (et, es) (scopesB, scopesA)
+      (false, fstA = fstB, scope)
    else error (sprintf "Invalid end points: (%s,%s)" fstA fstB)
 
 let readTopology (file : string) : TopoInfo * Args.T = 
@@ -484,14 +480,12 @@ let readTopology (file : string) : TopoInfo * Args.T =
       let abstractNames = ref [ "global" ] // reserve name for outer-most scope
       let concretization = ref Map.empty
       let abstraction = ref Map.empty
+      let templateVarMap = ref Map.empty
       let currASN = ref MAXASN
       // collect constraints
       let constraints = List()
-      let eqConstraints = ref Set.empty
       for c in topo.Constraints do
-         match Util.String.sscanf "equal(%s)" c.Assertion with 
-         | None -> constraints.Add c.Assertion
-         | Some e -> eqConstraints := Set.add e !eqConstraints
+         constraints.Add c.Assertion
       // Build the concretization map and determine if we are using an abstract topology
       let isPureAbstract = (topo.Nodes.Length = 0)
       let mutable isAbstract = isPureAbstract
@@ -505,8 +499,19 @@ let readTopology (file : string) : TopoInfo * Args.T =
             | None -> 
                error (sprintf "Concrete node: %s refers to non-existant group %s" n.Name n.Group)
             | Some s -> 
-               let s' = Set.add n.Group s
+               let s' = Set.add n.Name s
                concretization := Map.add n.Group s' !concretization
+            match n.Vars with
+            | None -> ()
+            | Some s -> 
+               let all = s.Split(',') |> Array.map (fun s -> s.Trim())
+               for var in all do
+                  match sscanf "%s=%u.%u.%u.%u/%u" var with
+                  | None -> ()
+                  | Some(v, a, b, c, d, s) -> 
+                     if a > 255 || b > 255 || c > 255 || d > 255 || s > 32 then 
+                        error (sprintf "Invalid prefix: %s=%u.%u.%u.%u/%u" v a b c d s)
+                     templateVarMap := Map.add (n.Name, v) (a, b, c, d, s) !templateVarMap
       // Add the pods to the graph
       for p in topo.Abstractpods do
          if p.Label = "" then error (sprintf "Invalid abstract pod label - found empty string")
@@ -529,7 +534,7 @@ let readTopology (file : string) : TopoInfo * Args.T =
          let args = 
             (concreteAsnMap, concreteRevAsnMap, concreteNameMap, concreteNodeMap, 
              concreteInternalNames, concreteExternalNames, concreteG)
-         addForGraph args isAbstract n.Internal n.Name n.Asn
+         addForGraph args false n.Internal n.Name n.Asn
       // Addo nodes to the abstract graph
       if isAbstract then 
          for n in topo.Abstractnodes do
@@ -539,7 +544,7 @@ let readTopology (file : string) : TopoInfo * Args.T =
             let args = 
                (abstractAsnMap, abstractRevAsnMap, abstractNameMap, abstractNodeMap, 
                 abstractInternalNames, abstractExternalNames, abstractG)
-            addForGraph args isAbstract n.Internal n.Label ""
+            addForGraph args true n.Internal n.Label ""
       // Compute enclosing scopes and check for well-formedness
       let escopes = 
          getEnclosingScopes (Set.union !abstractInternalNames !abstractExternalNames) !abstractPods
@@ -559,57 +564,53 @@ let readTopology (file : string) : TopoInfo * Args.T =
             concreteIpMap.[(x.Loc, y.Loc)] <- (s, t)
             concreteIpMap.[(y.Loc, x.Loc)] <- (t, s)
       // Add abstract edges if applicable
-      if isAbstract then
+      if isAbstract then 
          for e in topo.Abstractedges do
             if not ((!abstractNodeMap).ContainsKey e.Source) then 
                error (sprintf "Invalid abstract edge source location %s in topology" e.Source)
             elif not ((!abstractNodeMap).ContainsKey e.Target) then 
                error (sprintf "Invalid abstract edge target location %s in topology" e.Target)
             else 
-               let (es,et) = e.Source, e.Target
+               let (es, et) = e.Source, e.Target
                let mutable cls = parseCustomLabels e.CustomLabels
-               match sscanf "(%s,%s)" e.Labels with 
+               match sscanf "(%s,%s)" e.Labels with
                | None -> ()
-               | Some (sl,tl) -> 
-                  if es = et && sl <> tl then
+               | Some(sl, tl) -> 
+                  if es = et && sl <> tl then 
                      error (sprintf "Self loop for %s must contain identical edge labels" e.Source)
-                  cls <- (sl, Some tl, [AllLabel es], [SomeLabel et]) :: cls
-                  if es <> et then
-                     cls <- (tl, Some sl, [AllLabel et], [SomeLabel es]) :: cls
-
+                  cls <- (sl, Some tl, [ AllLabel es ], [ SomeLabel et ]) :: cls
+                  if es <> et then cls <- (tl, Some sl, [ AllLabel et ], [ SomeLabel es ]) :: cls
                let mutable edgeInfo = []
                for info in cls do
                   let (label, otherLabel, front, back) = info
-                  let isSource, eqLabels, scope = checkWellFormedLabels (front,back) (es,et) escopes
+                  let isSource, eqLabels, scope = 
+                     checkWellFormedLabels (front, back) (es, et) escopes
+                  
                   let v = 
                      { Label = label
-                       OtherLabel = if eqLabels then Some label else otherLabel 
-                       Source = if isSource then es else et 
-                       Target = if isSource then et else es
-                       Scope = scope 
-                       Front = front 
-                       Back = back}
+                       OtherLabel = 
+                          if eqLabels then Some label
+                          else otherLabel
+                       Source = 
+                          if isSource then es
+                          else et
+                       Target = 
+                          if isSource then et
+                          else es
+                       Scope = scope
+                       Front = front
+                       Back = back }
                   edgeInfo <- v :: edgeInfo
                   abstractNames := label :: !abstractNames
                   let x = (!abstractNodeMap).[es]
                   let y = (!abstractNodeMap).[et]
                   addEdge abstractG abstractSeen x y
                   addEdge abstractG abstractSeen y x
-
-               abstractEdgeLabelInfo := Map.add (es,et) edgeInfo !abstractEdgeLabelInfo
-               abstractEdgeLabelInfo := Map.add (et,es) edgeInfo !abstractEdgeLabelInfo
-
+               abstractEdgeLabelInfo := Map.add (es, et) edgeInfo !abstractEdgeLabelInfo
+               abstractEdgeLabelInfo := Map.add (et, es) edgeInfo !abstractEdgeLabelInfo
       // Check for duplicate names
       checkForDuplicateNames !abstractNames "label"
       checkForDuplicateNames !concreteNames "name"
-      // Check eq constraints reference real labels
-      let mutable acc = Set.empty
-      for kv in !abstractEdgeLabelInfo do 
-         for e in kv.Value do 
-            acc <- Set.add e.Label acc
-      let bad = Set.difference !eqConstraints acc
-      if not (Set.isEmpty bad) then 
-         error (sprintf "Invalid label referenced: %s" (Set.minElement bad))
       // Get the kind of compilation to perform
       let kind = 
          if isPureAbstract then Template
@@ -623,7 +624,8 @@ let readTopology (file : string) : TopoInfo * Args.T =
             + sprintf "if the concrete topology is a true instantiation of the abstract topology."
          warning msg
       // Update the settings so we know if we are compiling an abstract topology
-      Args.changeSettings { settings with IsAbstract = isAbstract }
+      Args.changeSettings { settings with IsAbstract = isAbstract
+                                          IsTemplate = isPureAbstract }
       let concreteGI = 
          { Graph = Topology(concreteG)
            Pods = !concretePods
@@ -658,8 +660,8 @@ let readTopology (file : string) : TopoInfo * Args.T =
       let ti = 
          TopoInfo
             (netAsn, kind, concreteGI, abstractGI, !abstractEdgeLabelInfo, !abstractNodeLabels, 
-             !abstractPodLabels, escopes, !concretization, !abstraction, 
-             constraints, !eqConstraints)
+             !abstractPodLabels, escopes, !concretization, !abstraction, constraints, 
+             !templateVarMap)
       (ti, Args.getSettings())
    with _ -> error (sprintf "Invalid topology XML file")
 

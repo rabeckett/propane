@@ -4,6 +4,7 @@ open Config
 open Core.Printf
 open System.Collections.Generic
 open Util
+open Util.Format
 
 let stringOfKind (k : Kind) = 
    if k = Kind.Permit then "permit"
@@ -27,7 +28,7 @@ let getRouterAsn (rc : RouterConfiguration) =
 
 let getPeerIp (rc : RouterConfiguration) (pc : PeerConfig) = 
    let s = Args.getSettings()
-   if s.IsAbstract then sprintf "%s.%s.$peerIP$" rc.Name pc.Peer
+   if s.IsTemplate then sprintf "%s.%s.$peerIP$" rc.Name pc.Peer
    else pc.PeerIp
 
 let getPeerAsn rInternal (rc : RouterConfiguration) (pc : PeerConfig) = 
@@ -36,7 +37,7 @@ let getPeerAsn rInternal (rc : RouterConfiguration) (pc : PeerConfig) =
 
 let getSourceIp (rc : RouterConfiguration) (pc : PeerConfig) = 
    let s = Args.getSettings()
-   if s.IsAbstract then sprintf "%s.%s.$sourceIP$" rc.Name pc.Peer
+   if s.IsTemplate then sprintf "%s.%s.$sourceIP$" rc.Name pc.Peer
    else pc.SourceIp
 
 let quaggaInterfaces (rc : RouterConfiguration) : string = 
@@ -160,6 +161,7 @@ let core (rInternal : Set<string>) (nc : NetworkConfiguration) : string =
       let rc = kv.Value
       if rc.Networks.Count > 0 then 
          let n = rc.Networks.[0]
+         
          let (hSub, rSub) = 
             match n with
             | Route.ConcretePfx(a, b, c, d, slash) -> 
@@ -323,35 +325,109 @@ let addFakeExternalConfigs (nc : NetworkConfiguration) =
                 List(), pcs)
          nc.RouterConfigurations.[exPeer] <- rc) peerMap
 
-let createInterestingTests abgp = 
-   ["hello"]
+let createInterestingTests abgp = [ "hello" ]
 
-let generate (res : Abgp.CompilationResult) = 
+let makeTemplatePfxConcrete (ti : Topology.TopoInfo) router pfx = 
+   match pfx with
+   | Route.TemplatePfx p -> 
+      match Util.String.sscanf "%s$%s$" p with
+      | None -> failwith "unreachable"
+      | Some(_, v) -> 
+         match Map.tryFind (router, v) ti.TemplateVars with
+         | None -> None
+         | Some(a, b, c, d, s) -> Some(Route.ConcretePfx(a, b, c, d, s))
+   | Route.ConcretePfx _ -> Some(pfx)
+
+let substRouterConfig (rc : Config.RouterConfiguration) (ti : Topology.TopoInfo) edges 
+    (name : string) (rasn : string) = 
+   let conc = ti.Concretization
+   let asnMap = ti.ConcreteGraphInfo.AsnMap
+   let ipMap = ti.ConcreteGraphInfo.IpMap
+   let rc = RouterConfiguration(rc)
+   rc.Name <- name
+   rc.RouterAsn <- rasn
+   let nets = List()
+   for n in rc.Networks do
+      match makeTemplatePfxConcrete ti name n with
+      | None -> ()
+      | Some pfx -> nets.Add(pfx)
+   rc.Networks <- nets
+   //if not seen && rc.Networks.Count > 0 then 
+   //   warning (sprintf "No substitution found for template variable: %s" "")
+   let newPCs = List()
+   for pc in rc.PeerConfigurations do
+      for peer in conc.[pc.Peer] do
+         let asn = string asnMap.[peer]
+         if Set.contains (rasn, asn) edges then 
+            let (srcIp, peerIp) = ipMap.[(asn, rasn)]
+            let x = PeerConfig(peer, asn, srcIp, peerIp, pc.InFilter, pc.OutFilter)
+            newPCs.Add(x)
+   rc.PeerConfigurations <- newPCs
+   let newPLs = List()
+   for pl in rc.PrefixLists do
+      match Util.String.sscanf "%s.$%s$" pl.Prefix with
+      | None -> 
+         let x = PrefixList(pl.Kind, pl.Name, pl.Prefix)
+         newPLs.Add(x)
+      | Some(r, var) -> 
+         match Map.tryFind r ti.Concretization with
+         | None -> error (sprintf "Invalid abstract location: %s" r)
+         | Some cRouters -> 
+            for router in cRouters do
+               match Map.tryFind (router, var) ti.TemplateVars with
+               | None -> ()
+               | Some(a, b, c, d, s) -> 
+                  let str = sprintf "%d.%d.%d.%d/%d" a b c d s
+                  let x = PrefixList(pl.Kind, pl.Name, str)
+                  newPLs.Add(x)
+   rc.PrefixLists <- newPLs
+   rc
+
+let substituteTemplates (nc : NetworkConfiguration) (ti : Topology.TopoInfo) = 
+   let edges = 
+      ti.ConcreteGraphInfo.Graph
+      |> Topology.edges
+      |> Seq.map (fun (x, y) -> x.Loc, y.Loc)
+      |> Set.ofSeq
+   
+   let acc = Dictionary()
+   for kv in nc.RouterConfigurations do
+      for cName in ti.Concretization.[kv.Key] do
+         let rasn = ti.ConcreteGraphInfo.AsnMap.[cName]
+         acc.[cName] <- substRouterConfig kv.Value ti edges cName (string rasn)
+   NetworkConfiguration(acc, nc.NetworkAsn)
+
+let generate (res : Abgp.CompilationResult) (ti : Topology.TopoInfo) = 
    let settings = Args.getSettings()
    let out = settings.OutDir
    // Generate intermediate representation
    File.writeFileWithExtension (out + File.sep + "configs") "ir" (Abgp.format res.Abgp)
    // Get the low-level configurations
-   if true then 
-      let nc : NetworkConfiguration = Abgp.toConfig res.Abgp
-      let configDir = out + File.sep + "configs"
-      File.createDir configDir
-      let rInternal = internalRouters nc
-      // Create each router configuration, specialized by type (just quagga now)
-      for kv in nc.RouterConfigurations do
-         let name = kv.Key
-         let rc = kv.Value
-         let output = quagga rInternal rc
-         output |> File.writeFileWithExtension (configDir + File.sep + name) "cfg"
-      // Write CORE emulator save file
-      if not settings.IsAbstract then
-         addFakeExternalConfigs nc
-         core rInternal nc |> File.writeFileWithExtension (out + File.sep + "core") "imn"
-      // C-BGP testing code
-      if settings.Cbgp then 
-          let cbgpDir = out + File.sep + "cbgp"
-          File.createDir cbgpDir
-          let tests = createInterestingTests res.Abgp
-          for test in tests do 
-             let name = "foo"
-             string test |> File.writeFileWithExtension (cbgpDir + File.sep + name) "cbgp"
+   let needsSubstitution = settings.IsAbstract && not settings.IsTemplate
+   let nc = Abgp.toConfig res.Abgp
+   
+   let nc = 
+      if needsSubstitution then substituteTemplates nc ti
+      else nc
+   
+   let configDir = out + File.sep + "configs"
+   File.createDir configDir
+   let rInternal = internalRouters nc
+   // Create each router configuration, specialized by type (just quagga now)
+   for kv in nc.RouterConfigurations do
+      let name = kv.Key
+      let rc = kv.Value
+      let output = quagga rInternal rc
+      output |> File.writeFileWithExtension (configDir + File.sep + name) "cfg"
+   // Write CORE emulator save file
+   if not settings.IsAbstract then 
+      addFakeExternalConfigs nc
+      core rInternal nc |> File.writeFileWithExtension (out + File.sep + "core") "imn"
+   // C-BGP testing code
+   if settings.Cbgp then 
+      let cbgpDir = out + File.sep + "cbgp"
+      File.createDir cbgpDir
+      let tests = createInterestingTests res.Abgp
+      for test in tests do
+         let name = "foo"
+         string test |> File.writeFileWithExtension (cbgpDir + File.sep + name) "cbgp"
