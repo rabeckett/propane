@@ -58,7 +58,7 @@ type Re =
       match this with
       | Empty -> "{}"
       | Epsilon -> "\"\""
-      | Locs S -> "[" + (Util.Set.joinBy "," S) + "]"
+      | Locs S -> Util.Set.toString S
       | Out S -> sprintf "out-%s" (Util.Set.toString S)
       | Concat rs -> 
          List.map (fun r -> r.ToString()) rs
@@ -375,7 +375,9 @@ let rec negative (r : T) =
                      s ]
       ret
    | Negate r -> unreachable()
-   | Out S -> locs S
+   | Out S -> 
+      if Set.isEmpty S then empty
+      else locs S
 
 let split r = (negative r, positive r)
 

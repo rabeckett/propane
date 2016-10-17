@@ -383,7 +383,6 @@ module PrefixWide =
       
       let aux router actions = 
          let nodes = Topology.vertices cg.Topo |> Seq.filter (fun x -> x.Loc = router)
-         
          let peers = Seq.collect (Topology.neighbors cg.Topo) nodes
          
          let peersIn = 
@@ -1731,19 +1730,21 @@ let toConfig (abgp : T) =
       // add import filter for all peers
       for peer in allPeers do
          let export = Map.tryFind peer peerExportMap
+         
          let routerIp, peerIp = 
             if settings.IsAbstract || settings.IsTemplate then ("$routerIp$", "peerIp")
             else ti.SelectGraphInfo.IpMap.[(rname, peer)]
+         
          let peerName = Topology.router peer ti
          let peerAsn = string ti.SelectGraphInfo.AsnMap.[peerName]
          peerMap.[peerName] <- PeerConfig(peerName, peerAsn, routerIp, peerIp, Some "rm-in", export)
       // create the complete configuration for this router
       let name = Topology.router rname ti
-
+      
       let asn = 
          if settings.IsAbstract then name
          else rname
-    
+      
       // get aggregates
       let aggs = List()
       let aggregates = 
@@ -1756,7 +1757,6 @@ let toConfig (abgp : T) =
          RouterConfiguration
             (name, string ti.NetworkAsn, asn, rid, originPfxs, aggs, pfxLists, asLists, cLists, 
              polLists, rMaps, List(peerMap.Values))
-      
       networkConfig.[name] <- routerConfig
    let config = Config.NetworkConfiguration(networkConfig, string ti.NetworkAsn)
    Config.clean config
