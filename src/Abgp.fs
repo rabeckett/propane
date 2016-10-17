@@ -1667,7 +1667,8 @@ let toConfig (abgp : T) =
          let tcs = Route.trafficClassifiers pred
          // split predicate if it is a disjunction of prefixes/communities
          for Route.TrafficClassifier(prefix, comms) in tcs do
-            assert (comms.IsEmpty) // TODO: handle this case
+            if not comms.IsEmpty then // TODO: handle this case
+               error (sprintf "Support for comm matching temporarily disabled")
             match acts with
             | Originate es -> 
                let mostGeneral = prefix.Example()

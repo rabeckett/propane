@@ -959,10 +959,8 @@ module Examples =
    type Prefixes = Dictionary<Node, Prefix>
    
    let getPrefix i = 
-      let a = (i / (256 * 256))
-      let b = (i / 256)
-      let c = (i % 256)
-      Prefix(a, b, c, 0, 24)
+      let (a, b, c, d) = Route.Bitwise.toDotted i
+      Prefix(a, b, c, d, 32)
    
    let fatTree k : T * Prefixes * Tiers = 
       let iT0 = (k * k) / 2

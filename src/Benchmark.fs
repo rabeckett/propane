@@ -54,8 +54,24 @@ let displayStats k v e (stats : Abgp.Stats) =
       stats.NumPrefixes (toSec stats.JoinTime) (toSec stats.PrefixTime) avg med max avgBuild 
       medBuild maxBuild avgMin medMin maxMin avgOrd medOrd maxOrd avgGen medGen maxGen stats.MinTime
 
-let writeDcPol file 
-    ((topo, pfxMap, tierMap) : _ * Topology.Examples.Prefixes * Topology.Examples.Tiers) = 
+let fattreeAbstract = """
+  <!-- Abstract Nodes -->
+  <abstractnode internal="true" label="T0"></abstractnode>
+  <abstractnode internal="true" label="T1"></abstractnode>
+  <abstractnode internal="true" label="T2"></abstractnode>
+  <!-- Abstract Edges -->
+  <abstractedge source="T0" target="T1" labels="(E1,E2)"></abstractedge>
+  <abstractedge source="T1" target="T2" labels="(E3,E4)"></abstractedge>
+  <constraint assertion="(>= T0 4)"></constraint>
+  <constraint assertion="(>= T1 4)"></constraint>
+  <constraint assertion="(>= T2 2)"></constraint>
+  <constraint assertion="(>= E1 T1)"></constraint>
+  <constraint assertion="(>= E2 T0)"></constraint>
+  <constraint assertion="(>= E3 T2)"></constraint>
+  <constraint assertion="(>= E4 T1)"></constraint>
+"""
+
+let writeDcPolConcrete ((topo, pfxMap, tierMap) : _ * Topology.Examples.Prefixes * Topology.Examples.Tiers) = 
    let mutable t0 = []
    let mutable t1 = []
    let mutable t2 = []
@@ -77,37 +93,85 @@ let writeDcPol file
       let prefix = kv.Value
       let loc = kv.Key.Loc
       bprintf sb "  %s => end(%s),\n" (string prefix) loc
-   bprintf sb "  true => exit(BACK2) >> exit(BACK1)\n"
+   bprintf sb "  true => drop\n"
    bprintf sb "}\n"
-   System.IO.File.WriteAllText(file, string sb)
+   string sb
 
-let writeDcTopo file (topo : Topology.T) = 
+let writeDcPolAbstract() = 
    let sb = StringBuilder()
-   let mutable asn = 0
+   bprintf sb "define main = {\n"
+   bprintf sb "  T0.$prefix$ => end(T0.$router$),\n"
+   bprintf sb "  true => drop\n"
+   bprintf sb "}"
+   string sb
+
+let writeDcTopoConcrete (topo : Topology.T) = 
+   let sb = StringBuilder()
+   let mutable asn = 1
    bprintf sb "<topology asn=\"100\">\n"
    for n in Topology.vertices topo do
       asn <- asn + 1
-      let intern = (string (Topology.isInside n)).ToLower()
-      bprintf sb "  <node internal=\"%s\" asn=\"%s\" name=\"%s\"></node>\n" intern (string asn) 
-         n.Loc
+      let b = Topology.isInside n
+      if b then 
+         let intern = (string b).ToLower()
+         bprintf sb "  <node internal=\"%s\" asn=\"%s\" name=\"%s\"></node>\n" intern (string asn) 
+            n.Loc
    for (x, y) in Topology.edges topo do
-      bprintf sb "  <edge source=\"%s\" target=\"%s\"></edge>\n" x.Loc y.Loc
+      if Topology.isInside x && Topology.isInside y then 
+         bprintf sb "  <edge source=\"%s\" target=\"%s\"></edge>\n" x.Loc y.Loc
    bprintf sb "</topology>\n"
-   System.IO.File.WriteAllText(file, string sb)
+   string sb
+
+let writeDcTopoAbstract ((topo, pfxMap, tierMap) : Topology.T * Topology.Examples.Prefixes * Topology.Examples.Tiers) = 
+   let sb = StringBuilder()
+   let mutable asn = 1
+   bprintf sb "<topology asn=\"100\">\n"
+   for n in Topology.vertices topo do
+      asn <- asn + 1
+      let b = Topology.isInside n
+      if b then 
+         let intern = (string b).ToLower()
+         
+         let group = 
+            if tierMap.ContainsKey n then sprintf " group=\"%s\"" ("T" + string tierMap.[n])
+            else ""
+         
+         let vars = 
+            if pfxMap.ContainsKey n then sprintf " vars=\"prefix=%s\"" (string pfxMap.[n])
+            else ""
+         
+         bprintf sb "  <node internal=\"%s\" asn=\"%s\" name=\"%s\"%s%s></node>\n" intern 
+            (string asn) n.Loc group vars
+   for (x, y) in Topology.edges topo do
+      if Topology.isInside x && Topology.isInside y then 
+         bprintf sb "  <edge source=\"%s\" target=\"%s\"></edge>\n" x.Loc y.Loc
+   bprintf sb "%s" fattreeAbstract
+   bprintf sb "</topology>\n"
+   string sb
 
 let singleDatacenter outDir k = 
    let (topo, pfxMap, tierMap) = Topology.Examples.fatTree k
    let sep = System.IO.Path.DirectorySeparatorChar
-   let filePol = sprintf "%s%cfat%d.pro" outDir sep k
-   let fileTopo = sprintf "%s%cfat%d.xml" outDir sep k
-   writeDcPol filePol (topo, pfxMap, tierMap)
-   writeDcTopo fileTopo topo
+   // concrete topology
+   let cFilePol = sprintf "%s%cfat%d.pro" outDir sep k
+   let cPol = writeDcPolConcrete (topo, pfxMap, tierMap)
+   let cFileTopo = sprintf "%s%cfat%d.xml" outDir sep k
+   let cTopo = writeDcTopoConcrete topo
+   System.IO.File.WriteAllText(cFilePol, cPol)
+   System.IO.File.WriteAllText(cFileTopo, cTopo)
+   // abstract topology
+   let aFilePol = sprintf "%s%cfat%d_abs.pro" outDir sep k
+   let aPol = writeDcPolAbstract()
+   let aFileTopo = sprintf "%s%cfat%d_abs.xml" outDir sep k
+   let aTopo = writeDcTopoAbstract (topo, pfxMap, tierMap)
+   System.IO.File.WriteAllText(aFilePol, aPol)
+   System.IO.File.WriteAllText(aFileTopo, aTopo)
 
 let generate() = 
    let dir = "benchmarks"
-   System.IO.Directory.CreateDirectory(dir).Create()
+   Util.File.createDir dir
    // displayHeader ()
-   for k in 4..2..20 do
+   for k in 4..2..32 do
       singleDatacenter dir k
 (*
 
