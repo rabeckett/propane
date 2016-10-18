@@ -99,7 +99,7 @@ let paramInfo =
 
 let builtInLocs = Set.ofList [ "in"; "out" ]
 let builtInSingle = Set.add "drop" builtInLocs
-let builtInRes =
+let builtInRes = 
    Set.ofList 
       [ "start"; "end"; "enter"; "exit"; "valleyfree"; "path"; "reach"; "always"; "through"; "avoid"; 
         "internal"; "any"; "drop"; "in"; "out" ]
@@ -445,7 +445,9 @@ let rec pushPrefsToTop ast (e : Expr) : Expr list =
          { Pos = e.Pos
            Node = LAndExpr(a, b) })
    | LOrExpr(x, y) -> 
-      merge ast e (x, y) (fun a b -> 
+      let xs = pushPrefsToTop ast x
+      let ys = pushPrefsToTop ast y
+      zipOp xs ys (fun a b -> 
          { Pos = e.Pos
            Node = LOrExpr(a, b) })
    | DiffExpr(x, y) -> 
@@ -466,6 +468,12 @@ let rec pushPrefsToTop ast (e : Expr) : Expr list =
       else [ e ]
    | Asn _ | TemplateVar _ -> [ e ]
    | _ -> Util.unreachable()
+
+and zipOp xs ys f = 
+   match xs, ys with
+   | _, [] -> xs
+   | [], _ -> ys
+   | x :: xtl, y :: ytl -> (f x y) :: zipOp xtl ytl f
 
 and merge ast e (x, y) f = 
    let xs = pushPrefsToTop ast x
@@ -748,7 +756,7 @@ let warnRawAsn (ast : T) =
       if not isRouter then iter (getAsns rawAsns) e) ast.Defs
    for (e, asn) in !rawAsns do
       let inline isRouter r n = 
-         n = asn 
+         n = string asn 
          && (ast.TopoInfo.SelectGraphInfo.InternalNames.Contains r 
              || ast.TopoInfo.SelectGraphInfo.ExternalNames.Contains r)
       match Map.tryFindKey isRouter ast.TopoInfo.SelectGraphInfo.AsnMap with
@@ -982,7 +990,7 @@ let addTopoDefinitions (ast : T) : T =
    let asnDefs = 
       Map.map (fun name asn -> 
          let pos = Message.dummyPos
-         let node = Asn asn
+         let node = Asn(int asn)
          pos, [], 
          { Pos = pos
            Node = node }) ast.TopoInfo.SelectGraphInfo.AsnMap

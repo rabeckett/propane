@@ -68,7 +68,8 @@ type GraphInfo =
      Pods : Map<string, Set<string>>
      InternalNames : Set<string>
      ExternalNames : Set<string>
-     AsnMap : Map<string, int>
+     AsnMap : Map<string, string>
+     AsnRevMap : Map<string, string>
      RouterMap : Map<string, string>
      IpMap : Dictionary<string * string, string * string> }
 

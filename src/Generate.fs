@@ -332,7 +332,7 @@ let makeTemplatePfxConcrete (ti : Topology.TopoInfo) router pfx =
          | Some(a, b, c, d, s) -> Some(Route.ConcretePfx(a, b, c, d, s))
    | Route.ConcretePfx _ -> Some(pfx)
 
-let substRouterConfig (rc : Config.RouterConfiguration) (ti : Topology.TopoInfo) edges 
+let substRouterConfig (rc : Config.RouterConfiguration) (ti : Topology.TopoInfo) peerMap 
     (name : string) (rasn : string) = 
    let conc = ti.Concretization
    let asnMap = ti.ConcreteGraphInfo.AsnMap
@@ -350,12 +350,17 @@ let substRouterConfig (rc : Config.RouterConfiguration) (ti : Topology.TopoInfo)
    //   warning (sprintf "No substitution found for template variable: %s" "")
    let newPCs = List()
    for pc in rc.PeerConfigurations do
-      for peer in conc.[pc.Peer] do
+      let peers = Map.find name peerMap
+      //printfn "peers: %A" (Set.minElement peers)
+      let peers = Set.intersect peers (Map.find pc.Peer conc)
+      //printfn "template peers: %A" (Set.minElement (Map.find pc.Peer conc))
+      //printfn "total after: %d" (Set.count peers)
+      for peer in peers do
          let asn = string asnMap.[peer]
-         if Set.contains (rasn, asn) edges then 
-            let (srcIp, peerIp) = ipMap.[(asn, rasn)]
-            let x = PeerConfig(peer, asn, srcIp, peerIp, pc.InFilter, pc.OutFilter)
-            newPCs.Add(x)
+         //if Set.contains (rasn, asn) edges then 
+         let (srcIp, peerIp) = ipMap.[(asn, rasn)]
+         let x = PeerConfig(peer, asn, srcIp, peerIp, pc.InFilter, pc.OutFilter)
+         newPCs.Add(x)
    rc.PeerConfigurations <- newPCs
    let newPLs = List()
    for pl in rc.PrefixLists do
@@ -378,18 +383,26 @@ let substRouterConfig (rc : Config.RouterConfiguration) (ti : Topology.TopoInfo)
    rc
 
 let substituteTemplates (nc : NetworkConfiguration) (ti : Topology.TopoInfo) = 
-   let edges = 
+   // build peer -> {peer} map
+   let mutable peerMap = Map.empty
+   let revMap = ti.ConcreteGraphInfo.AsnRevMap
+   
+   let peerMap = 
       ti.ConcreteGraphInfo.Graph
       |> Topology.edges
-      |> Seq.map (fun (x, y) -> x.Loc, y.Loc)
-      |> Set.ofSeq
+      |> Seq.map (fun (x, y) -> revMap.[x.Loc], revMap.[y.Loc])
+      |> Seq.fold (fun acc (x, y) -> Util.Map.adjust x Set.empty (Set.add y) acc) Map.empty
    
    let acc = Dictionary()
    for kv in nc.RouterConfigurations do
       for cName in ti.Concretization.[kv.Key] do
          let rasn = ti.ConcreteGraphInfo.AsnMap.[cName]
-         acc.[cName] <- substRouterConfig kv.Value ti edges cName (string rasn)
+         acc.[cName] <- substRouterConfig kv.Value ti peerMap cName (string rasn)
    NetworkConfiguration(acc, nc.NetworkAsn)
+
+type Stats = 
+   { SubstitutionTime : int64
+     QuaggaTime : int64 }
 
 let generate (res : Abgp.CompilationResult) (ti : Topology.TopoInfo) = 
    let settings = Args.getSettings()

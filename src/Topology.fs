@@ -148,7 +148,8 @@ type GraphInfo =
      Pods : Map<string, Set<string>>
      InternalNames : Set<string>
      ExternalNames : Set<string>
-     AsnMap : Map<string, int>
+     AsnMap : Map<string, string>
+     AsnRevMap : Map<string, string>
      RouterMap : Map<string, string>
      IpMap : Dictionary<string * string, string * string> }
 
@@ -264,7 +265,7 @@ let addEdge (g : BidirectionalGraph<Node, Edge<Node>>) (seen : HashSet<_>) x y =
 
 let addForGraph (asnMap, revAsnMap, nameMap, nodeMap, internalNames, externalNames, 
                  g : BidirectionalGraph<Node, Edge<Node>>) isAbstract intern name asn = 
-   let asn = getAsn isAbstract intern name asn
+   let asn = getAsn isAbstract intern name asn |> string
    match Map.tryFind name !asnMap with
    | None -> 
       asnMap := Map.add name asn !asnMap
@@ -632,6 +633,7 @@ let readTopology (file : string) : TopoInfo * Args.T =
            InternalNames = !concreteInternalNames
            ExternalNames = !concreteExternalNames
            AsnMap = !concreteAsnMap
+           AsnRevMap = !concreteRevAsnMap
            RouterMap = !concreteRevAsnMap
            IpMap = concreteIpMap }
       
@@ -641,6 +643,7 @@ let readTopology (file : string) : TopoInfo * Args.T =
            InternalNames = !abstractInternalNames
            ExternalNames = !abstractExternalNames
            AsnMap = !abstractAsnMap
+           AsnRevMap = !abstractRevAsnMap
            RouterMap = !abstractRevAsnMap
            IpMap = abstractIpMap }
       

@@ -1568,6 +1568,10 @@ let commGroupsByRelevantPeers m =
       | None -> Map.add v (Set.singleton k) acc
       | Some ps -> Map.add v (Set.add k ps) acc) Map.empty m
 
+let getCommunity c = 
+   if c = "no-export" then c
+   else "200:" + c
+
 let createExportRouteMap pfxInfo (origins : List<Route.TempPrefix * Export list>) peerExportMap id 
     (cMap, cLists, clID) (polLists, polID) rMaps allLocal cs ps = 
    incr id
@@ -1586,7 +1590,7 @@ let createExportRouteMap pfxInfo (origins : List<Route.TempPrefix * Export list>
       for (peer, ms) in es do
          for m in ms do
             match m with
-            | SetComm(c) -> scs.Add(SetCommunity("200:" + c))
+            | SetComm(c) -> scs.Add(SetCommunity(getCommunity c))
             | SetMed i -> smed <- SetMED(i)
             | PrependPath i -> spre <- SetPathPrepend(i)
       createRouteMap (rmname, priority, rMaps, List(), pol.Name, null, smed, spre, scs, List()) 
@@ -1615,7 +1619,7 @@ let createExportRouteMap pfxInfo (origins : List<Route.TempPrefix * Export list>
       let mutable spre = null
       for m in ms do
          match m with
-         | SetComm(c) -> scs.Add(SetCommunity("200:" + c))
+         | SetComm(c) -> scs.Add(SetCommunity(getCommunity c))
          | SetMed i -> smed <- SetMED(i)
          | PrependPath i -> spre <- SetPathPrepend(i)
       createRouteMap (rmname, priority, rMaps, List(), pol.Name, null, smed, spre, scs, dcs) 
@@ -1730,7 +1734,7 @@ let toConfig (abgp : T) =
                      | Match.State(c, x) -> 
                         // first match community
                         let values = List()
-                        values.Add("200:" + string c)
+                        values.Add(getCommunity c)
                         createCommunityList 
                            (Config.Kind.Permit, None, cMap, cLists, cls, clID, values)
                         // now match peer as well
