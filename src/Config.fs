@@ -44,15 +44,18 @@ type PrefixList =
 type AsPathList = 
    class
       val Name : string
-      val Regex : List<string>
+      val AllowRegex : List<string>
+      val DenyRegex : List<string>
       
-      new(n, rs) = 
+      new(n, ars, drs) = 
          { Name = n
-           Regex = rs }
+           AllowRegex = ars
+           DenyRegex = drs }
       
       new(o : AsPathList) = 
          { Name = o.Name
-           Regex = List(o.Regex) }
+           AllowRegex = List(o.AllowRegex)
+           DenyRegex = List(o.DenyRegex) }
    end
 
 /// Community list consists of 

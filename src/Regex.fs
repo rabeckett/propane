@@ -431,7 +431,78 @@ and toBgpRegexpAux (re : T) =
       sprintf "(%s)*" s
    | Out _ -> unreachable()
 
-let toBgpRegexp (re : T) = "^" + toBgpRegexpAux re + "$"
+let rec simplifyStar (re : T) = 
+   let (Regex(r)) = re
+   match r.Node with
+   | Empty -> re
+   | Epsilon -> re
+   | Locs S -> re
+   | Concat ls -> concatAll (List.map simplifyStar ls)
+   | Union ls -> unionAll (List.map simplifyStar ls)
+   | Inter ls -> interAll (List.map simplifyStar ls)
+   | Star(Regex({ Node = Concat xs }) as l) -> 
+      match xs with
+      | [ (Regex({ Node = Locs S }) as hd); (Regex({ Node = Union ys }) as tl) ] when S.Contains 
+                                                                                         "out" -> 
+         let b = 
+            ys |> List.forall (fun (Regex(y)) -> 
+                     match y.Node with
+                     | Epsilon | Locs _ -> true
+                     | _ -> false)
+         if b then concat (star hd) tl
+         else re
+      | _ -> star (simplifyStar l)
+   | Star l -> star (simplifyStar l)
+   | Negate l -> failwith "unreachable"
+   | Out S -> re
+
+let cross (xs : T list) (ys : T list) = 
+   let mutable acc = []
+   for x in xs do
+      for y in ys do
+         acc <- concat x y :: acc
+   acc
+
+let rec removeEpsilon (re : T) : T list = 
+   let (Regex(r)) = re
+   match r.Node with
+   | Empty -> [ re ]
+   | Epsilon -> [ re ]
+   | Locs S -> [ re ]
+   | Concat ls -> Util.List.fold1 cross (List.map removeEpsilon ls)
+   | Union ls -> List.fold (@) [] (List.map removeEpsilon ls)
+   | Star l -> [ star (removeEpsilon l |> unionAll) ]
+   | Inter ls -> failwith "unreachable"
+   | Negate l -> failwith "unreachable"
+   | Out S -> failwith "unreachable"
+
+let definitelyHasLoop (re : T) = 
+   let (Regex(r)) = re
+   match r.Node with
+   | Concat ls -> 
+      let locs = 
+         List.choose (fun l -> 
+            match l with
+            | Regex({ Node = Locs S }) -> 
+               if Set.count S = 1 then 
+                  let elt = Set.minElement S
+                  if elt <> "out" then Some(elt)
+                  else None
+               else None
+            | _ -> None) ls
+      
+      let all = List.fold (fun acc l -> Set.add l acc) Set.empty locs
+      Set.count all <> List.length locs
+   | _ -> false
+
+let toBgpRegexp (re : T) = 
+   re
+   |> simplifyStar
+   |> removeEpsilon
+   |> List.filter ((<>) empty)
+   |> List.filter (definitelyHasLoop >> not)
+   |> List.map toBgpRegexpAux
+   |> List.map (sprintf "^%s$")
 
 type LazyT = 
    | LIn

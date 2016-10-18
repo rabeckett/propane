@@ -64,8 +64,7 @@ type Filter =
    | Allow of Import * Export list
 
 type Actions = 
-   | Originate of Export list
-   | Filters of Filter list
+   | Filters of Export list option * Filter list
 
 type DeviceAggregates = Set<Route.Prefix * string list>
 
@@ -130,15 +129,25 @@ let formatActions (sb : System.Text.StringBuilder) (pi : Ast.PolInfo option) pre
     (actions : Actions) = 
    let predStr = Route.toString pred
    match actions with
-   | Originate es -> 
+   (* | Originate es -> 
       bprintf sb "\n  origin:  %s " predStr
       match es with
       | [ (peer, acts) ] -> formatExport pi sb peer acts
       | _ -> 
          for (peer, acts) in es do
             bprintf sb "\n  "
-            formatExport pi sb peer acts
-   | Filters fs -> 
+            formatExport pi sb peer acts *)
+   | Filters(o, fs) -> 
+      match o with
+      | None -> ()
+      | Some es -> 
+         bprintf sb "\n  origin:  %s " predStr
+         match es with
+         | [ (peer, acts) ] -> formatExport pi sb peer acts
+         | _ -> 
+            for (peer, acts) in es do
+               bprintf sb "\n  "
+               formatExport pi sb peer acts
       for f in fs do
          match f with
          | Deny -> 
@@ -206,14 +215,17 @@ module Update =
    let updateFilter f (config : T) = 
       updateActions (fun (pred, acts) -> 
          match acts with
-         | Originate es -> Some(pred, Originate es) // TODO: update exports for origination locations
-         | Filters fs -> Some(pred, (Filters(List.choose (f pred) fs)))) config
+         | Filters(o, fs) -> Some(pred, (Filters(o, List.choose (f pred) fs)))) config
    
    let updateOrigins f (config : T) = 
       updateActions (fun (pred, acts) -> 
          match acts with
-         | Originate es -> Some(pred, Originate(List.choose (f pred) es))
-         | Filters fs -> Some(pred, Filters fs)) config
+         | Filters(o, fs) -> 
+            let o' = 
+               match o with
+               | None -> o
+               | Some es -> Some(List.choose (f pred) es)
+            Some(pred, Filters(o', fs))) config
    
    let updateAllow f (config : T) = 
       updateFilter (fun pred filt -> 
@@ -245,8 +257,7 @@ let size (config : T) =
       let rconf = kv.Value
       for (_, actions) in rconf.Actions do
          match actions with
-         | Originate es -> count <- count + (List.length es)
-         | Filters fs -> 
+         | Filters(_, fs) -> 
             for f in fs do
                match f with
                | Deny -> count <- count + 1
@@ -318,7 +329,7 @@ module PrefixWide =
    
    let updateActions usedMatches _ actions = 
       match actions with
-      | Originate es -> 
+      (* | Originate es -> 
          let es' = 
             List.map (fun (peer, acts) -> 
                let acts' = 
@@ -327,32 +338,48 @@ module PrefixWide =
                      | SetComm(c) when c <> "no-export" && not (Set.contains c usedMatches) -> false
                      | _ -> true) acts
                (peer, acts')) es
-         Originate es'
-      | Filters fs -> 
-         List.map (fun f -> 
-            chooseAction (fun a -> 
-               match a with
-               | SetComm(c) when c <> "no-export" && not (Set.contains c usedMatches) -> None
-               | _ -> Some a) f) fs
-         |> Filters
+         Originate es' *)
+      | Filters(o, fs) -> 
+         let o' = 
+            match o with
+            | None -> o
+            | Some es -> 
+               let es' = 
+                  List.map (fun (peer, acts) -> 
+                     let acts' = 
+                        List.filter (fun a -> 
+                           match a with
+                           | SetComm(c) when c <> "no-export" && not (Set.contains c usedMatches) -> 
+                              false
+                           | _ -> true) acts
+                     (peer, acts')) es
+               Some es'
+         
+         let fs' = 
+            List.map (fun f -> 
+               chooseAction (fun a -> 
+                  match a with
+                  | SetComm(c) when c <> "no-export" && not (Set.contains c usedMatches) -> None
+                  | _ -> Some a) f) fs
+         
+         Filters(o', fs')
    
    let updateMatches usedTags _ actions = 
       match actions with
-      | Originate es -> Originate es
-      | Filters fs -> 
-         List.choose (fun f -> 
-            match f with
-            | Allow((Match.State(c, _), _), _) when c <> "no-export" 
-                                                    && not (Set.contains c usedTags) -> None
-            | _ -> Some f) fs
-         |> Filters
+      | Filters(o, fs) -> 
+         let fs' = 
+            List.choose (fun f -> 
+               match f with
+               | Allow((Match.State(c, _), _), _) when c <> "no-export" 
+                                                       && not (Set.contains c usedTags) -> None
+               | _ -> Some f) fs
+         Filters(o, fs')
    
    let private removeUnobservedTags (config : Map<string, Actions>) = 
       let allFilters = 
          config |> Map.fold (fun acc router actions -> 
                       match actions with
-                      | Originate _ -> acc
-                      | Filters fs -> acc @ fs) []
+                      | Filters(o, fs) -> acc @ fs) []
       
       let usedMatches = allCommMatches allFilters
       Map.map (updateActions usedMatches) config
@@ -361,8 +388,10 @@ module PrefixWide =
       let allFilters, allOrigins = 
          config |> Map.fold (fun (accl, accr) router actions -> 
                       match actions with
-                      | Originate es -> (accl, accr @ es)
-                      | Filters fs -> (accl @ fs, accr)) ([], [])
+                      | Filters(o, fs) -> 
+                         match o with
+                         | None -> (accl @ fs, accr)
+                         | Some es -> (accl @ fs, accr @ es)) ([], [])
       
       let usedTags = allCommTags allFilters allOrigins
       Map.map (updateMatches usedTags) config
@@ -375,8 +404,10 @@ module PrefixWide =
       let allFilters, allOrigins = 
          Map.fold (fun (accl, accr) r acts -> 
             match acts with
-            | Originate es -> (accl, Seq.append accr es)
-            | Filters fs -> (Seq.append accl fs, accr)) (Seq.empty, Seq.empty) config
+            | Filters(o, fs) -> 
+               match o with
+               | None -> (Seq.append accl fs, accr)
+               | Some es -> (Seq.append accl fs, Seq.append accr es)) (Seq.empty, Seq.empty) config
       
       let comms = allCommTags allFilters allOrigins
       let anyComm = anyValue Route.pb.Community comms
@@ -409,27 +440,29 @@ module PrefixWide =
             | Out -> anyOutPeer
             | Any -> anyPeer
          match actions with
-         | Originate es -> Originate es
-         | Filters fs -> 
+         | Filters(o, fs) -> 
             /// Start with the filler predicate to encode the finite domain of communities, locations
             let acc = ref (Route.pb.Not(Route.pb.And(anyComm, anyPeer)))
-            List.choose (fun f -> 
-               let oldAcc = !acc
-               let mutable isRE = false
-               match f with
-               | Deny -> acc := Route.pb.True
-               | Allow((m, _), _) -> 
-                  let p = 
-                     match m with
-                     | Peer p -> predOfPeer p
-                     | State(c, p) -> Route.pb.And(Route.pb.Community c, predOfPeer p)
-                     | PathRE _ -> 
-                        isRE <- true
-                        Route.pb.False
-                  acc := Route.pb.Or(!acc, p)
-               if !acc <> oldAcc || isRE then Some f
-               else None) fs
-            |> Filters
+            
+            let fs' = 
+               List.choose (fun f -> 
+                  let oldAcc = !acc
+                  let mutable isRE = false
+                  match f with
+                  | Deny -> acc := Route.pb.True
+                  | Allow((m, _), _) -> 
+                     let p = 
+                        match m with
+                        | Peer p -> predOfPeer p
+                        | State(c, p) -> Route.pb.And(Route.pb.Community c, predOfPeer p)
+                        | PathRE _ -> 
+                           isRE <- true
+                           Route.pb.False
+                     acc := Route.pb.Or(!acc, p)
+                  if !acc <> oldAcc || isRE then Some f
+                  else None) fs
+            
+            Filters(o, fs')
       Map.map aux config
    
    let minimize (cg : CGraph.T) (config : Map<string, Actions>) = 
@@ -500,8 +533,7 @@ module RouterWide =
       let mutable res = []
       for (pred, actions) in pairs do
          match actions with
-         | Originate _ -> ()
-         | Filters fs -> 
+         | Filters(_, fs) -> 
             for f in fs do
                res <- (pred, f) :: res
       List.rev res
@@ -520,7 +552,7 @@ module RouterWide =
    
    let inline addOriginator acc (p, actions) = 
       match actions with
-      | Originate es -> Map.add p actions acc
+      | Filters(Some _, _) -> Map.add p actions acc
       | _ -> acc
    
    let rec catchAll allComms covered (p1, f1) below : bool = 
@@ -559,7 +591,7 @@ module RouterWide =
       |> ignore
       !comms
    
-   let fallThroughElimination allComms (rconfig : RouterConfig) : RouterConfig = 
+   (* let fallThroughElimination allComms (rconfig : RouterConfig) : RouterConfig = 
       let usesTemplate = 
          List.fold (fun acc (p, _) -> acc || Route.isTemplate p) false rconfig.Actions
       if usesTemplate then rconfig
@@ -575,10 +607,10 @@ module RouterWide =
          
          let actions = Util.List.fold (addBackPair origins pairs) [] rconfig.Actions
          { Control = rconfig.Control
-           Actions = List.rev actions }
+           Actions = List.rev actions } 
    
    let minimizeForRouter (pi : Ast.PolInfo) allComms r rconf = 
-      rconf |> fallThroughElimination allComms
+      rconf |> fallThroughElimination allComms *)
    // TODO: reevaluate this function for soundness
    // Perform fallthrough elimination on route maps
    let minimize (config : T) = config
@@ -952,9 +984,9 @@ let reindexPrefixCommunities (pc : PredConfig) : PredConfig =
    pred, 
    Map.map (fun router acts -> 
       match acts with
-      | Originate es -> Originate es
-      | Filters fs -> 
-         Filters(List.map (fun f -> 
+      | Filters(o, fs) -> 
+         Filters(o, 
+                 List.map (fun f -> 
                     match f with
                     | Deny -> Deny
                     | Allow((m, lp), es) -> 
@@ -1012,11 +1044,8 @@ let genConfig (cg : CGraph.T) (pred : Route.Predicate) (ord : Consistency.Orderi
                // helps to minimize configuration
                let peerTypes = Seq.map (Outgoing.getOutPeerType cg) receiveFrom
                let origin = Seq.exists ((=) cg.Start) nsIn
-               
                // get the compressed set of matches using *, in, out when possible
-               let matches = 
-                  if origin then []
-                  else getMatches inPeerInfo peerTypes
+               let matches = getMatches inPeerInfo peerTypes
                
                // get the compressed set of exports taking into account if there is a unique receive peer
                let unqMatchPeer = 
@@ -1024,7 +1053,6 @@ let genConfig (cg : CGraph.T) (pred : Route.Predicate) (ord : Consistency.Orderi
                   | [ Match.Peer(Router x) ] -> Some x
                   | [ Match.State(_, (Router x)) ] -> Some x
                   | _ -> None
-               
                exports <- getExports outPeerInfo cgstate inExports sendTo unqMatchPeer
                // match/export local minimizations
                for m in matches do
@@ -1038,9 +1066,11 @@ let genConfig (cg : CGraph.T) (pred : Route.Predicate) (ord : Consistency.Orderi
          | [ Allow((Match.Peer Any, _), _) ] -> ()
          | _ -> filters <- List.rev (Deny :: filters)
          // build the final configuration
-         let deviceConf = 
-            if originates then Originate exports
-            else Filters filters
+         let o = 
+            if originates then Some exports
+            else None
+         
+         let deviceConf = Filters(o, filters)
          config <- Map.add router deviceConf config
       // prefix-wide minimizations
       config <- if settings.Minimize then PrefixWide.minimize cg config
@@ -1352,7 +1382,7 @@ let moveOriginationToTop (config : T) : T =
       let origins, others = 
          List.partition (fun (_, act) -> 
             match act with
-            | Originate _ -> true
+            | Filters(Some _, _) -> true
             | Filters _ -> false) rc.Actions
       { rc with Actions = origins @ others }
    
@@ -1459,17 +1489,18 @@ let createCommunityList (kind, title : Option<string>, communityMap : Dictionary
       communityMap.[(kind, vs)] <- name
 
 let createAsPathList (asPathMap : Dictionary<_, _>, asPathLists : List<_>, als : List<_>, id, 
-                      re : string list) = 
-   let b, name = asPathMap.TryGetValue(re)
+                      reAllow : string list, reDeny : string list) = 
+   let b, name = asPathMap.TryGetValue((reAllow, reDeny))
    if b then als.Add(name)
    else 
       let name = sprintf "path-%d" !id
-      let rs = List(re)
-      let al = AsPathList(name, rs)
+      let ars = List(reAllow)
+      let drs = List(reDeny)
+      let al = AsPathList(name, ars, drs)
       incr id
       als.Add(name)
       asPathLists.Add(al)
-      asPathMap.[re] <- name
+      asPathMap.[(reAllow, reDeny)] <- name
 
 let peers (ti : Topology.TopoInfo) (router : string) = 
    let loc (x : Topology.Node) = x.Loc
@@ -1493,7 +1524,7 @@ let peerPol ti asPathMap asPathLists (als : List<_>) alID (p : Peer) =
    | Peer.Out -> als.Add("path-2")
    | Peer.Router peer -> 
       let regexMatch = sprintf "^\(?%s_" (getRouter ti peer)
-      createAsPathList (asPathMap, asPathLists, als, alID, [ regexMatch ])
+      createAsPathList (asPathMap, asPathLists, als, alID, [ regexMatch ], [])
 
 let matchAllPeers ti (peers : Set<string>) = 
    let str = 
@@ -1506,7 +1537,7 @@ let matchAllPeers ti (peers : Set<string>) =
 let makeInitialPathList ti peers (asMap, asLists, alID) = 
    if not (Set.isEmpty peers) then 
       let str = matchAllPeers ti peers
-      createAsPathList (asMap, asLists, List(), alID, [ str ]) |> ignore
+      createAsPathList (asMap, asLists, List(), alID, [ str ], []) |> ignore
 
 let getExportComm (p : Peer) maxComm commExportMap = 
    match p with
@@ -1670,12 +1701,14 @@ let toConfig (abgp : T) =
             if not comms.IsEmpty then // TODO: handle this case
                error (sprintf "Support for comm matching temporarily disabled")
             match acts with
-            | Originate es -> 
-               let mostGeneral = prefix.Example()
-               origins.Add((mostGeneral, es))
-               originPfxs.Add(mostGeneral)
-            | Filters fs -> 
+            | Filters(o, fs) -> 
                // different actions for the same prefix but different community/regex etc
+               match o with
+               | None -> ()
+               | Some es -> 
+                  let mostGeneral = prefix.Example()
+                  origins.Add((mostGeneral, es))
+                  originPfxs.Add(mostGeneral)
                for f in fs do
                   priority := !priority + 10
                   let (rms, pls, als, cls) = List(), List(), List(), List()
@@ -1704,10 +1737,9 @@ let toConfig (abgp : T) =
                         peerPol ti asMap asLists als alID x
                      | Match.PathRE(re) -> 
                         let (deny, allow) = Regex.split re
-                        createAsPathList (asMap, asLists, als, alID, 
-                                          [ Regex.toBgpRegexp deny
-                                            Regex.toBgpRegexp allow ])
-                        |> ignore
+                        let allow = Regex.toBgpRegexp allow
+                        let deny = Regex.toBgpRegexp deny
+                        createAsPathList (asMap, asLists, als, alID, allow, deny) |> ignore
                      let slp = 
                         if lp = 100 then null
                         else SetLocalPref(lp)
@@ -1782,8 +1814,7 @@ module Test =
    
    let getPref (ain, aout) (x : string) dc = 
       match dc with
-      | Originate _ -> 100
-      | Filters fs -> 
+      | Filters(_, fs) -> 
          let lp = 
             List.tryFind (fun f -> 
                match f with
@@ -1804,8 +1835,7 @@ module Test =
    let receiveFrom (ain, aout) (_, config) x y = 
       let actions = Map.find x config
       match actions with
-      | Originate _ -> false
-      | Filters fs -> 
+      | Filters(_, fs) -> 
          List.exists (fun f -> 
             match f with
             | Deny -> false
@@ -1814,7 +1844,7 @@ module Test =
    let originates (_, config) x = 
       let actions = Map.find x config
       match actions with
-      | Originate _ -> true
+      | Filters(Some _, _) -> true
       | Filters _ -> false
    
    type FailReason = 
