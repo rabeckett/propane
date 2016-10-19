@@ -75,11 +75,33 @@ type Re =
       | Negate r -> "!(" + r.ToString() + ")"
       | Star r -> (r.ToString() |> addParens) + "*"
 
-and T = 
+and [<CustomComparison; CustomEquality>] T = 
    | Regex of HashCons<Re>
+   
    override this.ToString() = 
       match this with
       | Regex(re) -> string re.Node
+   
+   interface System.IComparable with
+      member x.CompareTo other = 
+         match other with
+         | :? T as y -> 
+            let (Regex(x)) = x
+            let (Regex(y)) = y
+            x.Id - y.Id
+         | _ -> failwith "cannot compare values of different types"
+   
+   override x.Equals(other) = 
+      match other with
+      | :? T as y -> 
+         let (Regex(x)) = x
+         let (Regex(y)) = y
+         x.Id = y.Id
+      | _ -> false
+   
+   override x.GetHashCode() = 
+      let (Regex(x)) = x
+      x.Hash
 
 type Automaton = 
    { q0 : int

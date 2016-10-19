@@ -9,19 +9,27 @@ let runUnitTests() =
    Topology.Test.run()
    Abgp.Test.run()
 
-let total xs = 
+let inline total xs = 
    xs
    |> Array.map float
    |> Array.sum
 
-let printStats (stats : Abgp.Stats) = 
-   printfn ""
-   printfn "Total PG construction time (sec):  %f" (total stats.PerPrefixBuildTimes / 1000.0)
-   printfn "Total PG Minimization time (sec):  %f" (total stats.PerPrefixMinTimes / 1000.0)
-   printfn "Total Find Ordering time (sec):    %f" (total stats.PerPrefixOrderTimes / 1000.0)
-   printfn "Total Generate Config time (sec):  %f" (total stats.PerPrefixGenTimes / 1000.0)
-   printfn "Total Config Min time (sec):       %f" (float stats.MinTime / 1000.0)
-   printfn ""
+let inline totalInSec x = total x / 1000.0
+let inline valueInSec x = float x / 1000.0
+
+let printStats (abgp : Abgp.Stats) (gen : Generate.Stats option) parseTime genTime = 
+   printfn 
+      "Build Topology+Policy, Total Compile to ABGP, Total Abgp to Low-level, PG Construction, PG Minimization, Find Preferences, Generate ABGP, ABGP Minimization, Generate Core, Generate Low-level, Substitution, Generate Quagga"
+   let (w, x, y, z) = 
+      match gen with
+      | None -> (float 0, float 0, float 0, float 0)
+      | Some stats -> 
+         (valueInSec stats.CoreTime, valueInSec stats.GenLowLevelConfigTime, 
+          valueInSec stats.SubstitutionTime, valueInSec stats.QuaggaTime)
+   printfn "%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f" (valueInSec parseTime) (valueInSec abgp.PrefixTime) 
+      (valueInSec genTime) (totalInSec abgp.PerPrefixBuildTimes) (totalInSec abgp.PerPrefixMinTimes) 
+      (totalInSec abgp.PerPrefixOrderTimes) (totalInSec abgp.PerPrefixGenTimes) 
+      (valueInSec abgp.MinTime) w x y z
 
 [<EntryPoint>]
 let main argv = 
@@ -33,17 +41,17 @@ let main argv =
    if settings.Bench then 
       Benchmark.generate()
       exit 0
-   let topoInfo, settings = 
+   let (topoInfo, settings), t1 = 
       match settings.TopoFile with
       | None -> errorLine "No topology file specified, use --help to see options"
-      | Some f -> Topology.readTopology f
+      | Some f -> Util.Profile.time Topology.readTopology f
    if settings.IsAbstract then AbstractAnalysis.checkWellformedTopology topoInfo
    match settings.PolFile with
    | None -> errorLine "No policy file specified, use --help to see options"
    | Some polFile -> 
       Util.File.createDir settings.OutDir
       Util.File.createDir settings.DebugDir
-      let (lines, defs, cs) = Input.readFromFile polFile
+      let (lines, defs, cs), t2 = Util.Profile.time Input.readFromFile polFile
       
       let ast : Ast.T = 
          { Input = lines
@@ -51,7 +59,7 @@ let main argv =
            Defs = defs
            CConstraints = cs }
       
-      let polInfo = Ast.build ast
+      let polInfo, t3 = Util.Profile.time Ast.build ast
       let res = Abgp.compileAllPrefixes polInfo
       match res.AggSafety with
       | Some safetyInfo -> 
@@ -71,10 +79,15 @@ let main argv =
                + sprintf "It may be possible to disconnect the prefix %s at location %s from the " 
                     (string p) x 
                + sprintf "aggregate prefix %s at %s after %d failures. " (string agg) y (i + 1) 
-               + sprintf "Consider using the -failures:n flag to specify a tolerable failure level."
+               + sprintf 
+                    "Consider using the --failures=k flag to specify a tolerable failure level."
             if warn then warning msg
             else error msg
       | _ -> ()
-      if settings.Stats then printStats res.Stats
-      if not settings.CheckOnly then Generate.generate res topoInfo
+      let genStats, genTime = 
+         if settings.CheckOnly then None, int64 0
+         else 
+            let stats, t = Util.Profile.time (Generate.generate res) topoInfo
+            Some(stats), t
+      if settings.Stats then printStats res.Stats genStats (t1 + t2 + t3) genTime
    0

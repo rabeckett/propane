@@ -1,8 +1,24 @@
 ﻿module Regex
 
+open Hashcons
+
 /// Extended regular expressions with negation, 
 /// intersection, and character classes
-type T
+[<NoComparison; CustomEquality>]
+type Re = 
+   | Empty
+   | Epsilon
+   | Locs of Set<string>
+   | Out of Set<string>
+   | Concat of T list
+   | Inter of T list
+   | Union of T list
+   | Negate of T
+   | Star of T
+
+and [<CustomComparison; CustomEquality>] T = 
+   | Regex of HashCons<Re>
+   interface System.IComparable
 
 /// Build a DFA for a regular expression directly using regular 
 /// expression derivatives. Works well with complement,

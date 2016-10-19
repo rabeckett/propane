@@ -613,7 +613,59 @@ module RouterWide =
       rconf |> fallThroughElimination allComms *)
    // TODO: reevaluate this function for soundness
    // Perform fallthrough elimination on route maps
-   let minimize (config : T) = config
+   let getBorderRouters (ti : Topology.TopoInfo) = 
+      let ext = ti.SelectGraphInfo.ExternalNames
+      let g = ti.SelectGraphInfo.Graph
+      let mutable acc = Set.empty
+      for (x, y) in Topology.edges g do
+         if ext.Contains(y.Loc) then acc <- Set.add x.Loc acc
+      acc
+   
+   let removeSpecificMatchWhenInternal (config : T) (ti : Topology.TopoInfo) = 
+      let borders = getBorderRouters ti
+      
+      let rconfigs = 
+         Map.map (fun name rconf -> 
+            if not <| borders.Contains(name) then 
+               let mutable matches = Set.empty
+               let mutable actions = Set.empty
+               let mutable origins = Set.empty
+               
+               let butLast = 
+                  match List.rev rconf.Actions with
+                  | [] -> []
+                  | hd :: tl -> List.rev tl
+               for (pred, Filters(orig, filts)) in butLast do
+                  match orig with
+                  | None -> ()
+                  | Some es -> origins <- Set.add (pred, es) origins
+                  for f in filts do
+                     match f with
+                     | Deny -> matches <- Set.add None matches
+                     | Allow((m, lp), acts) -> 
+                        matches <- Set.add (Some(m, lp)) matches
+                        actions <- Set.add acts actions
+               if Set.count matches = 1 && Set.count actions <= 1 then 
+                  let m = Set.minElement matches
+                  let a = Set.minElement actions
+                  
+                  let filt = 
+                     match m with
+                     | None -> Deny
+                     | Some(m, lp) -> Allow((m, lp), a)
+                  
+                  let actions = 
+                     origins
+                     |> Set.toList
+                     |> List.map (fun (pred, es) -> (pred, Filters(Some es, [])))
+                  
+                  let actions = actions @ [ (Route.top, Filters(None, [ filt ])) ]
+                  { rconf with Actions = actions }
+               else rconf
+            else rconf) config.RConfigs
+      { config with RConfigs = rconfigs }
+   
+   let minimize (config : T) (ti : Topology.TopoInfo) = removeSpecificMatchWhenInternal config ti
 
 (*
     let settings = Args.getSettings()
@@ -1409,7 +1461,7 @@ let compileAllPrefixes (polInfo : Ast.PolInfo) : CompilationResult =
    let joined = moveOriginationToTop joined
    
    let minJoined, minTime = 
-      if settings.Minimize then Profile.time RouterWide.minimize joined
+      if settings.Minimize then Profile.time (RouterWide.minimize joined) polInfo.Ast.TopoInfo
       else joined, int64 0
    
    let minJoined = reindexCommunities minJoined

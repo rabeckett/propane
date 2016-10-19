@@ -351,13 +351,9 @@ let substRouterConfig (rc : Config.RouterConfiguration) (ti : Topology.TopoInfo)
    let newPCs = List()
    for pc in rc.PeerConfigurations do
       let peers = Map.find name peerMap
-      //printfn "peers: %A" (Set.minElement peers)
       let peers = Set.intersect peers (Map.find pc.Peer conc)
-      //printfn "template peers: %A" (Set.minElement (Map.find pc.Peer conc))
-      //printfn "total after: %d" (Set.count peers)
       for peer in peers do
          let asn = string asnMap.[peer]
-         //if Set.contains (rasn, asn) edges then 
          let (srcIp, peerIp) = ipMap.[(asn, rasn)]
          let x = PeerConfig(peer, asn, srcIp, peerIp, pc.InFilter, pc.OutFilter)
          newPCs.Add(x)
@@ -401,35 +397,43 @@ let substituteTemplates (nc : NetworkConfiguration) (ti : Topology.TopoInfo) =
    NetworkConfiguration(acc, nc.NetworkAsn)
 
 type Stats = 
-   { SubstitutionTime : int64
-     QuaggaTime : int64 }
+   { GenLowLevelConfigTime : int64
+     SubstitutionTime : int64
+     QuaggaTime : int64
+     CoreTime : int64 }
 
-let generate (res : Abgp.CompilationResult) (ti : Topology.TopoInfo) = 
+let genQuagga configDir rInternal name rc = 
+   quagga rInternal rc |> File.writeFileWithExtension (configDir + File.sep + name) "cfg"
+
+let genCore out rInternal nc = 
+   addFakeExternalConfigs nc
+   core rInternal nc |> File.writeFileWithExtension (out + File.sep + "core") "imn"
+
+let generate (res : Abgp.CompilationResult) (ti : Topology.TopoInfo) : Stats = 
    let settings = Args.getSettings()
    let out = settings.OutDir
    // Generate intermediate representation
    File.writeFileWithExtension (out + File.sep + "configs") "ir" (Abgp.format res.Abgp)
    // Get the low-level configurations
    let needsSubstitution = settings.IsAbstract && not settings.IsTemplate
-   let nc = Abgp.toConfig res.Abgp
+   let nc, lowLevelTime = Util.Profile.time Abgp.toConfig res.Abgp
    
-   let nc = 
-      if needsSubstitution then substituteTemplates nc ti
-      else nc
+   let nc, subTime = 
+      if needsSubstitution then Util.Profile.time (substituteTemplates nc) ti
+      else nc, int64 0
    
    let configDir = out + File.sep + "configs"
    File.createDir configDir
    let rInternal = internalRouters nc
    // Create each router configuration, specialized by type (just quagga now)
+   let mutable quaggaTime = int64 0
    for kv in nc.RouterConfigurations do
-      let name = kv.Key
-      let rc = kv.Value
-      let output = quagga rInternal rc
-      output |> File.writeFileWithExtension (configDir + File.sep + name) "cfg"
+      let _, t = Util.Profile.time (genQuagga configDir rInternal kv.Key) kv.Value
+      quaggaTime <- quaggaTime + t
    // Write CORE emulator save file
-   if not settings.IsAbstract then 
-      addFakeExternalConfigs nc
-      core rInternal nc |> File.writeFileWithExtension (out + File.sep + "core") "imn"
+   let _, coreTime = 
+      if not settings.IsTemplate then Util.Profile.time (genCore out rInternal) nc
+      else (), int64 0
    // C-BGP testing code
    if settings.Cbgp then 
       let cbgpDir = out + File.sep + "cbgp"
@@ -438,3 +442,8 @@ let generate (res : Abgp.CompilationResult) (ti : Topology.TopoInfo) =
       for test in tests do
          let name = "foo"
          string test |> File.writeFileWithExtension (cbgpDir + File.sep + name) "cbgp"
+   { // Return compilation statistics
+     GenLowLevelConfigTime = lowLevelTime
+     SubstitutionTime = subTime
+     QuaggaTime = quaggaTime
+     CoreTime = coreTime }
