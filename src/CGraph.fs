@@ -316,7 +316,7 @@ let toDot (cg : T) (pi : Ast.PolInfo option) : string =
             let label = sprintf "%s, %s" state location
             v.VertexFormatter.Label <- label
          else 
-            let label = sprintf "%s, %s\nAccept=%d" state location v.Vertex.Accept
+            let label = sprintf "%s, %s\nRank=%d" state location v.Vertex.Accept
             v.VertexFormatter.Label <- label
             v.VertexFormatter.Shape <- Graphviz.Dot.GraphvizVertexShape.DoubleCircle
             v.VertexFormatter.Style <- Graphviz.Dot.GraphvizVertexStyle.Filled
@@ -735,52 +735,51 @@ module Consistency =
    
    type ProtectResult = 
       | Yes of HashSet<Node>
-      | No
+      | No of CgState * CgState * CgState
    
    let protect (idx : int) (doms : Domination.DominationTree) cg n1 n2 : ProtectResult = 
-      if loc n1 <> loc n2 then No
-      else 
-         let q = Queue()
-         let seen = HashSet()
-         let counterEx = ref None
-         
-         // add nodes if preserves the preference relation
-         let inline add x' y' (x, y) = 
-            // TODO: total hack for now
-            if isInside x && isInside y then 
-               let i, j = x'.Accept, y'.Accept
-               if i > j && (isInside x') && (isInside y') then // Hack
-                  counterEx := Some(x, y)
-               else 
-                  let n' = Node(x', y')
-                  if not (seen.Contains n') then 
-                     ignore (seen.Add n')
-                     q.Enqueue n'
-         // add initial node
-         add n1 n2 (n1, n2)
-         while q.Count > 0 && Option.isNone !counterEx do
-            let n = q.Dequeue()
-            let x = n.More
-            let y = n.Less
-            // TODO: total hack for now
-            if isInside x && isInside y then 
-               let nsx = 
-                  neighbors cg x
-                  |> Seq.filter (fun v -> Topology.isTopoNode v.Node)
-                  |> Seq.fold (fun acc x -> Map.add (loc x) x acc) Map.empty
-               
-               let nsy = neighbors cg y |> Seq.filter (fun v -> Topology.isTopoNode v.Node)
-               for y' in nsy do
-                  match Map.tryFind (loc y') nsx with
-                  | None -> 
-                     let inline relevantDom x' = loc x' = loc y' && cg.Graph.ContainsVertex x'
-                     match doms.TryIsDominatedBy(x, relevantDom) with
-                     | None -> counterEx := Some(x, y)
-                     | Some x' -> add x' y' (x, y)
+      assert (loc n1 = loc n2)
+      let q = Queue()
+      let seen = HashSet()
+      let counterEx = ref None
+      
+      // add nodes if preserves the preference relation
+      let inline add x' y' (x, y) = 
+         // TODO: total hack for now
+         if isInside x && isInside y then 
+            let i, j = x'.Accept, y'.Accept
+            if i > j && (isInside x') && (isInside y') then // Hack
+               counterEx := Some(x, y, y')
+            else 
+               let n' = Node(x', y')
+               if not (seen.Contains n') then 
+                  ignore (seen.Add n')
+                  q.Enqueue n'
+      // add initial node
+      add n1 n2 (n1, n2)
+      while q.Count > 0 && Option.isNone !counterEx do
+         let n = q.Dequeue()
+         let x = n.More
+         let y = n.Less
+         // TODO: total hack for now
+         if isInside x && isInside y then 
+            let nsx = 
+               neighbors cg x
+               |> Seq.filter (fun v -> Topology.isTopoNode v.Node)
+               |> Seq.fold (fun acc x -> Map.add (loc x) x acc) Map.empty
+            
+            let nsy = neighbors cg y |> Seq.filter (fun v -> Topology.isTopoNode v.Node)
+            for y' in nsy do
+               match Map.tryFind (loc y') nsx with
+               | None -> 
+                  let inline relevantDom x' = loc x' = loc y' && cg.Graph.ContainsVertex x'
+                  match doms.TryIsDominatedBy(x, relevantDom) with
+                  | None -> counterEx := Some(x, y, y')
                   | Some x' -> add x' y' (x, y)
-         match !counterEx with
-         | None -> Yes seen
-         | Some cex -> No
+               | Some x' -> add x' y' (x, y)
+      match !counterEx with
+      | None -> Yes seen
+      | Some cex -> No cex
    
    let getDuplicateNodes (cg : T) = 
       let ret = Dictionary()
@@ -813,59 +812,76 @@ module Consistency =
             if below.Count > 0 then mustPrefer.[d] <- below
          mustPrefer
    
-   let simulate idx cg (cache : HashSet<_>) (doms : Domination.DominationTree) (x, y) = 
+   let isPreferred idx cg (cache : HashSet<_>) (doms : Domination.DominationTree) (x, y) = 
       let ce = CacheEntry(x.Id, y.Id)
       if cache.Contains ce then true
       else 
          match protect idx doms cg x y with
-         | No -> false
+         | No(x, y, y') -> false
          | Yes related -> 
             for n in related do
                let ce = CacheEntry(n.More.Id, n.Less.Id)
                ignore (cache.Add ce)
             true
    
-   let isPreferred idx cg cache doms (x, y) = simulate idx cg cache doms (x, y)
+   let mustBePreferred x y (mustPrefer : Dictionary<_, HashSet<_>>) = 
+      match Util.Dictionary.tryFind x mustPrefer with
+      | None -> false
+      | Some ns -> ns.Contains(y)
    
-   let checkIncomparableNodes (g : Constraints) edges = 
-      for x in g.Vertices do
-         for y in g.Vertices do
-            if x <> y && not (Set.contains (x, y) edges || Set.contains (y, x) edges) then 
-               raise (ConsistencyException(x, y))
+   let compare idx cg cache doms (mustPrefer : Dictionary<_, HashSet<_>>) comparedAsBetter x y = 
+      let a = isPreferred idx cg cache doms (x, y)
+      let b = isPreferred idx cg cache doms (y, x)
+      match a, b with
+      | true, true -> 0
+      | true, false -> 
+         comparedAsBetter := Set.add (x, y) !comparedAsBetter
+         1
+      | false, true -> 
+         comparedAsBetter := Set.add (y, x) !comparedAsBetter
+         -1
+      | false, false -> raise (ConsistencyException(x, y))
    
-   let removeUnconstrainedEdges (g : Constraints) edges = 
-      let both = Set.filter (fun (x, y) -> Set.exists (fun (a, b) -> x = b && y = a) edges) edges
-      g.RemoveEdgeIf(fun e -> Set.contains (e.Source, e.Target) both) |> ignore
+   let rec partition idx cg cache doms mustPrefer comparedAsBetter ((l, r) as acc) xs x = 
+      match xs with
+      | [] -> acc
+      | hd :: tl -> 
+         let cmp = compare idx cg cache doms mustPrefer comparedAsBetter x hd
+         if cmp < 0 then partition idx cg cache doms mustPrefer comparedAsBetter (hd :: l, r) tl x
+         else partition idx cg cache doms mustPrefer comparedAsBetter (l, hd :: r) tl x
    
-   let getOrdering (g : Constraints) edges = 
-      checkIncomparableNodes g edges
-      removeUnconstrainedEdges g edges
-      g.TopologicalSort()
+   let rec qsort idx cg cache doms mustPrefer comparedAsBetter ls = 
+      match ls with
+      | [] -> []
+      | x :: xs -> 
+         let smaller, larger = partition idx cg cache doms mustPrefer comparedAsBetter ([], []) xs x
+         let left = qsort idx cg cache doms mustPrefer comparedAsBetter smaller
+         let right = qsort idx cg cache doms mustPrefer comparedAsBetter larger
+         left @ [ x ] @ right
    
-   let addPrefConstraints idx cg cache doms (g : Constraints) mustPrefer nodes = 
-      let mutable edges = Set.empty
-      for x in nodes do
-         for y in nodes do
-            if x <> y && (isPreferred idx cg cache doms (x, y)) then 
-               logInfo (idx, sprintf "  %s is preferred to %s" (string x) (string y))
-               edges <- Set.add (x, y) edges
-               g.AddEdge(Edge(x, y)) |> ignore
-            else 
-               if x <> y then 
-                  let b, ns = (mustPrefer : Dictionary<_, HashSet<_>>).TryGetValue(x)
-                  if b && ns.Contains(y) then raise (SimplePathException(x, y))
-                  logInfo (idx, sprintf "  %s is NOT preferred to %s" (string x) (string y))
-      g, edges
-   
-   let encodeConstraints idx cache doms cg mustPrefer nodes = 
-      let g = BidirectionalGraph<CgState, Edge<CgState>>()
-      for n in nodes do
-         g.AddVertex n |> ignore
-      addPrefConstraints idx cg cache doms g mustPrefer nodes
+   let checkStrictPrefsEnforced idx cg cache doms (mustPrefer : Dictionary<_, HashSet<_>>) 
+       comparedAsBetter = 
+      for kv in mustPrefer do
+         let x = kv.Key
+         let ns = kv.Value
+         for y in ns do
+            if not <| Set.contains (x, y) !comparedAsBetter then 
+               let a = isPreferred idx cg cache doms (x, y)
+               let b = isPreferred idx cg cache doms (y, x)
+               if (not a) || b then raise (SimplePathException(x, y))
    
    let findPrefAssignment idx cache doms cg mustPrefer nodes = 
-      let g, edges = encodeConstraints idx cache doms cg mustPrefer nodes
-      getOrdering g edges
+      let comparedAsBetter = ref Set.empty
+      
+      let ret = 
+         nodes
+         |> List.ofSeq
+         |> qsort idx cg cache doms mustPrefer comparedAsBetter
+         |> Seq.ofList
+      // quick sort will not ensure all strict preferences are satisfied
+      // we have to check these additional constraints, but can reused cached results
+      checkStrictPrefsEnforced idx cg cache doms mustPrefer comparedAsBetter
+      ret
    
    let addForLabel idx cache doms ain cg mustPrefer (map : Dictionary<_, _>) l = 
       if Set.contains l ain then 

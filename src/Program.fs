@@ -56,9 +56,14 @@ let main argv =
                sprintf "Could only prove aggregation black-hole safety for up to %d failures. " i 
                + sprintf "It may be possible to disconnect the prefix %s at location %s from the " 
                     (string p) x 
-               + sprintf "aggregate prefix %s at %s after %d failures. " (string agg) y (i + 1) 
-               + sprintf 
-                    "Consider using the --failures=k flag to specify a tolerable failure level."
+               + sprintf "aggregate prefix %s at %s after %d failures. " (string agg) y (i + 1)
+            
+            let msg = 
+               if warn then 
+                  sprintf 
+                     "%sConsider using the --failures=k flag to specify a tolerable failure level." 
+                     msg
+               else msg
             if warn then warning msg
             else error msg
       | _ -> ()

@@ -1275,10 +1275,9 @@ let compileToIR idx pred (polInfo : Ast.PolInfo option) aggInfo (reb : Regex.REB
    let cg, minTime = Profile.time (CGraph.Minimize.minimize idx) cg
    debug (fun () -> CGraph.generatePNG cg polInfo (debugName + "-min"))
    // get the abstract reachability information
-   let ti = polInfo.Value.Ast.TopoInfo
-   
    let abstractPathInfo = 
-      if settings.IsAbstract then Some(abstractDisjointPathInfo ti cg)
+      if settings.IsAbstract && not settings.Test then 
+         Some(abstractDisjointPathInfo polInfo.Value.Ast.TopoInfo cg)
       else None
    // warn for anycasts 
    if not settings.Test then 
@@ -1286,7 +1285,7 @@ let compileToIR idx pred (polInfo : Ast.PolInfo option) aggInfo (reb : Regex.REB
       warnAnycasts cg polInfo.Value pred
       // check if there is reachability
       // check there is a route for each location specified
-      // TODO: this can fail
+      let ti = polInfo.Value.Ast.TopoInfo
       let lost = getLocsWithNoPath idx ti cg reb dfas abstractPathInfo
       if not (Set.isEmpty lost) then 
          match polInfo with
@@ -2778,5 +2777,5 @@ module Test =
       printfn "%s" border
    
    let run() = 
-      testAggregationFailure()
+      // testAggregationFailure()
       testCompilation()
