@@ -100,7 +100,7 @@ let writeDcPolConcrete ((topo, pfxMap, tierMap) : _ * Topology.Examples.Prefixes
 let writeDcPolAbstract() = 
    let sb = StringBuilder()
    bprintf sb "define main = {\n"
-   bprintf sb "  T0.$prefix$ => end(T0.$router$),\n"
+   bprintf sb "  T0.$prefix$ => end(T0),\n"
    bprintf sb "  true => drop\n"
    bprintf sb "}"
    string sb
@@ -170,7 +170,6 @@ let singleDatacenter outDir k =
 let generate() = 
    let dir = "benchmarks"
    Util.File.createDir dir
-   // displayHeader ()
    for k in 4..2..32 do
       singleDatacenter dir k
 (*

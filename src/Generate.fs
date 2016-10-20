@@ -320,15 +320,15 @@ let addFakeExternalConfigs (nc : NetworkConfiguration) =
                 List(), pcs)
          nc.RouterConfigurations.[exPeer] <- rc) peerMap
 
-let createInterestingTests abgp = [ "hello" ]
-
-let parseTemplatePrefix p = 
+let parseTemplatePrefixAux p = 
    match sscanf "%s.$%s$" p, sscanf "$%s$" p with
    | Some(var, v), _ -> Some(Some var, v)
    | _, Some v -> Some(None, v)
    | _, _ -> None
 
-let allVariableValues (ti : Topology.TopoInfo) p = 
+let parseTemplatePrefix = Hashcons.memoize parseTemplatePrefixAux
+
+let allVariableValuesAux (ti : Topology.TopoInfo, p) = 
    match parseTemplatePrefix p with
    | None -> None
    | Some(r, v) -> 
@@ -347,7 +347,9 @@ let allVariableValues (ti : Topology.TopoInfo) p =
          | Some vs -> acc <- Set.union acc vs
       Some acc
 
-let makeTemplatePfxConcrete (ti : Topology.TopoInfo) router pfx = 
+let allVariableValues = Hashcons.memoize allVariableValuesAux
+
+let makeTemplatePfxConcrete (ti : Topology.TopoInfo, router, pfx) = 
    match pfx with
    | Route.TemplatePfx p -> 
       match parseTemplatePrefix p with
@@ -363,28 +365,28 @@ let substRouterConfig (rc : Config.RouterConfiguration) (ti : Topology.TopoInfo)
    let conc = ti.Concretization
    let asnMap = ti.ConcreteGraphInfo.AsnMap
    let ipMap = ti.ConcreteGraphInfo.IpMap
-   let rc = RouterConfiguration(rc)
-   rc.Name <- name
-   rc.RouterAsn <- rasn
+   // let rc = RouterConfiguration(rc)
+   // rc.Name <- name
+   // rc.RouterAsn <- rasn
    // update originated prefixes
    let nets = List()
    for n in rc.Networks do
-      match makeTemplatePfxConcrete ti name n with
+      match makeTemplatePfxConcrete (ti, name, n) with
       | None -> ()
       | Some pfxs -> 
          for pfx in pfxs do
             nets.Add(pfx)
-   rc.Networks <- nets
+   // rc.Networks <- nets
    // update aggregate prefixes
    let aggs = List()
    for agg in rc.Aggregates do
-      match allVariableValues ti agg with
+      match allVariableValues (ti, agg) with
       | None -> aggs.Add(agg)
       | Some vs -> 
          for (a, b, c, d, s) in vs do
             let str = sprintf "%d.%d.%d.%d/%d" a b c d s
             aggs.Add(str)
-   rc.Aggregates <- aggs
+   // rc.Aggregates <- aggs
    // update peer configurations
    let newPCs = List()
    for pc in rc.PeerConfigurations do
@@ -395,11 +397,11 @@ let substRouterConfig (rc : Config.RouterConfiguration) (ti : Topology.TopoInfo)
          let (srcIp, peerIp) = ipMap.[(asn, rasn)]
          let x = PeerConfig(peer, asn, srcIp, peerIp, pc.InFilter, pc.OutFilter)
          newPCs.Add(x)
-   rc.PeerConfigurations <- newPCs
+   // rc.PeerConfigurations <- newPCs
    // update prefix lists
    let newPLs = List()
    for pl in rc.PrefixLists do
-      match allVariableValues ti pl.Prefix with
+      match allVariableValues (ti, pl.Prefix) with
       | None -> 
          let x = PrefixList(pl.Kind, pl.Name, pl.Prefix)
          newPLs.Add(x)
@@ -408,8 +410,10 @@ let substRouterConfig (rc : Config.RouterConfiguration) (ti : Topology.TopoInfo)
             let str = sprintf "%d.%d.%d.%d/%d" a b c d s
             let x = PrefixList(pl.Kind, pl.Name, str)
             newPLs.Add(x)
-   rc.PrefixLists <- newPLs
-   rc
+   // rc.PrefixLists <- newPLs
+   RouterConfiguration
+      (rc.Name, rc.NetworkAsn, rasn, rc.RouterID, nets, aggs, newPLs, rc.AsPathLists, 
+       rc.CommunityLists, rc.PolicyLists, rc.RouteMaps, newPCs)
 
 let substituteTemplates (nc : NetworkConfiguration) (ti : Topology.TopoInfo) = 
    // build peer -> {peer} map
@@ -441,6 +445,8 @@ let genQuagga configDir rInternal name rc =
 let genCore out rInternal nc = 
    addFakeExternalConfigs nc
    core rInternal nc |> File.writeFileWithExtension (out + File.sep + "core") "imn"
+
+let createInterestingTests abgp = [ "hello" ]
 
 let generate (res : Abgp.CompilationResult) (ti : Topology.TopoInfo) : Stats = 
    let settings = Args.getSettings()
