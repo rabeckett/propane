@@ -182,7 +182,7 @@ type TopoInfo =
       val Concretization : Map<string, Set<string>>
       val Abstraction : Map<string, string>
       val Constraints : List<string>
-      val TemplateVars : Map<string * string, int * int * int * int * int>
+      val TemplateVars : Map<string option * string, Set<int * int * int * int * int>>
       
       new(nasn, k, cg, ag, els, nls, pls, escopes, con, abs, cs, tvs) = 
          { NetworkAsn = nasn
@@ -450,6 +450,17 @@ let checkWellFormedLabels (front, back) (es, et) escopes =
       (false, fstA = fstB, scope)
    else error (sprintf "Invalid end points: (%s,%s)" fstA fstB)
 
+let checkWellFormedPrefix (v, a, b, c, d, s) = 
+   if a > 255 || b > 255 || c > 255 || d > 255 || s > 32 then 
+      error (sprintf "Invalid prefix: %s=%u.%u.%u.%u/%u" v a b c d s)
+
+let addTemplateVar templateVarMap key var = 
+   match sscanf "%s=%u.%u.%u.%u/%u" var with
+   | None -> ()
+   | Some(v, a, b, c, d, s) -> 
+      checkWellFormedPrefix (v, a, b, c, d, s)
+      templateVarMap := Util.Map.adjust (key, v) Set.empty (Set.add (a, b, c, d, s)) !templateVarMap
+
 let readTopology (file : string) : TopoInfo * Args.T = 
    let settings = Args.getSettings()
    try 
@@ -487,6 +498,9 @@ let readTopology (file : string) : TopoInfo * Args.T =
       let constraints = List()
       for c in topo.Constraints do
          constraints.Add c.Assertion
+      // Add the global template variables
+      for v in topo.Datas do
+         addTemplateVar templateVarMap None v.Vars
       // Build the concretization map and determine if we are using an abstract topology
       let isPureAbstract = (topo.Nodes.Length = 0)
       let mutable isAbstract = isPureAbstract
@@ -507,12 +521,7 @@ let readTopology (file : string) : TopoInfo * Args.T =
             | Some s -> 
                let all = s.Split(',') |> Array.map (fun s -> s.Trim())
                for var in all do
-                  match sscanf "%s=%u.%u.%u.%u/%u" var with
-                  | None -> ()
-                  | Some(v, a, b, c, d, s) -> 
-                     if a > 255 || b > 255 || c > 255 || d > 255 || s > 32 then 
-                        error (sprintf "Invalid prefix: %s=%u.%u.%u.%u/%u" v a b c d s)
-                     templateVarMap := Map.add (n.Name, v) (a, b, c, d, s) !templateVarMap
+                  addTemplateVar templateVarMap (Some n.Name) var
       // Add the pods to the graph
       for p in topo.Abstractpods do
          if p.Label = "" then error (sprintf "Invalid abstract pod label - found empty string")

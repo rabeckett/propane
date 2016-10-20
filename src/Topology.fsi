@@ -102,8 +102,8 @@ type TopoInfo =
       val Concretization : Map<string, Set<string>>
       val Abstraction : Map<string, string>
       val Constraints : List<string>
-      val TemplateVars : Map<string * string, int * int * int * int * int>
-      new : int * Kind * GraphInfo * GraphInfo * EdgeLabelInfo * Map<string, string> * Set<string> * Map<string, string list> * Map<string, Set<string>> * Map<string, string> * List<string> * Map<string * string, int * int * int * int * int>
+      val TemplateVars : Map<string option * string, Set<int * int * int * int * int>>
+      new : int * Kind * GraphInfo * GraphInfo * EdgeLabelInfo * Map<string, string> * Set<string> * Map<string, string list> * Map<string, Set<string>> * Map<string, string> * List<string> * Map<string option * string, Set<int * int * int * int * int>>
           -> TopoInfo
       member SelectGraphInfo : GraphInfo
       member IsTemplate : bool

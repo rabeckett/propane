@@ -104,6 +104,7 @@
     <Compile Include="Abgp.fs" />
     <Compile Include="Generate.fs" />
     <Compile Include="Benchmark.fs" />
+    <Compile Include="Stats.fs" />
     <Compile Include="Program.fs" />
     <None Include="App.config" />
     <None Include="packages.config" />

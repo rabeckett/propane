@@ -9,28 +9,6 @@ let runUnitTests() =
    Topology.Test.run()
    Abgp.Test.run()
 
-let inline total xs = 
-   xs
-   |> Array.map float
-   |> Array.sum
-
-let inline totalInSec x = total x / 1000.0
-let inline valueInSec x = float x / 1000.0
-
-let printStats (abgp : Abgp.Stats) (gen : Generate.Stats option) parseTime genTime = 
-   printfn 
-      "Build Topology+Policy, Total Compile to ABGP, Total Abgp to Low-level, PG Construction, PG Minimization, Find Preferences, Generate ABGP, ABGP Minimization, Generate Core, Generate Low-level, Substitution, Generate Quagga"
-   let (w, x, y, z) = 
-      match gen with
-      | None -> (float 0, float 0, float 0, float 0)
-      | Some stats -> 
-         (valueInSec stats.CoreTime, valueInSec stats.GenLowLevelConfigTime, 
-          valueInSec stats.SubstitutionTime, valueInSec stats.QuaggaTime)
-   printfn "%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f" (valueInSec parseTime) (valueInSec abgp.PrefixTime) 
-      (valueInSec genTime) (totalInSec abgp.PerPrefixBuildTimes) (totalInSec abgp.PerPrefixMinTimes) 
-      (totalInSec abgp.PerPrefixOrderTimes) (totalInSec abgp.PerPrefixGenTimes) 
-      (valueInSec abgp.MinTime) w x y z
-
 [<EntryPoint>]
 let main argv = 
    ignore (Args.parse argv)
@@ -89,5 +67,5 @@ let main argv =
          else 
             let stats, t = Util.Profile.time (Generate.generate res) topoInfo
             Some(stats), t
-      if settings.Stats then printStats res.Stats genStats (t1 + t2 + t3) genTime
+      if settings.Stats then Stats.print res.Stats genStats (t1 + t2 + t3) genTime
    0

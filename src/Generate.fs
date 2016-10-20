@@ -5,6 +5,7 @@ open Core.Printf
 open System.Collections.Generic
 open Util
 open Util.Format
+open Util.String
 
 let stringOfKind (k : Kind) = 
    if k = Kind.Permit then "permit"
@@ -321,16 +322,41 @@ let addFakeExternalConfigs (nc : NetworkConfiguration) =
 
 let createInterestingTests abgp = [ "hello" ]
 
+let parseTemplatePrefix p = 
+   match sscanf "%s.$%s$" p, sscanf "$%s$" p with
+   | Some(var, v), _ -> Some(Some var, v)
+   | _, Some v -> Some(None, v)
+   | _, _ -> None
+
+let allVariableValues (ti : Topology.TopoInfo) p = 
+   match parseTemplatePrefix p with
+   | None -> None
+   | Some(r, v) -> 
+      let cRouters, v = 
+         match r with
+         | None -> Set.singleton None, v
+         | Some name -> 
+            match Map.tryFind name ti.Concretization with
+            | None -> error (sprintf "Invalid abstract location: %s" name)
+            | Some cRouters -> Set.map Some cRouters, v
+      
+      let mutable acc = Set.empty
+      for cr in cRouters do
+         match Map.tryFind (cr, v) ti.TemplateVars with
+         | None -> ()
+         | Some vs -> acc <- Set.union acc vs
+      Some acc
+
 let makeTemplatePfxConcrete (ti : Topology.TopoInfo) router pfx = 
    match pfx with
    | Route.TemplatePfx p -> 
-      match Util.String.sscanf "%s$%s$" p with
+      match parseTemplatePrefix p with
       | None -> failwith "unreachable"
-      | Some(_, v) -> 
-         match Map.tryFind (router, v) ti.TemplateVars with
+      | Some r -> 
+         match Map.tryFind r ti.TemplateVars with
          | None -> None
-         | Some(a, b, c, d, s) -> Some(Route.ConcretePfx(a, b, c, d, s))
-   | Route.ConcretePfx _ -> Some(pfx)
+         | Some vs -> Some(Set.map (fun (a, b, c, d, s) -> Route.ConcretePfx(a, b, c, d, s)) vs)
+   | Route.ConcretePfx _ -> Some(Set.singleton pfx)
 
 let substRouterConfig (rc : Config.RouterConfiguration) (ti : Topology.TopoInfo) peerMap 
     (name : string) (rasn : string) = 
@@ -340,14 +366,26 @@ let substRouterConfig (rc : Config.RouterConfiguration) (ti : Topology.TopoInfo)
    let rc = RouterConfiguration(rc)
    rc.Name <- name
    rc.RouterAsn <- rasn
+   // update originated prefixes
    let nets = List()
    for n in rc.Networks do
       match makeTemplatePfxConcrete ti name n with
       | None -> ()
-      | Some pfx -> nets.Add(pfx)
+      | Some pfxs -> 
+         for pfx in pfxs do
+            nets.Add(pfx)
    rc.Networks <- nets
-   //if not seen && rc.Networks.Count > 0 then 
-   //   warning (sprintf "No substitution found for template variable: %s" "")
+   // update aggregate prefixes
+   let aggs = List()
+   for agg in rc.Aggregates do
+      match allVariableValues ti agg with
+      | None -> aggs.Add(agg)
+      | Some vs -> 
+         for (a, b, c, d, s) in vs do
+            let str = sprintf "%d.%d.%d.%d/%d" a b c d s
+            aggs.Add(str)
+   rc.Aggregates <- aggs
+   // update peer configurations
    let newPCs = List()
    for pc in rc.PeerConfigurations do
       let peers = Map.find name peerMap
@@ -358,23 +396,18 @@ let substRouterConfig (rc : Config.RouterConfiguration) (ti : Topology.TopoInfo)
          let x = PeerConfig(peer, asn, srcIp, peerIp, pc.InFilter, pc.OutFilter)
          newPCs.Add(x)
    rc.PeerConfigurations <- newPCs
+   // update prefix lists
    let newPLs = List()
    for pl in rc.PrefixLists do
-      match Util.String.sscanf "%s.$%s$" pl.Prefix with
+      match allVariableValues ti pl.Prefix with
       | None -> 
          let x = PrefixList(pl.Kind, pl.Name, pl.Prefix)
          newPLs.Add(x)
-      | Some(r, var) -> 
-         match Map.tryFind r ti.Concretization with
-         | None -> error (sprintf "Invalid abstract location: %s" r)
-         | Some cRouters -> 
-            for router in cRouters do
-               match Map.tryFind (router, var) ti.TemplateVars with
-               | None -> ()
-               | Some(a, b, c, d, s) -> 
-                  let str = sprintf "%d.%d.%d.%d/%d" a b c d s
-                  let x = PrefixList(pl.Kind, pl.Name, str)
-                  newPLs.Add(x)
+      | Some vs -> 
+         for (a, b, c, d, s) in vs do
+            let str = sprintf "%d.%d.%d.%d/%d" a b c d s
+            let x = PrefixList(pl.Kind, pl.Name, str)
+            newPLs.Add(x)
    rc.PrefixLists <- newPLs
    rc
 

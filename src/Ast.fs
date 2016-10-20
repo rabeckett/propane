@@ -106,7 +106,6 @@ let builtInRes =
 let builtInExpandable = Set.ofList [ "start"; "end"; "enter"; "exit"; "through"; "avoid" ]
 let builtInConstraints = Set.ofList [ "aggregate"; "tag"; "maxroutes"; "longest_path" ]
 let builtIns = Set.union builtInRes builtInConstraints
-let routerTemplate = "router"
 
 (* Helper functions for traversing an AST expression 
    and applying a user-defined function f at each node *)
@@ -414,8 +413,7 @@ let wellFormed ast (e : Expr) : Type =
                sprintf "Template variable: $%s$ detected, but abstract compilation " id.Name 
                + sprintf "is not enabled. Use the -abstract:on flag to enable abstract compilation"
             Message.errorAst ast msg id.Pos
-         if id.Name = routerTemplate then LocType
-         else PredicateType
+         PredicateType
       | Ident(id, args) -> 
          if builtInConstraints.Contains id.Name then 
             let msg = sprintf "Invalid control constraint '%s' found in expression" id.Name
@@ -777,7 +775,7 @@ let inline getPrefixes ast pfxs e =
       wellFormedPrefix ast e.Pos (a, b, c, d, bits)
       let pfx = getPrefix e.Node
       pfxs := Set.add pfx !pfxs
-   | TemplateVar(_, id) when id.Name <> routerTemplate -> 
+   | TemplateVar(_, id) -> 
       let pfx = getPrefix e.Node
       pfxs := Set.add pfx !pfxs
    | _ -> ()

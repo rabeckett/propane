@@ -217,7 +217,7 @@ type RouterConfiguration =
       val mutable RouterAsn : string
       val RouterID : int
       val mutable Networks : List<Route.TempPrefix>
-      val Aggregates : List<string>
+      val mutable Aggregates : List<string>
       val mutable PrefixLists : List<PrefixList>
       val AsPathLists : List<AsPathList>
       val CommunityLists : List<CommunityList>

@@ -665,7 +665,7 @@ module RouterWide =
             else rconf) config.RConfigs
       { config with RConfigs = rconfigs }
    
-   let minimize (config : T) (ti : Topology.TopoInfo) = removeSpecificMatchWhenInternal config ti
+   let minimize (config : T) (ti : Topology.TopoInfo) = config // removeSpecificMatchWhenInternal config ti
 
 (*
     let settings = Args.getSettings()
@@ -1155,7 +1155,12 @@ let warnNonExactOrigins cg pred =
                   + sprintf "This will default to the concrete prefix: %s" (string <| p.Example())
                warning msg
 
-let getLocsWithNoPath idx (ti : Topology.TopoInfo) cg (reb : Regex.REBuilder) dfas = 
+let abstractDisjointPathInfo (ti : Topology.TopoInfo) cg = 
+   let inline aux acc o = Map.add o (AbstractAnalysis.reachability ti cg o) acc
+   let originators = insideOriginators cg
+   Set.fold aux Map.empty originators
+
+let getLocsWithNoPath idx (ti : Topology.TopoInfo) cg (reb : Regex.REBuilder) dfas abstractPathInfo = 
    let settings = Args.getSettings()
    let startingLocs = 
       Array.fold (fun acc dfa -> Set.union (reb.StartingLocs dfa) acc) Set.empty dfas
@@ -1174,10 +1179,7 @@ let getLocsWithNoPath idx (ti : Topology.TopoInfo) cg (reb : Regex.REBuilder) df
       else Set.difference needToSend originatorLocs
    
    let locsThatGetPath = CGraph.acceptingLocations cg
-   if settings.IsAbstract then 
-      for o in originators do
-         let k = AbstractAnalysis.reachability ti cg o
-         ()
+   // TODO: check reachability via abstract analysis
    logInfo (idx, sprintf "Locations that need path: %s" (locsThatNeedPath.ToString()))
    logInfo (idx, sprintf "Locations that get path: %s" (locsThatGetPath.ToString()))
    Set.difference locsThatNeedPath locsThatGetPath
@@ -1208,24 +1210,45 @@ let warnAnycasts cg (polInfo : Ast.PolInfo) pred =
               (Route.toString pred) + sprintf "enable anycast by using the --anycast flag"
       error msg
 
+let minDisjointPathsByLoc (abstractPathInfo : Map<CgState, AbstractAnalysis.AnalysisResult>) = 
+   let inf = System.Int32.MaxValue
+   let joinByMin acc k (all, some) = 
+      Util.Map.adjust k.Node.Loc (inf, inf) (fun (a, s) -> (min a all, min s some)) acc
+   let minByLoc acc k m = Map.add k.Node.Loc (Map.fold joinByMin Map.empty m) acc
+   Map.fold minByLoc Map.empty abstractPathInfo
+
 let getMinAggregateFailures (cg : CGraph.T) (pred : Route.Predicate) 
-    (aggInfo : Map<string, DeviceAggregates>) = 
-   let originators = CGraph.neighbors cg cg.Start
+    (aggInfo : Map<string, DeviceAggregates>) 
+    (abstractPathInfo : Map<CgState, AbstractAnalysis.AnalysisResult> option) = 
+   let originators = insideOriginators cg
    let prefixes = Route.trafficClassifiers pred
    let smallest = ref System.Int32.MaxValue
    let pairs = ref None
    for (Route.TrafficClassifier(p, _)) in prefixes do
       Map.iter (fun aggRouter aggs -> 
-         let relevantAggs = Set.filter (fun (prefix, _) -> Route.mightApplyTo prefix p) aggs
+         let relevantAggs = Set.filter (fun (aggPrefix, _) -> Route.mightApplyTo aggPrefix p) aggs
          if not relevantAggs.IsEmpty then 
             let rAgg, _ = relevantAggs.MinimumElement
-            match CGraph.Failure.disconnectLocs cg originators aggRouter with
-            | None -> ()
-            | Some(k, x, y) -> 
-               if k < !smallest then 
-                  smallest := min !smallest k
-                  let p = (x, y, p, rAgg)
-                  pairs := Some p) aggInfo
+            match abstractPathInfo with
+            | Some info -> 
+               // abstract analysis case
+               let info = minDisjointPathsByLoc info
+               for o in originators do
+                  let x, y = o.Node.Loc, aggRouter
+                  let (all, some) = info.[x].[y]
+                  if all < !smallest then 
+                     smallest := min !smallest all
+                     let p = (x, y, p, rAgg)
+                     pairs := Some p
+            | None -> 
+               // concrete analysis case
+               match CGraph.Failure.disconnectLocs cg originators aggRouter with
+               | None -> ()
+               | Some(k, x, y) -> 
+                  if k < !smallest then 
+                     smallest := min !smallest k
+                     let p = (x, y, p, rAgg)
+                     pairs := Some p) aggInfo
    if !smallest = System.Int32.MaxValue then None
    else 
       let (x, y, p, agg) = Option.get !pairs
@@ -1251,6 +1274,12 @@ let compileToIR idx pred (polInfo : Ast.PolInfo option) aggInfo (reb : Regex.REB
    // minimize PG and record time
    let cg, minTime = Profile.time (CGraph.Minimize.minimize idx) cg
    debug (fun () -> CGraph.generatePNG cg polInfo (debugName + "-min"))
+   // get the abstract reachability information
+   let ti = polInfo.Value.Ast.TopoInfo
+   
+   let abstractPathInfo = 
+      if settings.IsAbstract then Some(abstractDisjointPathInfo ti cg)
+      else None
    // warn for anycasts 
    if not settings.Test then 
       warnNonExactOrigins cg pred
@@ -1258,7 +1287,7 @@ let compileToIR idx pred (polInfo : Ast.PolInfo option) aggInfo (reb : Regex.REB
       // check if there is reachability
       // check there is a route for each location specified
       // TODO: this can fail
-      let lost = getLocsWithNoPath idx polInfo.Value.Ast.TopoInfo cg reb dfas
+      let lost = getLocsWithNoPath idx ti cg reb dfas abstractPathInfo
       if not (Set.isEmpty lost) then 
          match polInfo with
          | Some pi -> 
@@ -1276,7 +1305,7 @@ let compileToIR idx pred (polInfo : Ast.PolInfo option) aggInfo (reb : Regex.REB
          warning msg) unusedPrefs
    try 
       // check aggregation failure consistency
-      let k = getMinAggregateFailures cg pred aggInfo
+      let k = getMinAggregateFailures cg pred aggInfo abstractPathInfo
       // check that there is a valid ordering for BGP preferences to ensure compliance
       let (ordering, orderTime) = Profile.time (Consistency.findOrderingConservative idx) cg
       match ordering with

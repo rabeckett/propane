@@ -1,4 +1,4 @@
 define main = {
-	A.$prefix$ => end(A.$router$),
+	A.$prefix$ => end(A),
 	true => drop
 }

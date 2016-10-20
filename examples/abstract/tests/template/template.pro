@@ -7,7 +7,7 @@ define notransit = {
 }
 
 define routing = {
-	T0.$prefix$ => end(T0.$router$),
+	T0.$prefix$ => end(T0),
 	true => drop #exit(Peer1 >> Peer2)
 }
 

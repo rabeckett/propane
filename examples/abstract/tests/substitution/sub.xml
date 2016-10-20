@@ -1,6 +1,6 @@
 <topology asn="100">
   <!-- Concrete nodes -->
-  <node internal="true" name="A" group="T0" vars="prefix=1.0.0.0/32"></node>
+  <node internal="true" name="A" group="T0" vars="prefix=1.0.0.0/32, aggregatePrefix=2.2.0.0/16"></node>
   <node internal="true" name="B" group="T0" vars="prefix=1.0.0.1/32"></node>
   <node internal="true" name="C" group="T0" vars="prefix=1.0.0.2/32"></node>
   <node internal="true" name="D" group="T0" vars="prefix=1.0.0.3/32"></node>
@@ -26,7 +26,7 @@
   <edge source="N" target="X"></edge>
   <edge source="N" target="Y"></edge>
   <edge source="O" target="X"></edge>
-  <edge source="O" target="Y"></edge>
+  <edge source="O" target="Y"></edge> 
   <!-- Abstract Nodes -->
   <abstractnode internal="true" label="T0"></abstractnode>
   <abstractnode internal="true" label="T1"></abstractnode>
@@ -42,4 +42,7 @@
   <constraint assertion="(>= E2 2)"></constraint>
   <constraint assertion="(>= E3 T2)"></constraint>
   <constraint assertion="(>= E4 T1)"></constraint>
+  <!-- Variable data -->
+  <data vars="aggregatePrefix=1.2.0.0/16"></data>
+  <data vars="aggregatePrefix=1.3.0.0/16"></data>
 </topology>

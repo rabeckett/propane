@@ -546,9 +546,9 @@ let reachability (ti : Topology.TopoInfo) (cg : CGraph.T) (src : CgState) : Anal
                            | _ -> ()
       first := false
       debugLearned learned ti
-   let b = combineAllInferences learned
-   for kv in b do
+   let ret = combineAllInferences learned
+   for kv in ret do
       let v = Topology.router kv.Key.Node.Loc ti
       let (x, y) = kv.Value
-      printfn "%s --> (all=%d, some=%d)" v x y
-   b
+      log (sprintf "%s --> (all=%d, some=%d)" v x y)
+   ret
