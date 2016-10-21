@@ -703,11 +703,13 @@ module Minimize =
 ///
 /// See the paper for details on how this works.
 module Consistency = 
+   type Explanation = (string * string) option * (CgState * CgState * CgState list * CgState * CgState * CgState list) option
+   
    exception SimplePathException of CgState * CgState
    
-   exception ConsistencyException of CgState * CgState * CgState list option
+   exception ConsistencyException of CgState * CgState * Explanation
    
-   type CounterExample = CgState * CgState * CgState list option
+   type CounterExample = CgState * CgState * Explanation
    
    type Preferences = seq<CgState>
    
@@ -880,20 +882,44 @@ module Consistency =
          comparedAsBetter := Set.add (y, x) !comparedAsBetter
          -1
       | Unsafe(l, m, n), Unsafe(o, p, q) -> 
+         // see if they have different peers
+         let nsx = 
+            neighborsIn cg x
+            |> Set.ofSeq
+            |> Set.map loc
+         
+         let nsy = 
+            neighborsIn cg y
+            |> Set.ofSeq
+            |> Set.map loc
+         
+         let xnoty = Set.difference nsx nsy
+         let ynotx = Set.difference nsy nsx
+         
+         let ns = 
+            if Set.count xnoty > 0 && Set.count ynotx > 0 then 
+               let a = Set.minElement xnoty
+               let b = Set.minElement ynotx
+               Some(a, b)
+            else None
+         
          // if m <> n then use this pair, else use the p,q pair
+         let example1 = 
+            if m = n then createPathCounterExample cg [ cg.Start; m ]
+            else createPathCounterExample cg [ cg.Start; m; n ]
+         
+         let example2 = 
+            if p = q then createPathCounterExample cg [ cg.Start; p ]
+            else createPathCounterExample cg [ cg.Start; p; q ]
+         
+         let example1 = Option.map (fun x -> (m, n, x)) example1
+         let example2 = Option.map (fun x -> (p, q, x)) example2
+         
          let example = 
-            match m = n, p = q with
-            | false, _ -> createPathCounterExample cg [ cg.Start; m; n; cg.End ]
-            | _, false -> createPathCounterExample cg [ cg.Start; p; q; cg.End ]
-            | _, _ -> None
-         printfn "x,y: %s, %s" (string x) (string y)
-         printfn "violation: %s, %s, %s" (string l) (string m) (string n)
-         printfn "violation: %s, %s, %s" (string o) (string p) (string q)
-         if p = q then 
-            printfn "bad initial rank"
-            ()
-         else printfn "link failure from: %s to %s" (string p) (string q)
-         raise (ConsistencyException(x, y, example))
+            match example1, example2 with
+            | None, _ | _, None -> None
+            | Some(m, n, x), Some(p, q, y) -> Some(m, n, x, p, q, y)
+         raise (ConsistencyException(x, y, (ns, example)))
    
    let rec partition idx cg cache doms mustPrefer comparedAsBetter ((l, r) as acc) xs x = 
       match xs with
@@ -962,8 +988,8 @@ module Consistency =
             |> Set.ofSeq
          try 
             Ok(Set.fold (addForLabel idx cache doms ain cg mustPrefer) (Dictionary()) labels)
-         with ConsistencyException(x, y, example) -> Err((x, y, example))
-      with SimplePathException(x, y) -> Err((x, y, None))
+         with ConsistencyException(x, y, (ns, example)) -> Err((x, y, (ns, example)))
+      with SimplePathException(x, y) -> Err((x, y, (None, None)))
    
    let findOrderingConservative (idx : int) = findOrdering idx
 

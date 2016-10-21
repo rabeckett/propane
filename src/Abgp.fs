@@ -86,7 +86,7 @@ type T =
      RConfigs : Map<string, RouterConfig> }
 
 type CounterExample = 
-   | InconsistentPrefs of CgState * CgState * CgState list option
+   | InconsistentPrefs of CgState * CgState * Consistency.Explanation
    | UncontrollableEnter of string
    | UncontrollablePeerPreference of string
 
@@ -1325,7 +1325,7 @@ let compileToIR idx pred (polInfo : Ast.PolInfo option) aggInfo (reb : Regex.REB
          debug 
             (fun () -> System.IO.File.WriteAllText(sprintf "%s/%s.ir" settings.DebugDir name, msg))
          Ok(result)
-      | Err((x, y, example)) -> Err(InconsistentPrefs(x, y, example))
+      | Err((x, y, (ns, example))) -> Err(InconsistentPrefs(x, y, (ns, example)))
    with
       | UncontrollableEnterException s -> Err(UncontrollableEnter s)
       | UncontrollablePeerPreferenceException s -> Err(UncontrollablePeerPreference s)
@@ -1336,24 +1336,39 @@ let compileForSinglePrefix idx (polInfo : Ast.PolInfo) aggInfo (pred, reb, res) 
    | Err(x) -> 
       let ti = polInfo.Ast.TopoInfo
       match x with
-      | InconsistentPrefs(x, y, example) -> 
+      | InconsistentPrefs(x, y, (ns, example)) -> 
          let l = Topology.router (CGraph.loc x) ti
          let msg = 
-            sprintf "Cannot find preferences for router " 
-            + sprintf "%s for predicate %s" l (Route.toString pred)
-         match example with
-         | None -> ()
-         | Some path -> 
-            let path = List.map (fun v -> Topology.router v.Node.Loc ti) path
-            
-            let path = 
-               List.rev path
-               |> List.tail
-               |> List.rev
-            printfn "x: %s" (string x)
-            printfn "y: %s" (string y)
-            printfn "path: %A" path
-            ()
+            sprintf "Cannot determine BGP local preferences that are correct under " 
+            + sprintf "any failures for router %s for predicate %s. " l (Route.toString pred)
+         
+         let msg = 
+            match example, ns with
+            | None, _ | _, None -> msg
+            | Some(x1, y1, path1, x2, y2, path2), Some(a, b) -> 
+               let a = Topology.router a ti
+               let b = Topology.router b ti
+               let x1 = Topology.router x1.Node.Loc ti
+               let y1 = Topology.router y1.Node.Loc ti
+               let x2 = Topology.router x2.Node.Loc ti
+               let y2 = Topology.router y2.Node.Loc ti
+               let path1 = List.map (fun v -> Topology.router v.Node.Loc ti) path1
+               let path2 = List.map (fun v -> Topology.router v.Node.Loc ti) path2
+               let path1 = List.rev path1
+               let path2 = List.rev path2
+               let dst1 = List.head path1
+               let dst2 = List.head path2
+               let path1 = path1 |> Util.List.joinBy ","
+               let path2 = path2 |> Util.List.joinBy ","
+               msg 
+               + (sprintf "Possible Issue: Suppose router %s prefers neighbor %s over %s. " l a b) 
+               + (sprintf "However, %s might not receive an advertisement for the destination " dst1) 
+               + (sprintf "along its preferred path %s, " path1) 
+               + (sprintf "even though the path exists in the network. ") 
+               + (sprintf "On the other hand, Suppose %s prefers neighbor %s over %s. " l b a) 
+               + (sprintf "However, %s might not receive an advertisement for the destination " dst2) 
+               + (sprintf "along its preferred path %s, " path2) 
+               + (sprintf "even though the path exists in the network.")
          error msg
       | UncontrollableEnter x -> 
          let l = Topology.router x ti
