@@ -86,7 +86,7 @@ type T =
      RConfigs : Map<string, RouterConfig> }
 
 type CounterExample = 
-   | InconsistentPrefs of CgState * CgState
+   | InconsistentPrefs of CgState * CgState * CgState list option
    | UncontrollableEnter of string
    | UncontrollablePeerPreference of string
 
@@ -1325,7 +1325,7 @@ let compileToIR idx pred (polInfo : Ast.PolInfo option) aggInfo (reb : Regex.REB
          debug 
             (fun () -> System.IO.File.WriteAllText(sprintf "%s/%s.ir" settings.DebugDir name, msg))
          Ok(result)
-      | Err((x, y)) -> Err(InconsistentPrefs(x, y))
+      | Err((x, y, example)) -> Err(InconsistentPrefs(x, y, example))
    with
       | UncontrollableEnterException s -> Err(UncontrollableEnter s)
       | UncontrollablePeerPreferenceException s -> Err(UncontrollablePeerPreference s)
@@ -1336,11 +1336,24 @@ let compileForSinglePrefix idx (polInfo : Ast.PolInfo) aggInfo (pred, reb, res) 
    | Err(x) -> 
       let ti = polInfo.Ast.TopoInfo
       match x with
-      | InconsistentPrefs(x, y) -> 
+      | InconsistentPrefs(x, y, example) -> 
          let l = Topology.router (CGraph.loc x) ti
          let msg = 
             sprintf "Cannot find preferences for router " 
             + sprintf "%s for predicate %s" l (Route.toString pred)
+         match example with
+         | None -> ()
+         | Some path -> 
+            let path = List.map (fun v -> Topology.router v.Node.Loc ti) path
+            
+            let path = 
+               List.rev path
+               |> List.tail
+               |> List.rev
+            printfn "x: %s" (string x)
+            printfn "y: %s" (string y)
+            printfn "path: %A" path
+            ()
          error msg
       | UncontrollableEnter x -> 
          let l = Topology.router x ti

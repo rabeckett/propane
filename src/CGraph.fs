@@ -705,9 +705,9 @@ module Minimize =
 module Consistency = 
    exception SimplePathException of CgState * CgState
    
-   exception ConsistencyException of CgState * CgState
+   exception ConsistencyException of CgState * CgState * CgState list option
    
-   type CounterExample = CgState * CgState
+   type CounterExample = CgState * CgState * CgState list option
    
    type Preferences = seq<CgState>
    
@@ -812,35 +812,88 @@ module Consistency =
             if below.Count > 0 then mustPrefer.[d] <- below
          mustPrefer
    
+   type PrefResult = 
+      | Safe
+      | Unsafe of CgState * CgState * CgState
+   
    let isPreferred idx cg (cache : HashSet<_>) (doms : Domination.DominationTree) (x, y) = 
       let ce = CacheEntry(x.Id, y.Id)
-      if cache.Contains ce then true
+      if cache.Contains ce then Safe
       else 
          match protect idx doms cg x y with
-         | No(x, y, y') -> false
+         | No(x, y, y') -> Unsafe(x, y, y')
          | Yes related -> 
             for n in related do
                let ce = CacheEntry(n.More.Id, n.Less.Id)
                ignore (cache.Add ce)
-            true
+            Safe
    
    let mustBePreferred x y (mustPrefer : Dictionary<_, HashSet<_>>) = 
       match Util.Dictionary.tryFind x mustPrefer with
       | None -> false
       | Some ns -> ns.Contains(y)
    
+   let getShortestPath (cg : T) (s : CgState) (d : CgState) = 
+      let closure = cg.Graph.ShortestPathsDijkstra((fun _ -> 1.0), s)
+      let hasPath, path = closure.Invoke d
+      if hasPath then 
+         path
+         |> Seq.map (fun (e : Edge<CgState>) -> e.Target)
+         |> List.ofSeq
+         |> Some
+      else None
+   
+   let stitchPath cg start vs = 
+      List.fold (fun (patho, prev) v -> 
+         match patho with
+         | None -> (None, v)
+         | Some path -> 
+            match getShortestPath cg prev v with
+            | None -> (None, v)
+            | Some sp -> (Some(path @ sp), v)) (Some [], start) vs
+      |> fst
+   
+   let pathHasLoop (vs : CgState list) = 
+      let locs = List.fold (fun acc v -> Set.add v.Node.Loc acc) Set.empty vs
+      Set.count locs <> List.length vs
+   
+   let createPathCounterExample (cg : T) (vs : CgState list) = 
+      match vs with
+      | [] -> failwith "unreachable"
+      | hd :: tl -> 
+         let patho = stitchPath cg hd tl
+         match patho with
+         | None -> None
+         | Some path -> 
+            if pathHasLoop path then None
+            else patho
+   
    let compare idx cg cache doms (mustPrefer : Dictionary<_, HashSet<_>>) comparedAsBetter x y = 
       let a = isPreferred idx cg cache doms (x, y)
       let b = isPreferred idx cg cache doms (y, x)
       match a, b with
-      | true, true -> 0
-      | true, false -> 
+      | Safe, Safe -> 0
+      | Safe, Unsafe _ -> 
          comparedAsBetter := Set.add (x, y) !comparedAsBetter
          1
-      | false, true -> 
+      | Unsafe _, Safe -> 
          comparedAsBetter := Set.add (y, x) !comparedAsBetter
          -1
-      | false, false -> raise (ConsistencyException(x, y))
+      | Unsafe(l, m, n), Unsafe(o, p, q) -> 
+         // if m <> n then use this pair, else use the p,q pair
+         let example = 
+            match m = n, p = q with
+            | false, _ -> createPathCounterExample cg [ cg.Start; m; n; cg.End ]
+            | _, false -> createPathCounterExample cg [ cg.Start; p; q; cg.End ]
+            | _, _ -> None
+         printfn "x,y: %s, %s" (string x) (string y)
+         printfn "violation: %s, %s, %s" (string l) (string m) (string n)
+         printfn "violation: %s, %s, %s" (string o) (string p) (string q)
+         if p = q then 
+            printfn "bad initial rank"
+            ()
+         else printfn "link failure from: %s to %s" (string p) (string q)
+         raise (ConsistencyException(x, y, example))
    
    let rec partition idx cg cache doms mustPrefer comparedAsBetter ((l, r) as acc) xs x = 
       match xs with
@@ -868,7 +921,9 @@ module Consistency =
             if not <| Set.contains (x, y) !comparedAsBetter then 
                let a = isPreferred idx cg cache doms (x, y)
                let b = isPreferred idx cg cache doms (y, x)
-               if (not a) || b then raise (SimplePathException(x, y))
+               match a, b with
+               | Unsafe _, _ | _, Safe -> raise (SimplePathException(x, y))
+               | _, _ -> ()
    
    let findPrefAssignment idx cache doms cg mustPrefer nodes = 
       let comparedAsBetter = ref Set.empty
@@ -907,8 +962,8 @@ module Consistency =
             |> Set.ofSeq
          try 
             Ok(Set.fold (addForLabel idx cache doms ain cg mustPrefer) (Dictionary()) labels)
-         with ConsistencyException(x, y) -> Err((x, y))
-      with SimplePathException(x, y) -> Err(x, y)
+         with ConsistencyException(x, y, example) -> Err((x, y, example))
+      with SimplePathException(x, y) -> Err((x, y, None))
    
    let findOrderingConservative (idx : int) = findOrdering idx
 

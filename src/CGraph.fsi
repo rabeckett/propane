@@ -85,7 +85,7 @@ module Minimize =
 
 module Consistency = 
    /// An explanation for why a policy is unimplementable with BGP
-   type CounterExample = CgState * CgState
+   type CounterExample = CgState * CgState * CgState list option
    
    /// Preference ranking for each router based on possible routes
    type Preferences = seq<CgState>

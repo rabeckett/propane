@@ -303,13 +303,12 @@ let substitute (ast : T) (e : Expr) : Expr =
          | Some(_, ids, e1) -> 
             let req, prov = List.length ids, List.length es
             if req <> prov then 
-               let msg = 
-                  sprintf "Expected %d parameters to '%s', but only received %d" req id.Name prov
+               let msg = sprintf "Expected %d parameters to '%s', but received %d" req id.Name prov
                Message.errorAst ast msg e.Pos
             let defs' = 
                List.zip ids es 
-               |> List.fold (fun acc (id, e) -> Map.add id.Name (e.Pos, [], e) acc) defs
-            aux defs' (Set.add id.Name seen) e1
+               |> List.fold (fun acc (_, e) -> Map.add id.Name (e.Pos, [], e) acc) defs
+            aux defs' (Set.add id.Name seen) { e1 with Pos = e.Pos }
    aux ast.Defs Set.empty e
 
 (* Test well-formedness of an expression. 
