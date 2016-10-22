@@ -11,6 +11,7 @@ type Stats =
      PerPrefixTimes : int64 array
      PerPrefixBuildTimes : int64 array
      PerPrefixMinTimes : int64 array
+     PerPrefixAggAnalysisTimes : int64 array
      PerPrefixOrderTimes : int64 array
      PerPrefixGenTimes : int64 array
      JoinTime : int64

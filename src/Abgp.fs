@@ -285,8 +285,8 @@ module NodeWide =
    
    let removeCommMatchForUnqEdges cg (eCounts : Dictionary<_, _>) v m = 
       let inline unq e = 
-         let mutable res = 0
-         eCounts.TryGetValue(e, &res) && res = 1
+         let b, res = eCounts.TryGetValue(e)
+         b && res = 1
       match m with
       | Match.State(c, peers) -> 
          match peers with
@@ -701,6 +701,7 @@ type PrefixResult =
    { K : AggregationSafety option
      BuildTime : int64
      MinimizeTime : int64
+     AggAnalysisTime : int64
      OrderingTime : int64
      ConfigTime : int64
      Config : PredConfig }
@@ -714,6 +715,7 @@ type Stats =
      PerPrefixTimes : int64 array
      PerPrefixBuildTimes : int64 array
      PerPrefixMinTimes : int64 array
+     PerPrefixAggAnalysisTimes : int64 array
      PerPrefixOrderTimes : int64 array
      PerPrefixGenTimes : int64 array
      JoinTime : int64
@@ -1178,7 +1180,11 @@ let getLocsWithNoPath idx (ti : Topology.TopoInfo) cg (reb : Regex.REBuilder) df
       if settings.IsAbstract then needToSend
       else Set.difference needToSend originatorLocs
    
-   let locsThatGetPath = CGraph.acceptingLocations cg
+   let locsThatGetPath = 
+      cg.Graph.Vertices
+      |> Set.ofSeq
+      |> Set.map loc
+   
    // TODO: check reachability via abstract analysis
    logInfo (idx, sprintf "Locations that need path: %s" (locsThatNeedPath.ToString()))
    logInfo (idx, sprintf "Locations that get path: %s" (locsThatGetPath.ToString()))
@@ -1275,10 +1281,11 @@ let compileToIR idx pred (polInfo : Ast.PolInfo option) aggInfo (reb : Regex.REB
    let cg, minTime = Profile.time (CGraph.Minimize.minimize idx) cg
    debug (fun () -> CGraph.generatePNG cg polInfo (debugName + "-min"))
    // get the abstract reachability information
-   let abstractPathInfo = 
-      if settings.IsAbstract && not settings.Test then 
-         Some(abstractDisjointPathInfo polInfo.Value.Ast.TopoInfo cg)
-      else None
+   let abstractPathInfo, at1 = 
+      if settings.IsAbstract && not settings.Test && not (Map.isEmpty aggInfo) then 
+         let v, t = Util.Profile.time (abstractDisjointPathInfo polInfo.Value.Ast.TopoInfo) cg
+         Some(v), t
+      else None, int64 0
    // warn for anycasts 
    if not settings.Test then 
       warnNonExactOrigins cg pred
@@ -1304,7 +1311,8 @@ let compileToIR idx pred (polInfo : Ast.PolInfo option) aggInfo (reb : Regex.REB
          warning msg) unusedPrefs
    try 
       // check aggregation failure consistency
-      let k = getMinAggregateFailures cg pred aggInfo abstractPathInfo
+      let k, at2 = Util.Profile.time (getMinAggregateFailures cg pred aggInfo) abstractPathInfo
+      let aggAnalysisTime = at1 + at2
       // check that there is a valid ordering for BGP preferences to ensure compliance
       let (ordering, orderTime) = Profile.time (Consistency.findOrderingConservative idx) cg
       match ordering with
@@ -1317,6 +1325,7 @@ let compileToIR idx pred (polInfo : Ast.PolInfo option) aggInfo (reb : Regex.REB
             { K = k
               BuildTime = buildTime
               MinimizeTime = minTime
+              AggAnalysisTime = aggAnalysisTime
               OrderingTime = orderTime
               ConfigTime = configTime
               Config = config }
@@ -1523,6 +1532,7 @@ let compileAllPrefixes (polInfo : Ast.PolInfo) : CompilationResult =
    let minJoined = reindexCommunities minJoined
    let buildTimes = Array.map (fun c -> c.BuildTime) configs
    let minTimes = Array.map (fun c -> c.MinimizeTime) configs
+   let aggAnalysisTimes = Array.map (fun c -> c.AggAnalysisTime) configs
    let orderTimes = Array.map (fun c -> c.OrderingTime) configs
    let genTimes = Array.map (fun c -> c.ConfigTime) configs
    
@@ -1533,6 +1543,7 @@ let compileAllPrefixes (polInfo : Ast.PolInfo) : CompilationResult =
         PerPrefixTimes = times
         PerPrefixBuildTimes = buildTimes
         PerPrefixMinTimes = minTimes
+        PerPrefixAggAnalysisTimes = aggAnalysisTimes
         PerPrefixOrderTimes = orderTimes
         PerPrefixGenTimes = genTimes
         JoinTime = joinTime

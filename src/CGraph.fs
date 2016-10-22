@@ -407,6 +407,29 @@ module Reachable =
 /// 
 /// However, this runs fast in practice since the sets of dominators are stored
 /// compactly in a data structure called a dominator tree.
+(* let dominationLocs (cg : T) : Map<CgState, Set<string>> = 
+   let allVertices = cg.Graph.Vertices |> Set.ofSeq
+   let allLocs = Set.map loc allVertices
+   let postorder = Reachable.postOrder cg cg.Start Down
+   let mutable acc = Map.add cg.Start Set.empty Map.empty
+   for v in postorder do
+      if v <> cg.Start then acc <- Map.add v allLocs acc
+   let mutable change = true
+   while change do
+      change <- false
+      for v in postorder do
+         if v <> cg.Start then 
+            let nsIn = neighborsIn cg v |> Set.ofSeq
+            let nsLocs = Seq.map (fun k -> Map.find k acc |> Set.add k.Node.Loc) nsIn
+            let existing = Map.find v acc
+            
+            let newLocs = 
+               if Seq.isEmpty nsLocs then Set.empty
+               else Set.intersectMany nsLocs
+            if Set.count newLocs <> Set.count existing then change <- true
+            acc <- Map.add v newLocs acc
+   acc *)
+
 module Domination = 
    type DomTreeMapping = Dictionary<CgState, CgState option>
    
@@ -667,32 +690,34 @@ module Minimize =
    
    let minimize (idx : int) (cg : T) = 
       let settings = Args.getSettings()
-      let isConcrete = not settings.IsAbstract
-      logInfo (idx, sprintf "Node count: %d" cg.Graph.VertexCount)
-      let inline count cg = cg.Graph.VertexCount + cg.Graph.EdgeCount
-      
-      let inline prune() = 
-         removeNodesThatCantReachEnd cg
-         logInfo (idx, sprintf "Node count (cant reach end): %d" cg.Graph.VertexCount)
-         combineAsOut cg
-         logInfo (idx, sprintf "Node count (combine external nodes): %d" cg.Graph.VertexCount)
-         removeRedundantExternalNodes cg
-         logInfo (idx, sprintf "Node count (redundant external nodes): %d" cg.Graph.VertexCount)
-         removeConnectionsToOutStar cg
-         logInfo (idx, sprintf "Node count (connections to out*): %d" cg.Graph.VertexCount)
-         if isConcrete then 
-            removeDominated cg
-            logInfo (idx, sprintf "Node count (remove dominated): %d" cg.Graph.VertexCount)
-         removeNodesThatStartCantReach cg
-         logInfo (idx, sprintf "Node count (start cant reach): %d" cg.Graph.VertexCount)
-      
-      let mutable sum = count cg
-      prune()
-      while count cg <> sum do
-         sum <- count cg
+      if not settings.Minimize then cg
+      else 
+         let isConcrete = not settings.IsAbstract
+         logInfo (idx, sprintf "Node count: %d" cg.Graph.VertexCount)
+         let inline count cg = cg.Graph.VertexCount + cg.Graph.EdgeCount
+         
+         let inline prune() = 
+            removeNodesThatCantReachEnd cg
+            logInfo (idx, sprintf "Node count (cant reach end): %d" cg.Graph.VertexCount)
+            combineAsOut cg
+            logInfo (idx, sprintf "Node count (combine external nodes): %d" cg.Graph.VertexCount)
+            removeRedundantExternalNodes cg
+            logInfo (idx, sprintf "Node count (redundant external nodes): %d" cg.Graph.VertexCount)
+            removeConnectionsToOutStar cg
+            logInfo (idx, sprintf "Node count (connections to out*): %d" cg.Graph.VertexCount)
+            if isConcrete then 
+               removeDominated cg
+               logInfo (idx, sprintf "Node count (remove dominated): %d" cg.Graph.VertexCount)
+            removeNodesThatStartCantReach cg
+            logInfo (idx, sprintf "Node count (start cant reach): %d" cg.Graph.VertexCount)
+         
+         let mutable sum = count cg
          prune()
-      logInfo (idx, sprintf "Node count - after O3: %d" cg.Graph.VertexCount)
-      cg
+         while count cg <> sum do
+            sum <- count cg
+            prune()
+         logInfo (idx, sprintf "Node count - after O3: %d" cg.Graph.VertexCount)
+         cg
 
 /// Run failure analysis on minimized product graph.
 /// The goal of the failure analysis is to:
@@ -750,8 +775,7 @@ module Consistency =
          // TODO: total hack for now
          if isInside x && isInside y then 
             let i, j = x'.Accept, y'.Accept
-            if i > j && (isInside x') && (isInside y') then // Hack
-               counterEx := Some(x, y, y')
+            if i > j && (isInside x') && (isInside y') then counterEx := Some(x, y, y')
             else 
                let n' = Node(x', y')
                if not (seen.Contains n') then 

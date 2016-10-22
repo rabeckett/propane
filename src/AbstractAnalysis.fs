@@ -273,7 +273,7 @@ let rec betterLabels (xs : Label list) (ys : Label list) =
       | _, _ -> xtl = ytl // betterLabels xtl ytl
    | _ :: _, [] | [], _ :: _ -> failwith "unreachable"
 
-let inline isStrictlyBetter (j, k, xs) (j', k', ys) = (j = j' && k >= k' && betterLabels xs ys) //(List.tail (List.rev xs) = List.tail (List.rev ys)))
+let inline isStrictlyBetter (j, k, xs) (j', k', ys) = (j = j' && k >= k' && betterLabels xs ys)
 
 let addInference (inf : Inference) (learned : Inference list) changed : Inference list * bool = 
    let (Inference(xs, j, k, es)) = inf
@@ -496,13 +496,14 @@ let reachability (ti : Topology.TopoInfo) (cg : CGraph.T) (src : CgState) : Anal
                         match findMin s with
                         | Some z -> update (namev, nameu) (v, u) (weakMin (j * k) z, 1) true
                         | _ -> ()
-                        log "  Rule striping 2"
-                        let s = sprintf "(- %d (mod %s (div %s %s)))" j m n e1
-                        match findMin e1, findMin e2, findMin s with
-                        | Some ze1, Some ze2, Some zo -> 
-                           update (namev, namev) (v, v) (zo, min k (min ze1 ze2)) 
-                              (not (isAll (List.head labels)))
-                        | _ -> ()
+                        if isInside u then 
+                           log "  Rule striping 2"
+                           let s = sprintf "(- %d (mod %s (div %s %s)))" j m n e1
+                           match findMin e1, findMin e2, findMin s with
+                           | Some ze1, Some ze2, Some zo -> 
+                              update (namev, namev) (v, v) (zo, min k (min ze1 ze2)) 
+                                 (not (isAll (List.head labels)))
+                           | _ -> ()
                   | _, _, _ -> ()
                   // Other Inference rules
                   if isSource then 

@@ -112,10 +112,9 @@ let writeDcTopoConcrete (topo : Topology.T) =
    for n in Topology.vertices topo do
       asn <- asn + 1
       let b = Topology.isInside n
-      if b then 
-         let intern = (string b).ToLower()
-         bprintf sb "  <node internal=\"%s\" asn=\"%s\" name=\"%s\"></node>\n" intern (string asn) 
-            n.Loc
+      let intern = (string b).ToLower()
+      bprintf sb "  <node internal=\"%s\" asn=\"%s\" name=\"%s\"></node>\n" intern (string asn) 
+         n.Loc
    for (x, y) in Topology.edges topo do
       if Topology.isInside x && Topology.isInside y then 
          bprintf sb "  <edge source=\"%s\" target=\"%s\"></edge>\n" x.Loc y.Loc
