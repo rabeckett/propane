@@ -17,6 +17,7 @@ type T =
      DebugDir : string
      Failures : Option<int>
      Stats : bool
+     Csv : bool
      CheckOnly : bool
      IsAbstract : bool
      IsTemplate : bool }

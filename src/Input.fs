@@ -1,5 +1,6 @@
 ﻿module Input
 
+open Ast
 open Microsoft.FSharp.Text.Lexing
 open System.IO
 open Util.Error
@@ -11,14 +12,17 @@ let setInitialPos (lexbuf : LexBuffer<_>) fname =
                       pos_cnum = 0
                       pos_lnum = 1 }
 
-let readFromFile fname = 
+let readFromFile topoInfo fname = 
    let text = File.ReadAllText fname
    let lines = File.ReadLines fname |> Seq.toArray
    let lexbuf = LexBuffer<_>.FromString text
    setInitialPos lexbuf fname
    try 
       let defs, cs = Parser.start Lexer.tokenize lexbuf
-      (lines, defs, cs)
+      { Input = lines
+        TopoInfo = topoInfo
+        Defs = defs
+        CConstraints = cs }
    with
       | Lexer.EofInComment -> 
          writeColor "Error: " System.ConsoleColor.DarkRed

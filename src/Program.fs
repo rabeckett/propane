@@ -29,14 +29,7 @@ let main argv =
    | Some polFile -> 
       Util.File.createDir settings.OutDir
       Util.File.createDir settings.DebugDir
-      let (lines, defs, cs), t2 = Util.Profile.time Input.readFromFile polFile
-      
-      let ast : Ast.T = 
-         { Input = lines
-           TopoInfo = topoInfo
-           Defs = defs
-           CConstraints = cs }
-      
+      let ast, t2 = Util.Profile.time (Input.readFromFile topoInfo) polFile
       let polInfo, t3 = Util.Profile.time Ast.build ast
       let res = Abgp.compileAllPrefixes polInfo
       match res.AggSafety with
@@ -72,5 +65,7 @@ let main argv =
          else 
             let stats, t = Util.Profile.time (Generate.generate res) topoInfo
             Some(stats), t
-      if settings.Stats then Stats.print res.Stats genStats (t1 + t2 + t3) genTime
+      if settings.Csv then Stats.printCsv res.Stats genStats (t1 + t2 + t3) genTime
+      else if settings.Stats then Stats.print res.Stats genStats (t1 + t2 + t3) genTime
+      else ()
    0

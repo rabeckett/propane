@@ -20,6 +20,7 @@ type T =
      DebugDir : string
      Failures : Option<int>
      Stats : bool
+     Csv : bool
      CheckOnly : bool
      IsAbstract : bool
      IsTemplate : bool }
@@ -28,7 +29,6 @@ let currentDir = System.Environment.CurrentDirectory
 let sep = string Path.DirectorySeparatorChar
 let debugDir = ref (currentDir + sep + "debug" + sep)
 let settings = ref None
-
 let usage = """
 Usage: propane [options]
        propane (--help | --version)
@@ -40,15 +40,16 @@ Options:
     --topo FILE       Network topology file (xml).
     --output DIR      Specify output directory.
     --failures K      Guarantee k failure safety for aggregation.
-    --check           Only check for correctness, don't generate configs
+    --check           Only check for correctness, don't generate configs.
     --parallel        Enable parallel compilation.
     --naive           Disable policy minimization.
-    --stats           Display compilation statistics to stdout.
+    --stats           Display compilation statistics in readable format.
+    --csv             Display compilation statistics in csv format.
     --anycast         Allow use of ip anycast.
     --med             Allow use of the BGP MED attribute.
     --prepending      Allow use of AS path prepending.
     --noexport        Allow use of the BGP no-export community.
-    --cbgp            Generate C-BGP tests
+    --cbgp            Generate C-BGP tests.
     --test            Run compiler unit tests.
     --bench           Generate benchmark policies.
     --debug           Output debugging information.
@@ -102,6 +103,7 @@ let parse (argv : string []) : unit =
         Parallel = vs.["--parallel"].IsTrue
         Minimize = vs.["--naive"].IsFalse
         Stats = vs.["--stats"].IsTrue
+        Csv = vs.["--csv"].IsTrue
         Anycast = vs.["--anycast"].IsTrue
         UseMed = vs.["--med"].IsTrue
         UsePrepending = vs.["--prepending"].IsTrue
@@ -111,7 +113,7 @@ let parse (argv : string []) : unit =
         Bench = vs.["--bench"].IsTrue
         Debug = vs.["--debug"].IsTrue
         DebugDir = !debugDir
-        IsAbstract = false 
+        IsAbstract = false
         IsTemplate = false } // these get set from the topology
    settings := Some s
 
