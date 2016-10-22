@@ -1,6 +1,5 @@
 define main = {
 	T0.$prefix$ => end(T0),
-	1.1.1.1 => end(T0),
 	true => exit(Peer1 >> Peer2)
 }
 

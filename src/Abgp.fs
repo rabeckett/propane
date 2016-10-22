@@ -1201,20 +1201,32 @@ let getUnusedPrefs cg res =
 
 let warnAnycasts cg (polInfo : Ast.PolInfo) pred = 
    let settings = Args.getSettings()
-   let origLocs = polInfo.OrigLocs.[pred]
-   let orig = insideOriginators cg |> Set.map CGraph.loc
-   let bad = Set.difference orig origLocs
-   let ti = polInfo.Ast.TopoInfo
-   if (not settings.Anycast) && (Set.count orig > 1) then 
-      let loc1 = orig.MinimumElement
-      let loc2 = (Set.remove loc1 orig).MinimumElement
-      let loc1 = Topology.router loc1 ti
-      let loc2 = Topology.router loc2 ti
-      let msg = 
-         sprintf "Anycasting from multiple locations, e.g., %s and %s " loc1 loc2 
-         + sprintf "for predicate %s. If you believe this is not a mistake, you can " 
-              (Route.toString pred) + sprintf "enable anycast by using the --anycast flag"
-      error msg
+   if (not settings.Anycast) then 
+      let orig = insideOriginators cg |> Set.map CGraph.loc
+      let ti = polInfo.Ast.TopoInfo
+      if (Set.count orig > 0) && (settings.IsAbstract) && not (Route.isTemplate pred) then 
+         let loc1 = orig.MinimumElement
+         let loc1 = Topology.router loc1 ti
+         let msg = 
+            sprintf "Possibly anycasting from multiple locations for predicate %s. " 
+               (Route.toString pred) 
+            + sprintf "This is because traffic can end at abstract location %s, which " loc1 
+            + sprintf "may correspond to multiple concrete locations."
+         error msg
+      else 
+         if (Set.count orig > 1) then 
+            let loc1 = orig.MinimumElement
+            let loc2 = (Set.remove loc1 orig).MinimumElement
+            let loc1 = Topology.router loc1 ti
+            let loc2 = Topology.router loc2 ti
+            let msg = 
+               sprintf 
+                  "The policy indicates that traffic can end up at multiple locations, e.g., %s and %s " 
+                  loc1 loc2 
+               + sprintf "for predicate %s. This will lead to anycasting the these prefixes. " 
+                    (Route.toString pred) + sprintf "If you believe this is not a mistake, you can " 
+               + sprintf "enable anycast by using the --anycast flag"
+            error msg
 
 let minDisjointPathsByLoc (abstractPathInfo : Map<CgState, AbstractAnalysis.AnalysisResult>) = 
    let inf = System.Int32.MaxValue

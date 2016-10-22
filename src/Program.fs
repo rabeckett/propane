@@ -11,6 +11,8 @@ let runUnitTests() =
 
 [<EntryPoint>]
 let main argv = 
+   let s = System.Diagnostics.Stopwatch()
+   s.Start()
    ignore (Args.parse argv)
    let settings = Args.getSettings()
    if settings.Test then 
@@ -65,7 +67,10 @@ let main argv =
          else 
             let stats, t = Util.Profile.time (Generate.generate res) topoInfo
             Some(stats), t
-      if settings.Csv then Stats.printCsv res.Stats genStats (t1 + t2 + t3) genTime
-      else if settings.Stats then Stats.print res.Stats genStats (t1 + t2 + t3) genTime
+      s.Stop()
+      if settings.Csv then 
+         Stats.printCsv res.Stats genStats (t1 + t2 + t3) genTime s.ElapsedMilliseconds
+      else if settings.Stats then 
+         Stats.print res.Stats genStats (t1 + t2 + t3) genTime s.ElapsedMilliseconds
       else ()
    0
