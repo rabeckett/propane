@@ -84,7 +84,11 @@ module Minimize =
    val minimize : int -> T -> T
 
 module Consistency = 
-   type Explanation = (string * string) option * (CgState * CgState * CgState list * CgState * CgState * CgState list) option
+   type Neighbor = string
+   
+   type FailurePoint = CgState * CgState * CgState list
+   
+   type Explanation = (Neighbor * Neighbor) option * (FailurePoint * FailurePoint) option
    
    /// An explanation for why a policy is unimplementable with BGP
    type CounterExample = CgState * CgState * Explanation

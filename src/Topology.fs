@@ -621,6 +621,23 @@ let readTopology (file : string) : TopoInfo * Args.T =
       // Check for duplicate names
       checkForDuplicateNames !abstractNames "label"
       checkForDuplicateNames !concreteNames "name"
+      // Ensure abstract preserves internal/external nodes
+      for kv in !abstraction do
+         let a = Set.contains kv.Value !abstractInternalNames
+         let b = Set.contains kv.Key !concreteInternalNames
+         if (a && not b) || (b && not a) then 
+            let astr = 
+               if a then "internal"
+               else "external"
+            
+            let bstr = 
+               if b then "internal"
+               else "external"
+            
+            let msg = 
+               sprintf "Concrete location %s is %s, but maps to abstract location %s, which is %s" 
+                  kv.Key astr kv.Value bstr
+            error msg
       // Get the kind of compilation to perform
       let kind = 
          if isPureAbstract then Template
@@ -656,18 +673,6 @@ let readTopology (file : string) : TopoInfo * Args.T =
            RouterMap = !abstractRevAsnMap
            IpMap = abstractIpMap }
       
-      (* printfn "concreteNodeMap: %A" !concreteNodeMap
-      printfn "abstractNodeMap: %A" !abstractNodeMap
-      printfn "concreteAsnMap: %A" !concreteAsnMap
-      printfn "abstractAsnMap: %A" !abstractAsnMap
-      printfn "concreteInternalNames: %A" !concreteInternalNames
-      printfn "abstractInternalNames: %A" !abstractInternalNames
-      printfn "concreteExternalNames: %A" !concreteExternalNames
-      printfn "abstractExternalNames: %A" !abstractExternalNames
-      printfn "concreteNameMap: %A" !concreteNameMap
-      printfn "abstractNameMap: %A" !abstractNameMap
-      printfn "concreteIpMap: %A" concreteIpMap
-      printfn "abstractIpMap: %A" abstractIpMap *)
       let netAsn = parseAsn (topo.Asn)
       let ti = 
          TopoInfo

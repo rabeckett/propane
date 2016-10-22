@@ -88,7 +88,7 @@ let minimumEncoding e =
    let z = sprintf "(minimize minval)\n"
    x + y + z
 
-let isUnsat enc a = 
+let isUnsatAux (enc, a) = 
    let constr = sprintf "%s\n" a
    let check = enc + constr
    match Z3.run check with
@@ -97,11 +97,14 @@ let isUnsat enc a =
    | Z3.Error s -> error (sprintf "Invalid command: %s" s)
    | Z3.Minimized k -> error (sprintf "Invalid result: minimized")
 
-let findMin enc x = 
+let findMinAux (enc, x) = 
    let check = enc + (minimumEncoding x)
    match Z3.run check with
    | Z3.Minimized k -> Some k
    | _ -> None
+
+let isUnsat = Hashcons.memoize isUnsatAux
+let findMin = Hashcons.memoize findMinAux
 
 let checkIsGraphHomomorphism (ti : Topology.TopoInfo) = 
    let topoC = ti.ConcreteGraphInfo.Graph
@@ -160,7 +163,7 @@ let checkHasValidConstraints (ti : Topology.TopoInfo) =
       let label = ti.EdgeLabels.[(a1, a2)]
       for e in label do
          if e.Source = a1 then bprintf sb "(assert (>= %s %d))\n" e.Label kv.Value
-   if isUnsat (string sb) "" then 
+   if isUnsat (string sb, "") then 
       let msg = 
          sprintf 
             "Invalid concrete topology. The topology did not satisfy the abstract constraints provided"
@@ -364,9 +367,6 @@ type AnalysisResult = Map<CgState, int * int>
 let reachability (ti : Topology.TopoInfo) (cg : CGraph.T) (src : CgState) : AnalysisResult = 
    // Capture the base constraints
    let enc = string (baseEncoding ti)
-   // Cache results to z3 calls
-   let isUnsat = Hashcons.memoize (isUnsat enc)
-   let findMin = Hashcons.memoize (findMin enc)
    // Initialize learned clauses
    let learned = Dictionary()
    for n in cg.Graph.Vertices do
@@ -466,7 +466,7 @@ let reachability (ti : Topology.TopoInfo) (cg : CGraph.T) (src : CgState) : Anal
                // Special case for src
                if v = src && isAll (List.head labels) then 
                   let a = sprintf "(assert (<= %s 1))" m
-                  if isUnsat a then 
+                  if isUnsat (enc, a) then 
                      log "  Rule SPECIAL CASE"
                      let labels' = List.map (getScope >> S) labels
                      updateAux false (labels', e, edges) (namev, namev) (v, v) (2, 1) true
@@ -477,10 +477,10 @@ let reachability (ti : Topology.TopoInfo) (cg : CGraph.T) (src : CgState) : Anal
                      let e1 = e.Label
                      let a1 = sprintf "(assert (= %s 0))" e1
                      let a2 = sprintf "(assert (not (= %s %s)))" e1 n
-                     let b1, b2 = isUnsat a1, isUnsat a2
+                     let b1, b2 = isUnsat (enc, a1), isUnsat (enc, a2)
                      if b1 || b2 then 
                         log "  Rule existential"
-                        match findMin e1 with
+                        match findMin (enc, e1) with
                         | Some z -> update (namev, nameu) (v, u) (weakMin k z, 1) (not b2)
                         | None -> ()
                   | _ -> ()
@@ -490,16 +490,16 @@ let reachability (ti : Topology.TopoInfo) (cg : CGraph.T) (src : CgState) : Anal
                   | true, e1, Some e2 | false, e2, Some e1 -> 
                      let a1 = sprintf "(assert (= %s 0))" e1
                      let a2 = sprintf "(assert (= %s 0))" e2
-                     if isUnsat a1 && isUnsat a2 then 
+                     if isUnsat (enc, a1) && isUnsat (enc, a2) then 
                         log "  Rule striping 1"
                         let s = sprintf "(- %s (div (* (- %s %d) %s) %s))" n m j e1 e2
-                        match findMin s with
+                        match findMin (enc, s) with
                         | Some z -> update (namev, nameu) (v, u) (weakMin (j * k) z, 1) true
                         | _ -> ()
                         if isInside u then 
                            log "  Rule striping 2"
                            let s = sprintf "(- %d (mod %s (div %s %s)))" j m n e1
-                           match findMin e1, findMin e2, findMin s with
+                           match findMin (enc, e1), findMin (enc, e2), findMin (enc, s) with
                            | Some ze1, Some ze2, Some zo -> 
                               update (namev, namev) (v, v) (zo, min k (min ze1 ze2)) 
                                  (not (isAll (List.head labels)))
@@ -510,16 +510,16 @@ let reachability (ti : Topology.TopoInfo) (cg : CGraph.T) (src : CgState) : Anal
                      let e1 = e.Label
                      // Rule 1
                      let a = sprintf "(assert (= %s 0))" e1
-                     if isUnsat a then 
+                     if isUnsat (enc, a) then 
                         log "  Rule e1>0"
-                        match findMin e1 with
+                        match findMin (enc, e1) with
                         | Some z -> update (namev, nameu) (v, u) (weakMin (j * k) z, 1) true
                         | _ -> ()
                         // Rule 2
                         let a = sprintf "(assert (not (= %s %s)))" e1 n
-                        if isUnsat a then 
+                        if isUnsat (enc, a) then 
                            log "  Rule e1=n"
-                           match findMin e1 with
+                           match findMin (enc, e1) with
                            | Some z -> 
                               let t = weakMin (j * k) z
                               update (namev, nameu) (v, u) (t, max 1 ((j * k) / t)) false
@@ -529,17 +529,17 @@ let reachability (ti : Topology.TopoInfo) (cg : CGraph.T) (src : CgState) : Anal
                      let e2 = e.Label
                      // Rule 1
                      let a = sprintf "(assert (= %s 0))" e2
-                     if isAll (List.head labels) && isUnsat a then 
+                     if isAll (List.head labels) && isUnsat (enc, a) then 
                         log "  Rule e2>0"
-                        match findMin e2 with
+                        match findMin (enc, e2) with
                         | Some z -> update (namev, nameu) (v, u) (1, min j z) false
                         | _ -> ()
                         // Rule 2
                         let a1 = sprintf "(assert (not (= %s %s)))" e2 m
                         let a2 = sprintf "(assert (= %s 0))" n
-                        if isUnsat a1 && isUnsat a2 then 
+                        if isUnsat (enc, a1) && isUnsat (enc, a2) then 
                            log "  Rule e2=m"
-                           match findMin e2, findMin n with
+                           match findMin (enc, e2), findMin (enc, n) with
                            | Some ze, Some zn -> 
                               let t = weakMin (j * k) zn
                               update (namev, nameu) (v, u) (t, max 1 ((j * k) / t)) false

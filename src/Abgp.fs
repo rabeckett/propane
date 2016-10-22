@@ -1268,9 +1268,8 @@ let inline buildDfas (reb : Regex.REBuilder) res = List.map (fun r -> reb.MakeDF
 
 let compileToIR idx pred (polInfo : Ast.PolInfo option) aggInfo (reb : Regex.REBuilder) res : PrefixCompileResult = 
    let settings = Args.getSettings()
-   let sep = string System.IO.Path.DirectorySeparatorChar
    let name = sprintf "(%d)" idx
-   let debugName = settings.DebugDir + sep + name
+   let debugName = settings.DebugDir + File.sep + name
    let topo = reb.Topo()
    let dfas, dfaTime = Profile.time (buildDfas reb) res
    let dfas = Array.ofList dfas
@@ -1282,7 +1281,7 @@ let compileToIR idx pred (polInfo : Ast.PolInfo option) aggInfo (reb : Regex.REB
    debug (fun () -> CGraph.generatePNG cg polInfo (debugName + "-min"))
    // get the abstract reachability information
    let abstractPathInfo, at1 = 
-      if settings.IsAbstract && not settings.Test && not (Map.isEmpty aggInfo) then 
+      if settings.IsAbstract && not settings.Test (* && not (Map.isEmpty aggInfo) *) then 
          let v, t = Util.Profile.time (abstractDisjointPathInfo polInfo.Value.Ast.TopoInfo) cg
          Some(v), t
       else None, int64 0
@@ -1354,7 +1353,7 @@ let compileForSinglePrefix idx (polInfo : Ast.PolInfo) aggInfo (pred, reb, res) 
          let msg = 
             match example, ns with
             | None, _ | _, None -> msg
-            | Some(x1, y1, path1, x2, y2, path2), Some(a, b) -> 
+            | Some((x1, y1, path1), (x2, y2, path2)), Some(a, b) -> 
                let a = Topology.router a ti
                let b = Topology.router b ti
                let x1 = Topology.router x1.Node.Loc ti
@@ -1371,12 +1370,12 @@ let compileForSinglePrefix idx (polInfo : Ast.PolInfo) aggInfo (pred, reb, res) 
                let path2 = path2 |> Util.List.joinBy ","
                msg 
                + (sprintf "Possible Issue: Suppose router %s prefers neighbor %s over %s. " l a b) 
-               + (sprintf "However, %s might not receive an advertisement for the destination " dst1) 
-               + (sprintf "along its preferred path %s, " path1) 
+               + (sprintf "However, %s might not be able to use " dst1) 
+               + (sprintf "its preferred path %s, " path1) 
                + (sprintf "even though the path exists in the network. ") 
                + (sprintf "On the other hand, Suppose %s prefers neighbor %s over %s. " l b a) 
-               + (sprintf "However, %s might not receive an advertisement for the destination " dst2) 
-               + (sprintf "along its preferred path %s, " path2) 
+               + (sprintf "However, %s might not be able to use " dst2) 
+               + (sprintf "its preferred path %s, " path2) 
                + (sprintf "even though the path exists in the network.")
          error msg
       | UncontrollableEnter x -> 

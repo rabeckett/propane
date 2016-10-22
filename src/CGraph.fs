@@ -728,7 +728,11 @@ module Minimize =
 ///
 /// See the paper for details on how this works.
 module Consistency = 
-   type Explanation = (string * string) option * (CgState * CgState * CgState list * CgState * CgState * CgState list) option
+   type Neighbor = string
+   
+   type FailurePoint = CgState * CgState * CgState list
+   
+   type Explanation = (Neighbor * Neighbor) option * (FailurePoint * FailurePoint) option
    
    exception SimplePathException of CgState * CgState
    
@@ -942,7 +946,7 @@ module Consistency =
          let example = 
             match example1, example2 with
             | None, _ | _, None -> None
-            | Some(m, n, x), Some(p, q, y) -> Some(m, n, x, p, q, y)
+            | Some(m, n, x), Some(p, q, y) -> Some((m, n, x), (p, q, y))
          raise (ConsistencyException(x, y, (ns, example)))
    
    let rec partition idx cg cache doms mustPrefer comparedAsBetter ((l, r) as acc) xs x = 

@@ -366,8 +366,6 @@ let substRouterConfig (rc : Config.RouterConfiguration) (ti : Topology.TopoInfo)
    let asnMap = ti.ConcreteGraphInfo.AsnMap
    let ipMap = ti.ConcreteGraphInfo.IpMap
    // let rc = RouterConfiguration(rc)
-   // rc.Name <- name
-   // rc.RouterAsn <- rasn
    // update originated prefixes
    let nets = List()
    for n in rc.Networks do
@@ -412,8 +410,8 @@ let substRouterConfig (rc : Config.RouterConfiguration) (ti : Topology.TopoInfo)
             newPLs.Add(x)
    // rc.PrefixLists <- newPLs
    RouterConfiguration
-      (rc.Name, rc.NetworkAsn, rasn, rc.RouterID, nets, aggs, newPLs, rc.AsPathLists, 
-       rc.CommunityLists, rc.PolicyLists, rc.RouteMaps, newPCs)
+      (name, rc.NetworkAsn, rasn, rc.RouterID, nets, aggs, newPLs, rc.AsPathLists, rc.CommunityLists, 
+       rc.PolicyLists, rc.RouteMaps, newPCs)
 
 let substituteTemplates (nc : NetworkConfiguration) (ti : Topology.TopoInfo) = 
    // build peer -> {peer} map
