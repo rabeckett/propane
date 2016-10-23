@@ -307,7 +307,7 @@ let substitute (ast : T) (e : Expr) : Expr =
                Message.errorAst ast msg e.Pos
             let defs' = 
                List.zip ids es 
-               |> List.fold (fun acc (_, e) -> Map.add id.Name (e.Pos, [], e) acc) defs
+               |> List.fold (fun acc (id, e) -> Map.add id.Name (e.Pos, [], e) acc) defs
             aux defs' (Set.add id.Name seen) { e1 with Pos = e.Pos }
    aux ast.Defs Set.empty e
 

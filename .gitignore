@@ -221,8 +221,9 @@ propane.userprefs
 *.bak
 paper/*/*.pdf
 
-# propane output directory
+# propane generated directories
 output/
+benchmarks/
 
 # generated test results
 TestResult.xml

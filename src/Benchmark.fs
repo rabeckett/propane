@@ -81,6 +81,20 @@ let fattreeAbstract = """
   <!-- Template Variables -->
   <data vars="aggregatePrefix=0.0.0.0/16"></data>
 """
+let fattreeDefs = """
+define private = 
+  10.0.0.0/[8..32] or 
+  172.16.0.0/[12..32] or 
+  192.168.0.0/[16..32] or 
+  169.254.0.0/[16..32]
+
+define transit(X,Y) = enter(X+Y) & exit(X+Y)
+
+define notransit = {
+  true => not transit(out,out)
+}
+
+"""
 
 let writeDcPolConcrete ((topo, pfxMap, tierMap) : _ * Topology.Examples.Prefixes * Topology.Examples.Tiers) = 
    let mutable t0 = []
@@ -95,15 +109,17 @@ let writeDcPolConcrete ((topo, pfxMap, tierMap) : _ * Topology.Examples.Prefixes
       | 2 -> t2 <- loc :: t2
       | _ -> failwith "invalid tier"
    let sb = StringBuilder()
-   bprintf sb "define main = {\n"
+   bprintf sb "%s" fattreeDefs
+   bprintf sb "define routing = {\n"
+   bprintf sb "  private => drop,\n"
    for kv in pfxMap do
       let reb = Regex.REBuilder(topo)
       let prefix = kv.Value
       let loc = kv.Key.Loc
       bprintf sb "  %s => end(%s),\n" (string prefix) loc
    bprintf sb "  true => exit(Peer1 >> Peer2)\n"
-   bprintf sb "}\n"
-   bprintf sb "\n"
+   bprintf sb "}\n\n"
+   bprintf sb "define main = routing & notransit\n"
    bprintf sb "control {\n"
    bprintf sb "  aggregate(0.0.0.0/16, in -> out)\n"
    bprintf sb "}\n"
@@ -111,10 +127,13 @@ let writeDcPolConcrete ((topo, pfxMap, tierMap) : _ * Topology.Examples.Prefixes
 
 let writeDcPolAbstract() = 
    let sb = StringBuilder()
-   bprintf sb "define main = {\n"
+   bprintf sb "%s" fattreeDefs
+   bprintf sb "define routing = {\n"
+   bprintf sb "  private => drop,\n"
    bprintf sb "  T0.$prefix$ => end(T0),\n"
    bprintf sb "  true => exit(Peer1 >> Peer2)\n"
-   bprintf sb "}\n"
+   bprintf sb "}\n\n"
+   bprintf sb "define main = routing & notransit\n"
    bprintf sb "\n"
    bprintf sb "control {\n"
    bprintf sb "  aggregate($aggregatePrefix$, in -> out)\n"
@@ -167,9 +186,9 @@ let singleDatacenter outDir k =
    let (topo, pfxMap, tierMap) = Topology.Examples.fatTree k
    let sep = System.IO.Path.DirectorySeparatorChar
    // concrete topology
-   let cFilePol = sprintf "%s%cfat%d.pro" outDir sep k
+   let cFilePol = sprintf "%s%cfat%d_con.pro" outDir sep k
    let cPol = writeDcPolConcrete (topo, pfxMap, tierMap)
-   let cFileTopo = sprintf "%s%cfat%d.xml" outDir sep k
+   let cFileTopo = sprintf "%s%cfat%d_con.xml" outDir sep k
    let cTopo = writeDcTopoConcrete topo
    System.IO.File.WriteAllText(cFilePol, cPol)
    System.IO.File.WriteAllText(cFileTopo, cTopo)
@@ -184,7 +203,7 @@ let singleDatacenter outDir k =
 let generate() = 
    let dir = "benchmarks"
    Util.File.createDir dir
-   for k in 4..2..32 do
+   for k in 4..2..20 do
       singleDatacenter dir k
 (*
 
