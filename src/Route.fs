@@ -300,6 +300,18 @@ type Prefix =
            IsTemplate = true
            Name = n }
       
+      new(p : Prefix, asRange) = 
+         { Bits = p.Bits
+           Slash = p.Slash
+           Range = 
+              if asRange then Range(p.Slash, 32)
+              else Range(p.Slash, p.Slash)
+           IsExact = 
+              if asRange then false
+              else p.IsExact
+           IsTemplate = p.IsTemplate
+           Name = "" }
+      
       member v.Example() : TempPrefix = 
          if v.IsTemplate then TemplatePfx v.Name
          else 
@@ -569,7 +581,7 @@ let disj (x : Predicate) (y : Predicate) =
    | ConcretePred x, ConcretePred y -> ConcretePred(pb.Or(x, y))
 
 /// Test for prefix superset
-let mightApplyTo (x : Prefix) (y : Prefix) = 
+let isMoreGeneralThan (x : Prefix) (y : Prefix) = 
    if x.IsTemplate || y.IsTemplate then true
    else pb.Implies(pb.Prefix y, pb.Prefix x)
 

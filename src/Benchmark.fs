@@ -59,9 +59,14 @@ let fattreeAbstract = """
   <abstractnode internal="true" label="T0"></abstractnode>
   <abstractnode internal="true" label="T1"></abstractnode>
   <abstractnode internal="true" label="T2"></abstractnode>
+  <abstractnode internal="false" label="Peer1"></abstractnode>
+  <abstractnode internal="false" label="Peer2"></abstractnode>
   <!-- Abstract Edges -->
   <abstractedge source="T0" target="T1" labels="(E1,E2)"></abstractedge>
   <abstractedge source="T1" target="T2" labels="(E3,E4)"></abstractedge>
+  <abstractedge source="T2" target="Peer1" labels="(E5,E6)"></abstractedge>
+  <abstractedge source="T2" target="Peer2" labels="(E7,E8)"></abstractedge>
+  <!-- Constraints -->
   <constraint assertion="(>= T0 4)"></constraint>
   <constraint assertion="(>= T1 4)"></constraint>
   <constraint assertion="(>= T2 2)"></constraint>
@@ -69,6 +74,12 @@ let fattreeAbstract = """
   <constraint assertion="(>= E2 T0)"></constraint>
   <constraint assertion="(>= E3 T2)"></constraint>
   <constraint assertion="(>= E4 T1)"></constraint>
+  <constraint assertion="(>= E5 Peer1)"></constraint>
+  <constraint assertion="(>= E6 T2)"></constraint>
+  <constraint assertion="(>= E7 Peer2)"></constraint>
+  <constraint assertion="(>= E8 T2)"></constraint>
+  <!-- Template Variables -->
+  <data vars="aggregatePrefix=0.0.0.0/16"></data>
 """
 
 let writeDcPolConcrete ((topo, pfxMap, tierMap) : _ * Topology.Examples.Prefixes * Topology.Examples.Tiers) = 
@@ -84,16 +95,17 @@ let writeDcPolConcrete ((topo, pfxMap, tierMap) : _ * Topology.Examples.Prefixes
       | 2 -> t2 <- loc :: t2
       | _ -> failwith "invalid tier"
    let sb = StringBuilder()
-   // bprintf sb "define T0 = %s\n\n" (Common.List.joinBy " or " t0)
-   // bprintf sb "define T1 = %s\n\n" (Common.List.joinBy " or " t1)
-   // bprintf sb "define T2 = %s\n\n" (Common.List.joinBy " or " t2)
    bprintf sb "define main = {\n"
    for kv in pfxMap do
       let reb = Regex.REBuilder(topo)
       let prefix = kv.Value
       let loc = kv.Key.Loc
       bprintf sb "  %s => end(%s),\n" (string prefix) loc
-   bprintf sb "  true => drop\n"
+   bprintf sb "  true => exit(Peer1 >> Peer2)\n"
+   bprintf sb "}\n"
+   bprintf sb "\n"
+   bprintf sb "control {\n"
+   bprintf sb "  aggregate(0.0.0.0/16, in -> out)\n"
    bprintf sb "}\n"
    string sb
 
@@ -101,8 +113,12 @@ let writeDcPolAbstract() =
    let sb = StringBuilder()
    bprintf sb "define main = {\n"
    bprintf sb "  T0.$prefix$ => end(T0),\n"
-   bprintf sb "  true => drop\n"
-   bprintf sb "}"
+   bprintf sb "  true => exit(Peer1 >> Peer2)\n"
+   bprintf sb "}\n"
+   bprintf sb "\n"
+   bprintf sb "control {\n"
+   bprintf sb "  aggregate($aggregatePrefix$, in -> out)\n"
+   bprintf sb "}\n"
    string sb
 
 let writeDcTopoConcrete (topo : Topology.T) = 
@@ -116,8 +132,7 @@ let writeDcTopoConcrete (topo : Topology.T) =
       bprintf sb "  <node internal=\"%s\" asn=\"%s\" name=\"%s\"></node>\n" intern (string asn) 
          n.Loc
    for (x, y) in Topology.edges topo do
-      if Topology.isInside x && Topology.isInside y then 
-         bprintf sb "  <edge source=\"%s\" target=\"%s\"></edge>\n" x.Loc y.Loc
+      bprintf sb "  <edge source=\"%s\" target=\"%s\"></edge>\n" x.Loc y.Loc
    bprintf sb "</topology>\n"
    string sb
 
@@ -128,22 +143,22 @@ let writeDcTopoAbstract ((topo, pfxMap, tierMap) : Topology.T * Topology.Example
    for n in Topology.vertices topo do
       asn <- asn + 1
       let b = Topology.isInside n
-      if b then 
-         let intern = (string b).ToLower()
-         
-         let group = 
-            if tierMap.ContainsKey n then sprintf " group=\"%s\"" ("T" + string tierMap.[n])
-            else ""
-         
-         let vars = 
-            if pfxMap.ContainsKey n then sprintf " vars=\"prefix=%s\"" (string pfxMap.[n])
-            else ""
-         
-         bprintf sb "  <node internal=\"%s\" asn=\"%s\" name=\"%s\"%s%s></node>\n" intern 
-            (string asn) n.Loc group vars
+      let intern = (string b).ToLower()
+      
+      let group = 
+         if tierMap.ContainsKey n then sprintf " group=\"%s\"" ("T" + string tierMap.[n])
+         else if n.Loc = "Peer1" then " group=\"Peer1\""
+         else if n.Loc = "Peer2" then " group=\"Peer2\""
+         else ""
+      
+      let vars = 
+         if pfxMap.ContainsKey n then sprintf " vars=\"prefix=%s\"" (string pfxMap.[n])
+         else ""
+      
+      bprintf sb "  <node internal=\"%s\" asn=\"%s\" name=\"%s\"%s%s></node>\n" intern (string asn) 
+         n.Loc group vars
    for (x, y) in Topology.edges topo do
-      if Topology.isInside x && Topology.isInside y then 
-         bprintf sb "  <edge source=\"%s\" target=\"%s\"></edge>\n" x.Loc y.Loc
+      bprintf sb "  <edge source=\"%s\" target=\"%s\"></edge>\n" x.Loc y.Loc
    bprintf sb "%s" fattreeAbstract
    bprintf sb "</topology>\n"
    string sb

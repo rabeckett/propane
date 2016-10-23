@@ -1026,8 +1026,8 @@ module Examples =
             let x = routersT1.[i]
             let y = routersT2.[rem * perPod + j]
             addEdgesUndirected t [ (x, y) ]
-      let back1 = Node("BACK1", Outside)
-      let back2 = Node("BACK2", Outside)
+      let back1 = Node("Peer1", Outside)
+      let back2 = Node("Peer2", Outside)
       ignore (g.AddVertex back1)
       ignore (g.AddVertex back2)
       for i = 0 to iT2 - 1 do

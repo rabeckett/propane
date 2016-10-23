@@ -1244,7 +1244,8 @@ let getMinAggregateFailures (cg : CGraph.T) (pred : Route.Predicate)
    let pairs = ref None
    for (Route.TrafficClassifier(p, _)) in prefixes do
       Map.iter (fun aggRouter aggs -> 
-         let relevantAggs = Set.filter (fun (aggPrefix, _) -> Route.mightApplyTo aggPrefix p) aggs
+         let relevantAggs = 
+            Set.filter (fun (aggPrefix, _) -> Route.isMoreGeneralThan aggPrefix p) aggs
          if not relevantAggs.IsEmpty then 
             let rAgg, _ = relevantAggs.MinimumElement
             match abstractPathInfo with

@@ -677,7 +677,10 @@ let buildCConstraint ast (cc : Ident * Expr list) =
       (xs, ys)
    match id.Name with
    | "aggregate" -> 
-      let p = getPrefix (List.head args).Node
+      let e = List.head args
+      let p = getPrefix e.Node
+      if (not p.IsExact) && (not p.IsTemplate) then 
+         Message.errorAst ast "Aggregate prefixes must be an exact match" e.Pos
       let (x, y) = getLinks (List.item 1 args).Node
       let (xs, ys) = getLinkLocations (x, y)
       CAggregate(p, xs, ys)
@@ -780,7 +783,10 @@ let inline getPrefixes ast pfxs e =
    | _ -> ()
 
 let warnUnusedAggregates (ast : T) e = 
-   let inline isPfxFor p1 p2 = p1 <> p2 && Route.mightApplyTo p1 p2
+   let inline isPfxFor p1 p2 = 
+      let p3 = Prefix(p1, asRange = true)
+      p1 <> p2 && Route.isMoreGeneralThan p3 p2
+   
    let prefixes = ref Set.empty
    iter (getPrefixes ast prefixes) e
    for (id, es) in ast.CConstraints do
@@ -793,7 +799,7 @@ let warnUnusedAggregates (ast : T) e =
             if not (Set.exists (isPfxFor pfx) !prefixes) then 
                let msg = 
                   sprintf "The prefix %s does not apply to any " (string pfx) 
-                  + sprintf "specific prefix used in the policy."
+                  + sprintf "specific prefix that is used in the policy."
                Message.warningAst ast msg e.Pos
          | _ -> ()
 
