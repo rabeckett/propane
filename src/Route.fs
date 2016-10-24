@@ -399,19 +399,19 @@ type PredicateBuilder() =
    
    /// Iterate over each path with a non-false terminal
    let iterPath f x = 
-      let rec aux ts fs (n : HashCons<Node>) = 
+      let rec aux pts pfs cts cfs (n : HashCons<Node>) = 
          match n.Node with
          | Node(v, ({ Node = Leaf x } as l), r) when isCommVar v && x = trueRanges -> 
-            aux (Set.add v ts) fs l
-            aux ts fs r
+            aux pts pfs (Set.add v cts) cfs l
+            aux pts pfs cts cfs r
          | Node(v, l, ({ Node = Leaf x } as r)) when isCommVar v && x = trueRanges -> 
-            aux ts fs l
-            aux ts (Set.add v fs) r
+            aux pts pfs cts cfs l
+            aux pts pfs cts (Set.add v cfs) r
          | Node(v, l, r) -> 
-            aux (Set.add v ts) fs l
-            aux ts (Set.add v fs) r
-         | Leaf v -> f ts fs v
-      aux Set.empty Set.empty x
+            aux (Set.add v pts) pfs cts cfs l
+            aux pts (Set.add v pfs) cts cfs r
+         | Leaf v -> f pts pfs cts cfs v
+      aux Set.empty Set.empty Set.empty Set.empty x
    
    /// Given a set of true and false variables, construct a disjunction of prefixes (set)
    let prefixes pts pfs (r : Range) = 
@@ -454,6 +454,17 @@ type PredicateBuilder() =
             res
       bdd.Var(idx)
    
+   let predOfPrefixAux (p : Prefix) = 
+      lock obj (fun () -> 
+         let mutable acc = bdd.Value [ p.Range ]
+         for i in 0..31 do
+            if p.IsExact || i < p.Slash then 
+               if Bitwise.get p.Bits i then acc <- bdd.And(acc, bdd.Var(i))
+               else acc <- bdd.And(acc, bdd.Var(i) |> bdd.Not)
+         acc)
+   
+   let predOfPrefix = Hashcons.memoize predOfPrefixAux
+   
    /// Output predicate as traffic classifiers representation
    member x.ToString(p) = 
       let tcs = x.TrafficClassifiers(p)
@@ -464,15 +475,16 @@ type PredicateBuilder() =
          else sprintf "%s or ..." (string ex)
    
    /// Return the bdd representing a prefix x1.x2.x3.x4/s[lo..hi]
-   member this.Prefix(p : Prefix) = 
+   member this.Prefix(p : Prefix) = predOfPrefix p
+   
+   (*
       lock obj (fun () -> 
          let mutable acc = bdd.Value [ p.Range ]
          for i in 0..31 do
             if p.IsExact || i < p.Slash then 
                if Bitwise.get p.Bits i then acc <- bdd.And(acc, bdd.Var(i))
                else acc <- bdd.And(acc, bdd.Var(i) |> bdd.Not)
-         acc)
-   
+         acc) *)
    /// Return the bdd representing a match on the community c
    member __.Community c = lock obj (fun () -> addForString commToIdxMap idxToCommMap c nextCommIdx)
    
@@ -501,15 +513,10 @@ type PredicateBuilder() =
    member __.TrafficClassifiers(p) : TrafficClassifier list = 
       let acc = ref []
       
-      let aux ts fs (rs : Ranges) = 
+      let aux pts pfs cts cfs (rs : Ranges) = 
          if rs <> falseRanges then 
-            let pts, ots = Set.partition isPrefixVar ts
-            let pfs, ofs = Set.partition isPrefixVar fs
-            let cts, tts = Set.partition isCommVar ots
-            let cfs, tfs = Set.partition isCommVar ofs
             let ps = prefixes pts pfs rs
             let (cts, _) = communities cts cfs
-            let (tts, _) = locations tts tfs
             for p in ps do
                acc := TrafficClassifier(p, cts) :: !acc
       iterPath aux p

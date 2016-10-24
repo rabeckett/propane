@@ -396,6 +396,7 @@ module PrefixWide =
       let usedTags = allCommTags allFilters allOrigins
       Map.map (updateMatches usedTags) config
    
+   (*
    let removeUnreachableRules (cg : CGraph.T) (config : Map<string, Actions>) = 
       let inline anyValue f vs = 
          if Set.isEmpty vs then Route.pb.True
@@ -463,13 +464,13 @@ module PrefixWide =
                   else None) fs
             
             Filters(o, fs')
-      Map.map aux config
-   
+      Map.map aux config *)
    let minimize (cg : CGraph.T) (config : Map<string, Actions>) = 
       config
       |> removeUnobservedTags
       |> removeUnobservedMatches
-      |> removeUnreachableRules cg
+
+(* removeUnreachableRules cg *)
 
 module RouterWide = 
    type CoverResult = 
@@ -1245,9 +1246,11 @@ let getMinAggregateFailures (cg : CGraph.T) (pred : Route.Predicate)
    for (Route.TrafficClassifier(p, _)) in prefixes do
       Map.iter (fun aggRouter aggs -> 
          let relevantAggs = 
-            Set.filter (fun (aggPrefix, _) -> Route.isMoreGeneralThan aggPrefix p) aggs
-         if not relevantAggs.IsEmpty then 
-            let rAgg, _ = relevantAggs.MinimumElement
+            Seq.choose (fun (aggPrefix, _) -> 
+               if Route.isMoreGeneralThan aggPrefix p then Some aggPrefix
+               else None) aggs
+         if not (Seq.isEmpty relevantAggs) then 
+            let rAgg = Seq.head relevantAggs
             match abstractPathInfo with
             | Some info -> 
                // abstract analysis case
@@ -1341,10 +1344,10 @@ let compileToIR idx pred (polInfo : Ast.PolInfo option) aggInfo (reb : Regex.REB
               OrderingTime = orderTime
               ConfigTime = configTime
               Config = config }
-         
-         let msg = formatPred polInfo pred (snd config)
          debug 
-            (fun () -> System.IO.File.WriteAllText(sprintf "%s/%s.ir" settings.DebugDir name, msg))
+            (fun () -> 
+            System.IO.File.WriteAllText
+               (sprintf "%s/%s.ir" settings.DebugDir name, (formatPred polInfo pred (snd config))))
          Ok(result)
       | Err((x, y, (ns, example))) -> Err(InconsistentPrefs(x, y, (ns, example)))
    with

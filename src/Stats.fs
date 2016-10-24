@@ -54,20 +54,20 @@ let print (abgp : Abgp.Stats) (gen : Generate.Stats option) (parseTime : int64) 
    let genAbgp = totalInSec abgp.PerPrefixGenTimes
    let minAbgp = valueInSec abgp.MinTime
    printfn "========= Compilation Statistics Summary ========="
-   printfn "| Total Time:                       %f sec |" total
-   printfn "|------------------------------------------------|"
-   printfn "| Total Parse Time:                 %f sec |" parse
-   printfn "| Total Compile to ABGP:            %f sec |" toAbgp
-   printfn "| Total Abgp to Device Configs:     %f sec |" toConfig
-   printfn "|------------------------------------------------|"
-   printfn "| PGIR Construction:                %f sec |" pgConstruction
-   printfn "| PGIR Minimization:                %f sec |" pgMinimize
-   printfn "| Aggregation Safety:               %f sec |" aggAnalysis
-   printfn "| Local-pref search:                %f sec |" findOrdering
-   printfn "| PGIR to ABGP:                     %f sec |" genAbgp
-   printfn "| Minimize ABGP:                    %f sec |" minAbgp
-   printfn "| Generate CORE:                    %f sec |" genCore
-   printfn "| Generate Low-level:               %f sec |" genLowLevel
-   printfn "| Template Substitution:            %f sec |" substitution
-   printfn "| Generate Vendor-specific:         %f sec |" genVendor
+   printfn "Total Time:                       %f sec" total
+   printfn "--------------------------------------------------"
+   printfn "Total Parse Time:                 %f sec" parse
+   printfn "Total Compile to ABGP:            %f sec" toAbgp
+   printfn "Total Abgp to Device Configs:     %f sec" toConfig
+   printfn "--------------------------------------------------"
+   printfn "PGIR Construction:                %f sec" pgConstruction
+   printfn "PGIR Minimization:                %f sec" pgMinimize
+   printfn "Aggregation Safety:               %f sec" aggAnalysis
+   printfn "Local-pref search:                %f sec" findOrdering
+   printfn "PGIR to ABGP:                     %f sec" genAbgp
+   printfn "Minimize ABGP:                    %f sec" minAbgp
+   printfn "Generate CORE:                    %f sec" genCore
+   printfn "Generate Low-level:               %f sec" genLowLevel
+   printfn "Template Substitution:            %f sec" substitution
+   printfn "Generate Vendor-specific:         %f sec" genVendor
    printfn "=================================================="
