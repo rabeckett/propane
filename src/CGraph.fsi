@@ -61,7 +61,7 @@ val neighbors : T -> CgState -> seq<CgState>
 /// Returns the (incoming) neighbors of a state in the graph
 val neighborsIn : T -> CgState -> seq<CgState>
 /// Return true when a node represents a repeated external location
-val isRepeatedOut : T -> CgState -> bool
+val repeatedOuts : T -> Set<CgState>
 /// Returns true if a node is not the special start or end node
 val isRealNode : CgState -> bool
 /// Returns true if a node is internal to the AS

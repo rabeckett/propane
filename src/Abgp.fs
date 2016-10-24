@@ -769,11 +769,12 @@ module Incoming =
    let collectForPeer cg acc peer = 
       let reachable = Reachable.dfs cg peer Down
       let reach = ResizeArray()
+      let routs = CGraph.repeatedOuts cg
       let mutable hasRepeatedOut = false
       for v in reachable do
          if v <> peer && Topology.isTopoNode v.Node then 
             reach.Add(v)
-            if CGraph.isRepeatedOut cg v then hasRepeatedOut <- true
+            if routs.Contains v then hasRepeatedOut <- true
       let hasOther = (reach.Count > 1) || (not hasRepeatedOut && reach.Count > 0)
       match hasRepeatedOut, hasOther with
       | false, false -> Map.add peer (Nothing peer.Node.Loc) acc
@@ -923,16 +924,16 @@ module Outgoing =
       | PeerMatch _ -> failwith "unreachable"
       | RegexMatch y -> y
    
-   let inline peerOnly cg nin = 
+   let inline peerOnly cg (routs : Set<CgState>) nin = 
       let inline aux v = 
          let nin = neighborsIn cg v
-         isRepeatedOut cg v && Seq.length nin = 2 && Seq.exists ((=) cg.Start) nin
+         Set.contains v routs && Seq.length nin = 2 && Seq.exists ((=) cg.Start) nin
       Seq.length nin = 2 && Seq.exists ((=) cg.Start) nin && Seq.exists aux nin
    
-   let getOutPeerType cg (x : CgState) = 
+   let getOutPeerType cg (routs : Set<CgState>) (x : CgState) = 
       if Topology.isOutside x.Node then 
          let nin = neighborsIn cg x
-         if peerOnly cg nin then PeerMatch x
+         if peerOnly cg routs nin then PeerMatch x
          else 
             let re = CGraph.ToRegex.constructRegex cg x
             RegexMatch(re)
@@ -964,14 +965,14 @@ let getMatches (allPeers, inPeers, outPeers) outgoingMatches =
       else statesOut <- Set.add v.State statesOut
    let states = Set.union statesIn statesOut
    // check if possible to compress matches
-   if peerLocs = allPeers && (states.Count = 1) then 
+   if (states.Count = 1) && peerLocs = allPeers then 
       matches <- Match.State(string (Set.minElement states), Any) :: matches
       peers <- Set.empty
    else 
-      if peerLocsIn = inPeers && (statesIn.Count = 1) && not peerLocsIn.IsEmpty then 
+      if (statesIn.Count = 1) && peerLocsIn = inPeers && not peerLocsIn.IsEmpty then 
          matches <- Match.State(string (Set.minElement statesIn), In) :: matches
          peers <- Set.difference peers peersIn
-      if peerLocsOut = outPeers && (statesOut.Count = 1) && not peerLocsOut.IsEmpty then 
+      if (statesOut.Count = 1) && peerLocsOut = outPeers && not peerLocsOut.IsEmpty then 
          matches <- Match.Peer(Out) :: matches
          peers <- Set.difference peers peersOut
       for v in peers do
@@ -1072,6 +1073,7 @@ let genConfig (cg : CGraph.T) (pred : Route.Predicate) (ord : Consistency.Orderi
       let ain = ain |> Set.map (fun v -> v.Loc)
       let aout = aout |> Set.map (fun v -> v.Loc)
       let eCounts = edgeCounts cg
+      let routs = CGraph.repeatedOuts cg
       let mutable config = Map.empty
       // generate a config for each internal router
       for router in ain do
@@ -1097,7 +1099,7 @@ let genConfig (cg : CGraph.T) (pred : Route.Predicate) (ord : Consistency.Orderi
                let receiveFrom = Seq.filter CGraph.isRealNode nsIn
                let sendTo = Seq.filter CGraph.isRealNode nsOut
                // helps to minimize configuration
-               let peerTypes = Seq.map (Outgoing.getOutPeerType cg) receiveFrom
+               let peerTypes = Seq.map (Outgoing.getOutPeerType cg routs) receiveFrom
                let origin = Seq.exists ((=) cg.Start) nsIn
                // get the compressed set of matches using *, in, out when possible
                let matches = getMatches inPeerInfo peerTypes

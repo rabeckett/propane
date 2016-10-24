@@ -278,10 +278,20 @@ let neighborsIn (cg : T) (state : CgState) =
          yield e.Source
    }
 
-let isRepeatedOut (cg : T) (state : CgState) = 
+let repeatedOuts (cg : T) = 
+   seq { 
+      for v in cg.Graph.Vertices do
+         match v.Node.Typ with
+         | Topology.Unknown vs -> 
+            if (Set.isEmpty vs && Seq.contains v (neighbors cg v)) then yield v
+         | _ -> ()
+   }
+   |> Set.ofSeq
+
+(* let isRepeatedOut (cg : T) (state : CgState) = 
    match state.Node.Typ, Seq.contains state (neighbors cg state) with
    | Topology.Unknown vs, true -> Set.isEmpty vs
-   | _, _ -> false
+   | _, _ -> false *)
 
 //(state.Node.Typ = Topology.Unknown) && (Seq.contains state (neighbors cg state))
 let isInside x = Topology.isInside x.Node
@@ -549,11 +559,12 @@ module Minimize =
    /// Remove nodes/edges that are never on any non-loop path.
    /// There are 4 symmetric cases.
    let removeDominated (cg : T) = 
+      let routs = repeatedOuts cg
       let dom = Domination.dominators cg cg.Start Down
       let domRev = Domination.dominators cg cg.End Up
       cg.Graph.RemoveVertexIf
          (fun v -> 
-         (not (isRepeatedOut cg v)) 
+         (not (routs.Contains v)) 
          && (dom.IsDominatedByFun(v, shadows v) || domRev.IsDominatedByFun(v, shadows v))) |> ignore
       let edges = edgeSet cg
       cg.Graph.RemoveEdgeIf
@@ -561,14 +572,14 @@ module Minimize =
          let x = e.Source
          let y = e.Target
          let e = Edge(y.Id, x.Id)
-         (edges.Contains e) && (not (isRepeatedOut cg x || isRepeatedOut cg y)) 
+         (edges.Contains e) && (not (routs.Contains x || routs.Contains y)) 
          && (dom.IsDominatedBy(x, y) || domRev.IsDominatedBy(y, x)) && (x <> y))
       |> ignore
       cg.Graph.RemoveEdgeIf
          (fun e -> 
          let x = e.Source
          let y = e.Target
-         (not (isRepeatedOut cg e.Source || isRepeatedOut cg e.Target)) 
+         (not (routs.Contains e.Source || routs.Contains e.Target)) 
          && (domRev.IsDominatedByFun(y, shadows x)))
       |> ignore
    
@@ -653,13 +664,14 @@ module Minimize =
          x = outStar || (nOut.Contains outStar && nIn.Contains outStar)) scc
    
    let removeConnectionsToOutStar (cg : T) = 
+      let routs = repeatedOuts cg
       cg.Graph.RemoveEdgeIf(fun e -> 
          let x = e.Source
          let y = e.Target
          let realNodes = isRealNode x && isRealNode y
          if realNodes then 
-            if isRepeatedOut cg x then Seq.exists isInside (neighborsIn cg y)
-            else if isRepeatedOut cg y then 
+            if routs.Contains x then Seq.exists isInside (neighborsIn cg y)
+            else if routs.Contains y then 
                Seq.exists isInside (neighbors cg x) 
                && (Seq.exists ((=) cg.Start) (neighborsIn cg y) 
                    || Seq.forall ((<>) cg.Start) (neighborsIn cg x))
@@ -669,10 +681,11 @@ module Minimize =
    
    let removeRedundantExternalNodes (cg : T) = 
       let toDelNodes = HashSet(HashIdentity.Structural)
+      let routs = repeatedOuts cg
       
       let outside = 
          cg.Graph.Vertices
-         |> Seq.filter (isRepeatedOut cg)
+         |> Seq.filter routs.Contains
          |> Set.ofSeq
       for os in outside do
          let nos = Set.ofSeq (neighborsIn cg os)
