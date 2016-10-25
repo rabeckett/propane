@@ -3,6 +3,7 @@
 open Config
 open Core.Printf
 open System.Collections.Generic
+open System.Text
 open Util
 open Util.Format
 open Util.String
@@ -349,48 +350,57 @@ let allVariableValuesAux (ti : Topology.TopoInfo, p) =
 
 let allVariableValues = Hashcons.memoize allVariableValuesAux
 
-let specificVariableValue (ti : Topology.TopoInfo, p, router) = 
-   match parseTemplatePrefix p with
-   | None -> None
-   | Some(r, var) -> 
-      let r' = 
-         Option.map (fun n -> 
-            if ti.Abstraction.[router] = n then router
-            else n) r
-      match Map.tryFind (r', var) ti.TemplateVars with
-      | None -> None
-      | Some vs -> Some(vs)
+let lookupSpecificValue (ti : Topology.TopoInfo) router (r, var) = 
+   let r' = 
+      Option.map (fun n -> 
+         if ti.Abstraction.[router] = n then router
+         else n) r
+   Map.tryFind (r', var) ti.TemplateVars
 
-let makeTemplatePfxConcrete (ti : Topology.TopoInfo, router, pfx) = 
+let specificVariableValue (ti : Topology.TopoInfo, pfx, router) = 
+   match parseTemplatePrefix pfx with
+   | None -> None
+   | Some x -> lookupSpecificValue ti router x
+
+let makeNetworkTemplatePfxConcrete (ti : Topology.TopoInfo, router, pfx) = 
    match pfx with
    | Route.TemplatePfx p -> 
       match parseTemplatePrefix p with
       | None -> failwith "unreachable"
-      | Some(r, var) -> 
-         let r' = 
-            Option.map (fun n -> 
-               if ti.Abstraction.[router] = n then router
-               else n) r
-         match Map.tryFind (r', var) ti.TemplateVars with
+      | Some x -> 
+         match lookupSpecificValue ti router x with
          | None -> None
          | Some vs -> Some(Set.map (fun (a, b, c, d, s) -> Route.ConcretePfx(a, b, c, d, s)) vs)
    | Route.ConcretePfx _ -> Some(Set.singleton pfx)
+
+let replaceMatch (ti : Topology.TopoInfo) (m : RegularExpressions.Match) = 
+   let s = m.ToString()
+   let s = s.Substring(1, s.Length - 2)
+   match Map.tryFind s ti.Concretization with
+   | None -> failwith "unreachable"
+   | Some vs -> 
+      let vs = Set.map (fun x -> Map.find x ti.ConcreteGraphInfo.AsnMap) vs
+      let all = Util.Set.joinBy "|" vs
+      if Set.count vs = 1 then all
+      else sprintf "(%s)" all
+
+let replaceRegexp (ti : Topology.TopoInfo) (s : string) = 
+   let r = RegularExpressions.Regex "\$[a-zA-Z0-9]+\$"
+   r.Replace(s, replaceMatch ti)
 
 let substRouterConfig (rc : Config.RouterConfiguration) (ti : Topology.TopoInfo) peerMap 
     (name : string) (rasn : string) = 
    let conc = ti.Concretization
    let asnMap = ti.ConcreteGraphInfo.AsnMap
    let ipMap = ti.ConcreteGraphInfo.IpMap
-   // let rc = RouterConfiguration(rc)
    // update originated prefixes
    let nets = List()
    for n in rc.Networks do
-      match makeTemplatePfxConcrete (ti, name, n) with
+      match makeNetworkTemplatePfxConcrete (ti, name, n) with
       | None -> ()
       | Some pfxs -> 
          for pfx in pfxs do
             nets.Add(pfx)
-   // rc.Networks <- nets
    // update aggregate prefixes
    let aggs = List()
    for agg in rc.Aggregates do
@@ -400,7 +410,6 @@ let substRouterConfig (rc : Config.RouterConfiguration) (ti : Topology.TopoInfo)
          for (a, b, c, d, s) in vs do
             let str = sprintf "%d.%d.%d.%d/%d" a b c d s
             aggs.Add(str)
-   // rc.Aggregates <- aggs
    // update peer configurations
    let newPCs = List()
    for pc in rc.PeerConfigurations do
@@ -411,7 +420,6 @@ let substRouterConfig (rc : Config.RouterConfiguration) (ti : Topology.TopoInfo)
          let (srcIp, peerIp) = ipMap.[(asn, rasn)]
          let x = PeerConfig(peer, asn, srcIp, peerIp, pc.InFilter, pc.OutFilter)
          newPCs.Add(x)
-   // rc.PeerConfigurations <- newPCs
    // update prefix lists
    let newPLs = List()
    for pl in rc.PrefixLists do
@@ -424,9 +432,16 @@ let substRouterConfig (rc : Config.RouterConfiguration) (ti : Topology.TopoInfo)
             let str = sprintf "%d.%d.%d.%d/%d" a b c d s
             let x = PrefixList(pl.Kind, pl.Name, str)
             newPLs.Add(x)
-   // rc.PrefixLists <- newPLs
+   // update as path lists 
+   let newPaths = List()
+   for aspl in rc.AsPathLists do
+      let allows = Util.MutableList.map (replaceRegexp ti) aspl.AllowRegex
+      let denys = Util.MutableList.map (replaceRegexp ti) aspl.DenyRegex
+      let pl = AsPathList(aspl.Name, allows, denys)
+      newPaths.Add(pl)
+   // return the new router configuration
    RouterConfiguration
-      (name, rc.NetworkAsn, rasn, rc.RouterID, nets, aggs, newPLs, rc.AsPathLists, rc.CommunityLists, 
+      (name, rc.NetworkAsn, rasn, rc.RouterID, nets, aggs, newPLs, newPaths, rc.CommunityLists, 
        rc.PolicyLists, rc.RouteMaps, newPCs)
 
 let substituteTemplates (nc : NetworkConfiguration) (ti : Topology.TopoInfo) = 

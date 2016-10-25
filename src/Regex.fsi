@@ -50,7 +50,7 @@ val unionAll : T list -> T
 val out : Set<string> -> T
 /// Check if an automaton denotes the empty set, and if not, return an example sequence
 val emptiness : Automaton -> string list option
-/// Convert a compiler regex to a BGP regexp 
+/// Convert a compiler regex to a collection of sequentially applied BGP regexps
 val toBgpRegexp : T -> string list
 /// Split a regex r into equivalent deny and allow regexes
 val split : T -> T * T

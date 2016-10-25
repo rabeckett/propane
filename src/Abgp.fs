@@ -1702,7 +1702,7 @@ let peers (ti : Topology.TopoInfo) (router : string) =
 
 let getRouter ti x = 
    let settings = Args.getSettings()
-   if settings.IsAbstract then Topology.router x ti
+   if settings.IsAbstract then "$" + (Topology.router x ti) + "$"
    else x
 
 let peerPol ti asPathMap asPathLists (als : List<_>) alID (p : Peer) = 

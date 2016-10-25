@@ -409,7 +409,7 @@ let rec hasNonStar (ls : T list) =
    | Regex({ Node = (Star _) }) :: tl -> hasNonStar tl
    | _ :: tl -> true
 
-let rec toBgpRegexpConcatAux acc useSpace (rs : T list) = 
+let rec toBgpRegexpConcatAux acc useSpace (isAbstract : bool) (rs : T list) = 
    match rs with
    | [] -> acc
    | r :: tl -> 
@@ -420,14 +420,15 @@ let rec toBgpRegexpConcatAux acc useSpace (rs : T list) =
       let (Regex(re)) = r
       match re.Node with
       | Star r' -> 
-         let s = toBgpRegexpAux r'
-         if hasNonStar tl then toBgpRegexpConcatAux (sprintf "%s%s(%s_)*" acc space s) false tl
-         else toBgpRegexpConcatAux (sprintf "%s%s(_%s)*" acc space s) false tl
+         let s = toBgpRegexpAux isAbstract r'
+         if hasNonStar tl then 
+            toBgpRegexpConcatAux (sprintf "%s%s(%s_)*" acc space s) false isAbstract tl
+         else toBgpRegexpConcatAux (sprintf "%s%s(_%s)*" acc space s) false isAbstract tl
       | _ -> 
-         let s = toBgpRegexpAux r
-         toBgpRegexpConcatAux (acc + space + s) (hasNonStar tl) tl
+         let s = toBgpRegexpAux isAbstract r
+         toBgpRegexpConcatAux (acc + space + s) (hasNonStar tl) isAbstract tl
 
-and toBgpRegexpAux (re : T) = 
+and toBgpRegexpAux (isAbstract : bool) (re : T) = 
    let addParens s = "(" + s + ")"
    let (Regex(r)) = re
    match r.Node with
@@ -437,19 +438,20 @@ and toBgpRegexpAux (re : T) =
       S
       |> Set.map (fun s -> 
             if s = "out" then "[0-9]+"
+            else if isAbstract then "$" + s + "$"
             else s)
       |> Util.Set.joinBy "|"
       |> if S.Count > 1 then addParens
          else id
-   | Concat rs -> toBgpRegexpConcatAux "" false rs |> addParens
+   | Concat rs -> toBgpRegexpConcatAux "" false isAbstract rs |> addParens
    | Union rs -> 
-      List.map (fun r -> toBgpRegexpAux r) rs
+      List.map (fun r -> toBgpRegexpAux isAbstract r) rs
       |> List.joinBy "|"
       |> addParens
    | Inter rs -> failwith "impossible"
    | Negate r -> failwith "impossible"
    | Star r -> 
-      let s = toBgpRegexpAux r
+      let s = toBgpRegexpAux isAbstract r
       sprintf "(%s)*" s
    | Out _ -> unreachable()
 
@@ -498,7 +500,7 @@ let rec removeEpsilon (re : T) : T list =
    | Negate l -> failwith "unreachable"
    | Out S -> failwith "unreachable"
 
-let definitelyHasLoop (re : T) = 
+(* let definitelyHasLoop (re : T) = 
    let (Regex(r)) = re
    match r.Node with
    | Concat ls -> 
@@ -515,15 +517,16 @@ let definitelyHasLoop (re : T) =
       
       let all = List.fold (fun acc l -> Set.add l acc) Set.empty locs
       Set.count all <> List.length locs
-   | _ -> false
+   | _ -> false *)
 
 let toBgpRegexp (re : T) = 
+   let settings = Args.getSettings()
    re
    |> simplifyStar
    |> removeEpsilon
    |> List.filter ((<>) empty)
-   |> List.filter (definitelyHasLoop >> not)
-   |> List.map toBgpRegexpAux
+   // |> List.filter (definitelyHasLoop >> not)
+   |> List.map (toBgpRegexpAux settings.IsAbstract)
    |> List.map (sprintf "^%s$")
 
 type LazyT = 
