@@ -203,7 +203,7 @@ let singleDatacenter outDir k =
 let generate() = 
    let dir = "benchmarks"
    Util.File.createDir dir
-   for k in 4..2..20 do
+   for k in 4..2..26 do
       singleDatacenter dir k
 (*
 

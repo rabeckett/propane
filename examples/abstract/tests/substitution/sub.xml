@@ -4,12 +4,12 @@
   <node internal="true" name="B" group="T0" vars="prefix=1.0.0.1/32"></node>
   <node internal="true" name="C" group="T0" vars="prefix=1.0.0.2/32"></node>
   <node internal="true" name="D" group="T0" vars="prefix=1.0.0.3/32"></node>
-  <node internal="true" name="L" group="T1" vars="prefix=1.0.0.4/32"></node>
-  <node internal="true" name="M" group="T1" vars="prefix=1.0.0.5/32"></node>
-  <node internal="true" name="N" group="T1" vars="prefix=1.0.0.6/32"></node>
-  <node internal="true" name="O" group="T1" vars="prefix=1.0.0.7/32"></node>
-  <node internal="true" name="X" group="T2" vars="prefix=1.0.0.8/32"></node>
-  <node internal="true" name="Y" group="T2" vars="prefix=1.0.0.9/32"></node>
+  <node internal="true" name="L" group="T1"></node>
+  <node internal="true" name="M" group="T1"></node>
+  <node internal="true" name="N" group="T1"></node>
+  <node internal="true" name="O" group="T1"></node>
+  <node internal="true" name="X" group="T2"></node>
+  <node internal="true" name="Y" group="T2"></node>
   <node internal="false" name="Peer1" asn="200" group="Peer1"></node>
   <node internal="false" name="Peer2" asn="300" group="Peer2"></node>
   <!-- Concrete edges -->

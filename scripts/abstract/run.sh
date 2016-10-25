@@ -41,3 +41,7 @@ genstats "fat" "_con"
 if [ -d output/ ] ; then
   rm -r output/
 fi
+
+if [ ! -d graphs/ ] ; then
+  mkdir graphs/
+fi

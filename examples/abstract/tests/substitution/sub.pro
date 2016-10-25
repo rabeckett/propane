@@ -5,7 +5,7 @@ define main = {
 
 control {
 	aggregate($aggregatePrefix$, in -> out),
-	tag(8075:1, 0.0.0.0/0, in -> out),
-	maxroutes(10, T0 -> T1),
-	longest_path(10, T0)
+	# tag(8075:1, 0.0.0.0/0, in -> out),
+	# maxroutes(10, T0 -> T1),
+	# longest_path(10, T0)
 }

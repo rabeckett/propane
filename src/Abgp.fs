@@ -77,8 +77,12 @@ type DeviceControl =
      Tags : DeviceTags
      MaxRoutes : DeviceMaxRoutes }
 
+type PredMatch = 
+   | Pred of Route.Predicate
+   | Comm of Route.Predicate * string
+
 type RouterConfig = 
-   { Actions : (Route.Predicate * Actions) list
+   { Actions : (PredMatch * Actions) list
      Control : DeviceControl }
 
 type T = 
@@ -127,26 +131,23 @@ let formatExport pi sb peer acts =
 
 let formatActions (sb : System.Text.StringBuilder) (pi : Ast.PolInfo option) pred 
     (actions : Actions) = 
-   let predStr = Route.toString pred
+   let origStr, predStr = 
+      match pred with
+      | Pred p -> 
+         let s = Route.toString p
+         s, s
+      | Comm(p, c) -> Route.toString p, "comm=" + c
    match actions with
-   (* | Originate es -> 
-      bprintf sb "\n  origin:  %s " predStr
-      match es with
-      | [ (peer, acts) ] -> formatExport pi sb peer acts
-      | _ -> 
-         for (peer, acts) in es do
-            bprintf sb "\n  "
-            formatExport pi sb peer acts *)
    | Filters(o, fs) -> 
       match o with
       | None -> ()
       | Some es -> 
-         bprintf sb "\n  origin:  %s " predStr
+         bprintf sb "\n  origin:  %s " origStr
          match es with
          | [ (peer, acts) ] -> formatExport pi sb peer acts
          | _ -> 
             for (peer, acts) in es do
-               bprintf sb "\n  "
+               bprintf sb "\n             "
                formatExport pi sb peer acts
       for f in fs do
          match f with
@@ -169,8 +170,7 @@ let formatActions (sb : System.Text.StringBuilder) (pi : Ast.PolInfo option) pre
                   bprintf sb "\n             "
                   formatExport pi sb peer acts
 
-let formatPred (polInfo : Ast.PolInfo option) (pred : Route.Predicate) 
-    (racts : Map<string, Actions>) = 
+let formatPred (polInfo : Ast.PolInfo option) (pred : PredMatch) (racts : Map<string, Actions>) = 
    let sb = System.Text.StringBuilder()
    Map.iter (fun (router : string) act -> 
       bprintf sb "\nRouter %s" router
@@ -660,7 +660,7 @@ module RouterWide =
                      |> Set.toList
                      |> List.map (fun (pred, es) -> (pred, Filters(Some es, [])))
                   
-                  let actions = actions @ [ (Route.top, Filters(None, [ filt ])) ]
+                  let actions = actions @ [ (Pred Route.top, Filters(None, [ filt ])) ]
                   { rconf with Actions = actions }
                else rconf
             else rconf) config.RConfigs
@@ -730,11 +730,11 @@ type CompilationResult =
 let joinConfigs polInfo (aggs, comms, maxroutes) (results : PrefixResult list) : T = 
    let mutable result = Map.empty
    for v in results do
-      let (prefix, config) = v.Config
+      let (pred, config) = v.Config
       for kv in config do
          let dc = kv.Value
          let router = kv.Key
-         let value = (prefix, dc)
+         let value = (Pred pred, dc)
          match Map.tryFind router result with
          | None -> result <- Map.add router [ value ] result
          | Some x -> result <- Map.add router (value :: x) result
@@ -1346,10 +1346,9 @@ let compileToIR idx pred (polInfo : Ast.PolInfo option) aggInfo (reb : Regex.REB
               OrderingTime = orderTime
               ConfigTime = configTime
               Config = config }
-         debug 
-            (fun () -> 
-            System.IO.File.WriteAllText
-               (sprintf "%s/%s.ir" settings.DebugDir name, (formatPred polInfo pred (snd config))))
+         debug (fun () -> 
+            let msg = formatPred polInfo (Pred pred) (snd config)
+            System.IO.File.WriteAllText(sprintf "%s/%s.ir" settings.DebugDir name, msg))
          Ok(result)
       | Err((x, y, (ns, example))) -> Err(InconsistentPrefs(x, y, (ns, example)))
    with
@@ -1511,6 +1510,55 @@ let reindexCommunities (config : T) : T =
    |> Update.updateMod changeModComms
    |> Update.updateAllow changeMatchComms
 
+let maxComm (config : T) = 
+   let inline aux c = 
+      try 
+         Some(int c)
+      with _ -> None
+   config
+   |> RouterWide.getAllCommunities
+   |> Seq.choose aux
+   |> Seq.max
+
+let addOriginComms commMap (config : T) = 
+   let max = maxComm config
+   let fresh = ref max
+   Update.updateActions (fun ((pred, acts) as arg) -> 
+      match pred with
+      | Comm _ -> Some arg
+      | Pred p -> 
+         if Route.isTemplate p then 
+            let (Filters(oes, fs)) = acts
+            
+            let oes' = 
+               match oes with
+               | None -> None
+               | Some es -> 
+                  incr fresh
+                  let c = string !fresh
+                  let sc = SetComm(string !fresh)
+                  commMap := Map.add p c !commMap
+                  Some(List.map (fun (x, ys) -> (x, sc :: ys)) es)
+            Some(pred, Filters(oes', fs))
+         else Some arg) config
+
+let replaceTemplatePrefixWithComm commMap (config : T) = 
+   Update.updateActions (fun ((pred, acts) as arg) -> 
+      match pred with
+      | Comm _ -> Some arg
+      | Pred p -> 
+         if Route.isTemplate p then 
+            match Map.tryFind p !commMap with
+            | None -> Some arg
+            | Some c -> Some(Comm(p, c), acts)
+         else Some arg) config
+
+let tagAbstractPrefixWithCommunity (config : T) = 
+   let commMap = ref Map.empty
+   config
+   |> addOriginComms commMap
+   |> replaceTemplatePrefixWithComm commMap
+
 let moveOriginationToTop (config : T) : T = 
    let aux router rc = 
       let origins, others = 
@@ -1546,7 +1594,11 @@ let compileAllPrefixes (polInfo : Ast.PolInfo) : CompilationResult =
       if settings.Minimize then Profile.time (RouterWide.minimize joined) polInfo.Ast.TopoInfo
       else joined, int64 0
    
-   let minJoined = reindexCommunities minJoined
+   let minJoined = 
+      minJoined
+      |> reindexCommunities
+      |> tagAbstractPrefixWithCommunity
+   
    let buildTimes = Array.map (fun c -> c.BuildTime) configs
    let minTimes = Array.map (fun c -> c.MinimizeTime) configs
    let aggAnalysisTimes = Array.map (fun c -> c.AggAnalysisTime) configs
@@ -1835,17 +1887,28 @@ let toConfig (abgp : T) =
       makeInitialPathList ti outPeers (asMap, asLists, alID)
       // create a route map for each predicate
       for (pred, acts) in rconfig.Actions do
-         let tcs = Route.trafficClassifiers pred
-         // split predicate if it is a disjunction of prefixes/communities
-         for Route.TrafficClassifier(prefix, comms) in tcs do
-            if not comms.IsEmpty then // TODO: handle this case
-               error (sprintf "Support for comm matching temporarily disabled")
+         let tcs = 
+            match pred with
+            | Pred p -> 
+               let x = Route.trafficClassifiers p
+               List.map (fun (Route.TrafficClassifier(p, cs)) -> (p, None, cs)) x
+            | Comm(p, c) -> 
+               let x = Route.trafficClassifiers p
+               List.map 
+                  (fun (Route.TrafficClassifier(p, cs)) -> 
+                  (Route.anyPrefix, Some p, Set.singleton c)) x
+         for (prefix, oprefix, comms) in tcs do
             match acts with
             | Filters(o, fs) -> 
                // different actions for the same prefix but different community/regex etc
                match o with
                | None -> ()
                | Some es -> 
+                  let prefix = 
+                     match oprefix with
+                     | None -> prefix
+                     | Some p -> p
+                  
                   let mostGeneral = prefix.Example()
                   origins.Add((mostGeneral, es))
                   originPfxs.Add(mostGeneral)
@@ -1865,16 +1928,21 @@ let toConfig (abgp : T) =
                      // must create symmetric export route-map
                      createPrefixList 
                         (Config.Kind.Permit, plID, pfxMap, pfxLists, pls, string prefix) |> ignore
+                     // matching based on community
+                     let allComms = 
+                        match m with
+                        | Match.State(c, _) -> Set.add c comms
+                        | _ -> comms
+                     if allComms.Count > 0 then 
+                        for c in allComms do
+                           let values = List()
+                           values.Add(getCommunity c)
+                           createCommunityList 
+                              (Config.Kind.Permit, None, cMap, cLists, cls, clID, values)
+                     // match based on peer/regex
                      match m with
                      | Match.Peer(x) -> peerPol ti asMap asLists als alID x
-                     | Match.State(c, x) -> 
-                        // first match community
-                        let values = List()
-                        values.Add(getCommunity c)
-                        createCommunityList 
-                           (Config.Kind.Permit, None, cMap, cLists, cls, clID, values)
-                        // now match peer as well
-                        peerPol ti asMap asLists als alID x
+                     | Match.State(c, x) -> peerPol ti asMap asLists als alID x
                      | Match.PathRE(re) -> 
                         let (deny, allow) = Regex.split re
                         let allow = Regex.toBgpRegexp allow

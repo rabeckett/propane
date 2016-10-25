@@ -349,13 +349,29 @@ let allVariableValuesAux (ti : Topology.TopoInfo, p) =
 
 let allVariableValues = Hashcons.memoize allVariableValuesAux
 
+let specificVariableValue (ti : Topology.TopoInfo, p, router) = 
+   match parseTemplatePrefix p with
+   | None -> None
+   | Some(r, var) -> 
+      let r' = 
+         Option.map (fun n -> 
+            if ti.Abstraction.[router] = n then router
+            else n) r
+      match Map.tryFind (r', var) ti.TemplateVars with
+      | None -> None
+      | Some vs -> Some(vs)
+
 let makeTemplatePfxConcrete (ti : Topology.TopoInfo, router, pfx) = 
    match pfx with
    | Route.TemplatePfx p -> 
       match parseTemplatePrefix p with
       | None -> failwith "unreachable"
-      | Some r -> 
-         match Map.tryFind r ti.TemplateVars with
+      | Some(r, var) -> 
+         let r' = 
+            Option.map (fun n -> 
+               if ti.Abstraction.[router] = n then router
+               else n) r
+         match Map.tryFind (r', var) ti.TemplateVars with
          | None -> None
          | Some vs -> Some(Set.map (fun (a, b, c, d, s) -> Route.ConcretePfx(a, b, c, d, s)) vs)
    | Route.ConcretePfx _ -> Some(Set.singleton pfx)
@@ -399,7 +415,7 @@ let substRouterConfig (rc : Config.RouterConfiguration) (ti : Topology.TopoInfo)
    // update prefix lists
    let newPLs = List()
    for pl in rc.PrefixLists do
-      match allVariableValues (ti, pl.Prefix) with
+      match specificVariableValue (ti, pl.Prefix, name) with
       | None -> 
          let x = PrefixList(pl.Kind, pl.Name, pl.Prefix)
          newPLs.Add(x)

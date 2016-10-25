@@ -332,6 +332,8 @@ type Prefix =
       static member False = Prefix(0, 0, 0, 0, 0, Range.Empty)
    end
 
+let anyPrefix = Prefix(0, 0, 0, 0, 0, Range(0, 32))
+
 /// Predicate is either an abstract or concrete value
 type Predicate = 
    | TemplatePred of Set<string>
