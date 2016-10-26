@@ -23,7 +23,7 @@ genstats () {
       size=${file#benchmarks/"$1"}
       echo "$size" >> $TEMPFILE
       echo "compiling: $policy"
-      $PROPANE_CMD --policy $policy --topo $topo --csv --failures=0 >> $TEMPFILE
+      $PROPANE_CMD --policy $policy --topo $topo --anycast --failures=0 --csv >> $TEMPFILE
     done
   done
 
@@ -31,9 +31,9 @@ genstats () {
   rm $TEMPFILE
 }
 
-# genstats "backbone" "_abs"
-# genstats "backbone" "_con"
-# genstats "fat" "_abs"
+genstats "backbone" "_abs"
+genstats "backbone" "_con"
+genstats "fat" "_abs"
 genstats "fat" "_con"
 
 if [ -d output/ ] ; then

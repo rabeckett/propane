@@ -1255,7 +1255,7 @@ let getMinAggregateFailures (cg : CGraph.T) (pred : Route.Predicate)
       Map.iter (fun aggRouter aggs -> 
          let relevantAggs = 
             Seq.choose (fun (aggPrefix, _) -> 
-               if Route.isMoreGeneralThan aggPrefix p then Some aggPrefix
+               if Route.isAggregateFor aggPrefix p then Some aggPrefix
                else None) aggs
          if not (Seq.isEmpty relevantAggs) then 
             let rAgg = Seq.head relevantAggs

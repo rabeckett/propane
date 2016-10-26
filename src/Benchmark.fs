@@ -5,7 +5,7 @@ open System.Text
 open Topology
 open Util
 
-let fattreeAbstract = """
+let fattreeAbstract k = sprintf """
   <!-- Abstract Nodes -->
   <abstractnode internal="true" label="T0"></abstractnode>
   <abstractnode internal="true" label="T1"></abstractnode>
@@ -17,22 +17,26 @@ let fattreeAbstract = """
   <abstractedge source="T1" target="T2" labels="(E3,E4)"></abstractedge>
   <abstractedge source="T2" target="Peer1" labels="(E5,E6)"></abstractedge>
   <abstractedge source="T2" target="Peer2" labels="(E7,E8)"></abstractedge>
+  <!-- Abstract Pods -->
+  <abstractpod label="P">
+     <element>T0</element>
+     <element>T1</element>
+  </abstractpod>
   <!-- Constraints -->
-  <constraint assertion="(>= T0 4)"></constraint>
-  <constraint assertion="(>= T1 4)"></constraint>
-  <constraint assertion="(>= T2 2)"></constraint>
+  <constraint assertion="(>= T0 %d)"></constraint>
+  <constraint assertion="(>= T1 %d)"></constraint>
+  <constraint assertion="(>= T2 %d)"></constraint>
   <constraint assertion="(>= E1 T1)"></constraint>
   <constraint assertion="(>= E2 T0)"></constraint>
   <constraint assertion="(>= E3 T2)"></constraint>
-  <constraint assertion="(>= E4 T1)"></constraint>
+  <constraint assertion="(>= E4 1)"></constraint>
   <constraint assertion="(>= E5 Peer1)"></constraint>
   <constraint assertion="(>= E6 T2)"></constraint>
   <constraint assertion="(>= E7 Peer2)"></constraint>
   <constraint assertion="(>= E8 T2)"></constraint>
   <!-- Template Variables -->
-  <data vars="aggregatePrefix=0.0.0.0/16"></data>
-"""
-let backboneAbstract = """
+  <data vars="aggregatePrefix=0.0.0.0/16"></data>""" (k * k / 2) (k * k / 2) ((k / 2) * (k / 2))
+let backboneAbstract n = sprintf """
   <!-- Abstract Nodes -->
   <abstractnode internal="true" label="Inside"></abstractnode>
   <abstractnode internal="false" label="Cust"></abstractnode>
@@ -45,7 +49,13 @@ let backboneAbstract = """
   <abstractedge source="Inside" target="OnPaid" labels="(E5,E6)"></abstractedge>
   <abstractedge source="Inside" target="OffPaid" labels="(E7,E8)"></abstractedge>
   <abstractedge source="Inside" target="Inside" labels="(E9,E9)"></abstractedge>
-"""
+  <!-- Constraints -->
+  <constraint assertion="(= E1 Cust)"></constraint>
+  <constraint assertion="(= E3 Peer)"></constraint>
+  <constraint assertion="(= E5 OnPaid)"></constraint>
+  <constraint assertion="(= E7 OffPaid)"></constraint>
+  <constraint assertion="(= E9 Inside)"></constraint>
+  <constraint assertion="(>= Inside %d)"></constraint>""" n
 let definitions = """
 define bogon = 
   100.64.0.0/[10..32] or
@@ -95,7 +105,7 @@ let writeDcPolAbstract() =
    bprintf sb "  true => not transit(out,out)\n"
    bprintf sb "}\n\n"
    bprintf sb "define routing = {\n"
-   bprintf sb "  bogon => drop\n,"
+   bprintf sb "  bogon => drop,\n"
    bprintf sb "  private => drop,\n"
    bprintf sb "  T0.$prefix$ => end(T0),\n"
    bprintf sb "  true => exit(Peer1 >> Peer2)\n"
@@ -122,7 +132,8 @@ let writeTopologyConcrete (topo : Topology.T) =
    bprintf sb "</topology>\n"
    string sb
 
-let writeDcTopoAbstract ((topo, pfxMap, tierMap) : Topology.T * Topology.Examples.Prefixes * Topology.Examples.Tiers) = 
+let writeDcTopoAbstract ((topo, pfxMap, tierMap) : Topology.T * Topology.Examples.Prefixes * Topology.Examples.Tiers) 
+    k = 
    let sb = StringBuilder()
    let mutable asn = 1
    bprintf sb "<topology asn=\"100\">\n"
@@ -145,7 +156,7 @@ let writeDcTopoAbstract ((topo, pfxMap, tierMap) : Topology.T * Topology.Example
          n.Loc group vars
    for (x, y) in Topology.edges topo do
       bprintf sb "  <edge source=\"%s\" target=\"%s\"></edge>\n" x.Loc y.Loc
-   bprintf sb "%s" fattreeAbstract
+   bprintf sb "%s" (fattreeAbstract k)
    bprintf sb "</topology>\n"
    string sb
 
@@ -172,14 +183,18 @@ let writeBackbonePolConcrete (topo : Topology.T) =
    bprintf sb "define NonCust = Peer + OnPaid + OffPaid\n"
    bprintf sb "%s" definitions
    bprintf sb "define notransit = {\n"
-   bprintf sb "  true => not (transit(NonCust, NonCust))\n"
+   bprintf sb "  true => not transit(NonCust, NonCust)\n"
    bprintf sb "}\n\n"
    bprintf sb "define routing = {\n"
-   bprintf sb "  bogon => drop\n,"
+   bprintf sb "  bogon => drop,\n"
    bprintf sb "  private => drop,\n"
+   bprintf sb "  1.1.1.1 -> end(R0),\n"
    bprintf sb "  true => exit(Cust >> Peer >> OnPaid >> OffPaid) & end(out)\n"
    bprintf sb "}\n\n"
-   bprintf sb "define main = routing & notransit\n"
+   bprintf sb "define main = routing & notransit\n\n"
+   bprintf sb "control {\n"
+   bprintf sb "  aggregate(1.1.0.0/16, in -> out)"
+   bprintf sb "}"
    string sb
 
 let writeBackbonePolAbstract (topo : Topology.T) = 
@@ -187,17 +202,21 @@ let writeBackbonePolAbstract (topo : Topology.T) =
    bprintf sb "define NonCust = Peer + OnPaid + OffPaid\n"
    bprintf sb "%s" definitions
    bprintf sb "define notransit = {\n"
-   bprintf sb "  true => not (transit(NonCust, NonCust))\n"
+   bprintf sb "  true => not transit(NonCust, NonCust)\n"
    bprintf sb "}\n\n"
    bprintf sb "define routing = {\n"
-   bprintf sb "  bogon => drop\n,"
+   bprintf sb "  bogon => drop,\n"
    bprintf sb "  private => drop,\n"
+   bprintf sb "  1.1.1.1 => end(Inside),\n"
    bprintf sb "  true => exit(Cust >> Peer >> OnPaid >> OffPaid) & end(out)\n"
    bprintf sb "}\n\n"
-   bprintf sb "define main = routing & notransit\n"
+   bprintf sb "define main = routing & notransit\n\n"
+   bprintf sb "control {\n"
+   bprintf sb "  aggregate(1.1.0.0/16, in -> out)\n"
+   bprintf sb "}"
    string sb
 
-let writeBackboneTopoAbstract (topo : Topology.T) = 
+let writeBackboneTopoAbstract (topo : Topology.T) n = 
    let sb = StringBuilder()
    let (custs, peers, onpaids, offpaids) = getPeerGroups topo
    let mutable asn = 1
@@ -217,7 +236,7 @@ let writeBackboneTopoAbstract (topo : Topology.T) =
          n.Loc group
    for (x, y) in Topology.edges topo do
       bprintf sb "  <edge source=\"%s\" target=\"%s\"></edge>\n" x.Loc y.Loc
-   bprintf sb "%s" backboneAbstract
+   bprintf sb "%s" (backboneAbstract n)
    bprintf sb "</topology>\n"
    string sb
 
@@ -234,7 +253,7 @@ let datacenter outDir k =
    let aFilePol = sprintf "%s%sfat%d_abs.pro" outDir File.sep k
    let aPol = writeDcPolAbstract()
    let aFileTopo = sprintf "%s%sfat%d_abs.xml" outDir File.sep k
-   let aTopo = writeDcTopoAbstract (topo, pfxMap, tierMap)
+   let aTopo = writeDcTopoAbstract (topo, pfxMap, tierMap) k
    System.IO.File.WriteAllText(aFilePol, aPol)
    System.IO.File.WriteAllText(aFileTopo, aTopo)
 
@@ -251,7 +270,7 @@ let backbone outDir n =
    let aFilePol = sprintf "%s%sbackbone%d_abs.pro" outDir File.sep n
    let aPol = writeBackbonePolAbstract topo
    let aFileTopo = sprintf "%s%sbackbone%d_abs.xml" outDir File.sep n
-   let aTopo = writeBackboneTopoAbstract topo
+   let aTopo = writeBackboneTopoAbstract topo n
    System.IO.File.WriteAllText(aFilePol, aPol)
    System.IO.File.WriteAllText(aFileTopo, aTopo)
 

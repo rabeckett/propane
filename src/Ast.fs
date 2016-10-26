@@ -783,10 +783,7 @@ let inline getPrefixes ast pfxs e =
    | _ -> ()
 
 let warnUnusedAggregates (ast : T) e = 
-   let inline isPfxFor p1 p2 = 
-      let p3 = Prefix(p1, asRange = true)
-      p1 <> p2 && Route.isMoreGeneralThan p3 p2
-   
+   let inline isPfxFor p1 p2 = p1 <> p2 && Route.isAggregateFor p1 p2
    let prefixes = ref Set.empty
    iter (getPrefixes ast prefixes) e
    for (id, es) in ast.CConstraints do

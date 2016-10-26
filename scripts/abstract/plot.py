@@ -129,7 +129,7 @@ def makeGraph(con, abs, name, descr):
   #====================================================
 
   # stack data lowest -> highest (build, minimize, order, gen, compress)
-  other = map(lambda (x,y,z): x-y-z, zip(totalAbs,aggAbs,subAbs))
+  other = map(lambda (w,x,y,z): w-x-y-z, zip(totalAbs,aggAbs,subAbs,genCore))
   data = (aggAbs, subAbs, genCore, other)
   y_stack = np.cumsum(np.row_stack( data ), axis=0)
 
@@ -155,11 +155,8 @@ def makeGraph(con, abs, name, descr):
   p2 = plt.Rectangle((0, 0), 1, 1, fc=color2, alpha=.7)
   p3 = plt.Rectangle((0, 0), 1, 1, fc=color3, alpha=.7)
   p4 = plt.Rectangle((0, 0), 1, 1, fc=color4, alpha=.7)
-  leg_boxes = [p4, p3, p2]
-  descrs = ["Policy to ABGP", "ABGP to Quagga", "Substitution"]
-  if name == "Fattree":
-    leg_boxes.append(p1)
-    descrs.append("Failure Analysis")
+  leg_boxes = [p4, p3, p2, p1]
+  descrs = ["Policy to ABGP", "ABGP to Quagga", "Substitution", "Failure Analysis"]
   ax1.legend(leg_boxes, descrs, loc=2, fontsize=22)
   fig.savefig(direct + '/graphs/' + name + '-analysis-time.png', bbox_inches='tight')
 
