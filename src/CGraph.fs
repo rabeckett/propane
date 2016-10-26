@@ -185,6 +185,7 @@ let buildFromAutomata (topo : Topology.T) (autos : Regex.Automaton array) : T =
    if not (Topology.isWellFormed topo) then 
       error (sprintf "Invalid topology. Topology must be connected.")
    let unqTopo = Set.ofSeq (Topology.vertices topo)
+   let canOrigin = Seq.filter Topology.canOriginateTraffic unqTopo
    let transitions = getTransitions autos
    let garbage = Array.map getGarbageStates autos
    let graph = BidirectionalGraph<CgStateTmp, Edge<CgStateTmp>>()
@@ -201,7 +202,6 @@ let buildFromAutomata (topo : Topology.T) (autos : Regex.Automaton array) : T =
    while todo.Count > 0 do
       let currState = todo.Dequeue()
       let t = currState.TNode
-      let canOrigin = Seq.filter Topology.canOriginateTraffic unqTopo
       let adj = uniqueNeighbors canOrigin topo t
       
       let adj = 
@@ -298,19 +298,14 @@ let isInside x = Topology.isInside x.Node
 let isOutside x = Topology.isOutside x.Node
 let isEmpty (cg : T) = cg.Graph.VertexCount = 2
 
-let toDot (cg : T) (pi : Ast.PolInfo option) : string = 
+let toDot (cg : T) (pi : Ast.PolInfo) : string = 
    let onFormatEdge (e : Graphviz.FormatEdgeEventArgs<CgState, Edge<CgState>>) = ()
    
    let onFormatVertex (v : Graphviz.FormatVertexEventArgs<CgState>) = 
       let state = string v.Vertex.State
       
       let location = 
-         let l = 
-            match pi with
-            | None -> loc v.Vertex
-            | Some pi -> 
-               let ti = pi.Ast.TopoInfo
-               Topology.router (loc v.Vertex) ti
+         let l = Topology.router (loc v.Vertex) pi.Ast.TopoInfo
          match v.Vertex.Node.Typ with
          | Topology.Unknown excls -> 
             let s = 
@@ -663,18 +658,69 @@ module Minimize =
          let nIn = Set.ofSeq (neighborsIn cg x)
          x = outStar || (nOut.Contains outStar && nIn.Contains outStar)) scc
    
+   let pickBorders (e : Edge<CgState>) = 
+      if isInside e.Source && isOutside e.Target then Some e.Source
+      else None
+   
+   (* let combineExportNeighborsAsOut (ti : Topology.TopoInfo) (cg : T) = 
+      let topo = ti.SelectGraphInfo.Graph
+      let borders = Seq.choose pickBorders cg.Graph.Edges |> Set.ofSeq
+      let outStars = repeatedOuts cg
+      let mutable toRemove = []
+      for b in borders do
+         let nsOut = neighbors cg b |> Seq.filter isOutside
+         
+         let locs = 
+            nsOut
+            |> Seq.map (fun v -> v.Node.Loc)
+            |> Set.ofSeq
+         
+         let ranks = nsOut |> Seq.map (fun v -> v.Accept)
+         let minRank = Seq.min ranks
+         let maxRank = Seq.max ranks
+         if Seq.length nsOut > 0 && minRank = maxRank && minRank <> NO_ACCEPT then 
+            // check if all same in/out
+            let mutable acc = true
+            for n in nsOut do
+               if Seq.length (neighborsIn cg n) <> 1 then acc <- false
+               let outs = 
+                  neighbors cg n
+                  |> Seq.filter isRealNode
+                  |> Set.ofSeq
+               if Set.count outs <> 1 then acc <- false
+               else 
+                  let x = Set.minElement outs
+                  if not (outStars.Contains x) || x.Accept <> n.Accept then acc <- false
+            if acc then 
+               let allTopoPeers = 
+                  Topology.neighbors topo b.Node
+                  |> Seq.filter Topology.isOutside
+                  |> Seq.map (fun x -> x.Loc)
+                  |> Set.ofSeq
+               if locs = allTopoPeers then 
+                  // check if same out neighbors
+                  toRemove <- (b, Set.ofSeq nsOut) :: toRemove
+      for (v, nsOut) in toRemove do
+         let x = Seq.head nsOut
+         let x = neighbors cg x |> Seq.head
+         printfn "%s points to:  %s" (string v) (string x)
+         printfn "neighbors: %A" (Seq.map (fun x -> Topology.router x.Node.Loc ti) nsOut)
+         cg.Graph.AddEdge(Edge<CgState>(v, x)) |> ignore
+         for y in nsOut do
+            cg.Graph.RemoveVertex y |> ignore
+      printfn "To remove: %A" (List.length toRemove) *)
    let removeConnectionsToOutStar (cg : T) = 
       let routs = repeatedOuts cg
       cg.Graph.RemoveEdgeIf(fun e -> 
          let x = e.Source
          let y = e.Target
          let realNodes = isRealNode x && isRealNode y
-         if realNodes then 
-            if routs.Contains x then Seq.exists isInside (neighborsIn cg y)
+         let eqRanks = x.Accept = y.Accept
+         if realNodes && eqRanks && x <> y then 
+            if routs.Contains x then x.Accept <> NO_ACCEPT
             else if routs.Contains y then 
                Seq.exists isInside (neighbors cg x) 
-               && (Seq.exists ((=) cg.Start) (neighborsIn cg y) 
-                   || Seq.forall ((<>) cg.Start) (neighborsIn cg x))
+               && (Seq.exists ((=) cg.Start) (neighborsIn cg y))
             else false
          else false)
       |> ignore
@@ -682,18 +728,13 @@ module Minimize =
    let removeRedundantExternalNodes (cg : T) = 
       let toDelNodes = HashSet(HashIdentity.Structural)
       let routs = repeatedOuts cg
-      
-      let outside = 
-         cg.Graph.Vertices
-         |> Seq.filter routs.Contains
-         |> Set.ofSeq
-      for os in outside do
+      for os in routs do
          let nos = Set.ofSeq (neighborsIn cg os)
          for n in Set.remove os nos do
             if cg.Graph.OutDegree n = 1 && isOutside n then 
                let nin = Set.ofSeq (neighborsIn cg n)
                if Set.isSuperset nos nin then ignore (toDelNodes.Add n)
-      for os in outside do
+      for os in routs do
          let nos = Set.ofSeq (neighbors cg os)
          for n in Set.remove os nos do
             if cg.Graph.InDegree n = 1 && isOutside n then 
@@ -701,7 +742,7 @@ module Minimize =
                if Set.isSuperset nos nin then ignore (toDelNodes.Add n)
       cg.Graph.RemoveVertexIf(fun v -> toDelNodes.Contains v) |> ignore
    
-   let minimize (idx : int) (cg : T) = 
+   let minimize (idx : int) (ti : Topology.TopoInfo) (cg : T) = 
       let settings = Args.getSettings()
       if not settings.Minimize then cg
       else 
@@ -718,6 +759,8 @@ module Minimize =
             logInfo (idx, sprintf "Node count (redundant external nodes): %d" cg.Graph.VertexCount)
             removeConnectionsToOutStar cg
             logInfo (idx, sprintf "Node count (connections to out*): %d" cg.Graph.VertexCount)
+            // combineExportNeighborsAsOut ti cg
+            // logInfo (idx, sprintf "Node count (merge export neighbors): %d" cg.Graph.VertexCount)
             if isConcrete then 
                removeDominated cg
                logInfo (idx, sprintf "Node count (remove dominated): %d" cg.Graph.VertexCount)
@@ -781,6 +824,11 @@ module Consistency =
       | Yes of HashSet<Node>
       | No of CgState * CgState * CgState
    
+   let coveringExternal x' y' = 
+      match x'.Node.Typ with
+      | Topology.Unknown excls -> not (excls.Contains y'.Node.Loc)
+      | _ -> false
+   
    let protect (idx : int) (doms : Domination.DominationTree) cg n1 n2 : ProtectResult = 
       assert (loc n1 = loc n2)
       let q = Queue()
@@ -789,7 +837,6 @@ module Consistency =
       
       // add nodes if preserves the preference relation
       let inline add x' y' (x, y) = 
-         // TODO: total hack for now
          if isInside x && isInside y then 
             let i, j = x'.Accept, y'.Accept
             if i > j && (isInside x') && (isInside y') then counterEx := Some(x, y, y')
@@ -804,21 +851,23 @@ module Consistency =
          let n = q.Dequeue()
          let x = n.More
          let y = n.Less
-         // TODO: total hack for now
          if isInside x && isInside y then 
-            let nsx = 
-               neighbors cg x
-               |> Seq.filter (fun v -> Topology.isTopoNode v.Node)
-               |> Seq.fold (fun acc x -> Map.add (loc x) x acc) Map.empty
-            
+            let nsx = neighbors cg x |> Seq.filter (fun v -> Topology.isTopoNode v.Node)
+            let nsxMap = Seq.fold (fun acc x -> Map.add (loc x) x acc) Map.empty nsx
             let nsy = neighbors cg y |> Seq.filter (fun v -> Topology.isTopoNode v.Node)
             for y' in nsy do
-               match Map.tryFind (loc y') nsx with
+               match Map.tryFind (loc y') nsxMap with
                | None -> 
                   let inline relevantDom x' = loc x' = loc y' && cg.Graph.ContainsVertex x'
                   match doms.TryIsDominatedBy(x, relevantDom) with
-                  | None -> counterEx := Some(x, y, y')
                   | Some x' -> add x' y' (x, y)
+                  | None -> 
+                     (* if isOutside y' then 
+                        match Seq.tryFind (coveringExternal y') nsx with
+                        | None -> counterEx := Some(x, y, y')
+                        | Some x' -> add x' y' (x, y)
+                     else*)
+                     counterEx := Some(x, y, y')
                | Some x' -> add x' y' (x, y)
       match !counterEx with
       | None -> Yes seen

@@ -553,7 +553,10 @@ let singleLocations (topo : Topology.T) r =
          | Some s1, Some s2 -> Some(f s1 s2)
       match r with
       | LIn -> Some(Set.map (fun (v : Topology.Node) -> v.Loc) ain)
-      | LOut -> Some(Set.map (fun (v : Topology.Node) -> v.Loc) aout)
+      | LOut -> 
+         let outs = Set.map (fun (v : Topology.Node) -> v.Loc) aout
+         let outs = Set.add "out" outs
+         Some(outs)
       | LWildcard -> Some(Set.singleton "_")
       | LLocs s -> Some s
       | LInter rs -> List.map inner rs |> Util.List.fold1 (aux Set.intersect)
@@ -659,14 +662,14 @@ type REBuilder(topo : Topology.T) =
    member __.Alphabet() = alphabet
    member __.Topo() = topo
    
-   member this.WellFormed(x) = 
+   (* member this.WellFormed(x) = 
       let r = 
          this.Inter [ this.Negate(this.Any())
                       x ]
       
-      let dfa = this.MakeDFA(convert r)
-      emptiness dfa
-   
+      let r = convert r
+      let dfa = this.MakeDFA(r)
+      emptiness dfa *)
    member this.AddUnknownVertex() = 
       let unknown = Node(unknownName, Topology.Unknown addedOutside)
       let topo = this.Topo()
@@ -679,14 +682,16 @@ type REBuilder(topo : Topology.T) =
    member this.Build (pred : Route.Predicate) (pref : int) re = 
       this.AddUnknownVertex()
       finalAlphabet <- true
-      match this.WellFormed re with
+      // We ensure well-formedness by construction. 
+      (* match this.WellFormed re with
       | None -> convert re
       | Some cs -> 
          let msg = 
             sprintf "Invalid path shape for prefix %s, preference %d. " (string pred) pref 
             + sprintf "Paths must go through the internal network exactly once, " 
             + sprintf "but an example of a path that is allowed specified: %s" (string cs)
-         error msg
+         error msg *)
+      convert re
    
    member __.Empty = LEmpty
    member __.Epsilon = LEpsilon
@@ -820,8 +825,11 @@ type REBuilder(topo : Topology.T) =
                                  this.MaybeOutside() ] ]
    
    member this.Reach(xs, ys) = 
-      this.Inter [ this.Start(xs)
-                   this.End(ys) ]
+      let valid = 
+         this.Inter [ this.Start(xs)
+                      this.End(ys) ]
+      this.Inter [ this.Any()
+                   valid ]
    
    member this.ValleyFree(xs) = 
       let aux (last, acc) x = 
@@ -865,5 +873,8 @@ type REBuilder(topo : Topology.T) =
                                  this.MaybeOutside() ] ]
    
    member this.Only(xs) = 
-      this.Concat [ xs
-                    this.Star xs ]
+      let valid = 
+         this.Concat [ xs
+                       this.Star xs ]
+      this.Inter [ this.Any()
+                   valid ]
