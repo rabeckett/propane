@@ -188,7 +188,7 @@ let writeBackbonePolConcrete (topo : Topology.T) =
    bprintf sb "define routing = {\n"
    bprintf sb "  bogon => drop,\n"
    bprintf sb "  private => drop,\n"
-   bprintf sb "  1.1.1.1 -> end(R0),\n"
+   bprintf sb "  1.1.1.1 => end(R0),\n"
    bprintf sb "  true => exit(Cust >> Peer >> OnPaid >> OffPaid) & end(out)\n"
    bprintf sb "}\n\n"
    bprintf sb "define main = routing & notransit\n\n"
