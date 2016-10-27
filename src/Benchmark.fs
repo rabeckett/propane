@@ -2,59 +2,10 @@
 
 open Core.Printf
 open System.Text
+open Topology
+open Util
 
-let displayHeader() = 
-   let headers = 
-      [ "Pods"; "Num Nodes"; "Num Edges"; "Num Prefixes"; "Size Raw"; "Size Compressed"; 
-        "Size Percent (Compressed/Raw)"; "Time Total"; "Time Join"; "Time Prefixes (total)"; 
-        "Time Per Prefix (mean)"; "Time Per Prefix (median)"; "Time Per Prefix (max)"; 
-        "Time Per Prefix Build Automaton (mean)"; "Time Per Prefix Build Automaton (median)"; 
-        "Time Per Prefix Build Automaton (max)"; "Time Per Prefix Minimize Automaton (mean)"; 
-        "Time Per Prefix Minimize Automaton (med)"; "Time Per Prefix Minimize Automaton (max)"; 
-        "Time Per Prefix Find Ordering (mean)"; "Time Per Prefix Find Ordering (med)"; 
-        "Time Per Prefix Find Ordering (max)"; "Time Per Prefix Gen Config (mean)"; 
-        "Time Per Prefix Gen Config (med)"; "Time Per Prefix Gen Config (max)"; 
-        "Time Per Prefix Compress (mean)"; "Time Per Prefix Compress (median)"; 
-        "Time Per Prefix Compress (max)" ]
-   printfn "%s" (Util.List.joinBy "," headers)
-
-let inline toSec v = (float v) / 1000.0
-let inline times vs = Array.map toSec vs
-let inline mean vs = Array.average vs
-let inline maximum vs = Array.max vs
-
-let inline median vs = 
-   let sorted = Array.sort vs
-   let len = Array.length sorted
-   let mid = len / 2
-   let median = sorted.[mid]
-   if len % 2 = 0 then 
-      Array.average [| median
-                       sorted.[mid - 1] |]
-   else median
-
-let triple vs = 
-   let avg = mean vs
-   let med = median vs
-   let max = maximum vs
-   (avg, med, max)
-
-let displayStats k v e (stats : Abgp.Stats) = 
-   let totalTimes = times stats.PerPrefixTimes
-   let buildTimes = times stats.PerPrefixBuildTimes
-   let minTimes = times stats.PerPrefixMinTimes
-   let orderTimes = times stats.PerPrefixOrderTimes
-   let genTimes = times stats.PerPrefixGenTimes
-   let (avg, med, max) = triple totalTimes
-   let (avgBuild, medBuild, maxBuild) = triple buildTimes
-   let (avgMin, medMin, maxMin) = triple minTimes
-   let (avgOrd, medOrd, maxOrd) = triple orderTimes
-   let (avgGen, medGen, maxGen) = triple genTimes
-   printfn "%d,%d,%d,%d,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%d" k v e 
-      stats.NumPrefixes (toSec stats.JoinTime) (toSec stats.PrefixTime) avg med max avgBuild 
-      medBuild maxBuild avgMin medMin maxMin avgOrd medOrd maxOrd avgGen medGen maxGen stats.MinTime
-
-let fattreeAbstract = """
+let fattreeAbstract k = sprintf """
   <!-- Abstract Nodes -->
   <abstractnode internal="true" label="T0"></abstractnode>
   <abstractnode internal="true" label="T1"></abstractnode>
@@ -66,22 +17,56 @@ let fattreeAbstract = """
   <abstractedge source="T1" target="T2" labels="(E3,E4)"></abstractedge>
   <abstractedge source="T2" target="Peer1" labels="(E5,E6)"></abstractedge>
   <abstractedge source="T2" target="Peer2" labels="(E7,E8)"></abstractedge>
+  <!-- Abstract Pods -->
+  <abstractpod label="P">
+     <element>T0</element>
+     <element>T1</element>
+  </abstractpod>
   <!-- Constraints -->
-  <constraint assertion="(>= T0 4)"></constraint>
-  <constraint assertion="(>= T1 4)"></constraint>
-  <constraint assertion="(>= T2 2)"></constraint>
+  <constraint assertion="(>= T0 %d)"></constraint>
+  <constraint assertion="(>= T1 %d)"></constraint>
+  <constraint assertion="(>= T2 %d)"></constraint>
   <constraint assertion="(>= E1 T1)"></constraint>
   <constraint assertion="(>= E2 T0)"></constraint>
   <constraint assertion="(>= E3 T2)"></constraint>
-  <constraint assertion="(>= E4 T1)"></constraint>
+  <constraint assertion="(>= E4 1)"></constraint>
   <constraint assertion="(>= E5 Peer1)"></constraint>
   <constraint assertion="(>= E6 T2)"></constraint>
   <constraint assertion="(>= E7 Peer2)"></constraint>
   <constraint assertion="(>= E8 T2)"></constraint>
   <!-- Template Variables -->
-  <data vars="aggregatePrefix=0.0.0.0/16"></data>
-"""
-let fattreeDefs = """
+  <data vars="aggregatePrefix=0.0.0.0/16"></data>""" (k * k / 2) (k * k / 2) ((k / 2) * (k / 2))
+let backboneAbstract n = sprintf """
+  <!-- Abstract Nodes -->
+  <abstractnode internal="true" label="Inside"></abstractnode>
+  <abstractnode internal="false" label="Cust"></abstractnode>
+  <abstractnode internal="false" label="Peer"></abstractnode>
+  <abstractnode internal="false" label="OnPaid"></abstractnode>
+  <abstractnode internal="false" label="OffPaid"></abstractnode>
+  <!-- Abstract Edges -->
+  <abstractedge source="Inside" target="Cust" labels="(E1,E2)"></abstractedge>
+  <abstractedge source="Inside" target="Peer" labels="(E3,E4)"></abstractedge>
+  <abstractedge source="Inside" target="OnPaid" labels="(E5,E6)"></abstractedge>
+  <abstractedge source="Inside" target="OffPaid" labels="(E7,E8)"></abstractedge>
+  <abstractedge source="Inside" target="Inside" labels="(E9,E9)"></abstractedge>
+  <!-- Constraints -->
+  <constraint assertion="(= E1 Cust)"></constraint>
+  <constraint assertion="(= E3 Peer)"></constraint>
+  <constraint assertion="(= E5 OnPaid)"></constraint>
+  <constraint assertion="(= E7 OffPaid)"></constraint>
+  <constraint assertion="(= E9 Inside)"></constraint>
+  <constraint assertion="(>= Inside %d)"></constraint>""" n
+let definitions = """
+define bogon = 
+  100.64.0.0/[10..32] or
+  127.0.0.0/[8..32] or
+  192.0.0.0/[24..32] or
+  192.0.2.0/[24..32] or
+  198.18.0.0/[15..32] or
+  198.51.100.0/[24..32] or
+  203.0.113.0/[24..32] or
+  224.0.0.0/[3..32] 
+
 define private = 
   10.0.0.0/[8..32] or 
   172.16.0.0/[12..32] or 
@@ -90,30 +75,18 @@ define private =
 
 define transit(X,Y) = enter(X+Y) & exit(X+Y)
 
-define notransit = {
-  true => not transit(out,out)
-}
-
 """
 
 let writeDcPolConcrete ((topo, pfxMap, tierMap) : _ * Topology.Examples.Prefixes * Topology.Examples.Tiers) = 
-   let mutable t0 = []
-   let mutable t1 = []
-   let mutable t2 = []
-   for kv in tierMap do
-      let loc = kv.Key.Loc
-      let tier = kv.Value
-      match tier with
-      | 0 -> t0 <- loc :: t0
-      | 1 -> t1 <- loc :: t1
-      | 2 -> t2 <- loc :: t2
-      | _ -> failwith "invalid tier"
    let sb = StringBuilder()
-   bprintf sb "%s" fattreeDefs
+   bprintf sb "%s" definitions
+   bprintf sb "define notransit = {\n"
+   bprintf sb "  true => not transit(out,out)\n"
+   bprintf sb "}\n\n"
    bprintf sb "define routing = {\n"
+   bprintf sb "  bogon => drop,\n"
    bprintf sb "  private => drop,\n"
    for kv in pfxMap do
-      let reb = Regex.REBuilder(topo)
       let prefix = kv.Value
       let loc = kv.Key.Loc
       bprintf sb "  %s => end(%s),\n" (string prefix) loc
@@ -127,8 +100,12 @@ let writeDcPolConcrete ((topo, pfxMap, tierMap) : _ * Topology.Examples.Prefixes
 
 let writeDcPolAbstract() = 
    let sb = StringBuilder()
-   bprintf sb "%s" fattreeDefs
+   bprintf sb "%s" definitions
+   bprintf sb "define notransit = {\n"
+   bprintf sb "  true => not transit(out,out)\n"
+   bprintf sb "}\n\n"
    bprintf sb "define routing = {\n"
+   bprintf sb "  bogon => drop,\n"
    bprintf sb "  private => drop,\n"
    bprintf sb "  T0.$prefix$ => end(T0),\n"
    bprintf sb "  true => exit(Peer1 >> Peer2)\n"
@@ -140,7 +117,7 @@ let writeDcPolAbstract() =
    bprintf sb "}\n"
    string sb
 
-let writeDcTopoConcrete (topo : Topology.T) = 
+let writeTopologyConcrete (topo : Topology.T) = 
    let sb = StringBuilder()
    let mutable asn = 1
    bprintf sb "<topology asn=\"100\">\n"
@@ -155,7 +132,8 @@ let writeDcTopoConcrete (topo : Topology.T) =
    bprintf sb "</topology>\n"
    string sb
 
-let writeDcTopoAbstract ((topo, pfxMap, tierMap) : Topology.T * Topology.Examples.Prefixes * Topology.Examples.Tiers) = 
+let writeDcTopoAbstract ((topo, pfxMap, tierMap) : Topology.T * Topology.Examples.Prefixes * Topology.Examples.Tiers) 
+    k = 
    let sb = StringBuilder()
    let mutable asn = 1
    bprintf sb "<topology asn=\"100\">\n"
@@ -178,94 +156,128 @@ let writeDcTopoAbstract ((topo, pfxMap, tierMap) : Topology.T * Topology.Example
          n.Loc group vars
    for (x, y) in Topology.edges topo do
       bprintf sb "  <edge source=\"%s\" target=\"%s\"></edge>\n" x.Loc y.Loc
-   bprintf sb "%s" fattreeAbstract
+   bprintf sb "%s" (fattreeAbstract k)
    bprintf sb "</topology>\n"
    string sb
 
-let singleDatacenter outDir k = 
+let getPeerGroups topo = 
+   let mutable custs = Set.empty
+   let mutable peers = Set.empty
+   let mutable onpaids = Set.empty
+   let mutable offpaids = Set.empty
+   for v in Topology.vertices topo do
+      let l = v.Loc
+      if l.StartsWith("Cust") then custs <- Set.add l custs
+      if l.StartsWith("Peer") then peers <- Set.add l peers
+      if l.StartsWith("OnPaid") then onpaids <- Set.add l onpaids
+      if l.StartsWith("OffPaid") then offpaids <- Set.add l offpaids
+   (custs, peers, onpaids, offpaids)
+
+let writeBackbonePolConcrete (topo : Topology.T) = 
+   let (custs, peers, onpaids, offpaids) = getPeerGroups topo
+   let sb = StringBuilder()
+   bprintf sb "define Cust = %s\n" (Util.Set.toString custs)
+   bprintf sb "define Peer = %s\n" (Util.Set.toString peers)
+   bprintf sb "define OnPaid = %s\n" (Util.Set.toString onpaids)
+   bprintf sb "define OffPaid = %s\n" (Util.Set.toString offpaids)
+   bprintf sb "define NonCust = Peer + OnPaid + OffPaid\n"
+   bprintf sb "%s" definitions
+   bprintf sb "define notransit = {\n"
+   bprintf sb "  true => not transit(NonCust, NonCust)\n"
+   bprintf sb "}\n\n"
+   bprintf sb "define routing = {\n"
+   bprintf sb "  bogon => drop,\n"
+   bprintf sb "  private => drop,\n"
+   bprintf sb "  1.1.1.1 -> end(R0),\n"
+   bprintf sb "  true => exit(Cust >> Peer >> OnPaid >> OffPaid) & end(out)\n"
+   bprintf sb "}\n\n"
+   bprintf sb "define main = routing & notransit\n\n"
+   bprintf sb "control {\n"
+   bprintf sb "  aggregate(1.1.0.0/16, in -> out)"
+   bprintf sb "}"
+   string sb
+
+let writeBackbonePolAbstract (topo : Topology.T) = 
+   let sb = StringBuilder()
+   bprintf sb "define NonCust = Peer + OnPaid + OffPaid\n"
+   bprintf sb "%s" definitions
+   bprintf sb "define notransit = {\n"
+   bprintf sb "  true => not transit(NonCust, NonCust)\n"
+   bprintf sb "}\n\n"
+   bprintf sb "define routing = {\n"
+   bprintf sb "  bogon => drop,\n"
+   bprintf sb "  private => drop,\n"
+   bprintf sb "  1.1.1.1 => end(Inside),\n"
+   bprintf sb "  true => exit(Cust >> Peer >> OnPaid >> OffPaid) & end(out)\n"
+   bprintf sb "}\n\n"
+   bprintf sb "define main = routing & notransit\n\n"
+   bprintf sb "control {\n"
+   bprintf sb "  aggregate(1.1.0.0/16, in -> out)\n"
+   bprintf sb "}"
+   string sb
+
+let writeBackboneTopoAbstract (topo : Topology.T) n = 
+   let sb = StringBuilder()
+   let (custs, peers, onpaids, offpaids) = getPeerGroups topo
+   let mutable asn = 1
+   bprintf sb "<topology asn=\"100\">\n"
+   for n in Topology.vertices topo do
+      asn <- asn + 1
+      let b = Topology.isInside n
+      let intern = (string b).ToLower()
+      
+      let group = 
+         if Set.contains n.Loc custs then " group=\"Cust\""
+         else if Set.contains n.Loc peers then " group=\"Peer\""
+         else if Set.contains n.Loc onpaids then " group=\"OnPaid\""
+         else if Set.contains n.Loc offpaids then " group=\"OffPaid\""
+         else " group=\"Inside\""
+      bprintf sb "  <node internal=\"%s\" asn=\"%s\" name=\"%s\"%s></node>\n" intern (string asn) 
+         n.Loc group
+   for (x, y) in Topology.edges topo do
+      bprintf sb "  <edge source=\"%s\" target=\"%s\"></edge>\n" x.Loc y.Loc
+   bprintf sb "%s" (backboneAbstract n)
+   bprintf sb "</topology>\n"
+   string sb
+
+let datacenter outDir k = 
    let (topo, pfxMap, tierMap) = Topology.Examples.fatTree k
-   let sep = System.IO.Path.DirectorySeparatorChar
    // concrete topology
-   let cFilePol = sprintf "%s%cfat%d_con.pro" outDir sep k
+   let cFilePol = sprintf "%s%sfat%d_con.pro" outDir File.sep k
    let cPol = writeDcPolConcrete (topo, pfxMap, tierMap)
-   let cFileTopo = sprintf "%s%cfat%d_con.xml" outDir sep k
-   let cTopo = writeDcTopoConcrete topo
+   let cFileTopo = sprintf "%s%sfat%d_con.xml" outDir File.sep k
+   let cTopo = writeTopologyConcrete topo
    System.IO.File.WriteAllText(cFilePol, cPol)
    System.IO.File.WriteAllText(cFileTopo, cTopo)
    // abstract topology
-   let aFilePol = sprintf "%s%cfat%d_abs.pro" outDir sep k
+   let aFilePol = sprintf "%s%sfat%d_abs.pro" outDir File.sep k
    let aPol = writeDcPolAbstract()
-   let aFileTopo = sprintf "%s%cfat%d_abs.xml" outDir sep k
-   let aTopo = writeDcTopoAbstract (topo, pfxMap, tierMap)
+   let aFileTopo = sprintf "%s%sfat%d_abs.xml" outDir File.sep k
+   let aTopo = writeDcTopoAbstract (topo, pfxMap, tierMap) k
+   System.IO.File.WriteAllText(aFilePol, aPol)
+   System.IO.File.WriteAllText(aFileTopo, aTopo)
+
+let backbone outDir n = 
+   let topo = Topology.Examples.complete n
+   // concrete topology
+   let cFilePol = sprintf "%s%sbackbone%d_con.pro" outDir File.sep n
+   let cPol = writeBackbonePolConcrete topo
+   let cFileTopo = sprintf "%s%sbackbone%d_con.xml" outDir File.sep n
+   let cTopo = writeTopologyConcrete topo
+   System.IO.File.WriteAllText(cFilePol, cPol)
+   System.IO.File.WriteAllText(cFileTopo, cTopo)
+   // abstract topology
+   let aFilePol = sprintf "%s%sbackbone%d_abs.pro" outDir File.sep n
+   let aPol = writeBackbonePolAbstract topo
+   let aFileTopo = sprintf "%s%sbackbone%d_abs.xml" outDir File.sep n
+   let aTopo = writeBackboneTopoAbstract topo n
    System.IO.File.WriteAllText(aFilePol, aPol)
    System.IO.File.WriteAllText(aFileTopo, aTopo)
 
 let generate() = 
    let dir = "benchmarks"
-   Util.File.createDir dir
-   for k in 4..2..26 do
-      singleDatacenter dir k
-(*
-
-let singleCore n = 
-    let settings = Args.getSettings () 
-    let topo = Topology.Examples.complete n
-    
-    // show customer prefixes
-    let nNodes = n
-    let nEdges = topo.EdgeCount
-    
-    // get all cust,peer,paid
-    let custs = topo.Vertices |> Seq.filter (fun v -> v.Loc.[0] = 'C') |> Seq.map (fun v -> v.Loc) |> List.ofSeq 
-    let peers = topo.Vertices |> Seq.filter (fun v -> v.Loc.[0] = 'P') |> Seq.map (fun v -> v.Loc) |> List.ofSeq 
-    let paids = topo.Vertices |> Seq.filter (fun v -> v.Loc.[0] = 'O') |> Seq.map (fun v -> v.Loc) |> List.ofSeq 
-    let paidOns = paids |> Seq.filter (fun v -> v.[1] = 'n') |> List.ofSeq 
-    let paidOffs = paids |> Seq.filter (fun v -> v.[1] = 'f') |> List.ofSeq 
-
-    // entering preferences
-    let getPol (reb: Regex.REBuilder) p = 
-        let pp = paids @ peers
-        let noTransit = reb.Inter [reb.Any(); reb.Negate (reb.Inter [reb.Enter pp; reb.Exit pp])]
-        // let noPeerToPaid = reb.Inter [reb.Any(); reb.Negate (reb.Inter [reb.Through paids; reb.Exit peers] )]
-        let pref1 = reb.Inter [reb.Exit custs; noTransit; p]
-        let pref2 = reb.Inter [reb.Exit peers; noTransit; p]
-        let pref3 = reb.Inter [reb.Exit paidOns; noTransit; p]
-        let pref4 = reb.Inter [reb.Exit paidOffs; noTransit; p]
-        [reb.Build pref1; reb.Build pref2; reb.Build pref3; reb.Build pref4]
-    
-    // begin build main policy
-    let mutable pairs = []
-
-    // bogon prefix
-    let reb = Regex.REBuilder(topo)
-    let pol = [reb.Build reb.Empty]
-    pairs <- (Predicate.prefix (10u, 0u, 0u, 0u) 16u, reb, pol) :: pairs
-
-    // get regions
-    let regions = Seq.splitInto 2 custs
-    let mutable i = 10
-    for reg in regions do 
-        let reb = Regex.REBuilder(topo)
-        let pol = reb.Inter[reb.Enter (List.ofArray reg); reb.Exit (List.ofArray reg)]
-        pairs <- (Predicate.prefix (uint32 i, 0u,0u,0u) 24u, reb, [reb.Build pol]) :: pairs
-        i <- i + 1
-
-    // Main policy 
-    let reb = Regex.REBuilder(topo)
-    let pol = reb.Any() 
-    pairs <- (pb.True, reb, getPol reb pol) :: pairs
-
-    // Compile the policy
-    let (ir, _, stats) = Abgp.compileAllPrefixes (settings.DebugDir + "/output") topo (List.rev pairs) []
-    displayStats 0 nNodes nEdges stats
-    match settings.OutFile with 
-    | None -> ()
-    | Some out -> System.IO.File.WriteAllText(out + ".ir", Abgp.format ir)
-
-let core () =
-    displayHeader () 
-    System.GC.Collect ()
-    System.Threading.Thread.Sleep(1000)
-    for n in 2..3..200 do
-        singleCore n
-*)
+   File.createDir dir
+   for k in 4..2..30 do
+      datacenter dir k
+   for n in 10..10..200 do
+      backbone dir n

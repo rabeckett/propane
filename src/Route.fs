@@ -590,9 +590,11 @@ let disj (x : Predicate) (y : Predicate) =
    | ConcretePred x, ConcretePred y -> ConcretePred(pb.Or(x, y))
 
 /// Test for prefix superset
-let isMoreGeneralThan (x : Prefix) (y : Prefix) = 
+let isAggregateFor (x : Prefix) (y : Prefix) = 
    if x.IsTemplate || y.IsTemplate then true
-   else pb.Implies(pb.Prefix y, pb.Prefix x)
+   else 
+      let p = Prefix(x, asRange = true)
+      pb.Implies(pb.Prefix y, pb.Prefix p)
 
 /// Traffic Classifiers of a predicate
 let trafficClassifiers (x : Predicate) = 

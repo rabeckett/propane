@@ -1041,6 +1041,7 @@ module Examples =
       // setup external peers
       let externalPeers = Dictionary()
       let internalPeers = Dictionary()
+      let peersPerGroup = 5
       // setup internal full mesh
       for i = 0 to n - 1 do
          let name = "R" + string i
@@ -1057,7 +1058,7 @@ module Examples =
          let name = kv.Key
          let router = kv.Value
          // add dcs
-         for i = 0 to 9 do
+         for i = 0 to peersPerGroup - 1 do
             let eName = "Cust" + string i + name
             let ePeer = Node(eName, Outside)
             ignore (g.AddVertex ePeer)
@@ -1066,7 +1067,7 @@ module Examples =
             ignore (g.AddEdge e1)
             ignore (g.AddEdge e2)
          // add peers
-         for i = 0 to 19 do
+         for i = 0 to peersPerGroup - 1 do
             let eName = "Peer" + string i + name
             let ePeer = Node(eName, Outside)
             ignore (g.AddVertex ePeer)
@@ -1075,7 +1076,7 @@ module Examples =
             ignore (g.AddEdge e1)
             ignore (g.AddEdge e2)
          // add paid on net
-         for i = 0 to 19 do
+         for i = 0 to peersPerGroup - 1 do
             let eName = "OnPaid" + string i + name
             let ePeer = Node(eName, Outside)
             ignore (g.AddVertex ePeer)
@@ -1084,7 +1085,7 @@ module Examples =
             ignore (g.AddEdge e1)
             ignore (g.AddEdge e2)
          // add paid off net
-         for i = 0 to 19 do
+         for i = 0 to peersPerGroup - 1 do
             let eName = "OffPaid" + string i + name
             let ePeer = Node(eName, Outside)
             ignore (g.AddVertex ePeer)

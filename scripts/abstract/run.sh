@@ -9,13 +9,11 @@ if [ -f $TEMPFILE ] ; then
     rm $TEMPFILE
 fi
 
-if [ ! -d benchmarks/ ] ; then
-    $PROPANE_CMD --bench
-fi
+$PROPANE_CMD --bench
 
 genstats () {
   shopt -s nullglob
-  for f in benchmarks/*$2.xml
+  for f in benchmarks/${1}*$2.xml
   do
     for i in {1..3} 
     do 
@@ -25,7 +23,7 @@ genstats () {
       size=${file#benchmarks/"$1"}
       echo "$size" >> $TEMPFILE
       echo "compiling: $policy"
-      $PROPANE_CMD --policy $policy --topo $topo --csv --failures=0 >> $TEMPFILE
+      $PROPANE_CMD --policy $policy --topo $topo --anycast --failures=0 --csv >> $TEMPFILE
     done
   done
 
@@ -33,10 +31,10 @@ genstats () {
   rm $TEMPFILE
 }
 
+genstats "backbone" "_abs"
+genstats "backbone" "_con"
 genstats "fat" "_abs"
 genstats "fat" "_con"
-# genstats "backbone" "_abs"
-# genstats "backbone" "_con"
 
 if [ -d output/ ] ; then
   rm -r output/
@@ -45,3 +43,6 @@ fi
 if [ ! -d graphs/ ] ; then
   mkdir graphs/
 fi
+
+echo "Generating graphs..."
+python plot.py 

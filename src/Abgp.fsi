@@ -13,6 +13,7 @@ type Stats =
      PerPrefixMinTimes : int64 array
      PerPrefixAggAnalysisTimes : int64 array
      PerPrefixOrderTimes : int64 array
+     PerPrefixInboundTimes : int64 array
      PerPrefixGenTimes : int64 array
      JoinTime : int64
      MinTime : int64 }

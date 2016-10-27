@@ -69,9 +69,9 @@ val isInside : CgState -> bool
 /// Returns true if the graph contains only the start and end nodes
 val isEmpty : T -> bool
 /// Convert the constraint graph to the DOT format for visualization
-val toDot : T -> Ast.PolInfo option -> string
+val toDot : T -> Ast.PolInfo -> string
 /// Generate a png file for the constraint graph (requires graphviz dot utility)
-val generatePNG : T -> Ast.PolInfo option -> string -> unit
+val generatePNG : T -> Ast.PolInfo -> string -> unit
 
 module Reachable = 
    /// Find all destinations reachable from src
@@ -81,7 +81,7 @@ module Reachable =
 
 module Minimize = 
    /// Remove nodes and edges not relevant to the BGP decision process
-   val minimize : int -> T -> T
+   val minimize : int -> Topology.TopoInfo -> T -> T
 
 module Consistency = 
    type Neighbor = string

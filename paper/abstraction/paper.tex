@@ -976,6 +976,63 @@ We borrow the intermediate graph-based representation from Propane:
 && Inference rules as an abstract interpretation using Z3
 \end{easylist}
 
+\newcommand{\inference}[4]{
+    \node[draw, anchor=west] at (#1 + .4, 1.25) {#3};
+    \node at (#1 + .34, .6) {$e_1$};
+    \node at (#1 + .34, 1.9) {$e_2$};
+    \node at (#1, -.8) {#2};
+    \node at (#1, 3.3) {#4};
+    \draw [] (#1, 2.5) circle [radius=0.45] node {$m$};
+    \draw [] (#1, 0) circle [radius=0.45] node {$n$};
+    \draw [] (#1, .45) -- (#1, 2.05);
+}
+
+\begin{figure*}[t!]
+  \begin{minipage}[t]{.5\linewidth}%
+  \begin{tikzpicture}
+    \inference{0}{L$(j,k)$}{$\vDash e_1 > 0$}{S$(min(j*k,e_1),1)$}
+    \inference{10}{A$(j,k)$}{$e_2 > 0$}{A$(1,min(j,e2))$}
+  \end{tikzpicture}
+  \end{minipage}
+
+  %
+  \vspace*{3em}
+  %
+  \begin{minipage}[t]{.5\linewidth}%
+  \begin{tikzpicture}
+    \inference{0}{L$(j,k)$}{$e_1=n$}{A$(min(j*k,n),1)$}
+    \inference{10}{L$(j,k)$}{$e_1=n$}{A$(1,j)$}  
+  \end{tikzpicture}
+  \end{minipage}
+
+  %
+  \vspace*{3em}
+  %
+  \begin{minipage}[t]{.5\linewidth}%
+  \begin{tikzpicture}
+    \inference{0}{L$(j,k)$}{$e_1 > 0$, $e_2 > 0$}{S$(min(j*k,n-\dfrac{(m-j)*e_1}{e_2}),1)$}
+  \end{tikzpicture}
+  \end{minipage}
+
+  %
+  \vspace*{3em}
+  %
+  \begin{minipage}[t]{.5\linewidth}%
+  \begin{tikzpicture}
+    \inference{10}{L$(j,k)$ ~~~ L$(j- m ~\text{mod}~ \big(\dfrac{n}{e_1}\big),1)$}{$e_1 > 0$, $e_2 > 0$}{}   
+  \end{tikzpicture}
+  \end{minipage}
+  %
+  \vspace*{1em}
+  \hrule
+  \vspace*{1em}
+  \caption{Abstract k-disjoint path analysis inference rules.}
+  \label{fig:abstract-analysis}
+  %\vspace{-1em}
+\end{figure*}
+
+
+
 
 %\subsection{Aggregation-safety analysis}
 %\label{sec:agg-safety}
