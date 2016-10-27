@@ -385,6 +385,48 @@ module Reachable =
                s.Push(w)
       marked
    
+   (* 
+   let makeEdges (xs : CgState list) = 
+      let rec aux prev xs acc = 
+         match xs with
+         | [] -> acc
+         | hd :: tl -> 
+            match prev with
+            | None -> aux (Some hd) tl acc
+            | Some p -> aux (Some hd) tl ((p, hd) :: acc)
+      aux None xs []
+ 
+   let path (cg : T) (source : CgState) (target : CgState) : (CgState * CgState) list option = 
+      // printfn "path from %s to %s" (string source) (string target)
+      let marked = HashSet()
+      let edgeTo = Dictionary()
+      let s = Queue()
+      s.Enqueue(source)
+      let mutable search = true
+      while search && s.Count > 0 do
+         let v = s.Dequeue()
+         if v = target then 
+            // printfn "  is target!"
+            search <- false
+         for w in neighbors cg v do
+            if not (marked.Contains w) then 
+               ignore (marked.Add v)
+               edgeTo.[w] <- v
+               s.Enqueue(w)
+      if search then None
+      else 
+         // printfn "reconstruct path"
+         let mutable path = []
+         let mutable x = target
+         // printfn "start with %s" (string target)
+         while x <> source do
+            path <- x :: path
+            x <- edgeTo.[x]
+         let ret = (x :: path)
+         // printfn "got path: %A" (List.map (string) ret)
+         let ret = makeEdges ret
+         // printfn "made into edges"
+         Some(ret) *)
    let srcAccepting (cg : T) (source : CgState) direction : Set<int16> = 
       let f = 
          if direction = Up then neighborsIn
@@ -1170,11 +1212,14 @@ module Failure =
       |> ignore
       failed
    
-   let disconnect (cg : T) src dst : int = 
+   let disconnect (cg : T) src dst (edgeMap : Dictionary<_, _>) : int = 
       let cg = copyGraph cg
       let mutable removed = 0
       let mutable hasPath = true
       while hasPath do
+         (* match Reachable.path cg src dst with
+         | None -> hasPath <- false
+         | Some p -> *)
          let sp = cg.Graph.ShortestPathsDijkstra((fun _ -> 1.0), src)
          let mutable path = Seq.empty
          ignore (sp.Invoke(dst, &path))
@@ -1182,17 +1227,34 @@ module Failure =
          | null -> hasPath <- false
          | p -> 
             removed <- removed + 1
-            cg.Graph.RemoveEdgeIf(fun e -> Seq.exists ((=) e) p) |> ignore
+            for e in p do
+               let x = e.Source.Node.Loc
+               let y = e.Target.Node.Loc
+               let toRemove = edgeMap.[(x, y)]
+               for e' in toRemove do
+                  cg.Graph.RemoveEdge e' |> ignore
       removed
+   
+   let getEdgeLocMap (cg : T) = 
+      let mutable edgeMap = Dictionary()
+      for e in cg.Graph.Edges do
+         let x = e.Source.Node.Loc
+         let y = e.Target.Node.Loc
+         let v = (x, y)
+         let b, es = edgeMap.TryGetValue v
+         if b then edgeMap.[v] <- e :: es
+         else edgeMap.[v] <- [ e ]
+      edgeMap
    
    let disconnectAll (cg : T) srcs dsts = 
       if Seq.isEmpty srcs || Seq.isEmpty dsts then None
       else 
+         let edgeMap = getEdgeLocMap cg
          let mutable smallest = System.Int32.MaxValue
          let mutable pair = None
          for src in srcs do
             for dst in dsts do
-               let k = disconnect cg src dst
+               let k = disconnect cg src dst edgeMap
                if k < smallest then 
                   smallest <- k
                   pair <- Some(src, dst)

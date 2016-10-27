@@ -1,3 +1,9 @@
-\begin{thebibliography}{}
+\begin{thebibliography}{1}
+
+\bibitem{batfish}
+A.~Fogel, S.~Fung, L.~Pedrosa, M.~Walraed-Sullivan, R.~Govindan, R.~Mahajan,
+  and T.~Millstein.
+\newblock A general approach to network configuration analysis.
+\newblock In {\em NSDI}, March 2015.
 
 \end{thebibliography}
