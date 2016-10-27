@@ -34,7 +34,7 @@
 \newcommand{\ETC}{\emph{etc.}}
 \newcommand{\ETAL}{\emph{et al.}}
 
-\newcommand{\sysname}{{\small \sf Propane}\xspace}
+\newcommand{\sysname}{{\small \sf Methane}\xspace}
 
 \newcommand{\para}[1]{\paragraph*{\textbf{#1}}}
 
@@ -79,7 +79,7 @@
 
 \begin{document}
 
-%\CopyrightYear{2016} 
+%\CopyrightYear{2016}
 %\setcopyright{acmcopyright}
 %\conferenceinfo{SIGCOMM '16,}{August 22-26, 2016, Florianopolis , Brazil}
 %\isbn{978-1-4503-4193-6/16/08}\acmPrice{\$15.00}
@@ -175,7 +175,7 @@ We test \sysname out on ... blah blah blah
 %\vspace{0.1in}
 %\noindent
 %\textbf{CCS Concepts}\\
-%$\bullet$ Networks $\rightarrow$ {\em Network control algorithms; Network reliability; Network management;} 
+%$\bullet$ Networks $\rightarrow$ {\em Network control algorithms; Network reliability; Network management;}
 %$\bullet$ Software and its engineering $\rightarrow$ {\em Automated static analysis; Domain specific languages}
 
 %\vspace{0.1in}
@@ -197,19 +197,19 @@ We test \sysname out on ... blah blah blah
 \label{sec:introduction}
 
 \begin{easylist}[itemize]
-& Network configuration is difficult/error-prone. Operators think of policy at 
+& Network configuration is difficult/error-prone. Operators think of policy at
   a high level of abstraction, yet for implementations:
 && Often configs must be decomposed device-by-device
 && Often need to create reusable configurations for different topologies/policies
 && Ensure different devices/networks kept consistent when policy changes
 
-& Current state of the art is to capture abstractions using parameterized 
-  device templates. The same templates can then be reused across multiple 
+& Current state of the art is to capture abstractions using parameterized
+  device templates. The same templates can then be reused across multiple
   devices. Unfortunately, existing template systems have many limitations
-&& Templates often still require the operator to reason about network-wide 
+&& Templates often still require the operator to reason about network-wide
    policy device-by-device.
-&& Templates do not provide any guarantees of configuration correctness, 
-   instead requiring the operator to manually reason about forwarding for 
+&& Templates do not provide any guarantees of configuration correctness,
+   instead requiring the operator to manually reason about forwarding for
    any possible concrete network
 &&& In addition, operators must reason about possible network failures that
     might arise in one concrete network versus another
@@ -219,18 +219,18 @@ We test \sysname out on ... blah blah blah
    the operator's mental model, and then to write a centralized routing policy over the
    abstraction.
 && We extend the \sysname intermediate graph-based representation to support abstract policies,
-   and show how to compile abstract \sysname policies to this representation. 
+   and show how to compile abstract \sysname policies to this representation.
 && As a major use-case, we show how the compilation and failure-safety analysis
    of the Propane configuration-synthesis tool can be extended over abstract topologies.
-&& We develop an abstract interpretation that operates over this graph representation and verifies 
+&& We develop an abstract interpretation that operates over this graph representation and verifies
    if properties, such as reachability or k-disjoint paths between two nodes, are guaranteed
    to hold for any possible concrete instantiation of the network.
 && Our major result is an abstraction theorem, which states that ...
-&& The result is that policies compiled with the Propane compiler to distributed configurations 
-   are guaranteed to have correct forwarding behavior for any possible concrete instantiation 
+&& The result is that policies compiled with the Propane compiler to distributed configurations
+   are guaranteed to have correct forwarding behavior for any possible concrete instantiation
    of the network, and for any possible combination of failures in the given concrete network.
-&&& Finally, we show how abstract compilation makes it possible to dramatically speed up compilation 
-    time for the Propane policies, cite some numbers here ... 
+&&& Finally, we show how abstract compilation makes it possible to dramatically speed up compilation
+    time for the Propane policies, cite some numbers here ...
 \end{easylist}
 
 % Some useful citations from the previous paper listed below
@@ -312,6 +312,30 @@ We test \sysname out on ... blah blah blah
 %  \vspace{-1em}
 %\end{figure}
 
+We motivate \sysname using an example data center network adapted from prior work~\cite{propane}. Our network, shown in Figure~\ref{fig:example}, is a standard folded-Clos topology with four pods. It has eight top-of-rack (ToR) switches, T[1--8]; eight aggregation switches, A[1--8]; and two spine switches, S[1--2]. Groups of addresses, P[1--8], are for services hosted in each rack. Such groups are called address {\em prefixes} because they are compactly encoded using the common prefix that addresses share.
+
+The figure also shows the intended policy. Internal connectivity should be complete, i.e., all nodes must be able to talk to each other. Pods 1 and 2 host services that are meant to be globally accessible and thus their addresses should be announced externally, but only after the individual prefixes P[1--4] are aggregated into a single prefix PG. Finally, pods 3 and 4 host services that are not meant to be externally visible and thus their address should not be announced externally.
+
+To correctly configure the policy above, the network engineer's task is to generate low-level configuration commands for each switch in the network. This implies making sure, for instance, that all switch interfaces are assigned correct addresses; all routing adjacencies are correctly configured (e.g., T1's configuration includes A1 as neighbor and vice-versa); all switches announce their own addresses (so that they can be reached for management purposes) and the ToRs announce the correct prefixes for their services; all switches  forward the prefix announcements that they should to each neighbor and not forward those that they should not (e.g., the spines should forward prefixes for local services to internal neighbors but not external neighbors); and the spines announce externally only the aggregate global prefix. As many have observed before, such configuration tasks are highly challenging and, consequently, configuration errors are the leading contributor to network outages~\cite{x,y,z,batfish,propane}. 
+
+To reduce errors, network engineers are moving toward a template-based approach. Here, instead of authoring one configuration file per router, they author one configuration template per {\em role}, where each role is played by one or more routers.\footnote{If a role is played by devices from different vendors, there is one template per role-vendor combination because templates use vendor configuration language.} For instance, the network in Figure~\ref{fig:example} has five roles: spine, global aggregator, global ToR, local aggregator, and local ToR. Role templates have parameters for various aspects of the configuration (e.g., interface addresses, list of neighbors), and they are compiled to device configurations by instantiating the parameters using a database that stores parameter values for each device.
+
+Templates provide two key advantages. First, they help eliminate a class of configuration errors that stem from typos and inconsistencies, e.g., using the wrong address for a switch, having inconsistent addresses for the two ends of a link, and failing to configure one side of a routing adjacency.  Second, template design work can be re-used when the topology changes while maintaining its basic structure (e.g., adding a new pod to the data center) or multiple networks with similar structures need to be instantiated (e.g., in an organization that runs multiple data centers).
+
+%Second, the engineers need to author and reason about fewer independent ``files"---18 versus 5 in our example but the ratio can be multiple orders of magnitude for large networks.
+
+Today's templates, however, are far from perfect. While they reduce a class of errors, they do not help with deeper, logical bugs.
+%, e.g., incorrect strategy for determining how announcements to a neighbor are forwarded
+%, not realizing when or where aggregation should be used, 
+%and not understanding the interaction between configuration commands. 
+To author correct templates, engineers must still do themselves the conceptually challenging task of breaking down complex, global policies into role templates such that the collective behavior of the templates (upon compilation to configurations) correctly implements the policy under all failure conditions. 
+
+As a result, the types of configuration design errors in our example network pointed in prior work~\cite{propane} can occur in template design as well. For instance, to keep local prefixes internal the engineer may implement announcement forwarding on spines based on the identity of the neighbor, i.e., do not announce externally anything heard from local aggregators. This implementation works correctly when there are no failures but local prefixes can leak to the outside world when failures disconnect a spine from both aggregators in a local pod. Specifically, when S1 is disconnected from A5 and A6, it may hear about P5 and P6 from A3 and A4 (via A[5--6]->S2->A[3--4]), and it will then announce those prefixes outside (since they no not come from a local aggregator), leading to a policy violation. A correct implementation here would be for each spine to not advertise externally announcements from local aggregators {\em and} reject announcements that have traversed the other spine.
+
+Lacking correctness guarantees, some engineers use simulations to gain confidence that their templates correctly implement policy under a range of failure cases (e.g., all combinations of two link failures), but for large networks these simulations tend to be highly expensive and still do not provide any guarantees beyond the tested cases. Further, that simulations over a concrete topology is the basis for checking correctness means that templates cannot be directly re-used when the topology evolves or on another similarly-structured topology. 
+
+Templates that work for a given concrete topology may not work for minor variations of the topology.
+
 \subsection{Example:  The datacenter}
 
 \begin{easylist}[itemize]
@@ -352,7 +376,7 @@ We test \sysname out on ... blah blah blah
   nodes in the concrete network to nodes in the abstract network.
   Also provide node and edge constraints.
 && Thus, the new topology contains only those 3 abstract nodes.
-&& Rather than writting templates for each device, the operator 
+&& Rather than writting templates for each device, the operator
   writes a centralized routing policy for the network (show propane policy)
 
 & Show generated templates from compilation (e.g., use of network-wide abstraction)
@@ -534,7 +558,7 @@ We borrow the intermediate graph-based representation from Propane:
 
 & Show compilation from RIR to Product Graph
 && Note that preferences are general, and it could potentially
-   use any implementation (including SDN). But for the sake of 
+   use any implementation (including SDN). But for the sake of
    simplicity, we will assume a BGP backend like Propane.
 \end{easylist}
 
@@ -947,7 +971,7 @@ We borrow the intermediate graph-based representation from Propane:
 & Graph homomorphism is not enough -- to coarse an overapproximation
 && Use node/edge multiplicites to capture more precise constraints on concrete topologies
 && Show a bunch of examples of fattree, bcube, dcell, hyperX, facebook, google, F10, etc.
-& K-disjoint path analysis 
+& K-disjoint path analysis
 && Useful for aggregation safety (black holes) & reachability
 && Inference rules as an abstract interpretation using Z3
 \end{easylist}
