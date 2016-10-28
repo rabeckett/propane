@@ -385,48 +385,32 @@ module Reachable =
                s.Push(w)
       marked
    
-   (* 
-   let makeEdges (xs : CgState list) = 
-      let rec aux prev xs acc = 
-         match xs with
-         | [] -> acc
-         | hd :: tl -> 
-            match prev with
-            | None -> aux (Some hd) tl acc
-            | Some p -> aux (Some hd) tl ((p, hd) :: acc)
-      aux None xs []
- 
-   let path (cg : T) (source : CgState) (target : CgState) : (CgState * CgState) list option = 
-      // printfn "path from %s to %s" (string source) (string target)
+   let path (cg : T) (source : CgState) (target : CgState) : List<Edge<CgState>> option = 
       let marked = HashSet()
       let edgeTo = Dictionary()
       let s = Queue()
+      ignore (marked.Add(source))
       s.Enqueue(source)
       let mutable search = true
       while search && s.Count > 0 do
          let v = s.Dequeue()
-         if v = target then 
-            // printfn "  is target!"
-            search <- false
-         for w in neighbors cg v do
+         if v = target then search <- false
+         for e in cg.Graph.OutEdges v do
+            let w = e.Target
             if not (marked.Contains w) then 
-               ignore (marked.Add v)
-               edgeTo.[w] <- v
+               ignore (marked.Add w)
+               edgeTo.[w] <- e
                s.Enqueue(w)
       if search then None
       else 
-         // printfn "reconstruct path"
-         let mutable path = []
+         let path = List()
          let mutable x = target
-         // printfn "start with %s" (string target)
          while x <> source do
-            path <- x :: path
-            x <- edgeTo.[x]
-         let ret = (x :: path)
-         // printfn "got path: %A" (List.map (string) ret)
-         let ret = makeEdges ret
-         // printfn "made into edges"
-         Some(ret) *)
+            let e = edgeTo.[x]
+            path.Add(e)
+            x <- e.Source
+         Some(path)
+   
    let srcAccepting (cg : T) (source : CgState) direction : Set<int16> = 
       let f = 
          if direction = Up then neighborsIn
@@ -1217,21 +1201,23 @@ module Failure =
       let mutable removed = 0
       let mutable hasPath = true
       while hasPath do
-         (* match Reachable.path cg src dst with
+         match Reachable.path cg src dst with
          | None -> hasPath <- false
-         | Some p -> *)
-         let sp = cg.Graph.ShortestPathsDijkstra((fun _ -> 1.0), src)
+         | Some p -> 
+            (* let sp = cg.Graph.ShortestPathsDijkstra((fun _ -> 1.0), src)
          let mutable path = Seq.empty
          ignore (sp.Invoke(dst, &path))
          match path with
          | null -> hasPath <- false
-         | p -> 
+         | p -> *)
             removed <- removed + 1
             for e in p do
                let x = e.Source.Node.Loc
                let y = e.Target.Node.Loc
                let toRemove = edgeMap.[(x, y)]
+               // printfn "remove"
                for e' in toRemove do
+                  // printfn "  removing: (%s,%s)" (e.Source.Node.Loc) e.Target.Node.Loc
                   cg.Graph.RemoveEdge e' |> ignore
       removed
    

@@ -34,34 +34,36 @@ let main argv =
       let ast, t2 = Util.Profile.time (Input.readFromFile topoInfo) polFile
       let polInfo, t3 = Util.Profile.time Ast.build ast
       let res = Abgp.compileAllPrefixes polInfo
-      match res.AggSafety with
-      | Some safetyInfo -> 
-         let i = safetyInfo.NumFailures
-         
-         let bad, warn = 
-            match settings.Failures with
-            | None -> true, true
-            | Some j -> i < j, false
-         if bad then 
-            let x = Topology.router safetyInfo.PrefixLoc topoInfo
-            let y = Topology.router safetyInfo.AggregateLoc topoInfo
-            let p = safetyInfo.Prefix
-            let agg = safetyInfo.Aggregate
-            let msg = 
-               sprintf "Could only prove aggregation black-hole safety for up to %d failures. " i 
-               + sprintf "It may be possible to disconnect the prefix %s at location %s from the " 
-                    (string p) x 
-               + sprintf "aggregate prefix %s at %s after %d failures. " (string agg) y (i + 1)
+      if settings.CheckFailures then 
+         match res.AggSafety with
+         | Some safetyInfo -> 
+            let i = safetyInfo.NumFailures
             
-            let msg = 
-               if warn then 
-                  sprintf 
-                     "%sConsider using the --failures=k flag to specify a tolerable failure level." 
-                     msg
-               else msg
-            if warn then warning msg
-            else error msg
-      | _ -> ()
+            let bad, warn = 
+               match settings.Failures with
+               | None -> true, true
+               | Some j -> i < j, false
+            if bad then 
+               let x = Topology.router safetyInfo.PrefixLoc topoInfo
+               let y = Topology.router safetyInfo.AggregateLoc topoInfo
+               let p = safetyInfo.Prefix
+               let agg = safetyInfo.Aggregate
+               let msg = 
+                  sprintf "Could only prove aggregation black-hole safety for up to %d failures. " i 
+                  + sprintf 
+                       "It may be possible to disconnect the prefix %s at location %s from the " 
+                       (string p) x 
+                  + sprintf "aggregate prefix %s at %s after %d failures. " (string agg) y (i + 1)
+               
+               let msg = 
+                  if warn then 
+                     sprintf 
+                        "%sConsider using the --failures=k flag to specify a tolerable failure level." 
+                        msg
+                  else msg
+               if warn then warning msg
+               else error msg
+         | _ -> ()
       let genStats, genTime = 
          if settings.CheckOnly then None, int64 0
          else 

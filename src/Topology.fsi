@@ -137,6 +137,7 @@ module Examples =
    val topoPinCushionWAN : unit -> T
    val topoBackboneWAN : unit -> T
    val fatTree : int -> T * Prefixes * Tiers
+   val core : int -> T * Prefixes
    val complete : int -> T
 
 /// Module with unit tests

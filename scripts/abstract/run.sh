@@ -9,6 +9,7 @@ if [ -f $TEMPFILE ] ; then
     rm $TEMPFILE
 fi
 
+echo "Creating benchmarks..."
 $PROPANE_CMD --bench
 
 genstats () {
@@ -23,7 +24,12 @@ genstats () {
       size=${file#benchmarks/"$1"}
       echo "$size" >> $TEMPFILE
       echo "compiling: $policy"
-      $PROPANE_CMD --policy $policy --topo $topo --anycast --failures=0 --csv >> $TEMPFILE
+      if [ $2 == "_con" ] ; then
+        flag="--no-failures"
+      else
+        flag="--failures=0"
+      fi
+      $PROPANE_CMD --policy $policy --topo $topo --anycast $flag --csv >> $TEMPFILE
     done
   done
 
@@ -31,7 +37,7 @@ genstats () {
   rm $TEMPFILE
 }
 
-genstats "backbone" "_abs"
+#genstats "backbone" "_abs"
 genstats "backbone" "_con"
 genstats "fat" "_abs"
 genstats "fat" "_con"

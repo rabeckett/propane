@@ -18,6 +18,7 @@ type T =
      Bench : bool
      Debug : bool
      DebugDir : string
+     CheckFailures : bool
      Failures : Option<int>
      Stats : bool
      Csv : bool
@@ -34,25 +35,26 @@ Usage: propane [options]
        propane (--help | --version)
 
 Options:
-    -h, --help        Show this message.
-    --version         Show the version of Propane.
-    --policy FILE     Propane policy file.
-    --topo FILE       Network topology file (xml).
-    --output DIR      Specify output directory.
-    --failures K      Guarantee k failure safety for aggregation.
-    --check           Only check for correctness, don't generate configs.
-    --parallel        Enable parallel compilation.
-    --naive           Disable policy minimization.
-    --stats           Display compilation statistics in readable format.
-    --csv             Display compilation statistics in csv format.
-    --anycast         Allow use of ip anycast.
-    --med             Allow use of the BGP MED attribute.
-    --prepending      Allow use of AS path prepending.
-    --noexport        Allow use of the BGP no-export community.
-    --cbgp            Generate C-BGP tests.
-    --test            Run compiler unit tests.
-    --bench           Generate benchmark policies.
-    --debug           Output debugging information.
+    -h, --help           Show this message.
+    --version            Show the version of Propane.
+    --policy FILE        Propane policy file.
+    --topo FILE          Network topology file (xml).
+    --output DIR         Specify output directory.
+    --no-failures        Disable checks for aggregation safety
+    --failures k         Guarantee k failure safety for aggregation.
+    --check              Only check for correctness, don't generate configs.
+    --parallel           Enable parallel compilation.
+    --naive              Disable policy minimization.
+    --stats              Display compilation statistics in readable format.
+    --csv                Display compilation statistics in csv format.
+    --anycast            Allow use of ip anycast.
+    --med                Allow use of the BGP MED attribute.
+    --prepending         Allow use of AS path prepending.
+    --noexport           Allow use of the BGP no-export community.
+    --cbgp               Generate C-BGP tests.
+    --test               Run compiler unit tests.
+    --bench              Generate benchmark policies.
+    --debug              Output debugging information.
 """
 
 let checkFile f = 
@@ -98,6 +100,7 @@ let parse (argv : string []) : unit =
       { PolFile = getFile vs.["--policy"]
         TopoFile = getFile vs.["--topo"]
         OutDir = outDir
+        CheckFailures = vs.["--no-failures"].IsFalse
         Failures = getFailures vs.["--failures"]
         CheckOnly = vs.["--check"].IsTrue
         Parallel = vs.["--parallel"].IsTrue

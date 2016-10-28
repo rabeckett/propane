@@ -1268,7 +1268,7 @@ let getMinAggregateFailures (cg : CGraph.T) (pred : Route.Predicate)
                   let x, y = o.Node.Loc, aggRouter
                   let (all, some) = info.[x].[y]
                   if all < !smallest then 
-                     smallest := min !smallest all
+                     smallest := min !smallest (all - 1)
                      let p = (x, y, p, rAgg)
                      pairs := Some p
             | None -> 
@@ -1331,7 +1331,11 @@ let compileToIR idx pred (polInfo : Ast.PolInfo) aggInfo (reb : Regex.REBuilder)
          warning msg) unusedPrefs
    try 
       // check aggregation failure consistency
-      let k, at2 = Util.Profile.time (getMinAggregateFailures cg pred aggInfo) abstractPathInfo
+      let k, at2 = 
+         if settings.CheckFailures then 
+            Util.Profile.time (getMinAggregateFailures cg pred aggInfo) abstractPathInfo
+         else None, int64 0
+      
       let aggAnalysisTime = at1 + at2
       // check that there is a valid ordering for BGP preferences to ensure compliance
       let (ordering, orderTime) = Profile.time (Consistency.findOrderingConservative idx) cg
@@ -1519,10 +1523,11 @@ let maxComm (config : T) =
       try 
          Some(int c)
       with _ -> None
-   config
-   |> RouterWide.getAllCommunities
-   |> Seq.choose aux
-   |> Seq.max
+   
+   let allComms = RouterWide.getAllCommunities config
+   let allComms = Seq.choose aux allComms
+   if Seq.isEmpty allComms then 0
+   else Seq.max allComms
 
 let addOriginComms commMap (config : T) = 
    let max = maxComm config

@@ -992,7 +992,12 @@ module Examples =
             let name = "T0_" + string i
             let v = Node(name, Inside)
             ignore (g.AddVertex v)
-            prefixes.[v] <- getPrefix i
+            let numT0s = k * k / 4
+            
+            let j = 
+               if i < numT0s then i
+               else i + (pown 2 16) - numT0s
+            prefixes.[v] <- getPrefix j
             tiers.[v] <- 0
             v)
       
@@ -1094,6 +1099,94 @@ module Examples =
             ignore (g.AddEdge e1)
             ignore (g.AddEdge e2)
       Topology(g)
+   
+   let core n : T * Prefixes = 
+      assert (n >= 4)
+      let g = BidirectionalGraph<Node, Edge<Node>>()
+      let pfxMap = Dictionary()
+      // setup external peers
+      let externalPeers = Dictionary()
+      let borderRouters = Dictionary()
+      let coreRouters = Dictionary()
+      let coreID = Dictionary()
+      let borderID = Dictionary()
+      let peersPerGroup = 2
+      let numInside = n / 2
+      let numBorder = n / 2
+      let edgesCoreToBorder = 2
+      // setup border routers 
+      for i = 0 to numBorder - 1 do
+         let name = "Border" + string i
+         let v = Node(name, Inside)
+         ignore (g.AddVertex v)
+         borderRouters.[name] <- v
+         borderID.[i] <- v
+      // setup internal full mesh
+      for i = 0 to numInside - 1 do
+         let name = "Core" + string i
+         let v = Node(name, Inside)
+         ignore (g.AddVertex v)
+         coreRouters.[name] <- v
+         coreID.[v] <- i
+         pfxMap.[v] <- getPrefix i
+      // add internal full mesh
+      for v1 in g.Vertices do
+         for v2 in g.Vertices do
+            if coreRouters.ContainsKey(v1.Loc) && coreRouters.ContainsKey(v2.Loc) then 
+               let e = Edge(v1, v2)
+               ignore (g.AddEdge e)
+      // add connections from core to border
+      for v in g.Vertices do
+         if coreRouters.ContainsKey(v.Loc) then 
+            let id = coreID.[v]
+            for j = 0 to edgesCoreToBorder - 1 do
+               let idb = (id + j) % numBorder
+               let u = borderID.[idb]
+               let e1 = Edge(v, u)
+               let e2 = Edge(u, v)
+               ignore (g.AddEdge e1)
+               ignore (g.AddEdge e2)
+      // add connections to external peers
+      for kv in borderRouters do
+         let name = kv.Key
+         let router = kv.Value
+         // add dcs
+         for i = 0 to peersPerGroup - 1 do
+            let eName = "Cust" + string i + name
+            let ePeer = Node(eName, Outside)
+            ignore (g.AddVertex ePeer)
+            let e1 = Edge(router, ePeer)
+            let e2 = Edge(ePeer, router)
+            ignore (g.AddEdge e1)
+            ignore (g.AddEdge e2)
+         // add peers
+         for i = 0 to peersPerGroup - 1 do
+            let eName = "Peer" + string i + name
+            let ePeer = Node(eName, Outside)
+            ignore (g.AddVertex ePeer)
+            let e1 = Edge(router, ePeer)
+            let e2 = Edge(ePeer, router)
+            ignore (g.AddEdge e1)
+            ignore (g.AddEdge e2)
+         // add paid on net
+         for i = 0 to peersPerGroup - 1 do
+            let eName = "OnPaid" + string i + name
+            let ePeer = Node(eName, Outside)
+            ignore (g.AddVertex ePeer)
+            let e1 = Edge(router, ePeer)
+            let e2 = Edge(ePeer, router)
+            ignore (g.AddEdge e1)
+            ignore (g.AddEdge e2)
+         // add paid off net
+         for i = 0 to peersPerGroup - 1 do
+            let eName = "OffPaid" + string i + name
+            let ePeer = Node(eName, Outside)
+            ignore (g.AddVertex ePeer)
+            let e1 = Edge(router, ePeer)
+            let e2 = Edge(ePeer, router)
+            ignore (g.AddEdge e1)
+            ignore (g.AddEdge e2)
+      Topology(g), pfxMap
 
 module Test = 
    let testTopologyWellFormedness() = 

@@ -15,6 +15,7 @@ type T =
      Bench : bool
      Debug : bool
      DebugDir : string
+     CheckFailures : bool
      Failures : Option<int>
      Stats : bool
      Csv : bool
