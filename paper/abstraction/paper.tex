@@ -1143,13 +1143,17 @@ We borrow the intermediate graph-based representation from Propane:
 \section{Implementation}
 \label{sec:implementation}
 
-\begin{easylist}
-& Extension to \sysname
-& lines of code
-& optimizations
-&& Are there any?
-\end{easylist}
+The \sysname compiler is implemented in approximately 9500 lines of F\# code. The compiler accepts both concrete and abstract topologies and will generate router configurations for open-source Quagga routers. Operators can specify their required fault tolerance level for aggregation safety. The abstract safety analysis uses Z3Opt \ryan{reference} to minimize variables subject to the annotated constraints.
 
+The compiler performs the following to improve its performance.
+
+\para{Z3 memoization}
+
+Although the k-disjoint path analysis takes place over the Product Graph representation, which may differ from the topology (e.g., for non-shortest paths routing), each application of the inference rules from figure~\ref{fig:abstract-analysis} depends only on the topology. Therefore, we lazily apply the rules and cache the satisfiability and minimization calls to Z3 after their first use. Doing this significantly speeds up the failure safety analysis. Furthermore, the cached results can be shared across different prefixes, each of which may have a unique Product graph representation. In practice, this means that after performing the abstract analysis for one prefix, the analysis becomes essentially "free" for any subsequent prefixes.
+
+\para{Fast Substitution}
+
+Substitution after compiling a policy abstractly can be expensive since each router must substitute all template variables for each of its connected peers. In practice, because many routers often share the same concrete peers, memoizing the substitution function greatly improves performance.
 
 
 %=====================================================
@@ -1179,8 +1183,8 @@ We apply \sysname on policies for backbone and datacenter networks. We aim to ev
          & F10 &  & \cmark & \cmark \\ \hline
       Recursive
          & BCube & $k$ & \cmark & \xmark \\
-         & DCell & $k$ & \cmark & \xmark \\
-         & HCN & $h$ & \cmark & \xmark \\ \hline
+         & DCell & $k$ & \cmark & \xmark \\ \hline
+         %& HCN & $h$ & \cmark & \xmark \\ 
       Hypercube
          & Standard & $N$ & \cmark & \cmark \\
          & HyperX & $L$ & \cmark & \cmark \\ \hline
@@ -1203,7 +1207,7 @@ The Fat Tree topology is one of the most widely used datacenter topologies. We l
 
 \para{Recursive Topologies}
 
-We also model several recursive topologies using our abstractions. These include the BCube, DCell, and HCN topologies. Each topology includes a recursion depth parameter ($k$, $k$, and $h$ respectively), which we must fix. For a recursive topology with depth $d$, we model it as an abstract topology consisting of abstract nodes for each of the depth $d-1$ subcomponents. This allows for safe expansion within a subcomponent, but not from increasing the recursion depth. The analysis is able to accurately determine reachability (i.e., at least 1 disjoint path) for each recursive topology, but is overly conservative in determining k-disjoint paths. For the BCube topology, it is able to to determine the correct number of disjoint paths between some pairs of nodes, but not all.
+We also model several recursive topologies using our abstractions. These include the BCube and DCell topologies. Each topology includes a recursion depth parameter ($k$), which we must fix. For a recursive topology with depth $d$, we model it as an abstract topology consisting of abstract nodes for each of the depth $d-1$ subcomponents. This allows for safe expansion within a subcomponent, but not from increasing the recursion depth. The analysis is able to accurately determine reachability (i.e., at least 1 disjoint path) for each recursive topology, but is overly conservative in determining k-disjoint paths. For the BCube topology, it is able to to determine the correct number of disjoint paths between some pairs of nodes, but not all.
 
 \para{Hypercube Topologies}
 
