@@ -1,0 +1,21 @@
+<topology asn="100">  
+  <!-- Abstract Nodes -->
+  <abstractnode internal="true" label="X"></abstractnode>
+  <abstractnode internal="true" label="Y"></abstractnode>
+  <!-- Abstract Edges -->
+  <abstractedge source="X" target="Y" labels="(E1,E2)"></abstractedge>
+  <abstractedge source="Y" target="Y">
+	  <custom-label>all(P), some(Y), E3, all(P), some(Y)</custom-label>
+  </abstractedge>
+  <!-- Abstract Pods -->
+  <abstractpod label="P">
+	  <element>X</element>
+	  <element>Y</element>
+  </abstractpod>
+  <!-- Abstract topology constraints -->
+  <constraint assertion="(>= X 1)"></constraint>
+  <constraint assertion="(>= Y 4)"></constraint>
+  <constraint assertion="(= E1 Y)"></constraint>
+  <constraint assertion="(= E2 X)"></constraint>
+  <constraint assertion="(= E3 1)"></constraint>
+</topology>

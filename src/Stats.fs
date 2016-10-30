@@ -56,6 +56,8 @@ let print (abgp : Abgp.Stats) (gen : Generate.Stats option) (parseTime : int64) 
    let inboundAnalysis = totalInSec abgp.PerPrefixInboundTimes
    let genAbgp = totalInSec abgp.PerPrefixGenTimes
    let minAbgp = valueInSec abgp.MinTime
+   let z3Calls = !AbstractAnalysis.Z3.count
+   let z3Time = valueInSec (!AbstractAnalysis.Z3.time)
    printfn "========= Compilation Statistics Summary ========="
    printfn "Total Time:                       %f sec" total
    printfn "--------------------------------------------------"
@@ -74,4 +76,7 @@ let print (abgp : Abgp.Stats) (gen : Generate.Stats option) (parseTime : int64) 
    printfn "Generate Low-level:               %f sec" genLowLevel
    printfn "Template Substitution:            %f sec" substitution
    printfn "Generate Vendor-specific:         %f sec" genVendor
+   printfn "--------------------------------------------------"
+   printfn "Calls to Z3:                      %d" z3Calls
+   printfn "Time spent in Z3:                 %f sec" z3Time
    printfn "=================================================="

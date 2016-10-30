@@ -112,16 +112,16 @@ def makeGraph(con, abs, name, descr):
 
   # Compilation times
   fig = plt.figure()
-  plt.plot(sizeCon, totalCon, label="Concrete", linewidth=3.0, color="cornflowerblue")
-  plt.plot(sizeAbs, totalAbs, label="Abstract", linewidth=3.0, linestyle='--', color="lightsalmon")
-  plt.xlabel(descr, fontsize=25)
-  plt.ylabel('Compilation Time (sec)', fontsize=25)
-  plt.tick_params(axis='both', which='major', labelsize=25)
-  plt.tick_params(axis='both', which='minor', labelsize=25)
+  plt.plot(sizeCon, totalCon, label="Concrete", linewidth=5.0, color="cornflowerblue")
+  plt.plot(sizeAbs, totalAbs, label="Abstract", linewidth=5.0, linestyle='--', color="lightsalmon")
+  plt.xlabel(descr, fontsize=28)
+  plt.ylabel('Compilation Time (sec)', fontsize=28)
+  plt.tick_params(axis='both', which='major', labelsize=28)
+  plt.tick_params(axis='both', which='minor', labelsize=28)
   if name == "Fattree":
-    plt.xlim([4, 30])
+    plt.xlim([4, 24])
   else:
-    plt.xlim([10,200])
+    plt.xlim([10,240])
   plt.legend(loc=2, fontsize=22)
   plt.yscale('log')
   fig.savefig(direct + '/graphs/' + name + '-time.png', bbox_inches='tight')
@@ -141,15 +141,16 @@ def makeGraph(con, abs, name, descr):
   ax1.fill_between(sizeAbs, y_stack[0,:], y_stack[1,:], facecolor=color2, alpha=.7)
   ax1.fill_between(sizeAbs, y_stack[1,:], y_stack[2,:], facecolor=color3)
   ax1.fill_between(sizeAbs, y_stack[2,:], y_stack[3,:], facecolor=color4)
-  ax1.set_xlabel(descr, fontsize=25)
-  ax1.set_ylabel('Compilation Time (sec)', fontsize=25)
-  ax1.tick_params(axis='both', which='major', labelsize=25)
-  ax1.tick_params(axis='both', which='minor', labelsize=25)
-  ax1.set_ylim([0,14])
+  ax1.set_xlabel(descr, fontsize=28)
+  ax1.set_ylabel('Compilation Time (sec)', fontsize=28)
+  ax1.tick_params(axis='both', which='major', labelsize=28)
+  ax1.tick_params(axis='both', which='minor', labelsize=28)
   if name == "Fattree":
-    ax1.set_xlim([4,30])
+    ax1.set_xlim([4,24])
+    ax1.set_ylim([0,14])
   else: 
-    ax1.set_xlim([10,200])
+    ax1.set_xlim([10,240])
+    ax1.set_ylim([0,5])
   # custom legend for stack color
   p1 = plt.Rectangle((0, 0), 1, 1, fc=color1, alpha=.7)
   p2 = plt.Rectangle((0, 0), 1, 1, fc=color2, alpha=.7)
@@ -163,8 +164,8 @@ def makeGraph(con, abs, name, descr):
 
 fattree_con = "data_fat_con.csv"
 fattree_abs = "data_fat_abs.csv"
-backbone_con = "data_backbone_con.csv"
-backbone_abs = "data_backbone_abs.csv"
+backbone_con = "data_core_con.csv"
+backbone_abs = "data_core_abs.csv"
 
 makeGraph(fattree_con, fattree_abs, "Fattree", "Fattree #Pods")
 makeGraph(backbone_con, backbone_abs, "Backbone", "Backbone #Routers")

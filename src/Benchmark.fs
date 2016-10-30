@@ -5,8 +5,7 @@ open System.Text
 open Topology
 open Util
 
-let fattreeAbstract k = 
-   sprintf """
+let fattreeAbstract k = sprintf """
   <!-- Abstract Nodes -->
   <abstractnode internal="true" label="T0L"></abstractnode>
   <abstractnode internal="true" label="T0G"></abstractnode>
@@ -42,8 +41,7 @@ let fattreeAbstract k =
   <constraint assertion="(>= E7 Peer2)"></constraint>
   <constraint assertion="(>= E8 T2)"></constraint>
   <!-- Template Variables -->
-  <data vars="aggregatePrefix=0.0.0.0/16"></data>""" (k * k / 4) (k * k / 4) (k * k / 2) 
-      ((k / 2) * (k / 2))
+  <data vars="aggregatePrefix=0.0.0.0/16"></data>""" (k / 4) (k / 4) (k / 2) ((k / 2) * (k / 2))
 let coreAbstract n = sprintf """
   <!-- Abstract Nodes -->
   <abstractnode internal="true" label="Core"></abstractnode>

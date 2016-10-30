@@ -19,6 +19,9 @@
 \usepackage{subcaption}
 \usepackage{balance}
 \usepackage[ampersand]{easylist}
+\usepackage{pifont}
+\newcommand{\cmark}{\ding{51}}
+\newcommand{\xmark}{\ding{55}}
 
 \definecolor{princetonorange}{RGB}{255,143,0}
 \definecolor{tmlblue}{RGB}{0,58,120}  % tmlblue == Toronto Maple Leafs Blue!
@@ -1148,6 +1151,7 @@ We borrow the intermediate graph-based representation from Propane:
 \end{easylist}
 
 
+
 %=====================================================
 %
 %
@@ -1160,18 +1164,99 @@ We borrow the intermediate graph-based representation from Propane:
 \section{Evaluation}
 \label{sec:evaluation}
 
+We apply \sysname on policies for backbone and datacenter networks. We aim to evaluate the expressiveness of our abstract multiplicity annotations, the precision of the abstract disjoint-path analysis, and the compilation time of \sysname both with abstraction and without.
 
-\subsection{Networks studied}
+\subsection{Analysis precision}
 
-\begin{easylist}
-& Fattree, F10, Facebook, DCell, BCube, hyperX
-& Shortest path routing for each of these topologies but varying different size parameters
-\end{easylist}
+\begin{figure}[t!]
+  \begin{center}
+      \begin{tabular}{| l l | c | c | c |}
+      \hline
+      \textbf{Topology} & \textbf{Variant} & \textbf{Fixed} & \textbf{Reachable} & \textbf{K-paths} \\ \hline
+      Fattree 
+         & Google &  & \cmark & \cmark  \\ 
+         & Facebook &  & \cmark & \cmark \\
+         & F10 &  & \cmark & \cmark \\ \hline
+      Recursive
+         & BCube & $k$ & \cmark & \xmark \\
+         & DCell & $k$ & \cmark & \xmark \\
+         & HCN & $h$ & \cmark & \xmark \\ \hline
+      Hypercube
+         & Standard & $N$ & \cmark & \cmark \\
+         & HyperX & $L$ & \cmark & \cmark \\ \hline
+      Random \footnote{foo}
+         & Scafida &  & ??? & ??? \\
+         & JellyFish &  & ??? & ??? \\
 
-\subsection{Analysis Precision}
+      \hline
+      \end{tabular}
+  \end{center}
+  \caption{Abstract Analysis Precision.}
+  \label{fig:analysis-precision}
+\end{figure}
+
+We evaluate the expressiveness and precision of our abstract analysis on a range of different network topologies found in both the network literature and production. For each topology in figure~\ref{fig:analysis-precision} we define a suitable abstraction. Since many topologies have tunable parameters (e.g., the recursion depth $k$ for the DCell topology), we list all such parameters that are fixed for our abstraction. We implement a shortest path routing policy over the topology and record the precision of the abstract analysis in terms of whether or not it is able to accurately prove reachability and/or the correct number of disjoint paths between all pairs of nodes.
+
+\para{Fat Tree Topologies}
+
+The Fat Tree topology is one of the most widely used datacenter topologies. We look at the precision of our analysis on three variants of the Fat Tree~\cite{foo} topology used in practice: the Google Fat Tree, the Facebook Fat Tree, and the F10 fault tolerant Fat Tree. For each Fat Tree variant, we use a tiered abstraction similar to that in our previous example \ryan{Reference}. Each Fat Tree topology is parameterized over the number of pods $k$, which can be scaled up in the abstraction to allow for expansion. For all Fat Tree variants, the analysis is precise enough to determine the exact number of disjoint paths between all pairs of concrete routers.
+
+\para{Recursive Topologies}
+
+We also model several recursive topologies using our abstractions. These include the BCube, DCell, and HCN topologies. Each topology includes a recursion depth parameter ($k$, $k$, and $h$ respectively), which we must fix. For a recursive topology with depth $d$, we model it as an abstract topology consisting of abstract nodes for each of the depth $d-1$ subcomponents. This allows for safe expansion within a subcomponent, but not from increasing the recursion depth. The analysis is able to accurately determine reachability (i.e., at least 1 disjoint path) for each recursive topology, but is overly conservative in determining k-disjoint paths. For the BCube topology, it is able to to determine the correct number of disjoint paths between some pairs of nodes, but not all.
+
+\para{Hypercube Topologies}
+
+Hypercube variants can be used as an alternative to Clos-style topologies for networks with high-radix (port density) switches. The HyperX topology can be viewed as a generalization of the hypercube, which includes parameters $L$ for the lattice dimension of the network, $S_i$ for the node multiplicity of each dimension $i$, $K_i$ for the bandwidth of links for each dimension, and $T$ for the number of terminal nodes (servers) connected to each router. For a fixed number of dimensions $L$, we abstract each full mesh of $S_L$ nodes into its own abstract node. The $S_{x-1}$ groups of abstract nodes can be captured using pods of the abstract $S_x$ nodes.
+
+\para{Random Network Topologies}
+
+Random networks such as Scafida and Jellyfish have seen a great deal of interest in academia. These topologies were designed with an eye towards incremental expansion and are based on probabilistic arguments of bisection bandwidth in random regular graphs. However, because the topologies are created randomly, there are no hard guarantees on the connectivity between different routers. We can trivially represent these networks using a \emph{one big switch} abstraction for the entire network.
 
 
 \subsection{Compilation time}
+
+\begin{figure}
+  \subcaptionbox{Datacenter}
+    {\includegraphics[width=.49\columnwidth]{figures/Fattree-time.png}}
+  \subcaptionbox{Backbone}
+    {\includegraphics[width=.49\columnwidth]{figures/backbone-time.png}} \\
+  \caption{Concrete vs. Abstract Compilation Time. \label{fig:compilation-times}}
+  \vspace{-1em}
+\end{figure}
+
+\begin{figure}[t!]
+  \subcaptionbox{Datacenter}
+    {\includegraphics[width=.49\columnwidth]{figures/Fattree-analysis-time.png}}
+  \subcaptionbox{Backbone}
+    {\includegraphics[width=.49\columnwidth]{figures/backbone-analysis-time.png}} \\
+  \caption{Abstract Compilation Time by Phase. \label{fig:abstract-breakdown}}
+  \vspace{-1em}
+\end{figure}
+
+Using abstraction allows us to naturally scale network synthesis in \sysname. We evaluate compilation time in \sysname both with and without abstraction using routing policy for backbone and datacenter networks inspired by configurations obtained from a large cloud provider.
+
+\para{Routing Policy}
+
+Routers in the datacenter network run BGP using private AS numbers and peer with each other and with the backbone network over eBGP. The routers aggregate some prefix blocks when announcing them to the backbone network, and they keep some prefixes internal. The policy also ensures bogons and private address space from external neighbors is dropped. The data center prefers that traffic leave through certain peers over others and ensures that transit traffic between peers is never allowed in the datacenter.
+
+The backbone network classifies external neighbors into several different categories based on commercial relationship and prefers paths through them in order. Similar to the datacenter, it prevents bogons and private address space from external neighbors, drops transit traffic between certain peers but not through others, and aggregates internal prefixes at the border of the network.
+
+\para{Network Topology}
+
+For both networks, we use the same routing policy but scale the size of the underlying topology. For the datacenter networks, we use a standard Fat Tree topology and scale the size of the topology according the the number of pods $k$, starting with 4 pods and ending with 24 pods. The abstract topology uses a single abstract node for each tier of the datacenter, an additional abstract node for tier 0 to separate local and global prefixes, as well as a single abstract node for each group of equivalent eBGP neighbor. 
+
+For the backbone networks, we split the network into two parts: a collection of border routers and a fully-connected internal core. We scale the backbone networks from 10 to 250 routers. The abstract topology uses a single abstract node for the network border routers and another abstract node for the network core. Backbone eBGP-speaking peers are grouped into abstract nodes based on their commercial relationship to the current AS (e.g., customer, provider, peer).
+
+\para{Results}
+
+Figure~\ref{fig:compilation-times} shows compilation time for the same policies for both the abstract and concrete versions of the policies described above. All experiments are run on an 8 core, 2.4 GHz Intel i7 processor Mac with 8GB of Ram.
+
+For both the datacenter and backbone networks, the abstract compilation starts off slightly slower than concrete compilation for small topologies due to the overhead of the abstract k-disjoint path analysis for aggregation black-hole safety. However, as the size of the topology increases, abstract compilation becomes orders of magnitude faster than concrete compilation. In all cases for both networks, abstract compilation takes less than 10 seconds to complete. 
+
+Figure~ref{fig:abstract-breakdown} shows the relative time taken by each phase of abstract compilation. Notably, the abstract analysis takes the majority of the time, however the analysis does not depend on the number of concrete nodes in the network, and thus is largely a fixed cost. In particular, the number of calls to Z3 remains constant the across topology size. The seesaw behavior for the data center networks results from differences in time taken by Z3 to minimize the same constraints with different parameters.
+
+
 
 
 %=====================================================

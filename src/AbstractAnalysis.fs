@@ -14,13 +14,21 @@ module Z3 =
       | Sat
       | Unsat
    
+   let count = ref 0
+   let time = ref (int64 0)
+   
    let run (input : string) : Result = 
+      incr count
+      let s = System.Diagnostics.Stopwatch()
+      s.Start()
       let cmds = [ "z3"; "-smt2"; "-in"; "-t:200" ]
       let input = input + "(check-sat)"
       let output = Util.Command.run cmds (Some input)
       match output with
       | None -> failwith "invalid command"
       | Some txt -> 
+         s.Stop()
+         time := !time + s.ElapsedMilliseconds
          if txt.StartsWith("sat") then 
             let lines = Util.String.toLines txt
             if lines.Length >= 3 then 
@@ -273,7 +281,7 @@ let rec betterLabels (xs : Label list) (ys : Label list) =
       | _, _ -> xtl = ytl // betterLabels xtl ytl
    | _ :: _, [] | [], _ :: _ -> failwith "unreachable"
 
-let inline isStrictlyBetter (j, k, xs) (j', k', ys) = (j = j' && k >= k' && betterLabels xs ys)
+let inline isStrictlyBetter (j, k, xs) (j', k', ys) = (j >= j' && k >= k' && betterLabels xs ys)
 
 let addInference (inf : Inference) (learned : Inference list) changed : Inference list * bool = 
    let (Inference(xs, j, k, es)) = inf
@@ -531,7 +539,7 @@ let reachability (ti : Topology.TopoInfo) (cg : CGraph.T) (src : CgState) : Anal
                            match findMin e1 with
                            | Some z -> 
                               let t = weakMin (j * k) z
-                              update (namev, nameu) (v, u) (t, max 1 ((j * k) / t)) false
+                              update (namev, nameu) (v, u) (t, 1) false
                               update (namev, nameu) (v, u) (1, min j z) false
                            | _ -> ()
                   if isTarget then 
@@ -551,14 +559,16 @@ let reachability (ti : Topology.TopoInfo) (cg : CGraph.T) (src : CgState) : Anal
                            match findMin e2, findMin n with
                            | Some ze, Some zn -> 
                               let t = weakMin (j * k) zn
-                              update (namev, nameu) (v, u) (t, max 1 ((j * k) / t)) false
+                              update (namev, nameu) (v, u) (t, 1) false
                               update (namev, nameu) (v, u) (1, min j ze) false
                            | _ -> ()
       first := false
       debugLearned learned ti
+   debugLearned learned ti
    let ret = combineAllInferences learned
    for kv in ret do
       let v = Topology.router kv.Key.Node.Loc ti
       let (x, y) = kv.Value
+      printfn "%s --> (all=%d, some=%d)" v x y
       log (sprintf "%s --> (all=%d, some=%d)" v x y)
    ret

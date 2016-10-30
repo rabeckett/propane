@@ -1253,7 +1253,6 @@ let getMinAggregateFailures (cg : CGraph.T) (pred : Route.Predicate)
    let pairs = ref None
    for (Route.TrafficClassifier(p, _)) in prefixes do
       Map.iter (fun aggRouter aggs -> 
-         // printfn "Agg Router: %A" aggRouter
          let relevantAggs = 
             Seq.choose (fun (aggPrefix, _) -> 
                if Route.isAggregateFor aggPrefix p then Some aggPrefix

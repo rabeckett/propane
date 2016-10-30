@@ -24,12 +24,8 @@ genstats () {
       size=${file#benchmarks/"$1"}
       echo "$size" >> $TEMPFILE
       echo "compiling: $policy"
-      if [ $2 == "_con" ] ; then
-        flag="--no-failures"
-      else
-        flag="--failures=0"
-      fi
-      $PROPANE_CMD --policy $policy --topo $topo --anycast $flag --csv >> $TEMPFILE
+      # mask output by not specifying minimum k
+      $PROPANE_CMD --policy $policy --topo $topo --anycast --failures=0 --csv >> $TEMPFILE
     done
   done
 
@@ -37,8 +33,8 @@ genstats () {
   rm $TEMPFILE
 }
 
-#genstats "backbone" "_abs"
-genstats "backbone" "_con"
+genstats "core" "_abs"
+genstats "core" "_con"
 genstats "fat" "_abs"
 genstats "fat" "_con"
 
