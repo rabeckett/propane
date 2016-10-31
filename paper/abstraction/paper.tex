@@ -19,6 +19,7 @@
 \usepackage{subcaption}
 \usepackage{balance}
 \usepackage[ampersand]{easylist}
+\usepackage{textcomp}
 \usepackage{pifont}
 \newcommand{\cmark}{\ding{51}}
 \newcommand{\xmark}{\ding{55}}
@@ -434,7 +435,6 @@ can be captured with the following additions to the policy:
 \Define Tor = \{T1,T2,T3,T4,T5,T6,T7,T8\}
 \Define Agg = \{A1,A2,A3,A4,A5,A6,A7,A8\}
 \Define Spn = \{S1,S2\}
-
 \Define ValleyFree =
     \{\True \Path \Novalley(Tor,Agg,Spn)\}
 \end{code}
@@ -461,7 +461,108 @@ The last part of the policy declares that we want to perform aggregation for glo
 by summarizing them into the more general prefix PG at the border of the datacenter
 (\IE along any edge starting inside our datacenter and ending outside).
 
+From this policy, \sysname can synthesize device-level BGP configurations for every router in 
+the network that guarantee correct forwarding behavior under all possible failure combinations. 
+Synthesizing configurations for each device from a network-wide specification both simplifies 
+network configuration by writing policy in one place rather than dozens and simultaneously prevents 
+a large class of errors associated with manual configuration by construction. For example, 
+the compiler ensures configurations are always in sync and prevents the operator from having 
+to manually consider failure scenarios.
+
+
 \subsection{Abstract Methane}
+
+Although the concrete \sysname policy can help prevent a number of configuration errors, 
+the policy is intricately linked to the actual structure of the concrete network.
+For example, each prefix in the routing constraint is enumerated with its concrete destination 
+location, and the definition of the valleyfree constraint depends on the actual routers that 
+comprise each tier of the datacenter. 
+%
+This is unfortunate since any expansion of our datacenter network will require a corresponding 
+change to the policy. Furthermore, there is no guarantee that a safe policy can be found 
+for the expanded network, and even if one can be found, it may require changes to every
+configuration in the network -- a huge barrier to adoption in practice.
+
+Abstract \sysname solves this problem in two ways. First, it allows operators to abstract
+the network into a role-based topology and write a routing specification over this abstraction instead.
+Second, it introduces prefix template variables into the language to allow writing policies that are 
+parameterized over prefix destination.
+
+\begin{figure}[t!]
+  \centering
+  \includegraphics[width=.6\columnwidth]{figures/example3}
+  \caption{Role-based abstraction for the datacenter in Figure~\ref{fig:example1}.}
+  \label{fig:example3}
+  \vspace{-1em}
+\end{figure}
+
+Consider again the datacenter routing policy we wrote before. 
+%
+We will now rewrite the policy over the network abstraction shown in figure~\ref{fig:example3}.
+This abstraction splits the network into 5 roles: local tor, global tor, local aggregator, global 
+aggregator, and spine. Intuitively, each concrete router in the network must map to exactly one role.
+Whenever there is a link between routers in the concrete network, there must be an associated link
+between their abstract roles. Thus the role-based abstraction is an overapproximation of the connectivity
+of the concrete network.
+
+The new routing policy can only refer to locations in the abstract topology. We choose these 5 roles,
+since its gives us fine enough granularity to implement our policy, but is general enough to enable 
+expansion (\EG, by adding new concrete routers for a given role).
+
+We can modify the concrete routing policy for this abstraction in the following way. First we change the Routing policy:
+%
+\begin{code}
+\Define Routing =
+    \{\$PG \Path \End(TG)
+     \$PL \Path \End(TL)
+     \True \Path \Exit(Peer1 \Prefer Peer2) \}
+\end{code}
+\noindent%
+
+Here we introduce two prefix \emph{template} variables. The policy says that traffic for each 
+global prefix associated with the template variable \$PG should end up at its corresponding 
+destination router contained in the abstract TG role. The second line does something similar 
+for all local prefixes. Finally, the last line remains the same as before. 
+
+Next we can modify the Locality constraint for the abstraction in a straightforward way:
+%
+\begin{code}
+\Define Locality = \{\$PL \Path \Always(\In)\}
+\end{code}
+\noindent%
+
+Finally, we can add the "valleyfree" constraint. We are able to encode this constraint for the
+abstract topology because we have retained enough structure to understand what a valley is. 
+%
+\begin{code}
+\Define Tor = \{TL,TG\}
+\Define Agg = \{AL,AG\}
+\Define Spn = \{S\}
+\Define ValleyFree =
+    \{\True \Path \Novalley(Tor,Agg,Spn)\}
+\end{code}
+\noindent%
+
+The constraint prevents traffic from over taking a path that traverses 
+either [Agg->Tor->Agg] or [Spn->Agg->Spn]. The final policy remains the same as before,
+by combining each of these policies together.
+%
+\begin{code}
+\Define Main = 
+    Routing & 
+    Locality & 
+    ValleyFree & 
+    \Agg(PG, \In -> \Out)
+\end{code}
+\noindent%
+
+When \sysname compiles the above policy, it guarantees that the forwarding behavior 
+of the network will be correct for any concrete instantiation of the abstract network,
+and for any combination of failures that may occur in the concrete network.
+Furthermore, if we want to expand our network for example by adding additional spine 
+routers, \sysname will guarantee that the expansion will be incremental (\IE, only
+configurations for routers local to the expansion will need to change).
+
 
 %This  statement defines a set of \emph{ranked paths}, which includes
 %all paths (and only those paths) for which traffic exits our network
