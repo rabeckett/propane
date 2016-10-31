@@ -487,9 +487,26 @@ behavior for both of the datacenter topologies in figures~\ref{fig:example} and~
 \sysname achieves this by allowing the operator to abstract the network into 
 a role-based topology that captures a class of concrete topologies and then write a 
 routing specification over this abstraction. Figure~\ref{fig:example3} shows an example of one 
-such abstraction for the datacenter networks. The network is partitioned into 5 different roles:
+such abstraction for the datacenter networks. 
+
+The network is partitioned into 5 different roles:
 local tor (TL), global tor (TG), local aggregator (AL), global aggregator (AG), and spine (S).
-Each router in the concrete topology maps to exactly one abstract role. 
+Intuitively, each concrete router in the network must map to exactly one role.
+Whenever there is a link between routers in the concrete network, there must be an associated link
+between their abstract roles. Thus the role-based abstraction is an overapproximation of the connectivity
+of the concrete network.
+
+In order to refine the abstraction to capture more precisely the kinds of concrete networks of interest, 
+we introduce a notion of node and edge \emph{multiplicities}. Each edge (and node) is labelled
+with a symbolic variable (\EG, $e1, e2, \ldots$) that denotes a constraint on the number of nodes/edges 
+that may appear in any given concrete network. Operators can then add constraints to relate symbolic 
+variables taken from any valid SMT theory. For example, in Figure~\ref{fig:example3}, the variable $e1$
+represents the number of outgoing edges from any concrete node mapped to the TG role to other concrete
+nodes mapped to the AG role. Similarly, we introduce a node multiplicity variable for each role. For example,
+the multiplicity variable $AG$ represents the number of concrete nodes that map the the AG role. We can then 
+add constraints over these symbolic variables to capture invariants in the concrete networks. For example, 
+if we only want to consider networks where TG and AG routers form a full mesh in each pod we would add the
+following constraints: $e1 = AG$, $e2 = TG$. \ryan{how to add the constraints to the image? in latex or powerpoint?}
 
 %Although the concrete \sysname policy can help prevent a number of configuration errors, 
 %the policy is intricately linked to the actual structure of the concrete network.
@@ -509,78 +526,94 @@ Each router in the concrete topology maps to exactly one abstract role.
 
 \begin{figure}[t!]
   \centering
-  \includegraphics[width=.6\columnwidth]{figures/example3}
-  \caption{Role-based abstraction for the datacenter in Figure~\ref{fig:example}.}
+  \includegraphics[width=.7\columnwidth]{figures/example3}
+  \caption{Role-based abstraction for the datacenters in Figure~\ref{fig:example}.}
   \label{fig:example3}
   \vspace{-1em}
 \end{figure}
 
-Consider again the datacenter routing policy we wrote before. 
-%
-We will now rewrite the policy over the network abstraction shown in figure~\ref{fig:example3}.
-This abstraction splits the network into 5 roles: local tor, global tor, local aggregator, global 
-aggregator, and spine. Intuitively, each concrete router in the network must map to exactly one role.
-Whenever there is a link between routers in the concrete network, there must be an associated link
-between their abstract roles. Thus the role-based abstraction is an overapproximation of the connectivity
-of the concrete network.
 
-The new routing policy can only refer to locations in the abstract topology. We choose these 5 roles,
-since its gives us fine enough granularity to implement our policy, but is general enough to enable 
-expansion (\EG, by adding new concrete routers for a given role).
-
-We can modify the concrete routing policy for this abstraction in the following way. First we change the Routing policy:
+Now let us configure the datacenter networks by writing a routing policy over the 
+abstract topology. The first part of the policy will be:
 %
 \begin{code}
 \Define Routing =
     \{\$PG \Path \End(TG)
      \$PL \Path \End(TL)
-     \True \Path \Exit(Peer1 \Prefer Peer2) \}
+     \True \Path \Exit(Peer1 \Prefer Peer2)\}
 \end{code}
 \noindent%
 
-Here we introduce two prefix \emph{template} variables. The policy says that traffic for each 
-global prefix associated with the template variable \$PG should end up at its corresponding 
-destination router contained in the abstract TG role. The second line does something similar 
-for all local prefixes. Finally, the last line remains the same as before. 
+This defines a group of constraints for the basic routing behavior. 
+%
+The first line introduces a prefix \emph{template} variable. It says that traffic for each 
+global prefix associated with the template variable \$PG has the constraint that it should follow 
+a path that ends at its corresponding destination router contained in the abstract TG role. 
+The second line does the same thing for all local prefixes. 
+The final rule matches all other
+IP prefix destinations and allows traffic to follow a path that leaves the datacenter through either
+of its peers (Peer1 or Peer2) with a preference for leaving through Peer1. The \Prefer~ symbol indicates
+that traffic should satisfy the constraint on the left whenever possible, and only resort to the backup (right)
+when this is not possible due to failures.%
 
-Next we can modify the Locality constraint for the abstraction in a straightforward way:
+Next we can capture the constraint that traffic for local prefixes must stay local to the datacenter.
+We do this with the following \sysname code:
 %
 \begin{code}
 \Define Locality = \{\$PL \Path \Always(\In)\}
 \end{code}
 \noindent%
+%
+The Locality constraint applies to any traffic destined for a local prefix and adds
+the constraint that the traffic must follow a path that matches an internal location 
+(\IE, a router inside the datacenter) at each hop of the path. This prevents traffic 
+from ever entering from or leaving through an external peer. Finally, we can combine 
+these constraints together as follows:
 
-Finally, we can add the "valleyfree" constraint. We are able to encode this constraint for the
-abstract topology because we have retained enough structure to understand what a valley is. 
+%
+%Finally, we can add the "valleyfree" constraint. We are able to encode this constraint for the
+%abstract topology because we have retained enough structure to understand what a valley is. 
+%
+%\begin{code}
+%\Define Tor = \{TL,TG\}
+%\Define Agg = \{AL,AG\}
+%\Define Spn = \{S\}
+%\Define ValleyFree =
+%    \{\True \Path \Novalley(Tor,Agg,Spn)\}
+%\end{code}
+%\noindent%
+%
+%The constraint prevents traffic from over taking a path that traverses 
+%either [Agg->Tor->Agg] or [Spn->Agg->Spn]. The final policy remains the same as before,
+%by combining each of these policies together.
+%
 %
 \begin{code}
-\Define Tor = \{TL,TG\}
-\Define Agg = \{AL,AG\}
-\Define Spn = \{S\}
-\Define ValleyFree =
-    \{\True \Path \Novalley(Tor,Agg,Spn)\}
+\Define Main = Routing & Locality & \Agg(PG, \In -> \Out)
 \end{code}
 \noindent%
 
-The constraint prevents traffic from over taking a path that traverses 
-either [Agg->Tor->Agg] or [Spn->Agg->Spn]. The final policy remains the same as before,
-by combining each of these policies together.
-%
-\begin{code}
-\Define Main = 
-    Routing & 
-    Locality & 
-    ValleyFree & 
-    \Agg(PG, \In -> \Out)
-\end{code}
-\noindent%
+This defines the main policy as the conjunction of the Routing and Locality constraints. It 
+also declares an additional constraint that we want to perform aggregation for global prefixes
+by summarizing them into the more general prefix PG at the border of the datacenter
+(\IE along any edge starting inside our datacenter and ending outside).
 
 When \sysname compiles the above policy, it guarantees that the forwarding behavior 
 of the network will be correct for any concrete instantiation of the abstract network,
 and for any combination of failures that may occur in the concrete network.
-Furthermore, if we want to expand our network for example by adding additional spine 
-routers, \sysname will guarantee that the expansion will be incremental (\IE, only
+Furthermore, \sysname will generate configurations in such a way that,
+if we want to expand our network (\EG, by adding additional spine routers as in 
+figure~\ref{fig:example2}), the expansion will be incremental (\IE, only
 configurations for routers local to the expansion will need to change).
+
+\subsection{Abstract Analysis}
+
+Although \sysname can ensure correct forwarding behavior independent of the 
+exact concrete topology or failure scenario, it is often useful to be able 
+to ask "what if" questions. To this end, we develop sound analyses over the
+abstract topology to answer questions about worst-case connectivity.  
+
+
 
 \subsection{Language}
 
