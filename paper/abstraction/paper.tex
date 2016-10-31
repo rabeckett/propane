@@ -383,110 +383,129 @@ A second shortcoming is lack of support for incremental growth. When engineers w
 \section{Methane overview}
 \label{sec:propane}
 
-\sysname builds on the Propane network configuration synthesis language to let
-operators specify \emph{network-wide} routing policy at a high level of abstraction.
-A \sysname policy consists of a sequence of ranked constraints on the paths traffic should 
-or should not take for certain IP prefix destinations.
+As we have seen, writing correct network configurations is challenging task.
+Operators must manually decompose network-wide policies into device configurations,
+reason about all combination of network failures, parameterize configurations to 
+allow for change, and write configurations in a way amenable to incremental change.
+We now give an overview of \sysname, a system that facilitates all of these tasks.
 
-\subsection{Concrete Methane}
+%\subsection{Concrete Methane}%
 
-Consider again the datacenter from figure~\ref{fig:example}. To configure the datacenter routing
-policy, we would start by writing the following definition in \sysname:
-%
-\begin{code}
-\Define Routing =
-    \{P1 \Path \End(T1)
-     P2 \Path \End(T2)
-     P3 \Path \End(T3)
-     P4 \Path \End(T4)
-     P5 \Path \End(T5)
-     P6 \Path \End(T6)
-     P7 \Path \End(T7)
-     P8 \Path \End(T8)
-     \True \Path \Exit(Peer1 \Prefer Peer2) \}
-\end{code}
-\noindent%
+%Consider again the datacenter from figure~\ref{fig:example}. To configure the datacenter routing
+%policy, we would start by writing the following definition in \sysname:
+%%
+%\begin{code}
+%\Define Routing =
+%    \{P1 \Path \End(T1)
+%     P2 \Path \End(T2)
+%     P3 \Path \End(T3)
+%     P4 \Path \End(T4)
+%     P5 \Path \End(T5)
+%     P6 \Path \End(T6)
+%     P7 \Path \End(T7)
+%     P8 \Path \End(T8)
+%     \True \Path \Exit(Peer1 \Prefer Peer2) \}
+%\end{code}
+%\noindent%%
 
-This defines a group of constraints for basic routing behavior. The first line states 
-that traffic destined for prefix $P1$ must follow a path that ends up at destination router $T1$.
-A similar constraint is added for each of the prefixes P[2-8]. The final rule matches all other
-prefix destinations and allows traffic to follow a path that leaves the datacenter through either
-of its peers (Peer1 or Peer2) with a preference for leaving through Peer1. The \Prefer symbol indicates
-that traffic should satisfy the constraint on the left whenever possible, and only resort to the backup (right)
-when this is not possible due to failures.
+%This defines a group of constraints for basic routing behavior. The first line states 
+%that traffic destined for prefix $P1$ must follow a path that ends up at destination router $T1$.
+%A similar constraint is added for each of the prefixes P[2-8]. The final rule matches all other
+%prefix destinations and allows traffic to follow a path that leaves the datacenter through either
+%of its peers (Peer1 or Peer2) with a preference for leaving through Peer1. The \Prefer symbol indicates
+%that traffic should satisfy the constraint on the left whenever possible, and only resort to the backup (right)
+%when this is not possible due to failures.%
 
-Next we can add the locality constraint for prefixes P[5-8]. We do this by adding another group of constraints:
-%
-\begin{code}
-\Define Locality =
-    \{P5 | P6 | P7 | P8 \Path \Always(\In)\}
-\end{code}
-\noindent%
+%Next we can add the locality constraint for prefixes P[5-8]. We do this by adding another group of constraints:
+%%
+%\begin{code}
+%\Define Locality =
+%    \{P5 | P6 | P7 | P8 \Path \Always(\In)\}
+%\end{code}
+%\noindent%%
 
-The Locality constraint applies to any traffic destined for a local prefix and adds
-the constraint that the traffic must follow a path that matches an internal location 
-(\IE, a router inside the datacenter) at each hop of the path. This prevents traffic 
-from ever entering from or leaving through an external peer.
+%The Locality constraint applies to any traffic destined for a local prefix and adds
+%the constraint that the traffic must follow a path that matches an internal location 
+%(\IE, a router inside the datacenter) at each hop of the path. This prevents traffic 
+%from ever entering from or leaving through an external peer.%
 
-Finally, for all traffic in the datacenter, we will disallow valley routing. This constraint
-can be captured with the following additions to the policy:
-%
-\begin{code}
-\Define Tor = \{T1,T2,T3,T4,T5,T6,T7,T8\}
-\Define Agg = \{A1,A2,A3,A4,A5,A6,A7,A8\}
-\Define Spn = \{S1,S2\}
-\Define ValleyFree =
-    \{\True \Path \Novalley(Tor,Agg,Spn)\}
-\end{code}
-\noindent%
+%Finally, for all traffic in the datacenter, we will disallow valley routing. This constraint
+%can be captured with the following additions to the policy:
+%%
+%\begin{code}
+%\Define Tor = \{T1,T2,T3,T4,T5,T6,T7,T8\}
+%\Define Agg = \{A1,A2,A3,A4,A5,A6,A7,A8\}
+%\Define Spn = \{S1,S2\}
+%\Define ValleyFree =
+%    \{\True \Path \Novalley(Tor,Agg,Spn)\}
+%\end{code}
+%\noindent%%
 
-The first three lines define groups of routers. The top of rack (Tor) routers T[1-8], the 
-aggregation routers (Agg) A[1-8], and the spine routers (Spn) S[1-2]. The next line 
-adds a new constraint that applies to all traffic and ensures that traffic never follows a 
-path that forms a valley between any of these three groups (\EG, going from Spn to Agg to Spn again).
-As we will see in section \ryan{reference}, each of these constraints such as the valley free constraint
-are really just syntactic sugar for regular expressions over topology locations.
+%The first three lines define groups of routers. The top of rack (Tor) routers T[1-8], the 
+%aggregation routers (Agg) A[1-8], and the spine routers (Spn) S[1-2]. The next line 
+%adds a new constraint that applies to all traffic and ensures that traffic never follows a 
+%path that forms a valley between any of these three groups (\EG, going from Spn to Agg to Spn again).
+%As we will see in section \ryan{reference}, each of these constraints such as the valley free constraint
+%are really just syntactic sugar for regular expressions over topology locations.%
 
-The final policy is declared to as the conjunction of each of these constraints:
-%
-\begin{code}
-\Define Main = 
-    Routing & 
-    Locality & 
-    ValleyFree & 
-    \Agg(PG, \In -> \Out)
-\end{code}
-\noindent%
-The last part of the policy declares that we want to perform aggregation for global prefixes
-by summarizing them into the more general prefix PG at the border of the datacenter
-(\IE along any edge starting inside our datacenter and ending outside).
+%The final policy is declared to as the conjunction of each of these constraints:
+%%
+%\begin{code}
+%\Define Main = 
+%    Routing & 
+%    Locality & 
+%    ValleyFree & 
+%    \Agg(PG, \In -> \Out)
+%\end{code}
+%\noindent%
+%The last part of the policy declares that we want to perform aggregation for global prefixes
+%by summarizing them into the more general prefix PG at the border of the datacenter
+%(\IE along any edge starting inside our datacenter and ending outside).%
 
-From this policy, \sysname can synthesize device-level BGP configurations for every router in 
-the network that guarantee correct forwarding behavior under all possible failure combinations. 
-Synthesizing configurations for each device from a network-wide specification both simplifies 
-network configuration by writing policy in one place rather than dozens and simultaneously prevents 
-a large class of errors associated with manual configuration by construction. For example, 
-the compiler ensures configurations are always in sync and prevents the operator from having 
-to manually consider failure scenarios.
+%From this policy, \sysname can synthesize device-level BGP configurations for every router in 
+%the network that guarantee correct forwarding behavior under all possible failure combinations. 
+%Synthesizing configurations for each device from a network-wide specification both simplifies 
+%network configuration by writing policy in one place rather than dozens and simultaneously prevents 
+%a large class of errors associated with manual configuration by construction. For example, 
+%the compiler ensures configurations are always in sync and prevents the operator from having 
+%to manually consider failure scenarios.
 
 
 \subsection{Abstract Methane}
 
-Although the concrete \sysname policy can help prevent a number of configuration errors, 
-the policy is intricately linked to the actual structure of the concrete network.
-For example, each prefix in the routing constraint is enumerated with its concrete destination 
-location, and the definition of the valleyfree constraint depends on the actual routers that 
-comprise each tier of the datacenter. 
-%
-This is unfortunate since any expansion of our datacenter network will require a corresponding 
-change to the policy. Furthermore, there is no guarantee that a safe policy can be found 
-for the expanded network, and even if one can be found, it may require changes to every
-configuration in the network -- a huge barrier to adoption in practice.
+\sysname builds on the Propane network configuration synthesis language, 
+which lets operators specify a \emph{network-wide} routing policy, by adding
+support for compiling policies parameterized over different topology.
+In particular, a \sysname policy consists of predicates matching
+certain classes of traffic, paired with a list of ranked constraints 
+on the paths traffic should prefer to take for the predicate.
 
-Abstract \sysname solves this problem in two ways. First, it allows operators to abstract
-the network into a role-based topology and write a routing specification over this abstraction instead.
-Second, it introduces prefix template variables into the language to allow writing policies that are 
-parameterized over prefix destination.
+Consider again the datacenter from earlier. Ideally, we would like
+to find device configuration templates for each router that, taken together, ensure correct forwarding
+behavior for both of the datacenter topologies in figures~\ref{fig:example} and~\ref{fig:example2}. 
+
+\sysname achieves this by allowing the operator to abstract the network into 
+a role-based topology that captures a class of concrete topologies and then write a 
+routing specification over this abstraction. Figure~\ref{fig:example3} shows an example of one 
+such abstraction for the datacenter networks. The network is partitioned into 5 different roles:
+local tor (TL), global tor (TG), local aggregator (AL), global aggregator (AG), and spine (S).
+Each router in the concrete topology maps to exactly one abstract role. 
+
+%Although the concrete \sysname policy can help prevent a number of configuration errors, 
+%the policy is intricately linked to the actual structure of the concrete network.
+%For example, each prefix in the routing constraint is enumerated with its concrete destination 
+%location, and the definition of the valleyfree constraint depends on the actual routers that 
+%comprise each tier of the datacenter. 
+%
+%This is unfortunate since any expansion of our datacenter network will require a corresponding 
+%change to the policy. Furthermore, there is no guarantee that a safe policy can be found 
+%for the expanded network, and even if one can be found, it may require changes to every
+%configuration in the network -- a huge barrier to adoption in practice.
+
+%Abstract \sysname solves this problem in two ways. First, it allows operators to abstract
+%the network into a role-based topology and write a routing specification over this abstraction instead.
+%Second, it introduces prefix template variables into the language to allow writing policies that are 
+%parameterized over prefix destination.
 
 \begin{figure}[t!]
   \centering
@@ -1243,7 +1262,7 @@ Figure~\ref{fig:compilation-times} shows compilation time for the same policies 
 
 For both the datacenter and backbone networks, the abstract compilation starts off slightly slower than concrete compilation for small topologies due to the overhead of the abstract k-disjoint path analysis for aggregation black-hole safety. However, as the size of the topology increases, abstract compilation becomes orders of magnitude faster than concrete compilation. In all cases for both networks, abstract compilation takes less than 10 seconds to complete. 
 
-Figure~ref{fig:abstract-breakdown} shows the relative time taken by each phase of abstract compilation. Notably, the abstract analysis takes the majority of the time, however the analysis does not depend on the number of concrete nodes in the network, and thus is largely a fixed cost. In particular, the number of calls to Z3 remains constant the across topology size. The seesaw behavior for the data center networks results from differences in time taken by Z3 to minimize the same constraints with different parameters.
+Figure~\ref{fig:abstract-breakdown} shows the relative time taken by each phase of abstract compilation. Notably, the abstract analysis takes the majority of the time, however the analysis does not depend on the number of concrete nodes in the network, and thus is largely a fixed cost. In particular, the number of calls to Z3 remains constant the across topology size. The seesaw behavior for the data center networks results from differences in time taken by Z3 to minimize the same constraints with different parameters.
 
 
 
