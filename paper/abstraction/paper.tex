@@ -491,7 +491,7 @@ parameterized over prefix destination.
 \begin{figure}[t!]
   \centering
   \includegraphics[width=.6\columnwidth]{figures/example3}
-  \caption{Role-based abstraction for the datacenter in Figure~\ref{fig:example1}.}
+  \caption{Role-based abstraction for the datacenter in Figure~\ref{fig:example}.}
   \label{fig:example3}
   \vspace{-1em}
 \end{figure}
@@ -563,184 +563,9 @@ Furthermore, if we want to expand our network for example by adding additional s
 routers, \sysname will guarantee that the expansion will be incremental (\IE, only
 configurations for routers local to the expansion will need to change).
 
+\subsection{Language}
 
-%This  statement defines a set of \emph{ranked paths}, which includes
-%all paths (and only those paths) for which traffic exits our network
-%through either router \CD{R1}, router \CD{R2}, \CD{Peer}, or \CD{Prov}.
-%The paths that exit through \CD{R1}
-%are preferred (\Prefer) to those that exit through \CD{R2}, which are preferred to those that
-%leave through \CD{Peer} and then \CD{Prov}.  As we
-%describe in the next section, the \Exit\ expression, as well as other
-%path expressions used later in this section, is simply a shorthand for
-%a particular regular expression over paths that is expressible in our policy
-%language. The preference operator (\Prefer) is flexible and can be used between constraints as well as among %individual routers. For example, the above constraint could have been written equivalently as
-%\Exit(\CD{R1}) \Prefer \ldots \Prefer ~\Exit(\CD{Prov})%
-%To associate ranked paths with
-%one or more prefixes, we define a \sysname \emph{policy}.
-%Within a policy, statements with the form $t\;$\Path$\;p$
-%associate the prefixes defined by the predicate $t$ with the set of
-%ranked paths defined by the path expression $p$.  In general,
-%prefix predicates can be defined by arbitrary boolean combinations
-%(and, or, not) of concrete prefixes and community tags.  Here,
-%we assume we have already defined the predicate \CD{PCust} for the
-%customer prefixes.
-%
-%In the following code, ranked paths are associated with
-%customer prefixes,
-%and all other prefixes (\CD{true}). Policy statements are processed in
-%order with earlier policy statements taking precedence over later
-%policy statements. Hence, when the predicate \True{} follows
-%the statement involving \CD{PCust}, it is interpreted as
-%\CD{\True{} \AND{} \NOT{}PCust}.%
-
-%\begin{code}
-%\Define Routing =
-%    \{PCust \Path Prefs \AND \End(Cust)
-%     \True  \Path Prefs \}
-%\end{code}
-%\noindent%
-%Line 2 of this policy
-%restricts traffic destined to known customer prefixes (\CD{PCust}) to only follow paths that end at the customer. In addition, it enforces the network-wide preference that traffic leaves through \CD{R1} over \CD{R2} over \CD{Peer} over \CD{Prov}.
-%%
-%Line 3 applies to any other traffic not matching \CD{PCust} and allows the traffic to leave through any direct neighbor with the usual preference of \CD{R1} over \CD{R2} over \CD{Peer} over \CD{Prov}. To summarize our progress, the \CD{Routing} policy
-%implements P1, P3, and P4 from Figure~\ref{fig:example1}.%%
-
-%Since, routing allows transit traffic by default (\EG, traffic entering from
-%\CD{Peer} and leaving through \CD{Prov}), we separately define a
-%policy to enforce P2 and P5 from Figure~\ref{fig:example1}, using conjunction (\AND),
-%disjunction (\OR) and negation (\NOT) of constraints.
-%First, we create reusable abstractions for describing traffic that transits our network. In \sysname, this is done by creating a new parameterized definition.
-%\begin{code}
-%\Define transit(X,Y) = \Enter(X{\OR}Y) \AND \Exit(X{\OR}Y)
-%\Define cust-transit(X,Y) = \Eventually(X) \AND \Eventually(Y)
-%\end{code}
-%\noindent
-%Here we define transit traffic between groups of neighbors $X$ and $Y$ as traffic that enters the network through some neighbor in $X$ or $Y$ and then also leaves the network through some neighbor in either $X$ or $Y$. Similarly, we define customer transit for customer $X$ and provider $Y$ as traffic that later goes through both $X$ and $Y$ after leaving our network. Using these two new abstractions, we can now implement policies P2 and P5 with the following constraint.%
-%\begin{code}
-%\Define NoTrans =
-%  \{\True \Path \NOT{}transit(Peer,Prov) \AND
-%           \NOT{}cust-transit(Cust,Prov)\}
-%\end{code}
-%\noindent
-%The \CD{NoTrans} constraint requires that all traffic not follow a path that transits our network between \CD{Peer} and \CD{Prov}.
-%Additionally, it prevents traffic from ever following paths that leave our network and later go through both \CD{Prov} and \CD{Cust}.  To implement both \CD{Routing}
-%and \CD{NoTrans} simultaneously, we simply conjoin them: \CD{Routing \AND{} NoTrans}.%
-%Collectively, the constraints above capture the entire policy. From them, our compiler will generate per-device import and export filters, local preferences,
-%MED attributes, and community tags to ensure that the policy is
-%implemented correctly under all failures.%%
-
-%Our datacenter example network has three main concerns:
-%(1) traffic for the prefix allocated to each top-of-rack router must be able to reach that router,
-%(2) local services must not leak outside the datacenter, and
-%(3) aggregation must be performed on global prefixes to reduce churn
-%in the network.%
-%\sysname allows modular specification of each of these constraints. The first constraint is about prefix ownership---we want traffic only for certain prefixes to end up at a particular location. The following definition captures this intent.%%
-
-%\begin{code}
-%\Define Ownership =
-%    \{PG1 \Path \End(A)
-%     PG2 \Path \End(B)
-%     PL1 \Path \End(E)
-%     PL2 \Path \End(F)
-%     \True \Path \End(\Out)\}
-%\end{code}
-%\noindent
-%This definition says that traffic for prefix \CD{PG1} is allowed to follow only paths that
-%end at router \CD{A}; traffic for \CD{PG2},
-%but not \CD{PG1}, must
-%end at router \CD{B}; and so on.
-%Any traffic destined for a prefix that is not a part of the datacenter should be allowed to leave the datacenter and end at some external location, which is otherwise unconstrained.
-%The special keyword \Out{} matches any location outside the datacenter network, while the keyword \In{} will match any location inside the network.%
-%For the second constraint, we define another policy:%
-%\begin{code}
-%\Define Locality =
-%    \{PL1 \OR PL2 \Path \textbf{only}(\In)\}
-%\end{code}
-%\noindent
-%%
-%This definition says that traffic for local
-%prefixes only follows paths that are internal to the network at each hop.
-%This constraint guarantees that the services remain accessible only to locations
-%inside the datacenter.%
-%As in the backbone example, we can logically conjoin these constraints
-%to specify the network-wide policy.
-%However, in addition to constraints on the shape of paths,
-%\sysname allows the operator to specify constraints on the BGP control plane itself.
-%For instance, a constraint on aggregation is included to ensure that
-%aggregation for global prefixes is performed from
-%locations inside (\In) the network to locations outside (\Out).
-%In this case, \CD{PG1} and \CD{PG2} will use the aggregate \CD{PG}
-%(which we assume is defined earlier)
-%when advertised outside the datacenter.%
-%\begin{code}
-%Ownership \AND{} Locality \AND{} \Agg(PG, \In \Link \Out)
-%\end{code}%
-%Once \sysname compiles the policy, it is guaranteed to remain compliant under all possible failure scenarios, modulo any aggregation-induced black holes. In the presence of aggregation, the \sysname compiler will also efficiently find a lower bound on the number of failures required to create an aggregation-induced black hole.
-
-%=====================================================
-%
-%
-%  **Compilation**
-%
-%
-%=====================================================
-
-\section{Compilation}
-\label{sec:compilation}
-
-We borrow the intermediate graph-based representation from Propane:
-
-\begin{easylist}[itemize]
-& Show compilation from language to RIR
-
-& Show compilation from RIR to Product Graph
-&& Note that preferences are general, and it could potentially
-   use any implementation (including SDN). But for the sake of
-   simplicity, we will assume a BGP backend like Propane.
-\end{easylist}
-
-%=====================================================
-%
-%
-%  **Abstractions**
-%
-%
-%=====================================================
-
-
-\section{Abstraction}
-\label{sec:abstraction}
-
-\begin{easylist}[itemize]
-& Define abstractions more formally,
-&& e.g., homomorphism between graphs + node/edge constraints
-&& Use the datacenter example from before
-&& First define the concretization function for translating the abstract policy
-   into the concrete policy
-&& Next, show the Product Graph for both the concrete and abstract policies.
-
-& Show/Define safety analysis simulation relation for both concrete and abstract product graphs
-  and how it holds for both.
-&& Theorem: if safety analysis holdls in the abstract graph, it holds for the concrete one,
-   and the preferences are consistent.
-
-& Show/Define compilation to abstract BGP policies. Give concretization function,
-  and compilation definition.
-
-& Give abstraction theorem: commuting of concretization and compilation
-\end{easylist}
-
-
-%The examples above use what we call the front end (FE) of \sysname.
-%It simplifies operators' task of describing preferred paths, but that simplicity comes at the cost of compilation complexity. The compiler must efficiently compute the sets of paths represented by the intersection of preferences and topology and ensure policy compliance under all failure scenarios.%
-
-%\begin{figure}[t!]
-%  \centering
-%  \includegraphics[width=.75\columnwidth]{figures/pipeline}
-%  \caption{Compilation pipeline stages for Propane.}
-%  \label{fig:pipeline}
-%  \vspace{-1em}
-%\end{figure}%
+\ryan{TODO: introduce language + semantics}
 
 %% grammar
 \newcommand{\BNFALT}{\;\;|\;\;}
@@ -817,6 +642,132 @@ We borrow the intermediate graph-based representation from Propane:
   %\vspace{-1em}
 \end{figure*}%
 
+
+%=====================================================
+%
+%
+%  **Compilation**
+%
+%
+%=====================================================
+
+\section{Compilation}
+\label{sec:compilation}
+
+We borrow the intermediate graph-based representation from Propane:
+
+\begin{easylist}[itemize]
+& Show compilation from language to RIR
+
+& Show compilation from RIR to Product Graph
+&& Note that preferences are general, and it could potentially
+   use any implementation (including SDN). But for the sake of
+   simplicity, we will assume a BGP backend like Propane.
+\end{easylist}
+
+\newcommand{\state}[4]{\node[state,#3](#1)[#4]{#2};}
+\newcommand{\transition}[4]{\path[->] (#1) edge [#4] node {#3} (#2);}
+
+\begin{figure*}[t!]
+  \begin{minipage}[t]{.2\linewidth}
+  \hdr{Policy Automata}{}
+  \begin{tikzpicture}[>=stealth',shorten >=1pt,auto,node distance=2cm,minimum size=.5cm]
+    \state{0}{$0$}{              }{}
+    \state{1}{$1$}{right of=0}{accepting}
+    \transition{0}{0}{out}{loop above}
+    \transition{0}{1}{Peer1}{}
+    \transition{1}{1}{in}{loop above}
+  \end{tikzpicture}
+
+  \begin{tikzpicture}[>=stealth',shorten >=1pt,auto,node distance=2cm,minimum size=.5cm]
+    \state{0}{$0$}{              }{}
+    \state{1}{$1$}{right of=0}{accepting}
+    \transition{0}{0}{out}{loop above}
+    \transition{0}{1}{Peer2}{}
+    \transition{1}{1}{in}{loop above}
+  \end{tikzpicture}%
+  \end{minipage}
+  %
+  ~~~~~~
+  %
+  \begin{minipage}[t]{.45\linewidth}
+  \hdr{Concrete Topology}{}
+  \includegraphics[width=\columnwidth]{figures/example}
+  \end{minipage}%
+  %
+  \begin{minipage}[t]{.35\linewidth}
+  \hdr{Abstract Topology}{}
+  \includegraphics[width=.75\columnwidth]{figures/example3}
+  \end{minipage}%
+
+  \begin{minipage}[t]{.6\linewidth}
+  \hdr{Concrete Product Graph}{}
+  %\includegraphics[width=.65\columnwidth]{figures/example3}
+  \end{minipage}%
+  \begin{minipage}[t]{.4\linewidth}
+  \hdr{Abstract Product Graph}{}
+
+    \begin{tikzpicture}
+      \draw [] (0, 0) circle [radius=0.45] node {start};
+      \draw [] (-1, -1) circle [radius=0.45] node {$(S,0,0)$};
+      %\draw [] (0, .45) -- (0, 2.05);
+    \end{tikzpicture}
+
+  \end{minipage}%
+
+  \hrulefill
+  \vspace*{.4em}%
+
+  \caption{Product graph construction for policy $true \Path \Exit(\text{Peer1} \Prefer \text{Peer2})$.}
+  \label{fig:example-compilation}
+  %\vspace{-1em}
+\end{figure*}
+
+
+%=====================================================
+%
+%
+%  **Abstractions**
+%
+%
+%=====================================================
+
+
+\section{Abstraction}
+\label{sec:abstraction}
+
+\begin{easylist}[itemize]
+& Define abstractions more formally,
+&& e.g., homomorphism between graphs + node/edge constraints
+&& Use the datacenter example from before
+&& First define the concretization function for translating the abstract policy
+   into the concrete policy
+&& Next, show the Product Graph for both the concrete and abstract policies.
+
+& Show/Define safety analysis simulation relation for both concrete and abstract product graphs
+  and how it holds for both.
+&& Theorem: if safety analysis holdls in the abstract graph, it holds for the concrete one,
+   and the preferences are consistent.
+
+& Show/Define compilation to abstract BGP policies. Give concretization function,
+  and compilation definition.
+
+& Give abstraction theorem: commuting of concretization and compilation
+\end{easylist}
+
+
+%The examples above use what we call the front end (FE) of \sysname.
+%It simplifies operators' task of describing preferred paths, but that simplicity comes at the cost of compilation complexity. The compiler must efficiently compute the sets of paths represented by the intersection of preferences and topology and ensure policy compliance under all failure scenarios.%
+
+%\begin{figure}[t!]
+%  \centering
+%  \includegraphics[width=.75\columnwidth]{figures/pipeline}
+%  \caption{Compilation pipeline stages for Propane.}
+%  \label{fig:pipeline}
+%  \vspace{-1em}
+%\end{figure}%
+
+
 %To handle these challenges, we decompose compilation into multiple stages, shown in  Figure~\ref{fig:pipeline}, and develop efficient algorithms for the translation between stages. The first stage of the pipeline involves simple rewriting rules and substitutions from the FE to the core Regular Intermediate Representation (RIR). Policies in RIR are checked well-formedness (\EG, never constraining traffic that does not enter the network), before being combined with the topology to obtain the Product Graph Intermediate Representation (PGIR). The PGIR is a data representation that compactly captures the flow of BGP announcements subject to the policy and topology restrictions. We develop efficient algorithms that operate over the PGIR to ensure policy compliance under failures, avoid BGP instability, and prevent aggregation-induced black holes. Once the compiler determines safety, it translates the PGIR to an abstract BGP (ABGP) representation. ABGP can then be translated into various vendor-specific device
 %configurations as needed.
 
@@ -876,71 +827,6 @@ We borrow the intermediate graph-based representation from Propane:
 %Policies that contain preferences nested under a unary operator (\IE, \textit{star} or \textit{negation}) are also rejected by \sysname as invalid.
 
 
-
-\newcommand{\state}[4]{\node[state,#3](#1)[#4]{#2};}
-\newcommand{\transition}[4]{\path[->] (#1) edge [#4] node {#3} (#2);}
-
-%\begin{figure*}[t!]
-%  \begin{minipage}[t]{.5\linewidth}%
-
-%  \hdr{Topology}{}
-%  \vspace*{-2\baselineskip}%
-
-%  \includegraphics[width=.6\columnwidth]{figures/topology}%
-
-%  \hdr{Policy Automata}{}
-%  \vspace*{-0.5\baselineskip}%
-
-%  \begin{tikzpicture}[>=stealth',shorten >=1pt,auto,node distance=1.4cm,minimum size=1cm]
-%    \state{0}{$0$}{              }{}
-%    \state{1}{$1$}{right of=0}{}
-%    \state{2}{$2$}{right of=1}{}
-%    \state{3}{$3$}{right of=2}{}
-%    \state{4}{$4$}{right of=3}{}
-%    \state{5}{$5$}{right of=4}{accepting}
-%    \transition{0}{1}{out}{}
-%    \transition{1}{2}{D}{}
-%    \transition{2}{3}{C}{}
-%    \transition{3}{4}{A}{}
-%    \transition{4}{5}{W}{}
-%  \end{tikzpicture}%
-
-%  \vspace*{0.5em}%
-%
-
-%  \begin{tikzpicture}[>=stealth',shorten >=1pt,auto,node distance=1.6cm]
-%    \state{0}{$0$}{              }{}
-%    \state{1}{$1$}{right of=0}{}
-%    \state{2}{$2$}{right of=1}{}
-%    \state{3}{$3$}{right of=2}{}
-%    \state{4}{$4$}{right of=3}{accepting}
-%    \transition{0}{1}{out}{}
-%    \transition{1}{2}{in}{}
-%    \transition{2}{2}{A,C,D,E}{loop above}
-%    \transition{2}{3}{B}{}
-%    \transition{3}{3}{B}{loop above}
-%    \transition{3}{2}{A,C,D,E}{bend left}
-%    \transition{3}{4}{W}{}
-%  \end{tikzpicture}
-%  \end{minipage}
-%  %
-%  ~~
-%  ~~
-%  %
-%  \begin{minipage}[t]{.5\linewidth}
-%  \hdr{Product Graph IR}{}
-%  \vspace*{-1\baselineskip}
-%  %
-%  \includegraphics[width=.8\columnwidth]{figures/productgraph}
-%  \end{minipage}%
-
-%  \hrulefill
-%  \vspace*{.4em}%
-
-%  \caption{Product graph construction for policy $(\CD{W} \cdot \CD{A} \cdot \CD{C} \cdot \CD{D} \cdot \Out) \Prefer (\CD{W} \cdot \CD{B} \cdot \In^+ \cdot \Out)$.}
-%  \label{fig:example-compilation}
-%  %\vspace{-1em}
-%\end{figure*}
 
 
 %\subsection{Product graph IR}
