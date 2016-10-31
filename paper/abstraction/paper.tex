@@ -68,11 +68,11 @@
 \newcommand{\End}{\KW{end}}
 \newcommand{\Start}{\KW{start}}
 \newcommand{\Enter}{\KW{enter}}
-\newcommand{\Later}{\KW{later}}
-\newcommand{\Before}{\KW{before}}
+\newcommand{\Eventually}{\KW{eventually}}
+\newcommand{\Already}{\KW{already}}
 \newcommand{\Internal}{\KW{internal}}
 \newcommand{\Never}{\KW{never}}
-\newcommand{\Only}{\KW{only}}
+\newcommand{\Always}{\KW{always}}
 \newcommand{\Through}{\KW{through}}
 \newcommand{\LinkKW}{\KW{link}}
 \newcommand{\PathKW}{\KW{path}}
@@ -371,28 +371,6 @@ A second shortcoming is lack of support for incremental growth. When engineers w
 \sysname guarantees that the templates are correct, that is, when compiled to device configurations, the network will correctly implement the specified policy. These guarantees hold for any valid concrete topology that matches the specified abstract topology; and when a valid concrete topology evolves to another valid concrete topology, only necessary changes are needed to device configurations.
 
 
-\subsection{Example:  The datacenter}
-
-\begin{easylist}[itemize]
-& Example of a datacenter with two peers (running BGP).
-&& Each tier of the datacenter treats traffic the same
-&& Since each tier will treat traffic the same, operator would like to
-   avoid writing a separate configuration for each device in a given tier.
-&& Operator writes 3 templates (show example of templates, including filters).
-
-& Show example of aggregation-induced black hole
-\end{easylist}
-
-
-\subsection{Example:  The Backbone}
-
-\begin{easylist}[itemize]
-& Example of a backbone network with multiple peers
-&& Maybe have a couple of different roles (e.g., special handling to keep traffic in the US)
-&& Could show different abstractions here (e.g., one big switch)
-&& Could be useful to hint at things to come, e.g., takes 2 sec to compile the abstract one
-\end{easylist}
-
 %=====================================================
 %
 %
@@ -401,53 +379,90 @@ A second shortcoming is lack of support for incremental growth. When engineers w
 %
 %=====================================================
 
-\section{Propane overview}
+\section{Methane overview}
 \label{sec:propane}
 
-\subsection{Example: The datacenter}
+\sysname builds on the Propane network configuration synthesis language to let
+operators specify \emph{network-wide} routing policy at a high level of abstraction.
+A \sysname policy consists of a sequence of ranked constraints on the paths traffic should 
+or should not take for certain IP prefix destinations.
 
-\begin{easylist}[itemize]
-& Abstraction of datacenter tiers -- provided by a map from
-  nodes in the concrete network to nodes in the abstract network.
-  Also provide node and edge constraints.
-&& Thus, the new topology contains only those 3 abstract nodes.
-&& Rather than writting templates for each device, the operator
-  writes a centralized routing policy for the network (show propane policy)
+\subsection{Concrete Methane}
 
-& Show generated templates from compilation (e.g., use of network-wide abstraction)
+Consider again the datacenter from figure~\ref{fig:example}. To configure the datacenter routing
+policy, we would start by writing the following definition in \sysname:
+%
+\begin{code}
+\Define Routing =
+    \{P1 \Path \End(T1)
+     P2 \Path \End(T2)
+     P3 \Path \End(T3)
+     P4 \Path \End(T4)
+     P5 \Path \End(T5)
+     P6 \Path \End(T6)
+     P7 \Path \End(T7)
+     P8 \Path \End(T8)
+     \True \Path \Exit(Peer1 \Prefer Peer2) \}
+\end{code}
+\noindent%
 
-& Show example of aggregation safety checking in the abstract network --
-  just give the answer + forward reference (matches with concrete example).
+This defines a group of constraints for basic routing behavior. The first line states 
+that traffic destined for prefix $P1$ must follow a path that ends up at destination router $T1$.
+A similar constraint is added for each of the prefixes P[2-8]. The final rule matches all other
+prefix destinations and allows traffic to follow a path that leaves the datacenter through either
+of its peers (Peer1 or Peer2) with a preference for leaving through Peer1. The \Prefer symbol indicates
+that traffic should satisfy the constraint on the left whenever possible, and only resort to the backup (right)
+when this is not possible due to failures.
 
-& Suppose now we wanted to expand this network, or configure a similar network...
-\end{easylist}
+Next we can add the locality constraint for prefixes P[5-8]. We do this by adding another group of constraints:
+%
+\begin{code}
+\Define Locality =
+    \{P5 | P6 | P7 | P8 \Path \Always(\In)\}
+\end{code}
+\noindent%
 
-\subsection{Example: The Backbone}
+The Locality constraint applies to any traffic destined for a local prefix and adds
+the constraint that the traffic must follow a path that matches an internal location 
+(\IE, a router inside the datacenter) at each hop of the path. This prevents traffic 
+from ever entering from or leaving through an external peer.
 
-\begin{easylist}[itemize]
-& Give the policy over the abstract network
-\end{easylist}
+Finally, for all traffic in the datacenter, we will disallow valley routing. This constraint
+can be captured with the following additions to the policy:
+%
+\begin{code}
+\Define Tor = \{T1,T2,T3,T4,T5,T6,T7,T8\}
+\Define Agg = \{A1,A2,A3,A4,A5,A6,A7,A8\}
+\Define Spn = \{S1,S2\}
 
-\subsection{Language}
+\Define ValleyFree =
+    \{\True \Path \Novalley(Tor,Agg,Spn)\}
+\end{code}
+\noindent%
 
-Placeholder for formal language definition syntax + semantics
+The first three lines define groups of routers. The top of rack (Tor) routers T[1-8], the 
+aggregation routers (Agg) A[1-8], and the spine routers (Spn) S[1-2]. The next line 
+adds a new constraint that applies to all traffic and ensures that traffic never follows a 
+path that forms a valley between any of these three groups (\EG, going from Spn to Agg to Spn again).
+As we will see in section \ryan{reference}, each of these constraints such as the valley free constraint
+are really just syntactic sugar for regular expressions over topology locations.
 
-% Examples of code given below
+The final policy is declared to as the conjunction of each of these constraints:
+%
+\begin{code}
+\Define Main = 
+    Routing & 
+    Locality & 
+    ValleyFree & 
+    \Agg(PG, \In -> \Out)
+\end{code}
+\noindent%
+The last part of the policy declares that we want to perform aggregation for global prefixes
+by summarizing them into the more general prefix PG at the border of the datacenter
+(\IE along any edge starting inside our datacenter and ending outside).
 
-%\sysname lets operators configure the network with the
-%abstraction that they have centralized control over routing.
-%Specifically, the operator simply provides a set of high-level constraints
-%that describe the
-%paths traffic should---or should not---take and their relative preferences.
-%\sysname specifications are written modularly via a series
-%of declarations.
-%For example, to begin specification of the backbone
-%network from the previous section, we first express the idea that
-%we prefer that traffic leave the network through \CD{R1} over \CD{R2} (to \CD{Cust}) over \CD{Peer} over \CD{Prov} (policy P1 and P3 from Figure~\ref{fig:example1}):
-%%
-%\begin{code}
-%\Define Prefs = \Exit(R1 \Prefer R2 \Prefer Peer \Prefer Prov)
-%\end{code}
+\subsection{Abstract Methane}
+
 %This  statement defines a set of \emph{ranked paths}, which includes
 %all paths (and only those paths) for which traffic exits our network
 %through either router \CD{R1}, router \CD{R2}, \CD{Peer}, or \CD{Prov}.
@@ -457,9 +472,8 @@ Placeholder for formal language definition syntax + semantics
 %describe in the next section, the \Exit\ expression, as well as other
 %path expressions used later in this section, is simply a shorthand for
 %a particular regular expression over paths that is expressible in our policy
-%language. The preference operator (\Prefer) is flexible and can be used between constraints as well as among individual routers. For example, the above constraint could have been written equivalently as
+%language. The preference operator (\Prefer) is flexible and can be used between constraints as well as among %individual routers. For example, the above constraint could have been written equivalently as
 %\Exit(\CD{R1}) \Prefer \ldots \Prefer ~\Exit(\CD{Prov})%
-
 %To associate ranked paths with
 %one or more prefixes, we define a \sysname \emph{policy}.
 %Within a policy, statements with the form $t\;$\Path$\;p$
@@ -469,7 +483,7 @@ Placeholder for formal language definition syntax + semantics
 %(and, or, not) of concrete prefixes and community tags.  Here,
 %we assume we have already defined the predicate \CD{PCust} for the
 %customer prefixes.
-%%
+%
 %In the following code, ranked paths are associated with
 %customer prefixes,
 %and all other prefixes (\CD{true}). Policy statements are processed in
@@ -477,7 +491,6 @@ Placeholder for formal language definition syntax + semantics
 %policy statements. Hence, when the predicate \True{} follows
 %the statement involving \CD{PCust}, it is interpreted as
 %\CD{\True{} \AND{} \NOT{}PCust}.%
-%
 
 %\begin{code}
 %\Define Routing =
@@ -485,13 +498,11 @@ Placeholder for formal language definition syntax + semantics
 %     \True  \Path Prefs \}
 %\end{code}
 %\noindent%
-
 %Line 2 of this policy
 %restricts traffic destined to known customer prefixes (\CD{PCust}) to only follow paths that end at the customer. In addition, it enforces the network-wide preference that traffic leaves through \CD{R1} over \CD{R2} over \CD{Peer} over \CD{Prov}.
 %%
 %Line 3 applies to any other traffic not matching \CD{PCust} and allows the traffic to leave through any direct neighbor with the usual preference of \CD{R1} over \CD{R2} over \CD{Peer} over \CD{Prov}. To summarize our progress, the \CD{Routing} policy
-%implements P1, P3, and P4 from Figure~\ref{fig:example1}.%
-%
+%implements P1, P3, and P4 from Figure~\ref{fig:example1}.%%
 
 %Since, routing allows transit traffic by default (\EG, traffic entering from
 %\CD{Peer} and leaving through \CD{Prov}), we separately define a
@@ -500,11 +511,10 @@ Placeholder for formal language definition syntax + semantics
 %First, we create reusable abstractions for describing traffic that transits our network. In \sysname, this is done by creating a new parameterized definition.
 %\begin{code}
 %\Define transit(X,Y) = \Enter(X{\OR}Y) \AND \Exit(X{\OR}Y)
-%\Define cust-transit(X,Y) = \Later(X) \AND \Later(Y)
+%\Define cust-transit(X,Y) = \Eventually(X) \AND \Eventually(Y)
 %\end{code}
 %\noindent
 %Here we define transit traffic between groups of neighbors $X$ and $Y$ as traffic that enters the network through some neighbor in $X$ or $Y$ and then also leaves the network through some neighbor in either $X$ or $Y$. Similarly, we define customer transit for customer $X$ and provider $Y$ as traffic that later goes through both $X$ and $Y$ after leaving our network. Using these two new abstractions, we can now implement policies P2 and P5 with the following constraint.%
-
 %\begin{code}
 %\Define NoTrans =
 %  \{\True \Path \NOT{}transit(Peer,Prov) \AND
@@ -514,20 +524,16 @@ Placeholder for formal language definition syntax + semantics
 %The \CD{NoTrans} constraint requires that all traffic not follow a path that transits our network between \CD{Peer} and \CD{Prov}.
 %Additionally, it prevents traffic from ever following paths that leave our network and later go through both \CD{Prov} and \CD{Cust}.  To implement both \CD{Routing}
 %and \CD{NoTrans} simultaneously, we simply conjoin them: \CD{Routing \AND{} NoTrans}.%
-
 %Collectively, the constraints above capture the entire policy. From them, our compiler will generate per-device import and export filters, local preferences,
 %MED attributes, and community tags to ensure that the policy is
-%implemented correctly under all failures.%
-%
+%implemented correctly under all failures.%%
 
 %Our datacenter example network has three main concerns:
 %(1) traffic for the prefix allocated to each top-of-rack router must be able to reach that router,
 %(2) local services must not leak outside the datacenter, and
 %(3) aggregation must be performed on global prefixes to reduce churn
 %in the network.%
-
-%\sysname allows modular specification of each of these constraints. The first constraint is about prefix ownership---we want traffic only for certain prefixes to end up at a particular location. The following definition captures this intent.%
-%
+%\sysname allows modular specification of each of these constraints. The first constraint is about prefix ownership---we want traffic only for certain prefixes to end up at a particular location. The following definition captures this intent.%%
 
 %\begin{code}
 %\Define Ownership =
@@ -544,9 +550,7 @@ Placeholder for formal language definition syntax + semantics
 %end at router \CD{B}; and so on.
 %Any traffic destined for a prefix that is not a part of the datacenter should be allowed to leave the datacenter and end at some external location, which is otherwise unconstrained.
 %The special keyword \Out{} matches any location outside the datacenter network, while the keyword \In{} will match any location inside the network.%
-
 %For the second constraint, we define another policy:%
-
 %\begin{code}
 %\Define Locality =
 %    \{PL1 \OR PL2 \Path \textbf{only}(\In)\}
@@ -557,7 +561,6 @@ Placeholder for formal language definition syntax + semantics
 %prefixes only follows paths that are internal to the network at each hop.
 %This constraint guarantees that the services remain accessible only to locations
 %inside the datacenter.%
-
 %As in the backbone example, we can logically conjoin these constraints
 %to specify the network-wide policy.
 %However, in addition to constraints on the shape of paths,
@@ -568,11 +571,9 @@ Placeholder for formal language definition syntax + semantics
 %In this case, \CD{PG1} and \CD{PG2} will use the aggregate \CD{PG}
 %(which we assume is defined earlier)
 %when advertised outside the datacenter.%
-
 %\begin{code}
 %Ownership \AND{} Locality \AND{} \Agg(PG, \In \Link \Out)
 %\end{code}%
-
 %Once \sysname compiles the policy, it is guaranteed to remain compliant under all possible failure scenarios, modulo any aggregation-induced black holes. In the presence of aggregation, the \sysname compiler will also efficiently find a lower bound on the number of failures required to create an aggregation-induced black hole.
 
 %=====================================================
@@ -645,78 +646,75 @@ We borrow the intermediate graph-based representation from Propane:
 \newcommand{\hdr}[2]{\flushleft \chdr{\hspace{5mm}#1}{#2}}
 \newcommand{\chdr}[2]{\textbf{#1} {#2} \\ \centering}%
 
-%\begin{figure*}[t]\small
-%  \begin{minipage}[t]{.45\linewidth}
-%  \hdr{Syntax}{}
-%  \vspace*{-1\baselineskip}
-%  %
-%  \[ \begin{array}{rclr}
-%    \hline%
+\begin{figure*}[t]\small
+  \begin{minipage}[t]{.45\linewidth}
+  \hdr{Syntax}{}
+  \vspace*{-1\baselineskip}
+  %
+  \[ \begin{array}{rclr}
+    \hline%
 
-%     pol     &::=& p_1, \dots, p_n & \textit{policies} \\
-%     p       &::=& t \hspace{.3em} \Path \hspace{.3em} r_1 \Prefer \dots \Prefer r_m \BNFALT cc & \textit{constraints} \\
-%     x       &::=& d.d.d.d/d & \textit{prefix} \\
-%     t       &::=& \True & \textit{true} \\
-%         &\BNFALT& \NOT t & \textit{negation} \\
-%         &\BNFALT& t_1 \OR{} t_2 & \textit{disjunction} \\
-%         &\BNFALT& t_1 \AND{} t_2 & \textit{conjunction} \\
-%         &\BNFALT& \textit{prefix} = x & \textit{prefix test} \\
-%         &\BNFALT& \textit{comm} = d & \textit{community test} \\
-%     r       &::=& l & \textit{location} \\
-%         &\BNFALT& \emptyset & \textit{empty set} \\
-%         &\BNFALT& \In & \textit{internal loc} \\
-%         &\BNFALT& \Out & \textit{external loc} \\
-%         &\BNFALT& r_1 \cup r_2 & \textit{union} \\
-%         &\BNFALT& r_1 \cap r_2 & \textit{intersection} \\
-%         &\BNFALT& r_1 \cdot r_2 & \textit{concatenation} \\
-%         &\BNFALT& \NOT r & \textit{path negation} \\
-%         &\BNFALT& r^* & \textit{iteration} \\
-%     ln       &::=& r_1 \rightarrow r_2 & \textit{links} \\
-%     cc     &::=& agg(x, ln) \BNFALT tag(d, t, ln) & \textit{control constraints} \\
-%  \end{array} \]%
+     pol     &::=& p_1, \dots, p_n & \textit{policies} \\
+     p       &::=& t \hspace{.3em} \Path \hspace{.3em} r_1 \Prefer \dots \Prefer r_m \BNFALT cc & \textit{constraints} \\
+     x       &::=& d.d.d.d/d & \textit{prefix} \\
+     t       &::=& \True & \textit{true} \\
+         &\BNFALT& \neg t & \textit{negation} \\
+         &\BNFALT& t_1 \vee t_2 & \textit{disjunction} \\
+         &\BNFALT& t_1 \wedge t_2 & \textit{conjunction} \\
+         &\BNFALT& \textit{prefix} = x & \textit{prefix test} \\
+     r       &::=& l & \textit{location} \\
+         &\BNFALT& \emptyset & \textit{empty set} \\
+         &\BNFALT& \In & \textit{internal loc} \\
+         &\BNFALT& \Out & \textit{external loc} \\
+         &\BNFALT& r_1 \cup r_2 & \textit{union} \\
+         &\BNFALT& r_1 \cap r_2 & \textit{intersection} \\
+         &\BNFALT& r_1 \cdot r_2 & \textit{concatenation} \\
+         &\BNFALT& \NOT r & \textit{path negation} \\
+         &\BNFALT& r^* & \textit{iteration} \\
+     cc     &::=& agg(x, r_1 \rightarrow r_2)  & \textit{control constraints} \\
+  \end{array} \]%
 
-%  \end{minipage}
-%  %
-%  ~~
-%  \vrule
-%  ~~
-%  %
-%  \begin{minipage}[t]{.5\linewidth}\small
-%  \hdr{Propane Expansions}{}
-%  \vspace*{-1\baselineskip}
-%  %
-%  \[\begin{array}{rcl}
-%    \hline
-%    \Any           & = & \Out^* \cdot \In^+ \cdot \Out^* \\
-%    \None          & = & \emptyset \\
-%    \Internal      & = & \In^+ \\
-%    \Only(X)       & = & \Any \cap X^* \\
-%    \Never(X)      & = & \Any \cap (!X)^* \\
-%    \Through(X)    & = & \Out^* \cdot \In^* \cdot X \cdot \In^* \cdot \Out^* \\
-%    \Later(X)      & = & \Out^* \cdot (X \cap \Out) \cdot \Out^* \cdot \In^+ \cdot \Out^* \\
-%    \Before(X)     & = & \Out^* \cdot \In^+ \cdot \Out^* \cdot (X \cap \Out) \cdot \Out^* \\
-%    \End(X)        & = & \Any \cap (\Sigma^* \cdot X) \\
-%    \Start(X)      & = & \Any \cap (X \cdot \Sigma^*) \\
-%    \Exit(X)       & = & (\Out^* \cdot \In^* \cdot (X \cap \In) \cdot \Out \cdot \Out^*) \cup \\
-%                  &        & (\Out^* \cdot \In^+ \cdot (X \cap \Out) \cdot \Out^*) \\
-%    \Enter(X)      & = & (\Out^* \cdot \Out \cdot (X \cap \In) \cdot \In^* \cdot \Out^*) \cup \\
-%                  &        & (\Out^* \cdot (X \cap \Out) \cdot \In^+ \cdot \Out^*) \\
-%    \LinkKW(X,Y)     & = & \Any \cap (\Sigma^* \cdot X \cdot Y \cdot \Sigma^*) \\
-%    \PathKW(\vec{X}) & = & \Any \cap (\Sigma^* \cdot X_1 \dots X_n \cdot \Sigma^*) \\
-%    \Novalley(\vec{X}) & = & \Any ~ \cap \\
-%                  &   & \NOT\PathKW(X_2,X_1,X_2) ~ \cap \dots \cap \\
-%                  &   & \NOT\PathKW(X_n,X_{n-1},X_n) \\
-%  \end{array} \]%
+  \end{minipage}
+  %
+  ~~
+  \vrule
+  ~~
+  %
+  \begin{minipage}[t]{.5\linewidth}\small
+  \hdr{Propane Expansions}{}
+  \vspace*{-1\baselineskip}
+  %
+  \[\begin{array}{rcl}
+    \hline
+    \Any               & = & \Sigma^* \\
+    \None              & = & \emptyset \\
+    \Internal          & = & \In^+ \\
+    \Always(X)         & = & X^* \\
+    \Never(X)          & = & (!X)^* \\
+    \Through(X)        & = & \Sigma^* \cdot X \cdot \Sigma^* \\
+    \Eventually(X)     & = & \Out^* \cdot (X \cap \Out) \cdot \Out^* \cdot \In^+ \cdot \Out^* \\
+    \Already(X)        & = & \Out^* \cdot \In^+ \cdot \Out^* \cdot (X \cap \Out) \cdot \Out^* \\
+    \End(X)            & = & \Sigma^* \cdot X \\
+    \Start(X)          & = & X \cdot \Sigma^* \\
+    \Enter(X)          & = & \Sigma^* \cdot \Out \cdot (X \cap \In) \cdot \Sigma^* ~ \cup \\
+                       &   & \Sigma^* \cdot (X \cap \Out) \cdot \In \cdot \Sigma^* \\
+    \Exit(X)           & = & \Sigma^* \cdot \In \cdot (X \cap \Out) \cdot \Sigma^* ~ \cup \\
+                       &   & \Sigma^* \cdot (X \cap \In) \cdot \Out \cdot \Sigma^* \\
+    \LinkKW(X,Y)       & = & \Sigma^* \cdot X \cdot Y \cdot \Sigma^* \\
+    \PathKW(\vec{X})   & = & \Sigma^* \cdot X_1 \dots X_n \cdot \Sigma^* \\
+    \Novalley(\vec{X}) & = & \NOT\PathKW(X_2,X_1,X_2) ~ \cap \dots \cap \\
+                       &   & \NOT\PathKW(X_n,X_{n-1},X_n) \\
+  \end{array} \]%
 
-%  \end{minipage}%
+  \end{minipage}%
 
-%  \hrulefill%
+  \hrulefill%
 
-%  \caption{Regular Intermediate Representation (RIR) syntax (left), and
-%           Propane language expansions (right).}
-%  \label{fig:rir-syntax}
-%  %\vspace{-1em}
-%\end{figure*}%
+  \caption{Regular Intermediate Representation (RIR) syntax (left), and
+           Propane language expansions (right).}
+  \label{fig:rir-syntax}
+  %\vspace{-1em}
+\end{figure*}%
 
 %To handle these challenges, we decompose compilation into multiple stages, shown in  Figure~\ref{fig:pipeline}, and develop efficient algorithms for the translation between stages. The first stage of the pipeline involves simple rewriting rules and substitutions from the FE to the core Regular Intermediate Representation (RIR). Policies in RIR are checked well-formedness (\EG, never constraining traffic that does not enter the network), before being combined with the topology to obtain the Product Graph Intermediate Representation (PGIR). The PGIR is a data representation that compactly captures the flow of BGP announcements subject to the policy and topology restrictions. We develop efficient algorithms that operate over the PGIR to ensure policy compliance under failures, avoid BGP instability, and prevent aggregation-induced black holes. Once the compiler determines safety, it translates the PGIR to an abstract BGP (ABGP) representation. ABGP can then be translated into various vendor-specific device
 %configurations as needed.
