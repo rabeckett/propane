@@ -81,6 +81,11 @@
 
 \renewcommand{\path}[2]{ #1 \mapsto \ensuremath{#2} }
 
+%% grammar
+\newcommand{\BNFALT}{\;\;|\;\;}
+\newcommand{\hdr}[2]{\flushleft \chdr{\hspace{5mm}#1}{#2}}
+\newcommand{\chdr}[2]{\textbf{#1} {#2} \\ \centering}%
+
 
 \begin{document}
 
@@ -488,7 +493,7 @@ We now give an overview of \sysname, a system that facilitates all of these task
 %to manually consider failure scenarios.
 
 
-\subsection{Abstract Methane}
+\subsection{Abstract Synthesis}
 
 \sysname builds on the Propane network configuration synthesis language,
 which lets operators specify a \emph{network-wide} routing policy, by adding
@@ -496,6 +501,8 @@ support for compiling policies parameterized over different topology.
 In particular, a \sysname policy consists of predicates matching
 certain classes of traffic, paired with a list of ranked constraints
 on the paths traffic should prefer to take for the predicate.
+
+\para{Topology Abstraction}
 
 Consider again the datacenter from earlier. Ideally, we would like
 to find device configuration templates for each router that, taken together, ensure correct forwarding
@@ -513,17 +520,28 @@ Whenever there is a link between routers in the concrete network, there must be 
 between their abstract roles. Thus the role-based abstraction is an overapproximation of the connectivity
 of the concrete network.
 
+\begin{figure}[t!]
+  \centering
+  \includegraphics[width=\columnwidth]{figures/example3}
+  \caption{Role-based abstraction for the datacenters in Figure~\ref{fig:example}.}
+  \label{fig:example3}
+  \vspace{-1em}
+\end{figure}
+
 In order to refine the abstraction to capture more precisely the kinds of concrete networks of interest,
 we introduce a notion of node and edge \emph{multiplicities}. Each edge (and node) is labelled
 with a symbolic variable (\EG, $e1, e2, \ldots$) that denotes a constraint on the number of nodes/edges
-that may appear in any given concrete network. Operators can then add constraints to relate symbolic
-variables taken from any valid SMT theory. For example, in Figure~\ref{fig:example3}, the variable $e1$
-represents the number of outgoing edges from any concrete node mapped to the TG role to other concrete
-nodes mapped to the AG role. Similarly, we introduce a node multiplicity variable for each role. For example,
-the multiplicity variable $AG$ represents the number of concrete nodes that map the the AG role. We can then
-add constraints over these symbolic variables to capture invariants in the concrete networks. For example,
-if we only want to consider networks where TG and AG routers form a full mesh in each pod we would add the
-following constraints: $e1 = AG$, $e2 = TG$. \ryan{how to add the constraints to the image? in latex or powerpoint?}
+that may appear in any given concrete network. Operators can then capture concrete network invariants by adding constraints on the symbolic variables using logical formula.
+
+For example, in Figure~\ref{fig:example3}, the first two constraints: $e1 = AG$ and $e2 = TG$ declare that, within any pod P, the number of outgoing edges from $TG$ to $AG$ is equal to the number of nodes that map to $AG$. Similarly, the number of outgoing edges from $AG$ to $TG$ is equal to the number of nodes that map toe $TG$. These constraints capture the fact that, within any given pod, the global aggregators and tors are in a full mesh. Furthermore, the constraints $TG = AG$ and $TG \geq 2$ ensure that the number of concrete nodes in role $TG$ is always equal to the number of concrete nodes in role $AG$. Similar constraints also appear for the local aggregators and tors.
+%
+The constraint $e3 \geq 2$ says that, in each pod, each aggregator node has at least 2 outgoing edges to nodes in the spine role. Symmetrically, the constraint $e4 \geq 1$ says that, for each pod P, each node in the spine role has at least one outgoing edge to a node in the $AG$ role. Again, similar constraints appear for the local aggregator role. Finally, the constraints $S \geq 2$, $S \pmod AG = 0$, and $S \pmod AL = 0$ ensure that there are at least 2 routers in the spine role, and that the number of spine routers is always divisible by the number of global and local aggregators.
+%
+The last two constraints are interesting in that they do not involve a simple inequality. In general operators can write constraints using logical formula over any SMT theory. 
+
+All the guarantees provided by \sysname hold for any instantiation of the abstract network. This means that operators can safely expand their network in the future so long as the new network also satisfies these logical constraints.
+
+
 
 %Although the concrete \sysname policy can help prevent a number of configuration errors,
 %the policy is intricately linked to the actual structure of the concrete network.
@@ -541,175 +559,70 @@ following constraints: $e1 = AG$, $e2 = TG$. \ryan{how to add the constraints to
 %Second, it introduces prefix template variables into the language to allow writing policies that are
 %parameterized over prefix destination.
 
-\begin{figure}[t!]
-  \centering
-  \includegraphics[width=.7\columnwidth]{figures/example3}
-  \caption{Role-based abstraction for the datacenters in Figure~\ref{fig:example}.}
-  \label{fig:example3}
-  \vspace{-1em}
-\end{figure}
+\para{Routing Policy}
 
-
-Now let us configure the datacenter networks by writing a routing policy over the
-abstract topology. The first part of the policy will be:
+Now let us configure each of the datacenter networks from \S\ref{sec:motivation} by writing a routing policy over the abstract topology. In \sysname, we can capture the basic routing behavior with the following constraints:
 %
 \begin{code}
 \Define Routing =
-    \{\$PG \Path \End(TG)
-     \$PL \Path \End(TL)
-     \True \Path \Exit(Peer1 \Prefer Peer2)\}
+    \$PG  \Path \End(TG)
+    \$PL  \Path \End(TL)
+    \True \Path \Exit(Peer1 \Prefer Peer2)
 \end{code}
 \noindent%
 
-This defines a group of constraints for the basic routing behavior.
+The first line introduces a prefix \emph{template} variable. It says that traffic for each global prefix associated with the template variable \$PG has the constraint that it should follow a path that ends at its corresponding destination router contained in the abstract TG role. The second line does the same thing for all local prefixes. 
 %
-The first line introduces a prefix \emph{template} variable. It says that traffic for each
-global prefix associated with the template variable \$PG has the constraint that it should follow
-a path that ends at its corresponding destination router contained in the abstract TG role.
-The second line does the same thing for all local prefixes.
-The final rule matches all other
-IP prefix destinations and allows traffic to follow a path that leaves the datacenter through either
-of its peers (Peer1 or Peer2) with a preference for leaving through Peer1. The \Prefer~ symbol indicates
-that traffic should satisfy the constraint on the left whenever possible, and only resort to the backup (right)
-when this is not possible due to failures.%
+The final rule matches all other IP prefix destinations and allows traffic to follow a path that leaves the datacenter through either of its peers (Peer1 or Peer2) with a preference for leaving through Peer1. The \Prefer~ symbol indicates that traffic should satisfy the constraint on the left whenever possible, and only resort to the backup (right) when this is not possible due to failures.%
 
 Next we can capture the constraint that traffic for local prefixes must stay local to the datacenter.
 We do this with the following \sysname code:
 %
 \begin{code}
-\Define Locality = \{\$PL \Path \Always(\In)\}
+\Define Locality = 
+    \$PL \Path \Always(\In)
 \end{code}
 \noindent%
 %
-The Locality constraint applies to any traffic destined for a local prefix and adds
-the constraint that the traffic must follow a path that matches an internal location
-(\IE, a router inside the datacenter) at each hop of the path. This prevents traffic
-from ever entering from or leaving through an external peer. Finally, we can combine
-these constraints together as follows:
+The Locality constraint applies to any traffic destined for a local prefix described by the \$PL prefix template variable and adds the constraint that the traffic must follow a path that matches an internal location (\IE, a router inside the datacenter) at each hop of the path. This prevents traffic from ever entering from or leaving through an external peer. Finally, we can combine these constraints together as follows:
 
+\begin{code}
+Routing & Locality & \Agg(PG, \In -> \Out)
+\end{code}
+\noindent%
+
+This tells \sysname to find BGP router configurations that satisfy the conjunction of the Routing and Locality constraints. It also declares an additional constraint that we want to perform aggregation for global prefixes by summarizing them as the more general prefix PG at the border of the datacenter (\IE along any edge starting inside our datacenter and ending at a peer outside the datacenter).
+
+When \sysname compiles the above policy, it guarantees that the forwarding behavior of the network will be correct for any concrete instantiation of the abstract network, and for any combination of failures that may occur in the concrete network. Furthermore, \sysname will generate configurations in such a way that, if we want to expand our network, for example by adding additional spine routers as in figure~\ref{fig:example2}, then the expansion can be performed incrementally (\IE, only configurations for routers local to the expansion will need to change).
+
+\subsection{Abstract Analysis}
+
+Although \sysname can ensure correct forwarding behavior independent of the exact concrete topology or failure scenario, it is often useful to be able to ask "what if" questions about other network properties. For example, an operator may require a certain level fault tolerance between between different collections of routers. Importantly, such analysis depends, not only on the network topology, but also on the underlying routing policy. To this end, we develop a sound analysis over abstract topologies to answer questions about the number of disjoint paths between pairs of nodes.
+
+Suppose we want to find a worst-case lower bound on the number of disjoint paths between any global tor and spine router from figure~\ref{fig:example3} after applying the routing policy. This would give us a bound on the fault tolerance for, not only the current datacenter, but any sound expansion of it. Furthermore, this can be used as a lightweight verification tool to detect certain classes of configuration bugs. For example, since we are performing aggregation at the border of the datacenter, we might introduce what is known as an aggregation black hole if enough failures occur to disconnect a tor from a spine.
+
+The disjoint path analysis works in the following way. For each abstract role in the network, we learn invariants about the number of disjoint paths to routers in that role. These invariants contain a sequence of labels followed by a pair of numbers $(i,j)$. For example, the analysis would start with a fact of the form: $S_P S_{TG} (1,1)$. This means that, there is some group of nodes of size 1 in the TG role in some pod P such that each node has 1 disjoint path to it (and all such paths are edge-disjoint). Since we know that the each node in the TG role is in a full mesh with nodes in the AG role within any given pod, we might infer a fact for AG of the form: $S_P A_{AG}(e1,1)$. This says that any group of nodes of size e1 in the AG role is reachable with at least 1 edge-disjoint path to each such node.
 %
-%Finally, we can add the "valleyfree" constraint. We are able to encode this constraint for the
-%abstract topology because we have retained enough structure to understand what a valley is.
-%
-%\begin{code}
-%\Define Tor = \{TL,TG\}
-%\Define Agg = \{AL,AG\}
-%\Define Spn = \{S\}
-%\Define ValleyFree =
-%    \{\True \Path \Novalley(Tor,Agg,Spn)\}
-%\end{code}
-%\noindent%
+If we run the abstract analysis over the abstract network from figure~\ref{fig:example3} the analysis will learn a fact of the form $A_{S}(1,2)$, which means that any single spine node is reachable via 2 disjoint paths from any global tor node \ryan{it will actually be 1, we need to add a constraint on e1}. 
+
+Suppose now that we want to disallow paths with valleys (\IE, paths that go down and then up at some point). Such a constraint can be added to the routing policy simply:
+\begin{code}
+\Define ValleyFree =
+    \True \Path \Novalley(\{TL,TG\},\{AL,AG\},\{S\})
+\end{code}
+\noindent%
+
+This adds a constraint that applies to all traffic and prevents valleys by defining each level in the datacenter.
+Because the abstract analysis is policy sensitive, if we were to run the it with the same abstract topology but the new routing policy, it would only be able to infer that there is a single disjoint path to any given spine router in the worst case. In fact this is exactly the case for the concrete network from figure~\ref{fig:example2}.  
+
 %
 %The constraint prevents traffic from over taking a path that traverses
 %either [Agg->Tor->Agg] or [Spn->Agg->Spn]. The final policy remains the same as before,
 %by combining each of these policies together.
 %
 %
-\begin{code}
-Routing & Locality & \Agg(PG, \In -> \Out)
-\end{code}
-\noindent%
-
-This defines the main policy as the conjunction of the Routing and Locality constraints. It
-also declares an additional constraint that we want to perform aggregation for global prefixes
-by summarizing them into the more general prefix PG at the border of the datacenter
-(\IE along any edge starting inside our datacenter and ending outside).
-
-When \sysname compiles the above policy, it guarantees that the forwarding behavior
-of the network will be correct for any concrete instantiation of the abstract network,
-and for any combination of failures that may occur in the concrete network.
-Furthermore, \sysname will generate configurations in such a way that,
-if we want to expand our network (\EG, by adding additional spine routers as in
-figure~\ref{fig:example2}), the expansion will be incremental (\IE, only
-configurations for routers local to the expansion will need to change).
-
-\subsection{Abstract Analysis}
-
-Although \sysname can ensure correct forwarding behavior independent of the
-exact concrete topology or failure scenario, it is often useful to be able
-to ask "what if" questions. To this end, we develop sound analyses over the
-abstract topology to answer questions about worst-case connectivity.
-
-
 
 \subsection{Language}
-
-\ryan{TODO: introduce language + semantics}
-
-%% grammar
-\newcommand{\BNFALT}{\;\;|\;\;}
-\newcommand{\hdr}[2]{\flushleft \chdr{\hspace{5mm}#1}{#2}}
-\newcommand{\chdr}[2]{\textbf{#1} {#2} \\ \centering}%
-
-\begin{figure*}[t]\small
-  \begin{minipage}[t]{.45\linewidth}
-  \hdr{Syntax}{}
-  \vspace*{-1\baselineskip}
-  %
-  \[ \begin{array}{rclr}
-    \hline%
-
-     pol     &::=& p_1, \dots, p_n & \textit{policies} \\
-     p       &::=& t \hspace{.3em} \Path \hspace{.3em} r_1 \Prefer \dots \Prefer r_m \BNFALT cc & \textit{constraints} \\
-     x       &::=& d.d.d.d/d & \textit{prefix} \\
-     t       &::=& \True & \textit{true} \\
-         &\BNFALT& \neg t & \textit{negation} \\
-         &\BNFALT& t_1 \vee t_2 & \textit{disjunction} \\
-         &\BNFALT& t_1 \wedge t_2 & \textit{conjunction} \\
-         &\BNFALT& \textit{prefix} = x & \textit{prefix test} \\
-     r       &::=& l & \textit{location} \\
-         &\BNFALT& \emptyset & \textit{empty set} \\
-         &\BNFALT& \In & \textit{internal loc} \\
-         &\BNFALT& \Out & \textit{external loc} \\
-         &\BNFALT& r_1 \cup r_2 & \textit{union} \\
-         &\BNFALT& r_1 \cap r_2 & \textit{intersection} \\
-         &\BNFALT& r_1 \cdot r_2 & \textit{concatenation} \\
-         &\BNFALT& \NOT r & \textit{path negation} \\
-         &\BNFALT& r^* & \textit{iteration} \\
-     cc     &::=& agg(x, r_1 \rightarrow r_2)  & \textit{control constraints} \\
-  \end{array} \]%
-
-  \end{minipage}
-  %
-  ~~
-  \vrule
-  ~~
-  %
-  \begin{minipage}[t]{.5\linewidth}\small
-  \hdr{Propane Expansions}{}
-  \vspace*{-1\baselineskip}
-  %
-  \[\begin{array}{rcl}
-    \hline
-    \Any               & = & \Sigma^* \\
-    \None              & = & \emptyset \\
-    \Internal          & = & \In^+ \\
-    \Always(X)         & = & X^* \\
-    \Never(X)          & = & (!X)^* \\
-    \Through(X)        & = & \Sigma^* \cdot X \cdot \Sigma^* \\
-    \Eventually(X)     & = & \Out^* \cdot (X \cap \Out) \cdot \Out^* \cdot \In^+ \cdot \Out^* \\
-    \Already(X)        & = & \Out^* \cdot \In^+ \cdot \Out^* \cdot (X \cap \Out) \cdot \Out^* \\
-    \End(X)            & = & \Sigma^* \cdot X \\
-    \Start(X)          & = & X \cdot \Sigma^* \\
-    \Enter(X)          & = & \Sigma^* \cdot \Out \cdot (X \cap \In) \cdot \Sigma^* ~ \cup \\
-                       &   & \Sigma^* \cdot (X \cap \Out) \cdot \In \cdot \Sigma^* \\
-    \Exit(X)           & = & \Sigma^* \cdot \In \cdot (X \cap \Out) \cdot \Sigma^* ~ \cup \\
-                       &   & \Sigma^* \cdot (X \cap \In) \cdot \Out \cdot \Sigma^* \\
-    \LinkKW(X,Y)       & = & \Sigma^* \cdot X \cdot Y \cdot \Sigma^* \\
-    \PathKW(\vec{X})   & = & \Sigma^* \cdot X_1 \dots X_n \cdot \Sigma^* \\
-    \Novalley(\vec{X}) & = & \NOT\PathKW(X_2,X_1,X_2) ~ \cap \dots \cap \\
-                       &   & \NOT\PathKW(X_n,X_{n-1},X_n) \\
-  \end{array} \]%
-
-  \end{minipage}%
-
-  \hrulefill%
-
-  \caption{Regular Intermediate Representation (RIR) syntax (left), and
-           Propane language expansions (right).}
-  \label{fig:rir-syntax}
-  %\vspace{-1em}
-\end{figure*}%
 
 
 %=====================================================
@@ -1395,63 +1308,6 @@ Figure~\ref{fig:abstract-breakdown} shows the relative time taken by each phase 
 
 
 
-%=====================================================
-%
-%
-%  **Appendix**
-%
-%
-%=====================================================
-
-
-%\subsection{Propane Properties}
-%
-%\newtheorem{prop}{Proposition}[section]
-%
-%Here we investigate the correctness and expressiveness properties of \sysname. We are mainly concerned with answering the following questions: (1) does the distributed, compiled policy faithfully implement the user's policy regardless of failures? (2) Are the resulting BGP configurations stable?, and (3) what polcies are or are not expressible in \sysname?
-%
-%If \sysname compiles a user policy to a distributed implementation, then that distributed implementation faithfully meets the centralized policy's semantics under any failure scenario. We are primarily concerned with the steady state: that is, what happens after (if) the routing protocol converges. We argue that \sysname is correct by breaking down the claim:
-%
-%\begin{prop}
-%BGP configurations for internal routers produced by \sysname will be stable.
-%\end{prop}
-%
-%\begin{prop}
-%BGP configurations produced by \sysname are \textit{Sound} with respect to the policy: That is, any route traffic takes in the network, is a valid route specified by the policy.
-%\end{prop}
-%
-%The Soundness claim follows directly from compilation of the product graph. Since every path through the product graph (from start to end) must match the user's policy, and since the compiled configurations use communities to ensure only valid routes through the product graph are used, the resulting BGP configurations are Sound.
-%
-%\begin{prop}
-%BGP configurations produced by \sysname are \textit{Complete}: That is, the distributed implementation always obtains a most preferred route between two nodes when the corresponding path exists in the network.
-%\end{prop}
-%
-%The argument for completeness is as follows: Assume the most preferred path that exists in the network is between two nodes $X$ and $Y$.  This means there is a valid path in the product graph corresponding to this path, and which is available in the network.
-%Assume we are unable to achieve this route in the network. To not achieve this path means that some router along the advertisement route from $Y$ to $X$ preferred to accept an advertisement from another peer instead. This implies that router that makes the ``wrong'' choice appears as a separate node in the product graph. However, from our failure safety check, we know that the other, more-preferred node must have a superset of the paths to accepting states as the less preferred node (from which it stole the route) for at least as good of a final preference. The argument then proceeds by induction on the path length - there are only a finite number of such stealings that can occur, each of which will ultimately still result in a route advertisement reaching $X$ along a most preferred path.
-%
-%Any \sysname-compiled policy will be \textit{Complete} as a result of the failure safety check.
-%
-
-%
-
-%The combination of Soundness and Completeness ensures that the distributed implementation will always send traffic along the best paths possible, yet will also never also use any undesired paths. These properties rely on the fact that \sysname produces stable BGP configurations:
-
-%
-%The reduction is via the well-known No-Dispute-Wheel condition~\ref{bib:todo} for stable BGP. In particular, any policy with a dispute wheel will not pass the stronger failure safety check by \sysname.
-%
-%\begin{figure}[t!]
-%\includegraphics[width=\columnwidth]{figures/dispute-wheel}
-%\label{fig:dispute-wheel}
-%\caption{Product graph for a dispute wheel.}
-%\end{figure}
-%
-%The reduction is via the well-known No-Dispute-Wheel condition~\ref{bib:todo}. If a set of BGP configurations do not have a dispute wheel, then they will converge to their best routes. Any BGP policy with a dispute wheel will not satisfy the failure safety condition in Section~\ref{sec:compilation}. Assume that the preferences in the policy describe a dispute wheel, and we will show that our failure check will reject the policy. Informally, a dispute wheel occurs when there are some number of nodes $u_1, \dots, u_n$ attempting to get a path to a destination node $d$. Each node $u_i$ prefers to go through its neighbor $u_{i+1}$ over route $R_i$ than directly to $d$ with route $Q_i$. Thus the nodes form a wheel of preferences. The product graph for a policy that contains a dispute wheel will look like Figure~\ref{fig:dispute-wheel}, which shows a dispute wheel of size 3. In order to pass the failure safety check for the compiler, the more-preferred node for $u_2$ will need to have a superset of the paths starting from the less-preferred node for $u_2$. In turn, this means that the maximum length path after visiting the more preferred $u_2$ will be $max(Z) = 1 + max(Y)$, similarly, if we look at $u_1$, we will determine that $max(Y) = 1 + max(X)$, and so on. The resulting equations define a system of unsatisfiable equations. Therefore, it is not possible for \sysname to compile a BGP policy that contains a dispute wheel. Since no-dispute-wheel is a sufficient condition for BGP stability, any compiled \sysname policy will be stable.
-%
-
-%An important distinction is that BGP might still be instable with respect to other external ASes, since \sysname has no way of configuring their routing policy and can only rely on AS path filters to see what advertisements are observed.
-
-
-
 
 %=====================================================
 %
@@ -1465,5 +1321,90 @@ Figure~\ref{fig:abstract-breakdown} shows the relative time taken by each phase 
 
 \bibliographystyle{abbrv}
 \bibliography{references}
+
+
+%=====================================================
+%
+%
+%  **Appendix**
+%
+%
+%=====================================================
+
+\appendix
+
+\begin{figure*}[t]\small
+  \begin{minipage}[t]{.45\linewidth}
+  \hdr{Syntax}{}
+  \vspace*{-1\baselineskip}
+  %
+  \[ \begin{array}{rclr}
+    \hline%
+
+     pol     &::=& p_1, \dots, p_n & \textit{policies} \\
+     p       &::=& t \hspace{.3em} \Path \hspace{.3em} r_1 \Prefer \dots \Prefer r_m \BNFALT cc & \textit{constraints} \\
+     x       &::=& d.d.d.d/d & \textit{prefix} \\
+     t       &::=& \True & \textit{true} \\
+         &\BNFALT& \neg t & \textit{negation} \\
+         &\BNFALT& t_1 \vee t_2 & \textit{disjunction} \\
+         &\BNFALT& t_1 \wedge t_2 & \textit{conjunction} \\
+         &\BNFALT& \textit{prefix} = x & \textit{prefix test} \\
+     r       &::=& l & \textit{location} \\
+         &\BNFALT& \emptyset & \textit{empty set} \\
+         &\BNFALT& \In & \textit{internal loc} \\
+         &\BNFALT& \Out & \textit{external loc} \\
+         &\BNFALT& r_1 \cup r_2 & \textit{union} \\
+         &\BNFALT& r_1 \cap r_2 & \textit{intersection} \\
+         &\BNFALT& r_1 \cdot r_2 & \textit{concatenation} \\
+         &\BNFALT& \NOT r & \textit{path negation} \\
+         &\BNFALT& r^* & \textit{iteration} \\
+     cc     &::=& agg(x, r_1 \rightarrow r_2)  & \textit{control constraints} \\
+  \end{array} \]%
+
+  \end{minipage}
+  %
+  ~~
+  \vrule
+  ~~
+  %
+  \begin{minipage}[t]{.5\linewidth}\small
+  \hdr{Propane Expansions}{}
+  \vspace*{-1\baselineskip}
+  %
+  \[\begin{array}{rcl}
+    \hline
+    \Any               & = & \Sigma^* \\
+    \None              & = & \emptyset \\
+    \Internal          & = & \In^+ \\
+    \Always(X)         & = & X^* \\
+    \Never(X)          & = & (!X)^* \\
+    \Through(X)        & = & \Sigma^* \cdot X \cdot \Sigma^* \\
+    \Eventually(X)     & = & \Out^* \cdot (X \cap \Out) \cdot \Out^* \cdot \In^+ \cdot \Out^* \\
+    \Already(X)        & = & \Out^* \cdot \In^+ \cdot \Out^* \cdot (X \cap \Out) \cdot \Out^* \\
+    \End(X)            & = & \Sigma^* \cdot X \\
+    \Start(X)          & = & X \cdot \Sigma^* \\
+    \Enter(X)          & = & \Sigma^* \cdot \Out \cdot (X \cap \In) \cdot \Sigma^* ~ \cup \\
+                       &   & \Sigma^* \cdot (X \cap \Out) \cdot \In \cdot \Sigma^* \\
+    \Exit(X)           & = & \Sigma^* \cdot \In \cdot (X \cap \Out) \cdot \Sigma^* ~ \cup \\
+                       &   & \Sigma^* \cdot (X \cap \In) \cdot \Out \cdot \Sigma^* \\
+    \LinkKW(X,Y)       & = & \Sigma^* \cdot X \cdot Y \cdot \Sigma^* \\
+    \PathKW(\vec{X})   & = & \Sigma^* \cdot X_1 \dots X_n \cdot \Sigma^* \\
+    \Novalley(\vec{X}) & = & \NOT\PathKW(X_2,X_1,X_2) ~ \cap \dots \cap \\
+                       &   & \NOT\PathKW(X_n,X_{n-1},X_n) \\
+  \end{array} \]%
+
+  \end{minipage}%
+
+  \hrulefill%
+
+  \caption{Regular Intermediate Representation (RIR) syntax (left), and
+           Propane language expansions (right).}
+  \label{fig:rir-syntax}
+  %\vspace{-1em}
+\end{figure*}%
+
+
+
+
 
 \end{document}
