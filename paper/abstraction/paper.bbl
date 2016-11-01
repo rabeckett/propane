@@ -1,9 +1,58 @@
-\begin{thebibliography}{1}
+\begin{thebibliography}{10}
+
+\bibitem{propane}
+R.~Beckett, R.~Mahajan, T.~Millstein, J.~Padhye, and D.~Walker.
+\newblock Don't mind the gap: Bridging network-wide objectives and device-level
+  configurations.
+\newblock In {\em Proceedings of the 2016 Conference on ACM SIGCOMM 2016
+  Conference}, SIGCOMM '16, pages 328--341, 2016.
+
+\bibitem{bgpmon}
+News and press | {BGPM}on.
+\newblock \url{http://www.bgpmon.net/news-and-events/}.
 
 \bibitem{batfish}
 A.~Fogel, S.~Fung, L.~Pedrosa, M.~Walraed-Sullivan, R.~Govindan, R.~Mahajan,
   and T.~Millstein.
 \newblock A general approach to network configuration analysis.
 \newblock In {\em NSDI}, March 2015.
+
+\bibitem{hatch}
+Hatch -- create and share configurations.
+\newblock \url{http://www.hatchconfigs.com/}.
+
+\bibitem{route-aggregation}
+F.~Le, G.~G. Xie, and H.~Zhang.
+\newblock On route aggregation.
+\newblock In {\em CoNEXT}, December 2011.
+
+\bibitem{narain:lisa05}
+S.~Narain.
+\newblock Network configuration management via model finding.
+\newblock In {\em LISA}, December 2005.
+
+\bibitem{dadc}
+S.~Narain, D.~Chee, B.~Coan, B.~Falchuk, S.~Gordon, J.~Kang, J.~Kirsch,
+  A.~Naidu, K.~Sinkar, and S.~Tsang.
+\newblock A science of network configuration.
+\newblock {\em Journal of Cyber Security and Information Systems}, 1(4), 2016.
+
+\bibitem{narain+:configassure}
+S.~Narain, G.~Levin, S.~Malik, and V.~Kaul.
+\newblock Declarative infrastructure configuration synthesis and debugging.
+\newblock {\em Journal of Network Systems Management}, 16(3):235--258, October
+  2008.
+
+\bibitem{juniper-study}
+J.~Networks.
+\newblock What is behind network downtime? proactive steps to reduce human
+  error and improve availability of networks.
+\newblock \url{https://www-935.ibm.com/services/au/gts/pdf/200249.pdf}, May
+  2008.
+
+\bibitem{thwack}
+configuration templates | thwack.
+\newblock
+  \url{https://thwack.solarwinds.com/search.jspa?q=configuration+templates}.
 
 \end{thebibliography}
