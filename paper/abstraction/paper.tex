@@ -672,14 +672,14 @@ We borrow the intermediate graph-based representation from Propane:
   %
   ~~~~~~
   %
-  \begin{minipage}[t]{.45\linewidth}
+  \begin{minipage}[t]{.4\linewidth}
   \hdr{Concrete Topology}{}
-  \includegraphics[width=\columnwidth]{figures/example}
+  \includegraphics[width=.7\columnwidth]{figures/topology-con}
   \end{minipage}%
   %
-  \begin{minipage}[t]{.35\linewidth}
+  \begin{minipage}[t]{.4\linewidth}
   \hdr{Abstract Topology}{}
-  \includegraphics[width=.75\columnwidth]{figures/example3}
+  \includegraphics[width=.57\columnwidth]{figures/topology-abs}
   \end{minipage}%
 
   \begin{minipage}[t]{.6\linewidth}
@@ -1110,7 +1110,7 @@ We borrow the intermediate graph-based representation from Propane:
 \section{Implementation}
 \label{sec:implementation}
 
-The \sysname compiler is implemented in approximately 9500 lines of F\# code. The compiler accepts both concrete and abstract topologies and will generate router configurations for open-source Quagga routers. Operators can specify their required fault tolerance level for aggregation safety. The abstract safety analysis uses Z3Opt \ryan{reference} to minimize variables subject to the annotated constraints.
+The \sysname compiler is implemented in approximately 9500 lines of F\# code. The compiler accepts both concrete and abstract topologies and will generate router configurations for open-source Quagga routers. Operators can specify their required fault tolerance level for aggregation safety. The abstract safety analysis uses Z3Opt \ryan{reference} to minimize variables subject to the annotated constraints. Since the analysis typically calls Z3 with many times with relatively simple optimization problems, we use a timeout of 200ms. 
 
 The compiler performs the following to improve its performance.
 
