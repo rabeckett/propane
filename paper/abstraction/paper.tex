@@ -330,25 +330,62 @@ We test \sysname out on ... blah blah blah
   \vspace{-1em}
 \end{figure}
 
-We motivate \sysname using an example data center network adapted from prior work~\cite{propane}. Our network, shown in Figure~\ref{fig:example}, is a standard folded-Clos topology with four pods. T[1--8] denote top-of-rack (ToR) switches, A[1--8] denote aggregation switches, and S[1--2] denote spine switches. P[1--8] denote groups of addresses for services hosted in each rack. Such groups are called address {\em prefixes} because they are encoded using the adresses' shared prefix. Assume that all nodes are running the border gateway protocol (BGP), as is common in large data centers~\cite{x}. \todo{more detail on BGP?}
+%We motivate \sysname using an example data center network. Our network, 
+Consider the data center network shown in Figure~\ref{fig:example}.  The boxes in the diagram
+represent \emph{switches}, and these switches play several different roles:  T[1--8] denote top-of-rack (ToR) switches, A[1--8] denote aggregation switches, and S[1--2] denote spine switches. The spine switches are connected to the
+rest of the internet; any traffic to or from the outside world flows through them.  The aggregation switches
+serve as a bridge between spine and ToR switches.   Finally, each ToR switch is
+connected to a set servers (``a rack''): P[1--8] denote groups of addresses for services hosted in each rack. Such groups are called address {\em prefixes} because they are encoded using the adresses' shared prefix. 
 
-The intended policy for this network is as follows. Internal connectivity should be complete, i.e., all nodes must be able to talk to each other. Services in Pods 1 and 2 should be globally accessible and thus their addresses should be announced externally, but only after aggregating individual prefixes P[1--4] into a single prefix PG. Finally, services in Pods 3 and 4 should be not be externally visible and thus their address should not be announced externally.
+We assume that each switch is running an instance of the \emph{Border Gateway Protocol} (BGP), 
+as is common in large data centers. In this protocol, adjacent switches use BGP to exchange messages
+with one another concerning the availability of routes to destinations.  A BGP \emph{configuration}
+(one for each switch) dictates which offered routes a switch will select and how to propagate chosen routes to its 
+neighbours.\footnote{If this submission is accepted and more space is available in the final version, 
+we will give a detailed explanation of BGP for the PLDI audience.  Henceforth, we assume knowledge of basic BGP
+mechanics.}
 
-To correctly configure the policy above, the network engineer's task is to generate low-level configuration commands for each switch in the network. This implies ensuring, for instance, that all switch interfaces are assigned correct addresses; all routing adjacencies are correctly configured (e.g., T1's configuration includes A1 as neighbor and vice-versa); all switches announce their own addresses (so that they can be reached for management purposes) and the ToRs announce the correct prefixes for their services; all switches  forward the prefix announcements that they should to each neighbor and not forward those that they should not (e.g., the spines should forward prefixes for local services to internal neighbors but not external neighbors); and the spines announce externally only the aggregate global prefix.
+%Assume that all nodes are running the border gateway protocol (BGP), as is common in large data centers~\cite{x}. \todo{more detail on BGP?}
 
-As many have observed before, such configuration tasks are highly challenging. Consequently, configuration errors are the leading cause of network outages~\cite{x,y,z,batfish,propane}.
+The intended high-level operator policy for this network is as follows. Internal connectivity should be complete, \IE, all nodes must be able to talk to each other. Services in Pods 1 and 2 should be globally accessible and thus their addresses should be announced externally, but only after aggregating individual prefixes P[1--4] into a single prefix PG. Finally, services in Pods 3 and 4 not should be externally visible and thus their address should not be announced externally.
+
+To correctly configure the policy above, the network engineer's task is to generate low-level configurations for each switch in the network. This implies ensuring, for instance, that all switch interfaces are assigned correct addresses; all routing adjacencies are correctly configured (\EG, T1's configuration includes A1 as neighbor and vice-versa); all switches announce their own addresses (so that they can be reached for management purposes) and the ToRs announce the correct prefixes for their services; all switches  forward the prefix announcements that they should to each neighbor and not forward those that they should not (\EG, the spines should forward prefixes for local services to internal neighbors but not external neighbors); and the spines announce externally only the aggregate global prefix. \dpw{Do we need to explain aggregation here?}
+
+As many have observed before, such configuration tasks are highly challenging. Consequently, configuration errors are the leading cause of network outages~\cite{juniper-study,bgpmon,batfish,propane}.
 
 \subsection{Limitations of concrete synthesis}
 
-In response, researchers have developed systems that synthesize low-level device configurations from high-level policy statements~\cite{x,y,propane}.
+In response, researchers have developed systems that synthesize low-level device configurations from high-level policy statements~\cite{narain:lisa05,narain+:configassure,dadc,propane}.
 %They take network topology and policy as input and output device configurations that are  guaranteed to be correct under all possible failures. Thus, they save the engineers from performing the complex task of breaking down global policies into device configurations.
-These systems offer appealing guarantees that the generated configurations correctly implement policy, even under arbitrary combinations of failures.
+These systems eliminate entire classes of configuration errors by construction, and, in the case of
+Propane~\cite{propane}, guarantee that high-level policy is implemented correctly, even in the presence of 
+arbitrary combinations of failures.
 
-However, our conversations with network engineers reveal that they have two limitations that discourage adoption.  The first is a mismatch in abstraction. Engineers of large networks tend to think of the network, and develop tools, in terms of roles and not individual devices. A {\em role} refers to specific functionality and is played by one or more routers. The network in Figure~\ref{fig:example} has five roles: spine, global aggregator, global ToR, local aggregator, and local ToR.  Engineers are reluctant to use a system that does not understand roles as a first-order abstraction. A superficial use of tags to group similar devices is not enough. For instance, there is no guarantee in concrete synthesis systems that the configurations of two devices with the same role will be similar.  If the engineers wanted to debug, or simply understand, their output, they'll have to consider all device configurations instead of role configurations;  there can be orders of magnitude more devices than roles in the network.
+However, our conversations with network engineers at two major cloud providers reveal that they have two limitations that discourage adoption.  The first is a mismatch in abstraction. Engineers of large, structured networks tend to think of the network, and to develop management tools, using \emph{roles}, and not individual devices. 
+A {\em role} refers to specific functionality and is played by one or more routers. The network in Figure~\ref{fig:example} has five roles: spine, global aggregator, global ToR, local aggregator, and local ToR.  Engineers are naturally reluctant to use a system that does not 
+understand roles as a first-order abstraction because they think about 
+network policy in terms of roles, and, even more importantly, if they want to debug, analyze or 
+understand system output, they will have to consider 
+\emph{hundreds} of independent device configurations instead of just
+\emph{a handful} of role configurations. Unfortunately, even if two devices play the same role,
+there is no guarantee a concrete synthesis system will generate (syntactically) similar configurations,
+making vetting system outputs extremely difficult. 
 
-A second limitation is inability to support network evolution. Networks evolve all the time as nodes and links are added or removed and the addresses of services are changed. A system that supports evolution would ensure that supporting such evolution requires only small changes to network configurations. Engineers want to minimize changes to device configurations because each change runs the risk of poor, transient behavior due to poor router software or routing protocol dynamics~\cite{ratulbgpmisconfigs}.
+A second limitation is the inability to support network evolution. Networks evolve all the time as nodes and links are added or removed and the addresses of services are changed. A system that supports evolution would ensure that 
+small changes in topology require small, local changes in network configurations as opposed to pervasive
+changes across many devices.  Engineers want to minimize changes to device configurations because each change runs the risk of poor, transient behavior due to poor router software or routing protocol dynamics~\cite{ratulbgpmisconfigs}.  
+%These networks must be highly
+%available; it isn't plausible to bring down an entire data center network, or large portions of it, to make
+%incremental changes.
 
-Concrete synthesis tools do not accommodate evolution well. When engineers want to modify the network, they would use the new topology as input to the system; old inputs or configurations are not uses. In the resulting output, existing device configurations may undergo unnecessary changes, beyond those needed to accommodate the modification. Suppose we want to modify the prefix of local ToR T8 in  Figure~\ref{fig:example}. To accommodate the modification, Propane, a concrete synthesis tool, will not only change T8's configuration but also those of the two spines because it uses prefix lists at spines to ensure that local prefixes are not advertised externally.  As we show later, there is a way to design the configurations of this network in a way that does not require spine configuration changes to accommodate ToR prefix (and other) modifications, by exposing the inherent structure in this topology to the synthesis tool.
+Unfortunately, in general, any change in network topology requires re-execution of a
+concrete synthesis engine, from scratch,
+on the changed topology.  The result may be 
+a completely different set of configurations.  However, even if such configurations are
+largely semantically similar to existing configurations, they may be syntactically different,
+and may cause considerable network disruption when updates are pushed to switches.
+For instance, suppose an operator wants to modify the prefix of local ToR T8 in Figure~\ref{fig:example}. To accommodate the modification, Propane, a concrete synthesis tool, will, at a minimum, not only change T8's configuration but also those of the two spines because it uses prefix lists at spines to ensure that local prefixes are not advertised externally.  As we show later, there is a way to design the configurations of this network to avoid spine configuration changes while accommodating ToR prefix (and other) modifications.  Our new 
+abstraction-based synthesis framework synthesizes evolution-friendly roles automatically.
 
 %nof the new spine configurations outputted by Propane will not only enable the interfaces that connect to the new aggregators but will also have to update the prefix list filters. A system that supports incremental growth should need only interface configuration changes (not filter changes). It can configure all local ToRs, including the new ones, to attach a tag to their announcements and filter external announcements at the spines based on this tag. Engineers prefer fewer configuration changes because each change runs the risks of poor transient behavior (which synthesis tools do not reason about).
 
@@ -358,38 +395,57 @@ Concrete synthesis tools do not accommodate evolution well. When engineers want 
 
 \subsection{Limitations of today's template systems}
 
-To simplify network configuration, and thus reduce errors, the network engineering community is adopting a template-based approach~\cite{x,y}. Instead of authoring one configuration file per router, engineers author one configuration template per role.\footnote{If a role is played by devices from different vendors, there is one template per role-vendor combination because templates use vendor configuration language.} Templates have parameters for various aspects of the configuration (e.g., interface addresses, neighbor list) and are compiled to device configurations by instantiating the parameters using a database of per-device values.
+To simplify network configuration, and thus reduce errors, the network engineering community is adopting a template-based approach~\cite{hatch,thwack}. Instead of authoring one configuration file per router, engineers author one configuration template per role.\footnote{If a role is played by devices from different vendors, there is one template per role-vendor combination because templates use vendor configuration language.} Templates have parameters for various aspects of the configuration (\EG, interface addresses, neighbor list) and are compiled to device configurations by instantiating the parameters using a database of per-device values.
 
 %Templates provide two key advantages. First, they help eliminate a class of configuration errors that stem from typos and inconsistencies, e.g., using the wrong address for a switch, having inconsistent addresses for the two ends of a link, and failing to configure one side of a routing adjacency.  Second, templates have the potential for re-use when the topology changes while maintaining its basic structure (e.g., adding a new pod to the data center) or multiple networks with similar structures need to be instantiated (e.g., in an organization that runs multiple data centers).
 
-While templates operate at the right level of abstraction, today's template systems have two limitations. The first is that they offer no guarantees on correctness. To author correct templates, engineers must do manually the conceptually challenging task of breaking down complex, global policies into role templates such that the collective behavior of configurations derived from the templates correctly implements the policy under all failure conditions.
+While templates operate at the right level of abstraction, today's template systems have two limitations. The first is that they offer no correctness guarantees. To author correct templates, engineers must break down complex, network-wide routing policy into role templates such that the collective behavior of the configurations generated from the templates correctly implements the desired high-level policy under all failure conditions.  This is a challenging, manual task, with no tools available to support template verification.
 
-As a result, the types of configuration design errors pointed in prior work~\cite{propane} can occur in template design as well. For instance, to keep local prefixes internal the engineer may implement announcement forwarding on spines based on the identity of the neighbor, i.e., do not announce externally anything heard from local aggregators. This implementation is appealing because it does not require changes to spine configurations when ToR prefixes change. But it works correctly only when there are no failures; local prefixes can leak externally when failures disconnect a spine from both aggregators in a local pod. Specifically, when S1 is disconnected from A5 and A6, it may hear about P5 and P6 from A3 and A4 (via A[5--6]->S2->A[3--4]), and it will then announce those prefixes outside (since they no not come from a local aggregator), leading to a policy violation. A possible correct implementation here would be for each spine to not advertise externally announcements from local aggregators {\em and} reject announcements that have traversed the other spine (i.e., disallow "valleys," or up-down-up paths).
+As a result, the types of configuration design errors pointed in prior work~\cite{propane} can occur in template design as well. For instance, to keep local prefixes internal the engineer may implement announcement forwarding on spines based on the identity of the neighbor, \IE, do not announce externally anything heard from local aggregators. This implementation is appealing because it does not require changes to spine configurations when ToR prefixes change. But it works correctly only when there are no failures; local prefixes can leak externally when failures disconnect a spine from both aggregators in a local pod. Specifically, when S1 is disconnected from A5 and A6, it may hear about P5 and P6 from A3 and A4 (via A[5--6]->S2->A[3--4]), and it will then announce those prefixes outside (since they no not come from a local aggregator), leading to a policy violation. A possible correct implementation here would be for each spine to block messages headed to external peers from local aggregators {\em and} to reject announcements that have traversed the other spine (\IE, to disallow "valleys," or up-down-up paths).
 
 %Lacking correctness guarantees, engineers use simulations to analyze if templates are correct under a range of failure cases (e.g., combinations of two-link failures), but such analysis is highly expensive for large networks and still does not provide strong guarantees beyond the tested cases.
 
-The second limitation of today's template systems is that, like concrete synthesis tools, they do not support network evolution. In theory, being role-based, templates do not have to be redesigned when the network evolves while keeping its basic structure of roles and their inter-connectivity. In practice, however, it is not guaranteed that templates that work for a given topology also work for seemingly-minor variations of the topology. 
+The second limitation of today's template systems is that, like concrete synthesis tools, they do not support network evolution. One might hope that important network properties such as connectivity and fault tolerance persist when networks evolve in ways consistent with existing roles and templates.  However, existing 
+template systems provide no guarantees that seemingly-minor variations of a given topology have similar properties.    
+%In theory, templates do not have to be redesigned when the network evolves while keeping its basic structure of roles and their inter-connectivity. In practice, however, it is not guaranteed that templates that work for a given topology also work for seemingly-minor variations of the topology. 
 
-Consider the network in Figure~\ref{fig:example2}, which is similar to Figure~\ref{fig:example}, with the same folded-Clos structure and five roles. One might think that the same templates (with different database entries) can be re-used across topologies. However, that is not necessarily true. For instance, templates that disallow valley paths lead to a less fault-tolerant system for Figure~\ref{fig:example2}. In particular, aggregation-induced blackholes~\cite{x} can occur in Figure~\ref{fig:example2} with only one link failure, while it would take two failures in Figure~\ref{fig:example}. Such blackholes occur when a switch announces an aggregate prefix but has no valid path to a more specific prefix within the aggregate. In Figure~\ref{fig:example}, a blackhole will occur when the link S1--A1 fails; after this failure, S1 has no valley-free path to P[1--2] even though it will continue to get traffic for these prefixes by virtue of announcing the encompassing aggregate PG. In contrast, in Figure~\ref{fig:example}, no such blackhole will occur after a single failure.
+Consider the network in Figure~\ref{fig:example2}, which is similar to Figure~\ref{fig:example}, with the same folded-Clos structure and five roles. One might think that the same templates (with different database entries) can be re-used across topologies. However, that is not necessarily true.  For example,
+data centers are often susceptable to a phenomenon called an \emph{aggregation-induced black hole}~\cite{route-aggregation}.  Such black holes occur when a switch announces an aggregate prefix but has no valid path to a more specific prefix within the aggregate, so the black hole will draw traffic, but that traffic will be unable
+to reach its destination.
+For instance, if a network operator uses templates designed for Figure~\ref{fig:example}, which
+disallow valley paths, on Figure~\ref{fig:example2}, they will find that while it takes two link failures to
+trigger a black hole in  Figure~\ref{fig:example}, it takes only 1 failure to trigger a black hole in
+ Figure~\ref{fig:example2}.   
+More specifically, in Figure~\ref{fig:example2}, a blackhole will occur when the link S1--A1 fails; after this failure, S1 has no valley-free path to P[1--2] even though it will continue to get traffic for these prefixes by virtue of announcing the encompassing aggregate PG. In contrast, in Figure~\ref{fig:example}, no such blackhole will occur after a single failure.
 
-Thus, engineers today must reason about the correctness of templates for each evolution (using expensive simulations because current systems do not provide any correctness guarantee by design). Worse, for some evolutions, they may discover that their old templates will not work anymore and need modifications. This discovery is highly problematic because changing the templates implies that the configuration of all the devices needs to change, which can be an unacceptable disruption.  When that happens, many networks abandon templates entirely and revert to hand-crafting configuration files, using localized patches to accommodate evolution. This reversion brings backs the complexity and errors that the templates were meant to prevent.
+Thus, engineers today must reason about the correctness of templates for each topology change (using expensive simulations because current systems do not provide any correctness guarantee by design). Worse, for some changes, they may discover that their old templates will not work anymore and need modifications. ~\dpw{Note: This is going to be true for Methane too.}  This discovery is highly problematic because changing a template will cause a change in the configurations of all the devices that use that template---in many cases, an unacceptable disruption.  When that happens, network operators may abandon templates entirely and revert to hand-crafting configuration files, using localized patches to accommodate evolution. 
+Such patches reintroduce the complexity and errors that templates were meant to prevent.
+
 
 %As an aside, a possible template implementation that works correctly for both networks is: allow valley paths and use an explicit list of local prefixes at spines to decide which announcements should not be forwarded externally.
 
 \begin{figure}
-\begin{tabular}{p{0.7in}|p{0.7in}p{0.7in}p{0.7in}}
-& Abstraction level & Correctness guarantees & Support evolution  \\ \hline
-Concrete synthesis & \xmark & \cmark & \xmark \\ \hline
-Template systems & \cmark & \xmark & \xmark \\ \hline
-\sysname & \cmark & \cmark & \cmark \\ 
+\begin{tabular}{|p{0.6in}|p{0.6in}p{0.7in}p{0.6in}|} 
+\hline
+& Abstract Roles & Correctness Guarantees & Evolution Support  \\ \hline
+Concrete Synthesis & \xmark & \cmark & \xmark \\ \hline
+Template Systems & \cmark & \xmark & \xmark \\ \hline
+\sysname & \cmark & \cmark & \cmark \\  \hline
 \end{tabular}
-\caption{Properties of different methods for generating device configurations.}
+\caption{Comparing configuration techniques.}
+\label{fig:marketing}
 \end{figure}
 
 
 \subsection{\sysnamesec}
 
-As Table~\ref{fig:marketing} shows, \sysname addresses the limitations with both concrete synthesis and current template systems. It operates at the right level of abstraction, guarantees the correctness of configurations, and supports network evolution. It takes as input network policy and an {\em abstract} topology  that describes device roles and connectivity. It outputs a template for each role, which can be compiled to configurations based on the concrete topology and parameter values. \sysname guarantees that its templates are correct, i.e., the configurations generated from them correctly implement the specified policy for {\em any} concrete topology that matches the abstract topology; and when a valid concrete topology evolves to another valid concrete topology, only necessary changes are needed to device configurations.
+As Table~\ref{fig:marketing} shows, \sysname addresses the limitations of both concrete synthesis and current template systems. It operates at the right level of abstraction for network operators, provides strong guarantees about compiled configurations, supports verification of important correctness properties, and supports network evolution. As inputs, \sysname takes a global, network-wide policy (as opposed to a per-device or even per-role policy) and an 
+{\em abstract} topology that describes device roles and 
+connectivity invariants.  It outputs a template for each role.  Per-device configurations may be generated
+from templates by instantiating their parameters with concrete values drawn from the network topology. 
+\sysname provides strong guarantees about its templates: 
+(1) the configurations generated from them correctly implement the specified policy for {\em any} concrete topology that matches the given abstract topology; and (2) if you add or remove a single node or edge in a way compatible
+with the abstract topology, only configurations of adjacent devices ever need to be updated.
 
 The next section introduces \sysname using the example in Figure~\ref{fig:example}, and the following sections provide more detail on how we generate the templates and formally define the correctness guarantees.
 
