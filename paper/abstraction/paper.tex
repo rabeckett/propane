@@ -40,6 +40,7 @@
 
 \newcommand{\sysname}{{\small \sf Methane}\xspace}
 \newcommand{\sysnamesec}{{\sf Methane}\xspace}
+\newcommand{\propane}{{\small \sf Propane}\xspace}
 
 \newcommand{\para}[1]{\paragraph*{\textbf{#1}}}
 
@@ -202,9 +203,7 @@ We test \sysname out on ... blah blah blah
 %
 %=====================================================
 
-
-\section{Introduction}
-\label{sec:introduction}
+\section{Outline/Notes}
 
 \begin{easylist}[itemize]
 & Network configuration is difficult/error-prone. Operators think of policy at
@@ -310,6 +309,137 @@ We test \sysname out on ... blah blah blah
 %
 %
 %=====================================================
+
+
+\section{Introduction}
+\label{sec:introduction}
+
+
+% Hence, one approach to improving network
+% reliability is to develop better languages for network configuration.
+% Such languages should be defined at a higher level of abstraction than
+% existing configuration languages and provide support built-in support for
+% verification of important properties, thereby avoiding entire classes
+% of configuration errors automatically.
+
+An important class of networks are the large \emph{structured networks}
+commonly deployed in industrial data centers.  These networks run
+many critical services and every second of downtime is at best
+costly and at worst dangerous.  Unfortunately, it is an enormous 
+challenge to keep these complex networks up and
+running 24/7~\cite{mahajan+:bgp-misconfiguration,feamster+:rcc,batfish,dc-failure-study}.
+Moreover, while hardware faults, rodents, power failures and natural
+disasters can all cause significant downtime, studies have shown that
+\emph{human error}, which occurs during network configuration or
+update, is the single large cause of these
+outages~\cite{juniper-study}. 
+
+% These networks often
+% host a myriad of services and every second of downtime imposes significant
+% financial cost or disruption to consumers.  
+Such networks typically have uniform, tree-shaped topologies that involve
+hundreds or even thousands of devices.  Since it is not possible for humans
+to think about configuring each individual device independently, 
+network operators typically classify the devices, assigning them a particular
+\emph{role} such as ``top-of-rack switch'' or ``tier-one aggregation switch.''
+Each such role is codified as a \emph{configuration template}---essentially
+a macro that may be instantiated with different concrete values to
+generate a configuration for each device that plays the role.
+
+Such templates have no particular semantics other than the semantics
+that one obtains from instantiating a template's parameters.  Moreover,
+template construction is a manual process:  network engineers do their
+best to design templates by hand that will work effectively in the context 
+of their particular network topology.  However, there is no support for
+validating key properties such as connectivity and fault tolerance, 
+aside from instantiating the templates and testing.  In addition,
+network engineers have no tools to help them design for network
+evolution.  For instance, the process of adding new equipment to
+expand the capacity of data center may not be compatible with the original
+templates, or may cause a trickle-down of changes to be made network-wide.
+Unfortunately, each change to a router configuration typically incurs
+some risk of temporary instable in a network, so minimizing such changes
+is an important design goal.  It is no wonder that a major
+network outage, such as the one that grounded all United Air flights
+in July 2015~\cite{x}, makes international news every few months.
+
+To combat these problems, in this paper, we present \sysname, a 
+new high-level language designed to 
+provide improved support for the configuration of large, structured networks.
+\sysname allows network operators to define abstract network topologies that
+classify devices in terms of abstract roles and specify the connectivity
+invariants satisfied by each role.  For instance, a programmer may
+define separate roles for ``top-of-rack switch'' and 
+``tier-one aggregation switch'' and specify that every top-of-rack switch
+is connected to at least two different tier-one aggregation switches.
+
+In order to specify \emph{routing policy} for such abstract networks,
+\sysname borrows notation from the recently-defined \propane
+programming language~\cite{propane}.  However, whereas \propane policies
+refer to individual devices, \sysname policies allows users to
+refer to abstract roles.  The \sysname compiler compiles these role-based
+policies into templates, with one template per role, and these templates
+may be instantiated to generate concrete configurations. 
+
+During compilation, the \sysname compiler also analyzes policy with respect to the
+abstract topology and guarantees that the configurations will 
+faithfully implement the high-level policy on \emph{any} concrete
+topology that satisfies the given connectivity invariants.  The compiler
+will also optionally perform a second fault tolerance analysis that 
+determines the minimum number of link failures required to disconnect
+\emph{any} concrete topology that once again satisfies the connectivity
+invariants.  
+
+Finally, generated \sysname configurations are designed to
+be \emph{evolution-friendly} in the sense that if an operator adds or
+removes any single link or device, they are guaranteed that only 
+the configurations of adjacent devices need change (for instance, to
+activate a port on which the new device is connected).  Doing so
+helps minimize network instability as data centers are expanded or devices are
+temporarily taken offline for maintenance.
+
+As an aside, a pleasant side effect of this new compiler
+infrastructure, designed to make life easier on network operators, is
+that for structured networks, it scales substantially better than its
+competitor \propane does: as the number of individual devices in a
+network grows, the number of distinct roles will often stay constant.
+Consequently, the \sysname compiler may be two orders of magnitude
+faster than \propane for large structured networks.
+
+To summarize, the central contribution of this paper are:
+
+\begin{enumerate}
+\item Design of new network topology abstraction mechanisms involving roles and
+connectivity invariants.
+\item Design of two new algorithms for analyzing abstract networks: one which
+guarantees correct compilation and one which determines fault tolerance 
+properties of network policy.  Both algorithms provide guarantees for any 
+concrete network satisfying the abstract connectivity invariants.
+\item Design of template generation algorithms that support network
+evolution with minimal change to existing devices.
+\item Implementation and evaluation of a \sysname compiler that generates 
+configuration templates and is up to two orders of magnitude faster 
+than its closest competitor on large networks.
+\end{enumerate}
+
+
+
+
+%% Indeed, over the last several years, many researchers have begun to
+%% develop such languages~\cite{frenetic,pyretic,pane,nettle,netkat}.
+%% However, the bulk of this research has targeted software-defined
+%% networks (SDN), a new networking technology that has emerged over the last
+%% decade.  Unfortunately, the vast majority of today's networks
+%% continue to use traditional networking techology---upgrading to SDN is
+%% expensive and technically challenging.
+
+%% In a traditional network, every router runs an independent instance of 
+%% a distributed protocol that
+%% exchange messages about available routes to destination addresses.  
+%% Each router is configured independently, but the overall behavior
+%% of the network---the paths from one server to another, for instance---depend
+%% upon the 
+
 
 \section{Motivation}
 \label{sec:motivation}
