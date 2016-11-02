@@ -453,13 +453,13 @@ The next section introduces \sysname using the example in Figure~\ref{fig:exampl
 %=====================================================
 %
 %
-%  **Propane Language**
+%  **Methane Overview**
 %
 %
 %=====================================================
 
 \section{Methane overview}
-\label{sec:propane}
+\label{sec:overview}
 
 As we have seen, writing correct network configurations is challenging task.
 Operators must manually decompose network-wide policies into device configurations,
@@ -661,7 +661,7 @@ The disjoint path analysis works in the following way. For each abstract role in
 %
 If we run the abstract analysis over the abstract network from figure~\ref{fig:example3} the analysis will learn a fact of the form $A_{S}(1,2)$, which means that any single spine node is reachable via 2 disjoint paths from any global tor node \ryan{it will actually be 1, we need to add a constraint on e1}. 
 
-Suppose now that we want to disallow paths with valleys (\IE, paths that go down and then up at some point). Such a constraint can be added to the routing policy simply:
+Suppose now that we want to disallow paths with valleys (\IE, paths that go down and then up at some point). Such a constraint can be added to the routing policy in \sysname:
 \begin{code}
 \Define ValleyFree =
     \True \Path \Novalley(\{TL,TG\},\{AL,AG\},\{S\})
@@ -678,8 +678,6 @@ Because the abstract analysis is policy sensitive, if we were to run the it with
 %
 %
 
-\subsection{Language}
-
 
 %=====================================================
 %
@@ -689,19 +687,79 @@ Because the abstract analysis is policy sensitive, if we were to run the it with
 %
 %=====================================================
 
-\section{Compilation}
+\section{Configuration Synthesis}
 \label{sec:compilation}
 
-We borrow the intermediate graph-based representation from Propane:
+Configuration synthesis for network configurations is challenging for a number of reasons. First, although \sysname polices specify stable network-wide routing behavior, actual configurations are per-device and run distributed algorithms to compute routes. Thus the compiler must ensure that the result of the distributed computation matches the policy. Furthermore the distributed computation must compute the correct paths under all possible combinations of failures. Second, \sysname must find configurations that work across any valid concrete network topology matching the abstraction provided as input. Finally, \sysname must ensure that the resulting configurations can be evolved incrementally so that local changes to the topology ensure that only local changes to configurations are required to ensure global routing correctness. 
+
+In this section, we introduce the idea of topology abstraction, describe how \sysname synthesizes network configurations over these abstractions, and formalize the guarantees provided by \sysname.
+
+\subsection{Methane Language}
+
+The syntax introduced in \S\ref{sec:overview} is just syntactic sugar for a core language based on regular expressions. Figure~\ref{fig:syntax} shows a simplified version of the core \sysname syntax that omits some details such as aggregation. The full langauge definition can be found in the appendix. A policy has one or more constraints, each of which consists of a test on the type of traffic being matched and a corresponding set of preferred regular expressions describing network paths. Regular expressions are defined over network locations, where each location is either a router inside the operators network, or an external neighbor. There are two special characters \In~ and \Out, which match any internal and external location respectively. There are two types of predicates: a test for a concrete prefix $d.d.d.d/[d..d]$ matches an IP prefix with value $d.d.d.d$ and length in the range $[d..d]$ where metavariable $d$ represents an integer. For example, the IP prefix 148.0.1.0/[24..32] would match traffic destined for IP address 148.0.1.* with a subnet length between 24 and 32 bits. \ryan{this needs to be explained clearer}.
+
+Converting from the high-level syntax from \S\ref{sec:overview} to the core syntax is straightforward. For example, the predicate $\True$ becomes $0.0.0.0/[0..32]$. Preferences are lifted to the top level of the regular expression when unambiguous. For example, the constraint $\Exit(\sf{Peer1} \Prefer \sf{Peer2})$ becomes $\Exit(\sf{Peer1}) \Prefer \Exit(\sf{Peer2})$ before being rewritten into regular expressions. Each modular set of constraints are joined prefix-by-prefix by taking the intersection of their constraints. For example, the data center policy from \S\ref{sec:overview} would result in the following \sysname policy:
+%
+\begin{code}
+\$PG  \Path \End(TG) & !transit(\Out,\Out),
+\$PL  \Path \End(TL) & \Always(\In) & !transit(\Out,\Out),
+\True \Path 
+    \Exit(Peer1) & !transit(\Out,\Out) \Prefer 
+    \Exit(Peer2) & !transit(\Out,\Out)
+\end{code}
+\noindent%
+%
+Finally, each constraint desugars to a regular expression. For example, the constraint $\Always(\In)$ becomes $\In^*$ and the constraint $\End({\small \mathsf{T0}})$ becomes $\Sigma^* \cdot \sf{T0}$.
+
+\subsection{Topology Abstraction}
+
+\subsection{Configuration Synthesis}
+
+\subsection{Substitution Theorem}
 
 \begin{easylist}[itemize]
-& Show compilation from language to RIR
+& Define abstractions more formally,
+&& e.g., homomorphism between graphs + node/edge constraints
 
-& Show compilation from RIR to Product Graph
-&& Note that preferences are general, and it could potentially
-   use any implementation (including SDN). But for the sake of
-   simplicity, we will assume a BGP backend like Propane.
+&& First show how to compile to the Product Graph, and from there to the ABGP
+&& Show/Define safety analysis simulation relation for both concrete and abstract product graphs
+  and how it holds for both.
+&& Next define the concretization & subst. functions for translating the abstract policy
+   into the concrete policy, using the ABGP example for reference
+
+&& Theorem: if safety analysis holdls in the abstract graph, it holds for the concrete one,
+   and the preferences are consistent.
+
+& Give abstraction theorem: commuting of concretization and compilation
 \end{easylist}
+
+\begin{figure}[t]\small
+  \begin{minipage}[t]{\linewidth}
+  \vspace*{-1\baselineskip}
+  %
+  \[ \begin{array}{rclr}
+     pol     &::=& p_1, \dots, p_n & \textit{policies} \\
+     p       &::=& t \hspace{.3em} \Path \hspace{.3em} r_1 \Prefer \dots \Prefer r_m & \textit{constraints} \\
+     t       &::=& \$x & \textit{template variable} \\
+         &\BNFALT& d.d.d.d/[d..d] & \textit{prefix test} \\
+     r       &::=& l & \textit{location} \\
+         &\BNFALT& \emptyset & \textit{empty set} \\
+         &\BNFALT& \In & \textit{internal loc} \\
+         &\BNFALT& \Out & \textit{external loc} \\
+         &\BNFALT& r_1 \cup r_2 & \textit{union} \\
+         &\BNFALT& r_1 \cap r_2 & \textit{intersection} \\
+         &\BNFALT& r_1 \cdot r_2 & \textit{concatenation} \\
+         &\BNFALT& \NOT r & \textit{path negation} \\
+         &\BNFALT& r^* & \textit{iteration} \\
+  \end{array} \]%
+
+  \end{minipage}
+  \vspace{1em}
+  \caption{Simplified \sysname syntax.}
+  \label{fig:syntax}
+  %\vspace{-1em}
+\end{figure}%
+
 
 \newcommand{\state}[4]{\node[state,#3](#1)[#4]{#2};}
 \newcommand{\transition}[4]{\path[->] (#1) edge [#4] node {#3} (#2);}
@@ -709,47 +767,43 @@ We borrow the intermediate graph-based representation from Propane:
 \begin{figure*}[t!]
   \begin{minipage}[t]{.2\linewidth}
   \hdr{Policy Automata}{}
-  \begin{tikzpicture}[>=stealth',shorten >=1pt,auto,node distance=2cm,minimum size=.5cm]
-    \state{0}{$0$}{              }{}
-    \state{1}{$1$}{right of=0}{accepting}
-    \transition{0}{0}{out}{loop above}
-    \transition{0}{1}{Peer1}{}
-    \transition{1}{1}{in}{loop above}
-  \end{tikzpicture}
+    \begin{tikzpicture}[>=stealth',shorten >=1pt,auto,node distance=2cm,minimum size=.5cm]
+      \state{0}{$0$}{              }{}
+      \state{1}{$1$}{right of=0}{accepting}
+      \transition{0}{0}{out}{loop above}
+      \transition{0}{1}{Peer1}{}
+      \transition{1}{1}{in}{loop above}
+    \end{tikzpicture}
 
-  \begin{tikzpicture}[>=stealth',shorten >=1pt,auto,node distance=2cm,minimum size=.5cm]
-    \state{0}{$0$}{              }{}
-    \state{1}{$1$}{right of=0}{accepting}
-    \transition{0}{0}{out}{loop above}
-    \transition{0}{1}{Peer2}{}
-    \transition{1}{1}{in}{loop above}
-  \end{tikzpicture}%
+    \begin{tikzpicture}[>=stealth',shorten >=1pt,auto,node distance=2cm,minimum size=.5cm]
+      \state{0}{$0$}{              }{}
+      \state{1}{$1$}{right of=0}{accepting}
+      \transition{0}{0}{out}{loop above}
+      \transition{0}{1}{Peer2}{}
+      \transition{1}{1}{in}{loop above}
+    \end{tikzpicture}%
   \end{minipage}
   %
   ~~~~~~
   %
   \begin{minipage}[t]{.4\linewidth}
-  \hdr{Concrete Topology}{}
-  \includegraphics[width=.7\columnwidth]{figures/topology-con}
+    \hdr{Concrete Topology}{}
+    \includegraphics[width=.7\columnwidth]{figures/topology-con}
   \end{minipage}%
   %
   \begin{minipage}[t]{.4\linewidth}
-  \hdr{Abstract Topology}{}
-  \includegraphics[width=.57\columnwidth]{figures/topology-abs}
+    \hdr{Abstract Topology}{}
+    \includegraphics[width=.57\columnwidth]{figures/topology-abs}
   \end{minipage}%
 
+  \vspace{2em}
   \begin{minipage}[t]{.6\linewidth}
-  \hdr{Concrete Product Graph}{}
-  %\includegraphics[width=.65\columnwidth]{figures/example3}
+    \hdr{Concrete Product Graph}{}
+    \includegraphics[width=.9\columnwidth]{figures/pg-con}
   \end{minipage}%
   \begin{minipage}[t]{.4\linewidth}
   \hdr{Abstract Product Graph}{}
-
-    \begin{tikzpicture}
-      \draw [] (0, 0) circle [radius=0.45] node {start};
-      \draw [] (-1, -1) circle [radius=0.45] node {$(S,0,0)$};
-      %\draw [] (0, .45) -- (0, 2.05);
-    \end{tikzpicture}
+    \includegraphics[width=.9\columnwidth]{figures/pg-abs}
 
   \end{minipage}%
 
@@ -771,27 +825,8 @@ We borrow the intermediate graph-based representation from Propane:
 %=====================================================
 
 
-\section{Abstraction}
-\label{sec:abstraction}
-
-\begin{easylist}[itemize]
-& Define abstractions more formally,
-&& e.g., homomorphism between graphs + node/edge constraints
-&& Use the datacenter example from before
-&& First define the concretization function for translating the abstract policy
-   into the concrete policy
-&& Next, show the Product Graph for both the concrete and abstract policies.
-
-& Show/Define safety analysis simulation relation for both concrete and abstract product graphs
-  and how it holds for both.
-&& Theorem: if safety analysis holdls in the abstract graph, it holds for the concrete one,
-   and the preferences are consistent.
-
-& Show/Define compilation to abstract BGP policies. Give concretization function,
-  and compilation definition.
-
-& Give abstraction theorem: commuting of concretization and compilation
-\end{easylist}
+\section{Analysis}
+\label{sec:analysis}
 
 
 %The examples above use what we call the front end (FE) of \sysname.
@@ -1049,17 +1084,9 @@ We borrow the intermediate graph-based representation from Propane:
   \begin{minipage}[t]{.5\linewidth}%
   \begin{tikzpicture}
     \inference{0}{L$(j,k)$}{$\vDash e_1 > 0$}{S$(min(j*k,e_1),1)$}
-    \inference{10}{A$(j,k)$}{$e_2 > 0$}{A$(1,min(j,e2))$}
-  \end{tikzpicture}
-  \end{minipage}
-
-  %
-  \vspace*{3em}
-  %
-  \begin{minipage}[t]{.5\linewidth}%
-  \begin{tikzpicture}
-    \inference{0}{L$(j,k)$}{$e_1=n$}{A$(min(j*k,n),1)$}
-    \inference{10}{L$(j,k)$}{$e_1=n$}{A$(1,j)$}
+    \inference{5}{A$(j,k)$}{$e_2 > 0$}{A$(1,min(j,e2))$}
+    \inference{10}{L$(j,k)$}{$e_1=n$}{A$(min(j*k,n),1)$}
+    \inference{15}{L$(j,k)$}{$e_1=n$}{A$(1,j)$}
   \end{tikzpicture}
   \end{minipage}
 
@@ -1069,18 +1096,10 @@ We borrow the intermediate graph-based representation from Propane:
   \begin{minipage}[t]{.5\linewidth}%
   \begin{tikzpicture}
     \inference{0}{L$(j,k)$}{$e_1 > 0$, $e_2 > 0$}{S$(min(j*k,n-\dfrac{(m-j)*e_1}{e_2}),1)$}
-  \end{tikzpicture}
-  \end{minipage}
-
-  %
-  \vspace*{3em}
-  %
-  \begin{minipage}[t]{.5\linewidth}%
-  \begin{tikzpicture}
     \inference{10}{L$(j,k)$ ~~~ L$(j- m ~\text{mod}~ \big(\dfrac{n}{e_1}\big),1)$}{$e_1 > 0$, $e_2 > 0$}{}
   \end{tikzpicture}
   \end{minipage}
-  %
+
   \vspace*{1em}
   \hrule
   \vspace*{1em}
@@ -1197,30 +1216,50 @@ We apply \sysname on policies for backbone and datacenter networks. We aim to ev
 
 \begin{figure}[t!]
   \begin{center}
-      \begin{tabular}{| l l | c | c | c |}
+      \begin{tabular}{| l | c | c | c |}
       \hline
-      \textbf{Topology} & \textbf{Variant} & \textbf{Fixed} & \textbf{Reachable} & \textbf{K-paths} \\ \hline
-      Fattree
-         & Google &  & \cmark & \cmark  \\
-         & Facebook &  & \cmark & \cmark \\
-         & F10 &  & \cmark & \cmark \\ \hline
-      Recursive
-         & BCube & $k$ & \cmark & \xmark \\
-         & DCell & $k$ & \cmark & \xmark \\ \hline
+      \textbf{Topology} & \textbf{Fixed} & \textbf{Reachable} & \textbf{K-paths} \\ \hline
+      Google Fattree & & \cmark & \cmark  \\ \hline
+      Facebook Fattree & & \cmark & \cmark \\ \hline
+      Microsoft Fattree & & & \\ \hline
+      F10 Fattree & & \cmark & \cmark \\ \hline
+      BCube & $k$ & \cmark & \xmark \\ \hline
+      DCell & $k$ & \cmark & \xmark \\ \hline
          %& HCN & $h$ & \cmark & \xmark \\
-      Hypercube
-         & Standard & $N$ & \cmark & \cmark \\
-         & HyperX & $L$ & \cmark & \cmark \\ \hline
-      Random \footnote{foo}
-         & Scafida &  & ??? & ??? \\
-         & JellyFish &  & ??? & ??? \\
-
-      \hline
+      Butterfly & $n$ & \cmark & \cmark \\ \hline
+      Hypercube & $N$ & \cmark & \cmark \\ \hline
+      HyperX & $L$ & \cmark & \cmark \\ \hline
       \end{tabular}
   \end{center}
   \caption{Abstract Analysis Precision.}
   \label{fig:analysis-precision}
 \end{figure}
+
+%\begin{figure}[t!]
+%  \begin{center}
+%      \begin{tabular}{| l l | c | c | c |}
+%      \hline
+%      \textbf{Topology} & \textbf{Variant} & \textbf{Fixed} & \textbf{Reachable} & \textbf{K-paths} \\ \hline
+%      Fattree
+%         & Google &  & \cmark & \cmark  \\
+%         & Facebook &  & \cmark & \cmark \\
+%         & F10 &  & \cmark & \cmark \\ \hline
+%      Recursive
+%         & BCube & $k$ & \cmark & \xmark \\
+%         & DCell & $k$ & \cmark & \xmark \\ \hline
+%         %& HCN & $h$ & \cmark & \xmark \\
+%      Hypercube
+%         & Standard & $N$ & \cmark & \cmark \\
+%         & HyperX & $L$ & \cmark & \cmark \\ \hline
+%      Random \footnote{foo}
+%         & Scafida &  & ??? & ??? \\
+%         & JellyFish &  & ??? & ??? \\
+%      \hline
+%      \end{tabular}
+%  \end{center}
+%  \caption{Abstract Analysis Precision.}
+%  \label{fig:analysis-precision}
+%\end{figure}
 
 We evaluate the expressiveness and precision of our abstract analysis on a range of different network topologies found in both the network literature and production. For each topology in figure~\ref{fig:analysis-precision} we define a suitable abstraction. Since many topologies have tunable parameters (e.g., the recursion depth $k$ for the DCell topology), we list all such parameters that are fixed for our abstraction. We implement a shortest path routing policy over the topology and record the precision of the abstract analysis in terms of whether or not it is able to accurately prove reachability and/or the correct number of disjoint paths between all pairs of nodes.
 
@@ -1236,9 +1275,9 @@ We also model several recursive topologies using our abstractions. These include
 
 Hypercube variants can be used as an alternative to Clos-style topologies for networks with high-radix (port density) switches. The HyperX topology can be viewed as a generalization of the hypercube, which includes parameters $L$ for the lattice dimension of the network, $S_i$ for the node multiplicity of each dimension $i$, $K_i$ for the bandwidth of links for each dimension, and $T$ for the number of terminal nodes (servers) connected to each router. For a fixed number of dimensions $L$, we abstract each full mesh of $S_L$ nodes into its own abstract node. The $S_{x-1}$ groups of abstract nodes can be captured using pods of the abstract $S_x$ nodes.
 
-\para{Random Network Topologies}
-
-Random networks such as Scafida and Jellyfish have seen a great deal of interest in academia. These topologies were designed with an eye towards incremental expansion and are based on probabilistic arguments of bisection bandwidth in random regular graphs. However, because the topologies are created randomly, there are no hard guarantees on the connectivity between different routers. We can trivially represent these networks using a \emph{one big switch} abstraction for the entire network.
+%\para{Random Network Topologies}
+%
+%Random networks such as Scafida and Jellyfish have seen a great deal of interest in academia. These topologies were designed with an eye towards incremental expansion and are based on probabilistic arguments of bisection bandwidth in random regular graphs. However, because the topologies are created randomly, there are no hard guarantees on the connectivity between different routers. We can trivially represent these networks using a \emph{one big switch} abstraction for the entire network.
 
 
 \subsection{Compilation time}
