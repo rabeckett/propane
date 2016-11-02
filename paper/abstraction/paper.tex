@@ -692,46 +692,9 @@ Because the abstract analysis is policy sensitive, if we were to run the it with
 
 Configuration synthesis for network configurations is challenging for a number of reasons. First, although \sysname polices specify stable network-wide routing behavior, actual configurations are per-device and run distributed algorithms to compute routes. Thus the compiler must ensure that the result of the distributed computation matches the policy. Furthermore the distributed computation must compute the correct paths under all possible combinations of failures. Second, \sysname must find configurations that work across any valid concrete network topology matching the abstraction provided as input. Finally, \sysname must ensure that the resulting configurations can be evolved incrementally so that local changes to the topology ensure that only local changes to configurations are required to ensure global routing correctness. 
 
-In this section, we introduce the idea of topology abstraction, describe how \sysname synthesizes network configurations over these abstractions, and formalize the guarantees provided by \sysname.
+In this section, we formalize the \sysname language and topology abstraction, describe how \sysname synthesizes network configurations over these abstractions, and formalize the guarantees provided by \sysname.
 
 \subsection{Methane Language}
-
-The syntax introduced in \S\ref{sec:overview} is just syntactic sugar for a core language based on regular expressions. Figure~\ref{fig:syntax} shows a simplified version of the core \sysname syntax that omits some details such as aggregation. The full langauge definition can be found in the appendix. A policy has one or more constraints, each of which consists of a test on the type of traffic being matched and a corresponding set of preferred regular expressions describing network paths. Regular expressions are defined over network locations, where each location is either a router inside the operators network, or an external neighbor. There are two special characters \In~ and \Out, which match any internal and external location respectively. There are two types of predicates: a test for a concrete prefix $d.d.d.d/[d..d]$ matches an IP prefix with value $d.d.d.d$ and length in the range $[d..d]$ where metavariable $d$ represents an integer. For example, the IP prefix 148.0.1.0/[24..32] would match traffic destined for IP address 148.0.1.* with a subnet length between 24 and 32 bits. \ryan{this needs to be explained clearer}.
-
-Converting from the high-level syntax from \S\ref{sec:overview} to the core syntax is straightforward. For example, the predicate $\True$ becomes $0.0.0.0/[0..32]$. Preferences are lifted to the top level of the regular expression when unambiguous. For example, the constraint $\Exit(\sf{Peer1} \Prefer \sf{Peer2})$ becomes $\Exit(\sf{Peer1}) \Prefer \Exit(\sf{Peer2})$ before being rewritten into regular expressions. Each modular set of constraints are joined prefix-by-prefix by taking the intersection of their constraints. For example, the data center policy from \S\ref{sec:overview} would result in the following \sysname policy:
-%
-\begin{code}
-\$PG  \Path \End(TG) & !transit(\Out,\Out),
-\$PL  \Path \End(TL) & \Always(\In) & !transit(\Out,\Out),
-\True \Path 
-    \Exit(Peer1) & !transit(\Out,\Out) \Prefer 
-    \Exit(Peer2) & !transit(\Out,\Out)
-\end{code}
-\noindent%
-%
-Finally, each constraint desugars to a regular expression. For example, the constraint $\Always(\In)$ becomes $\In^*$ and the constraint $\End({\small \mathsf{T0}})$ becomes $\Sigma^* \cdot \sf{T0}$.
-
-\subsection{Topology Abstraction}
-
-\subsection{Configuration Synthesis}
-
-\subsection{Substitution Theorem}
-
-\begin{easylist}[itemize]
-& Define abstractions more formally,
-&& e.g., homomorphism between graphs + node/edge constraints
-
-&& First show how to compile to the Product Graph, and from there to the ABGP
-&& Show/Define safety analysis simulation relation for both concrete and abstract product graphs
-  and how it holds for both.
-&& Next define the concretization & subst. functions for translating the abstract policy
-   into the concrete policy, using the ABGP example for reference
-
-&& Theorem: if safety analysis holdls in the abstract graph, it holds for the concrete one,
-   and the preferences are consistent.
-
-& Give abstraction theorem: commuting of concretization and compilation
-\end{easylist}
 
 \begin{figure}[t]\small
   \begin{minipage}[t]{\linewidth}
@@ -759,6 +722,90 @@ Finally, each constraint desugars to a regular expression. For example, the cons
   \label{fig:syntax}
   %\vspace{-1em}
 \end{figure}%
+
+The syntax introduced in \S\ref{sec:overview} is just syntactic sugar for a core language based on regular expressions. Figure~\ref{fig:syntax} shows a simplified version of the core \sysname syntax that omits some details such as aggregation. The full langauge definition can be found in the appendix. 
+
+A policy has one or more constraints, each of which consists of a test on the type of traffic being matched and a corresponding set of preferred regular expressions describing network paths. Regular expressions are defined over network locations, where each location is either a router inside the operators network, or an external neighbor. There are two special characters \In~ and \Out, which match any internal and external location respectively. There are two types of predicates: a test for a concrete prefix $d.d.d.d/[d..d]$ matches an IP prefix with value $d.d.d.d$ and length in the range $[d..d]$ where metavariable $d$ represents an integer. For example, the IP prefix 148.0.1.0/[24..32] would match traffic destined for IP address 148.0.1.* with a subnet length between 24 and 32 bits. \ryan{this needs to be explained clearer}.
+
+Converting from the high-level syntax from \S\ref{sec:overview} to the core syntax is straightforward. For example, the predicate $\True$ becomes $0.0.0.0/[0..32]$. Preferences are lifted to the top level of the regular expression when unambiguous. For example, the constraint $\Exit(\sf{Peer1} \Prefer \sf{Peer2})$ becomes $\Exit(\sf{Peer1}) \Prefer \Exit(\sf{Peer2})$ before being rewritten into regular expressions. Each modular set of constraints are joined prefix-by-prefix by taking the intersection of their constraints. For example, the combining the Routing and Locality constraints in the data center policy from \S\ref{sec:overview} would result in the following \sysname policy:
+%
+\begin{code}
+\$PG  \Path \End(TG),
+\$PL  \Path \End(TL) \ensuremath{\cap} \Always(\In),
+\True \Path \Exit(Peer1) \Prefer \Exit(Peer2)
+\end{code}
+\noindent%
+%
+Finally, each constraint desugars to a regular expression. For example, the constraint $\Always(\In)$ becomes $\In^*$ and the constraint $\End({\small \mathsf{T0}})$ becomes $\Sigma^* \cdot \sf{T0}$.
+
+\subsection{Topology Abstraction}
+
+
+\subsection{Product Graph}
+
+A key step for \sysname to generate device configurations is to build a data structure amenable to joint analysis of both the topology and routing policy. Intutively, \sysname captures both topology and routing constraints by ``intersecting" the finite automata associated with the policy regular expressions with the graph structure of the topology into a data structure called the Product Graph. 
+
+The Product Graph is a compact representation of all paths distributed protocol messages might be passed through the network in order to result in policy-compliant paths.
+Although \sysname policies describe the routes that traffic should take through the network, network protocols (including BGP) typically disseminate router information in the opposite direction. 
+For example, a router Y will tell its neighbor X that it has a route to the destination meaning that X can send traffic through Y. For this reason, we start by compiling 
+
+Since each predicate in a \sysname policy has its own set of regular expression path constraints, \sysname constructs one Product Graph per prefix and generates configuration on a per-prefix basis.
+
+\para{Formal definition}
+
+\ryan{TODO: this was copied from previous paper for reference}
+
+For each regular expression $r_i$ in an RIR policy, we construct a DFA for the reversed regular expression. An automata for regular expression $r_i$ is defined as a tuple ($\Sigma, Q_i, F_i, q_{0_i}, \sigma_i$). The alphabet $\Sigma$ consists of all abstract locations (\IE, routers or ASes), $Q_i$ is the set of states for automaton i, $F_i$ is the set of final states, $q_{0_i}$ is the initial state, and $\sigma_i \colon Q_i \times \Sigma \rightarrow Q_i$ is the state transition function.
+%
+The topology is represented as a graph ($V, E$), which consists of a set of vertices $V$ and a set of directed edges $E \colon V \times V$.
+%
+The Product Graph is constructed as a tuple ($V'$, $E'$, $s$, $P$) with
+vertices $V' \colon V \times Q_1 \times \dots \times Q_j$,
+edges $E' \colon V' \times V'$,
+a unique starting vertex $s$,
+and a preference function $P \colon V' \rightarrow 2^{\set{1, \dots, j}}$ , which maps nodes in the product graph to a set of path ranks.
+
+For a Product Graph vertex $n = (l, \dots) \in V'$, we say that $n$ is a \emph{shadow} of topology location $l$. We also write $\tilde{n} = l$ to indicate that the topology location for node $n$ is $l$. When two PGIR nodes $m$ and $n$ shadow the same topology location (\IE, $\tilde{m} = \tilde{n}$), we write $m \approx n$.
+
+\ryan{TODO: this was copied from previous paper for reference}
+
+\para{From RIR To PGIR}
+
+Let $a_i$ and $b_i$ denote states in the regular policy automata.
+The PGIR is constructed by adding an edge from $m = (l_m, a_1, \dots, a_k)$ to $n = (l_n, b_1, \dots, b_k)$ whenever $\sigma_i(a_i, l_n) = b_i$ for each $i$ and $(l_m,l_n) \in E$ is a valid topology link.
+%
+Additionally, we add edges from the start node $s$ to any $n = (l, a_1, \dots, a_k)$ when $\sigma_i(q_{0_i}, l) = a_i$ for each $i$.
+%
+The preference function $P$ is defined as $P(n) = \set{i~\vert~a_i \in F_i} $. That is, it records the path rank of each automaton that has reached a final state.
+% in preferences are achieved from each policy automaton for every node in the product construction.
+%
+We write $(m \leq_{rank} n)$ if either $P(m) = P(n) = \emptyset$ or $min ~ P(m) \leq min ~ P(n)$, which means that paths ending at PGIR node $m$ are better (lower rank) than paths ending at $n$.
+
+Figure~\ref{fig:example-compilation} shows an example of constructing a Product Graph for the policy that applies to all external traffic from the datacenter example in \S\ref{sec:overview}: 
+%
+%\begin{code}
+%\True \Path \Exit(\sf{Peer1}) \Prefer \Exit(\sf{Peer2})
+%\end{code}
+%\noindent%
+%
+The first automaton represents the more preferred constraint $\Exit(Peer1)$ and the second automaton represents the less preferred constraint $\Exit(Peer2)$. The Product Graph representation is shown for both an instance of a concrete network matching the abstraction from \S\ref{sec:overview} as well as for the abstraction itself. 
+
+Each node in the Product Graph tracks both where a protocol message is in the topology as well as how much progress has been made towards satisfying each policy constraint. In this example, all routes that eventually leave through Peer1 will lead to an accepting state for the first automaton and all routes that eventually leave through Peer2 will lead to an accepting state for the second automaton. Note that the translation from the topology to the Product Graph preserves the graph homomorphism property. \ryan{TODO: explain this more formally}
+
+\subsection{Substitution Theorem}
+
+\begin{easylist}[itemize]
+& homomorphism between graphs + node/edge constraints
+& First show how to compile to the Product Graph, and from there to the ABGP
+& Show/Define safety analysis simulation relation for both concrete and abstract product graphs
+  and how it holds for both.
+&& Next define the concretization & subst. functions for translating the abstract policy
+   into the concrete policy, using the ABGP example for reference
+&& Theorem: if safety analysis holdls in the abstract graph, it holds for the concrete one,
+   and the preferences are consistent.
+
+& Give abstraction theorem: commuting of concretization and compilation
+\end{easylist}
 
 
 \newcommand{\state}[4]{\node[state,#3](#1)[#4]{#2};}
