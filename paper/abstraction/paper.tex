@@ -461,11 +461,7 @@ The next section introduces \sysname using the example in Figure~\ref{fig:exampl
 \section{Methane overview}
 \label{sec:overview}
 
-As we have seen, writing correct network configurations is challenging task.
-Operators must manually decompose network-wide policies into device configurations,
-reason about all combination of network failures, parameterize configurations to
-allow for change, and write configurations in a way amenable to incremental change.
-We now give an overview of \sysname, a system that facilitates all of these tasks.
+As we have seen, writing correct network configurations is challenging task. Operators must manually decompose network-wide policies into distributed device configurations, reason about all combinations of network failures, and parameterize configurations to allow for change, ideally in a way that is amenable to incremental change. In this section, we give an overview of the \sysname system, which gives operators a principled way to accomplish all of these tasks.
 
 %\subsection{Concrete Methane}%
 
@@ -551,30 +547,18 @@ We now give an overview of \sysname, a system that facilitates all of these task
 
 \subsection{Abstract Synthesis}
 
-\sysname builds on the Propane network configuration synthesis language,
-which lets operators specify a \emph{network-wide} routing policy, by adding
-support for compiling policies parameterized over different topology.
-In particular, a \sysname policy consists of predicates matching
-certain classes of traffic, paired with a list of ranked constraints
-on the paths traffic should prefer to take for the predicate.
+\sysname builds on the Propane network configuration synthesis tool, by supporting both synthesis for and reasoning over parameterized classes of topologies and their interactions with user-specified routing policy. 
+\sysname takes as input, (1) a topology abstraction in the form of a graph homomorphism annotated with logical constraints about node and edge mutliplicities, and (2) a domain-specific routing policy that consists of a mapping from predicates matching various classes of traffic, to a list of ranked constraints on the paths traffic matching the predicate should prefer to take through the network.
 
 \para{Topology Abstraction}
 
-Consider again the datacenter from earlier. Ideally, we would like
-to find device configuration templates for each router that, taken together, ensure correct forwarding
-behavior for both of the datacenter topologies in figures~\ref{fig:example} and~\ref{fig:example2}.
+Consider again the networks from \S\ref{sec:motivation}. Ideally, we would like
+to find a suitable topology abstraction that can describe both of the datacenters from figures~\ref{fig:example} and~\ref{fig:example2} as well as any reasonable generalization of these datacenters. \sysname provides several abstraction mechanisms to achieve this goal. 
 
-\sysname achieves this by allowing the operator to abstract the network into
-a role-based topology that captures a class of concrete topologies and then write a
-routing specification over this abstraction. Figure~\ref{fig:example3} shows an example of one
-such abstraction for the datacenter networks.
+The first is a role-based abstraction that allows an operator to map routers in the concrete network to ``roles" or routers in the abstract network. Figure~\ref{fig:example3} shows an example of an abstraction for both datacenter networks from \S\ref{sec:motivation}. In particular the concrete networks are abstracted into a new topology with 5 different roles: local tor (TL), global tor (TG), local aggregator (AL), global aggregator (AG), and spine (S). 
 
-The network is partitioned into 5 different roles:
-local tor (TL), global tor (TG), local aggregator (AL), global aggregator (AG), and spine (S).
-Intuitively, each concrete router in the network must map to exactly one role.
-Whenever there is a link between routers in the concrete network, there must be an associated link
-between their abstract roles. Thus the role-based abstraction is an overapproximation of the connectivity
-of the concrete network.
+More specifically, a network topology is a graph $G$ = ($V, E$), which consists of a set of vertices $V$ and a set of directed edges $E \colon V \times V$. A role-based abstraction is a graph homomorphism from $G$ to an abstract graph $G^A$ = ($V^A$,$E^A$). A graph homorphism $f : G \rightarrow G^A$ is a function that maps each node in the concrete graph to a node in the abstract graph such that, whenever $(u,v) \in E$, then $(f(u),f(v)) \in E^A$. 
+
 
 \begin{figure}[t!]
   \centering
@@ -584,16 +568,18 @@ of the concrete network.
   \vspace{-1em}
 \end{figure}
 
+The role-based abstraction therefore overapproximates the connectivity of the underlying concrete graphs. Unfortunately this abstraction alone loses a lot of information about the underlying structure of the concrete network. For example, with this abstraction any spine router in a concrete network may or may not be connected to any aggregator router.
+%
 In order to refine the abstraction to capture more precisely the kinds of concrete networks of interest,
 we introduce a notion of node and edge \emph{multiplicities}. Each edge (and node) is labelled
 with a symbolic variable (\EG, $e1, e2, \ldots$) that denotes a constraint on the number of nodes/edges
 that may appear in any given concrete network. Operators can then capture concrete network invariants by adding constraints on the symbolic variables using logical formula.
 
-For example, in Figure~\ref{fig:example3}, the first two constraints: $e1 = AG$ and $e2 = TG$ declare that, within any pod P, the number of outgoing edges from $TG$ to $AG$ is equal to the number of nodes that map to $AG$. Similarly, the number of outgoing edges from $AG$ to $TG$ is equal to the number of nodes that map toe $TG$. These constraints capture the fact that, within any given pod, the global aggregators and tors are in a full mesh. Furthermore, the constraints $TG = AG$ and $TG \geq 2$ ensure that the number of concrete nodes in role $TG$ is always equal to the number of concrete nodes in role $AG$. Similar constraints also appear for the local aggregators and tors.
+For example, in Figure~\ref{fig:example3}, the first two constraints: $e1 = AG$ and $e2 = TG$ declare that, within any pod P, the number of outgoing edges from $TG$ to $AG$ is equal to the number of nodes that map to $AG$. Similarly, the number of outgoing edges from $AG$ to $TG$ is equal to the number of nodes that map to $TG$. These constraints capture the fact that, within any given pod, the global aggregators and tors are in a full mesh. Furthermore, the constraints $TG = AG$ and $TG \geq 2$ ensure that the number of concrete nodes in role $TG$ is always equal to the number of concrete nodes in role $AG$, which is at least 2. Similar constraints also appear for the local aggregators and tors.
 %
-The constraint $e3 \geq 2$ says that, in each pod, each aggregator node has at least 2 outgoing edges to nodes in the spine role. Symmetrically, the constraint $e4 \geq 1$ says that, for each pod P, each node in the spine role has at least one outgoing edge to a node in the $AG$ role. Again, similar constraints appear for the local aggregator role. Finally, the constraints $S \geq 2$, $S \pmod AG = 0$, and $S \pmod AL = 0$ ensure that there are at least 2 routers in the spine role, and that the number of spine routers is always divisible by the number of global and local aggregators.
+The constraint $e3 \geq 2$ says that, in each pod, each aggregator node has at least 2 outgoing edges to nodes in the spine role. Symmetrically, the constraint $e4 \geq 1$ says that, for each pod P, each node in the spine role has at least one outgoing edge to a node in the $AG$ role. Again, similar constraints appear for the local aggregator role. Finally, the constraints $S \geq 2$, $(S \mod AG) = 0$, and $(S \mod AL) = 0$ ensure that there are at least 2 routers in the spine role, and that the number of spine routers is always divisible by the number of global and local aggregators.
 %
-The last two constraints are interesting in that they do not involve a simple inequality. In general operators can write constraints using logical formula over any SMT theory. 
+The last two constraints are interesting in that they do not involve a simple inequality. In general operators can write constraints using logical formula for any theory supported by modern SMT solvers. 
 
 All the guarantees provided by \sysname hold for any instantiation of the abstract network. This means that operators can safely expand their network in the future so long as the new network also satisfies these logical constraints.
 
@@ -617,49 +603,49 @@ All the guarantees provided by \sysname hold for any instantiation of the abstra
 
 \para{Routing Policy}
 
-Now let us configure each of the datacenter networks from \S\ref{sec:motivation} by writing a routing policy over the abstract topology. In \sysname, we can capture the basic routing behavior with the following constraints:
+Next let us see how to configure each of the datacenter networks from \S\ref{sec:motivation} by writing a \sysname routing policy over the new abstract topology. In \sysname, we can capture the basic routing behavior for the datacenters with the following constraints:
 %
 \begin{code}
 \Define Routing =
-    \$PG  \Path \End(TG)
-    \$PL  \Path \End(TL)
+    \$GP  \Path \End(TG)
+    \$LP  \Path \End(TL)
     \True \Path \Exit(Peer1 \Prefer Peer2)
 \end{code}
 \noindent%
 
-The first line introduces a prefix \emph{template} variable. It says that traffic for each global prefix associated with the template variable \$PG has the constraint that it should follow a path that ends at its corresponding destination router contained in the abstract TG role. The second line does the same thing for all local prefixes. 
+The first line introduces a prefix \emph{template} variable. It says that traffic for each global prefix associated with the template variable \$GP has the constraint that it should follow a path that ends at its corresponding destination router contained in the abstract TG role. The second line does the same thing for all local prefixes. 
 %
-The final rule matches all other IP prefix destinations and allows traffic to follow a path that leaves the datacenter through either of its peers (Peer1 or Peer2) with a preference for leaving through Peer1. The \Prefer~ symbol indicates that traffic should satisfy the constraint on the left whenever possible, and only resort to the backup (right) when this is not possible due to failures.%
+The final rule matches all other IP prefix destinations and allows traffic to follow a path that leaves the datacenter through either of its peers (Peer1 or Peer2) with a preference for leaving through Peer1. The \Prefer~symbol indicates that traffic should satisfy the constraint on the left whenever possible (\IE, a path exists in the network), and only resort to the backup (right) when this is not possible due to failures.%
 
 Next we can capture the constraint that traffic for local prefixes must stay local to the datacenter.
-We do this with the following \sysname code:
+We do this with the following \sysname constraint:
 %
 \begin{code}
 \Define Locality = 
-    \$PL \Path \Always(\In)
+    \$LP \Path \Always(\In)
 \end{code}
 \noindent%
 %
-The Locality constraint applies to any traffic destined for a local prefix described by the \$PL prefix template variable and adds the constraint that the traffic must follow a path that matches an internal location (\IE, a router inside the datacenter) at each hop of the path. This prevents traffic from ever entering from or leaving through an external peer. Finally, we can combine these constraints together as follows:
+The Locality constraint applies to any traffic destined for a local prefix described by the \$LP prefix template variable and adds the constraint that the traffic must follow a path that matches an internal location (\IE, a router inside the datacenter) at each hop of the path. This prevents traffic from ever entering from or leaving through an external peer. Finally, we can combine these constraints together as follows:
 
 \begin{code}
 Routing & Locality & \Agg(PG, \In -> \Out)
 \end{code}
 \noindent%
 
-This tells \sysname to find BGP router configurations that satisfy the conjunction of the Routing and Locality constraints. It also declares an additional constraint that we want to perform aggregation for global prefixes by summarizing them as the more general prefix PG at the border of the datacenter (\IE along any edge starting inside our datacenter and ending at a peer outside the datacenter).
+This tells \sysname to find BGP router configurations that satisfy the conjunction of the Routing and Locality constraints. It also declares an additional constraint that we want to perform prefix summarization (as PG) for global prefixes at the border of the datacenter (\IE, along any edge starting inside our datacenter and ending at a peer outside the datacenter).
 
-When \sysname compiles the above policy, it guarantees that the forwarding behavior of the network will be correct for any concrete instantiation of the abstract network, and for any combination of failures that may occur in the concrete network. Furthermore, \sysname will generate configurations in such a way that, if we want to expand our network, for example by adding additional spine routers as in figure~\ref{fig:example2}, then the expansion can be performed incrementally (\IE, only configurations for routers local to the expansion will need to change).
+When \sysname compiles the above policy, it guarantees that the forwarding behavior of the network will be correct for any concrete instantiation of the abstract network, and for any combination of failures that may occur in the concrete network. Furthermore, \sysname will generate configurations in such a way that, if we want to expand our network, for example by adding or removing a spine routers as in figure~\ref{fig:example2}, then the expansion can be performed by only ever touching device configurations that are adjacent to the change.
 
 \subsection{Abstract Analysis}
 
-Although \sysname can ensure correct forwarding behavior independent of the exact concrete topology or failure scenario, it is often useful to be able to ask "what if" questions about other network properties. For example, an operator may require a certain level fault tolerance between between different collections of routers. Importantly, such analysis depends, not only on the network topology, but also on the underlying routing policy. To this end, we develop a sound analysis over abstract topologies to answer questions about the number of disjoint paths between pairs of nodes.
+Although \sysname can ensure correct forwarding behavior independent of the exact concrete topology or failure scenario, it is often useful to be able to ask "what if" questions about other network properties. For example, an operator may require a certain level fault tolerance between between different collections of routers. Such analysis depends, not only on the network topology, but also on the underlying routing policy, both of which \sysname has access to. To this end, we develop a sound analysis over abstract topologies to answer questions about the number of disjoint paths between pairs of nodes.
 
-Suppose we want to find a worst-case lower bound on the number of disjoint paths between any global tor and spine router from figure~\ref{fig:example3} after applying the routing policy. This would give us a bound on the fault tolerance for, not only the current datacenter, but any sound expansion of it. Furthermore, this can be used as a lightweight verification tool to detect certain classes of configuration bugs. For example, since we are performing aggregation at the border of the datacenter, we might introduce what is known as an aggregation black hole if enough failures occur to disconnect a tor from a spine.
+Suppose we want to find a worst-case lower bound on the fault tolerance between any global tor and spine router from figure~\ref{fig:example3} for any concrete topology after applying the routing policy. This can be used as a lightweight verification tool to detect certain classes of configuration bugs. For example, since the network is performing prefix summarization at the border of the datacenter, we might introduce a black hole after enough failures occur to disconnect a tor from a spine router.
 
-The disjoint path analysis works in the following way. For each abstract role in the network, we learn invariants about the number of disjoint paths to routers in that role. These invariants contain a sequence of labels followed by a pair of numbers $(i,j)$. For example, the analysis would start with a fact of the form: $S_P S_{TG} (1,1)$. This means that, there is some group of nodes of size 1 in the TG role in some pod P such that each node has 1 disjoint path to it (and all such paths are edge-disjoint). Since we know that the each node in the TG role is in a full mesh with nodes in the AG role within any given pod, we might infer a fact for AG of the form: $S_P A_{AG}(e1,1)$. This says that any group of nodes of size e1 in the AG role is reachable with at least 1 edge-disjoint path to each such node.
+We develop a disjoint path analysis works in the following way. For each abstract role in the network, we learn invariants about the number of disjoint paths to routers in that role. These invariants contain a sequence of labels followed by a pair of numbers $(i,j)$. For example, the analysis would start with a fact of the form: $S_P S_{TG} (1,1)$. This means that, there is some group of nodes of size 1 in the TG role in some pod P such that any initial node in the TG role has 1 disjoint path to it (and all such paths are edge-disjoint). Since we know that the each node in the TG role is in a full mesh with nodes in the AG role within any given pod, we might infer a fact for AG of the form: $S_P A_{AG}(e1,1)$. This says that any group of nodes of size e1 in the AG role is reachable with at least 1 edge-disjoint path to each such node from any initial node in the TG role.
 %
-If we run the abstract analysis over the abstract network from figure~\ref{fig:example3} the analysis will learn a fact of the form $A_{S}(1,2)$, which means that any single spine node is reachable via 2 disjoint paths from any global tor node \ryan{it will actually be 1, we need to add a constraint on e1}. 
+If we run the abstract analysis over the abstract network from figure~\ref{fig:example3} the analysis will learn a fact of the form $A_{S}(1,2)$, which means that any single spine node is reachable via 2 disjoint paths from any initial global tor node \ryan{it will actually be 1, we need to add a constraint on e1}. 
 
 Suppose now that we want to disallow paths with valleys (\IE, paths that go down and then up at some point). Such a constraint can be added to the routing policy in \sysname:
 \begin{code}
@@ -669,7 +655,7 @@ Suppose now that we want to disallow paths with valleys (\IE, paths that go down
 \noindent%
 
 This adds a constraint that applies to all traffic and prevents valleys by defining each level in the datacenter.
-Because the abstract analysis is policy sensitive, if we were to run the it with the same abstract topology but the new routing policy, it would only be able to infer that there is a single disjoint path to any given spine router in the worst case. In fact this is exactly the case for the concrete network from figure~\ref{fig:example2}.  
+Because the abstract analysis is policy sensitive, if we were to run it again with the same abstract topology but the new routing policy, it would only be able to infer that there is a single disjoint path to any given spine router in the worst case. In fact this is exactly the case for the concrete network from figure~\ref{fig:example2}.  
 
 %
 %The constraint prevents traffic from over taking a path that traverses
@@ -738,9 +724,6 @@ Converting from the high-level syntax from \S\ref{sec:overview} to the core synt
 %
 Finally, each constraint desugars to a regular expression. For example, the constraint $\Always(\In)$ becomes $\In^*$ and the constraint $\End({\small \mathsf{T0}})$ becomes $\Sigma^* \cdot \sf{T0}$.
 
-\subsection{Topology Abstraction}
-
-
 \subsection{Product Graph}
 
 A key step for \sysname to generate device configurations is to build a data structure amenable to joint analysis of both the topology and routing policy. Intutively, \sysname captures both topology and routing constraints by ``intersecting" the finite automata associated with the policy regular expressions with the graph structure of the topology into a data structure called the Product Graph. 
@@ -753,26 +736,17 @@ Since each predicate in a \sysname policy has its own set of regular expression 
 
 \para{Formal definition}
 
-\ryan{TODO: this was copied from previous paper for reference}
-
-For each regular expression $r_i$ in an RIR policy, we construct a DFA for the reversed regular expression. An automata for regular expression $r_i$ is defined as a tuple ($\Sigma, Q_i, F_i, q_{0_i}, \sigma_i$). The alphabet $\Sigma$ consists of all abstract locations (\IE, routers or ASes), $Q_i$ is the set of states for automaton i, $F_i$ is the set of final states, $q_{0_i}$ is the initial state, and $\sigma_i \colon Q_i \times \Sigma \rightarrow Q_i$ is the state transition function.
+For each regular expression $r_i$ from $r_1 ~\Prefer~ .. ~\Prefer~ r_k$, we construct a DFA for the reverse of $r_i$. An automaton for $r_i$ is defined as a tuple ($\Sigma, Q_i, F_i, q_{0_i}, \sigma_i$). The alphabet $\Sigma = G^A$ is the set of topology locations, $Q_i$ is the set of states for automaton i, $F_i$ is the set of final states, $q_{0_i}$ is the initial state, and $\sigma_i \colon Q_i \times \Sigma \rightarrow Q_i$ is the state transition function.
 %
-The topology is represented as a graph ($V, E$), which consists of a set of vertices $V$ and a set of directed edges $E \colon V \times V$.
-%
-The Product Graph is constructed as a tuple ($V'$, $E'$, $s$, $P$) with
+The Product Graph is a tuple ($V'$, $E'$, $s$, $P$) with
 vertices $V' \colon V \times Q_1 \times \dots \times Q_j$,
 edges $E' \colon V' \times V'$,
 a unique starting vertex $s$,
 and a preference function $P \colon V' \rightarrow 2^{\set{1, \dots, j}}$ , which maps nodes in the product graph to a set of path ranks.
 
-For a Product Graph vertex $n = (l, \dots) \in V'$, we say that $n$ is a \emph{shadow} of topology location $l$. We also write $\tilde{n} = l$ to indicate that the topology location for node $n$ is $l$. When two PGIR nodes $m$ and $n$ shadow the same topology location (\IE, $\tilde{m} = \tilde{n}$), we write $m \approx n$.
-
 \ryan{TODO: this was copied from previous paper for reference}
 
-\para{From RIR To PGIR}
-
-Let $a_i$ and $b_i$ denote states in the regular policy automata.
-The PGIR is constructed by adding an edge from $m = (l_m, a_1, \dots, a_k)$ to $n = (l_n, b_1, \dots, b_k)$ whenever $\sigma_i(a_i, l_n) = b_i$ for each $i$ and $(l_m,l_n) \in E$ is a valid topology link.
+The Product Graph is constructed by adding an edge from state $m = (l_m, a_1, \dots, a_k)$ to $n = (l_n, b_1, \dots, b_k)$ whenever $\sigma_i(a_i, l_n) = b_i$ for each $i$ and $(l_m,l_n) \in E$ is a valid topology link.
 %
 Additionally, we add edges from the start node $s$ to any $n = (l, a_1, \dots, a_k)$ when $\sigma_i(q_{0_i}, l) = a_i$ for each $i$.
 %
@@ -780,6 +754,9 @@ The preference function $P$ is defined as $P(n) = \set{i~\vert~a_i \in F_i} $. T
 % in preferences are achieved from each policy automaton for every node in the product construction.
 %
 We write $(m \leq_{rank} n)$ if either $P(m) = P(n) = \emptyset$ or $min ~ P(m) \leq min ~ P(n)$, which means that paths ending at PGIR node $m$ are better (lower rank) than paths ending at $n$.
+%
+For a Product Graph if vertex $m,n = (l, \dots) \in V'$, we say that $m$ and $n$ are shadows, written: $m \approx n$.
+
 
 Figure~\ref{fig:example-compilation} shows an example of constructing a Product Graph for the policy that applies to all external traffic from the datacenter example in \S\ref{sec:overview}: 
 %
@@ -790,20 +767,18 @@ Figure~\ref{fig:example-compilation} shows an example of constructing a Product 
 %
 The first automaton represents the more preferred constraint $\Exit(Peer1)$ and the second automaton represents the less preferred constraint $\Exit(Peer2)$. The Product Graph representation is shown for both an instance of a concrete network matching the abstraction from \S\ref{sec:overview} as well as for the abstraction itself. 
 
-Each node in the Product Graph tracks both where a protocol message is in the topology as well as how much progress has been made towards satisfying each policy constraint. In this example, all routes that eventually leave through Peer1 will lead to an accepting state for the first automaton and all routes that eventually leave through Peer2 will lead to an accepting state for the second automaton. Note that the translation from the topology to the Product Graph preserves the graph homomorphism property. \ryan{TODO: explain this more formally}
+Each node in the Product Graph tracks both where a protocol message is in the topology as well as how much progress has been made towards satisfying each policy constraint. In this example, all routes that eventually leave through Peer1 will lead to an accepting state for the first automaton and all routes that eventually leave through Peer2 will lead to an accepting state for the second automaton.
 
 \subsection{Substitution Theorem}
 
 \begin{easylist}[itemize]
-& homomorphism between graphs + node/edge constraints
 & First show how to compile to the Product Graph, and from there to the ABGP
 & Show/Define safety analysis simulation relation for both concrete and abstract product graphs
   and how it holds for both.
-&& Next define the concretization & subst. functions for translating the abstract policy
+& Next define the concretization & subst. functions for translating the abstract policy
    into the concrete policy, using the ABGP example for reference
-&& Theorem: if safety analysis holdls in the abstract graph, it holds for the concrete one,
+& Lemma: if safety analysis holdls in the abstract graph, it holds for the concrete one,
    and the preferences are consistent.
-
 & Give abstraction theorem: commuting of concretization and compilation
 \end{easylist}
 
