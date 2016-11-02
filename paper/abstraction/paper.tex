@@ -675,9 +675,9 @@ As we have seen, writing correct network configurations is challenging task. Ope
 %to manually consider failure scenarios.
 
 
-\subsection{Abstract Synthesis}
+\subsection{Abstract Compilation}
 
-\sysname builds on the Propane network configuration synthesis tool, by supporting both synthesis for and reasoning over parameterized classes of topologies and their interactions with user-specified routing policy. 
+\sysname builds on the Propane network configuration tool, by supporting both synthesis for and reasoning over parameterized classes of topologies and their interactions with user-specified routing policy. 
 \sysname takes as input, (1) a topology abstraction in the form of a graph homomorphism annotated with logical constraints about node and edge mutliplicities, and (2) a domain-specific routing policy that consists of a mapping from predicates matching various classes of traffic, to a list of ranked constraints on the paths traffic matching the predicate should prefer to take through the network.
 
 \para{Topology Abstraction}
@@ -803,7 +803,7 @@ Because the abstract analysis is policy sensitive, if we were to run it again wi
 %
 %=====================================================
 
-\section{Configuration Synthesis}
+\section{Compilation}
 \label{sec:compilation}
 
 Configuration synthesis for network configurations is challenging for a number of reasons. First, although \sysname polices specify stable network-wide routing behavior, actual configurations are per-device and run distributed algorithms to compute routes. Thus the compiler must ensure that the result of the distributed computation matches the policy. Furthermore the distributed computation must compute the correct paths under all possible combinations of failures. Second, \sysname must find configurations that work across any valid concrete network topology matching the abstraction provided as input. Finally, \sysname must ensure that the resulting configurations can be evolved incrementally so that local changes to the topology ensure that only local changes to configurations are required to ensure global routing correctness. 
@@ -874,18 +874,15 @@ edges $E' \colon V' \times V'$,
 a unique starting vertex $s$,
 and a preference function $P \colon V' \rightarrow 2^{\set{1, \dots, j}}$ , which maps nodes in the product graph to a set of path ranks.
 
-\ryan{TODO: this was copied from previous paper for reference}
-
-The Product Graph is constructed by adding an edge from state $m = (l_m, a_1, \dots, a_k)$ to $n = (l_n, b_1, \dots, b_k)$ whenever $\sigma_i(a_i, l_n) = b_i$ for each $i$ and $(l_m,l_n) \in E$ is a valid topology link.
+The Product Graph is constructed by adding an edge from state $m = (l_m, q_{m_1}, \dots, q_{m_k})$ to $n = (l_n, q_{n_1}, \dots, q_{n_k})$ whenever $\sigma_i(q_{m_i}, l_n) = q_{n_i}$ for each $i$ and $(l_m,l_n) \in E$ is a valid topology link.
 %
-Additionally, we add edges from the start node $s$ to any $n = (l, a_1, \dots, a_k)$ when $\sigma_i(q_{0_i}, l) = a_i$ for each $i$.
+We add edges from the start node $s$ to any $m = (l, q_{m_1}, \dots, q_{m_k})$ when $\sigma_i(q_{0_i}, l) = q_{m_i}$ for each $i$.
 %
-The preference function $P$ is defined as $P(n) = \set{i~\vert~a_i \in F_i} $. That is, it records the path rank of each automaton that has reached a final state.
-% in preferences are achieved from each policy automaton for every node in the product construction.
+The preference function $P(m)$ denotes the rank of paths through the Product Graph ending at node $m$ and is defined as $P(m) = \set{i~\vert~q_{m_i} \in F_i}$. 
 %
-We write $(m \leq_{rank} n)$ if either $P(m) = P(n) = \emptyset$ or $min ~ P(m) \leq min ~ P(n)$, which means that paths ending at PGIR node $m$ are better (lower rank) than paths ending at $n$.
+We write $(m \leq_{rank} n)$ if $P(m) = \emptyset$ or $\min ~ P(m) \leq \min ~ P(n)$, which means that paths ending at PGIR node $m$ are better (lower rank) than paths ending at $n$.
 %
-For a Product Graph if vertex $m,n = (l, \dots) \in V'$, we say that $m$ and $n$ are shadows, written: $m \approx n$.
+We write $m \approx n$ whenever two vertices $m,n = (l, \dots) \in V'$ share the same topology location $l$.
 
 
 Figure~\ref{fig:example-compilation} shows an example of constructing a Product Graph for the policy that applies to all external traffic from the datacenter example in \S\ref{sec:overview}: 
