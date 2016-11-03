@@ -846,7 +846,7 @@ Since each predicate in a \sysname policy has its own set of regular expression 
 
 For each regular expression $r_i$ from $r_1 ~\Prefer~ .. ~\Prefer~ r_k$, we construct a DFA for the reverse of $r_i$. An automaton for $r_i$ is defined as a tuple ($\Sigma, Q_i, F_i, q_{0_i}, \sigma_i$). The alphabet $\Sigma = G^A$ is the set of topology locations, $Q_i$ is the set of states for automaton i, $F_i$ is the set of final states, $q_{0_i}$ is the initial state, and $\sigma_i \colon Q_i \times \Sigma \rightarrow Q_i$ is the state transition function.
 %
-The Product Graph is a tuple ($V'$, $E'$, $s$, $P$) with
+The Product Graph is a tuple ($G'$, $s$, $P$) where $G' = (V',E')$ is a new graph with 
 vertices $V' \colon V \times Q_1 \times \dots \times Q_j$,
 edges $E' \colon V' \times V'$,
 a unique starting vertex $s$,
@@ -856,12 +856,9 @@ The Product Graph is constructed by adding an edge from state $m = (l_m, q_{m_1}
 %
 We add edges from the start node $s$ to any $m = (l, q_{m_1}, \dots, q_{m_k})$ when $\sigma_i(q_{0_i}, l) = q_{m_i}$ for each $i$.
 %
-The preference function $P(m)$ denotes the rank of paths through the Product Graph ending at node $m$ and is defined as $P(m) = \set{i~\vert~q_{m_i} \in F_i}$. 
+The preference function $P(m)$ denotes the rank of paths through the Product Graph ending at node $m$ and is defined as $P(m) = \set{i~\vert~q_{m_i} \in F_i}$.
 %
-We write $worse(m,n)$ if $P(n) = \emptyset$ or $\min ~ P(m) \geq \min ~ P(n)$, which means that paths ending at PGIR node $m$ are worse (higher rank) than paths ending at $n$.
-%
-We write $m \approx n$ whenever two vertices $m,n = (l, \dots) \in V'$ share the same topology location $l$.
-
+Finally, we write $\tilde{m} = l$ to extract the topology location from a product graph node, when $m = (l, \dots) \in V'$.
 
 Figure~\ref{fig:example-compilation} shows an example of constructing a Product Graph for the policy that applies to all external traffic from the datacenter example in \S\ref{sec:overview}: 
 %
@@ -874,6 +871,15 @@ The first automaton represents the more preferred constraint $\Exit(Peer1)$ and 
 
 Each node in the Product Graph tracks both where a protocol message is in the topology as well as how much progress has been made towards satisfying each policy constraint. In this example, all routes that eventually leave through Peer1 will lead to an accepting state for the first automaton and all routes that eventually leave through Peer2 will lead to an accepting state for the second automaton.
 
+From Figure~\ref{fig:example-compilation} we can see that both the concrete and abstract product graphs share a similar structure. This leads us to the following observation 
+
+\begin{defn}
+If we have a graph homomorphism $f : G \rightarrow G^A$, concrete product graph $PG = (G',s,P)$ and abstract product graph $PG^A = (G'^A, s^A, P^A)$, then we can construct a new, lifted homomorphism $f_{pg} : G' \rightarrow G'^A$ in the following way: 
+\[ \begin{array}{rcl}
+  f_{pg}( s ) & = & s^A  \\
+  f_{pg}( (l,q_1,\ldots,q_n) ) & = & (f(l),q_1,\ldots,q_n) \\
+\end{array} \]
+\end{defn}
 
 \newcommand{\state}[4]{\node[state,#3](#1)[#4]{#2};}
 \newcommand{\transition}[4]{\path[->] (#1) edge [#4] node {#3} (#2);}
@@ -934,42 +940,117 @@ Each node in the Product Graph tracks both where a protocol message is in the to
 
 The translation from the Product Graph to per-device configurations that run the distributed BGP protocol involves several ideas. 
 
+\para{Route filtering}
+
 The first idea is to tag every protocol message with a BGP community value that relays the state of each automaton when advertising a route to a neighbor. Routers can then allow route advertisements that correspond to an edge in the Product Graph (\IE, from a neighbor with the correct state) and block those that don't. This ensures that any path computed by BGP will be a valid path in the Product Graph, and thus is allowed by the policy. For example, in the concrete Product Graph in figure~\ref{fig:example-compilation}, router $S1$ will allow a route advertisement from its neighbor $P1$ and also from neighbor $P2$. If it uses neighbor $P1$, then it will add the tag $(1,0)$ before informing its neighbors about its route. On the other hand, if it uses neighbor $P2$, then it will add the tag $(0,1)$ before informing its neighbors about the route.
+%
+However, letting BGP find some allowed path is not enough. \sysname must ensure BGP always computes the \emph{best} path according to the user's preferences, even when failures occur. 
 
-%The first step is to generate per-device BGP import and export filters based on the edges in the Product Graph. The idea is to attach a tag to every route advertisement that routers send to their neighbors that encodes the current state of the automata. For example... \ryan{show example here}. This ensures that BGP will only find paths that exist in the Product Graph, and are thus allowed by the policy.
 
-However, letting BGP find some allowed path is not enough. \sysname must ensure BGP always computes the \emph{best} path according to the user's preferences, even when failures occur. The second idea is to totally order advertisements each router might receive from neighbors in the Product Graph by preference. For example, to satisfy the policy that leaving through $\sf{P1}$ is preferred to leaving through $\sf{P2}$, router $S1$ should prefer a route it hears from $P1$ over one from $P2$. Similarly, router $A1$ should prefer routes tagged with $(1,0)$ over those tagged with $(0,1)$.
+\para{Preference Search}
+The second idea is to totally order advertisements each router might receive from neighbors in the Product Graph by preference. For example, to satisfy the policy that leaving through $\sf{P1}$ is preferred to leaving through $\sf{P2}$, router $S1$ should prefer a route it hears from $P1$ over one from $P2$. Similarly, router $A1$ should prefer routes tagged with $(1,0)$ over those tagged with $(0,1)$.
 
 In general, because BGP is distributed, each router does not have a full view of the entire network when choosing which path to use. Because finding a collection of preferences to ensure correct end-to-end behavior for all failures is a hard problem, Propane introduced a conservative, yet effective algorithm for determining route preferences based on the following observation about the structure of the Product Graph:
 
+\begin{defn}
+Let $m \geq_{rank} n$ be a relation over Product Graph vertices that holds iff $P(n) = \emptyset$ or $\min P(m) \geq \min P(n)$. Intuitively $m \geq_{rank} n$ means that paths ending at PGIR node $m$ are no better (higher rank) than paths ending at $n$.
+%
+\end{defn}
+\noindent
+%
 
 \begin{defn}
-The product graph can be viewed as a labelled transition system where
-$m\overset{l}{\rightarrow}n$ if edge $(m,n) \in E'$ and $loc(n) = l$. We write $m \leq m'$ if $m$ simulates $m'$ with respect to the ``worse" relation on node rankings.
+The product graph can be viewed as a labelled transition system by pushing the topology location from each directed edge's target node onto the edge. That is, $m\overset{l}{\rightarrow}n$ if edge $(m,n) \in E'$ and $\tilde{n} = l$. 
+\end{defn}
+
+For example, in concrete product graph we would have the transition $(S1,1,0)\overset{A2}{\rightarrow}(A2,1,0)$
+
+\begin{defn}
+We write $m \leq m'$ if the subgraph reachable from $m$ and $m'$ respectively form a simulation relation with respect to the $\geq_{rank}$ relation on node rankings.
 \end{defn}
 
 We can assign BGP local preferences for the policy in the following way: Check if each router has a total order with respect to the simulation relation ($\leq$) for its corresponding Product Graph nodes. If so, then simply sort the nodes and prefer advertisements from peers of node $m$ over those of node $m'$ if $m' \leq m$.
+ 
+For example, in the concrete product graph we have $(S1,0,1) \leq (S1,1,0)$ since nodes on the left side of the product graph can always match transitions made on the right hand side while always maintaining a node ranking that is at least as good as that on the right hand side (since they match the preferred rank 1 automaton). This relation does not hold the other way around. Therefore, advertisements received at $S1$ in state $(1,0)$ must be preferred to those received in state $(0,1)$. 
 
-For example, in the concrete product graph we have $(S1,0,1) \leq (S1,1,0)$ but not the other way around. Therefore, advertisements received at $S1$ in state $(0,1)$ must be preferred to those received in state $(1,0)$. Observe also that in the abstract product graph, node $(S,0,1) \leq (S,1,0)$. This leads us the the following lemma:
+Notice also that in the abstract product graph, node $(S,0,1) \leq (S,1,0)$. This leads us the the following observation:
 
 \begin{lem}
 \label{lem:preference}
-$m \leq m'$ in the concrete product graph iff $f(m) \leq f(m')$ in the abstract product graph under the lifted graph homomorphism $f$.
+$m \leq m'$ in the concrete product graph iff $f_{pg}(m) \leq f_{pg}(m')$ in the abstract product graph under the lifted graph homomorphism $f_{pg}$.
 \end{lem}
 
-Intuitively, Lemma~\ref{lem:preference} hints that we will be able to infer BGP local preferences over the abstract product graph rather than the concrete product graph.
+Lemma~\ref{lem:preference} gives us reason to believe that we can perform compilation over the abstract product graph and ensure that the inferred device-level preferences will be correct when instantiating the template with a concrete network.
 
 
-\subsection{Substitution Theorem}
+\newcommand{\highlight}[1]{%
+  \colorbox{red!50}{$\displaystyle#1$}}
+\newcommand{\Router}[1]{\KW{Router} #1:}
+\newcommand{\REGEX}[1]{\texttt{regex}(#1)}
+\newcommand{\PEER}{\texttt{peer}}
+\newcommand{\PREFIX}{\texttt{prefix}}
+\newcommand{\IF}{\texttt{if}}
+\newcommand{\THEN}{\texttt{then}}
+\newcommand{\COMM}{\texttt{comm}}
+\newcommand{\MED}{\texttt{MED}}
+\newcommand{\Arrow}{\ensuremath{\leftarrow}}
+
+\para{BGP configurations}
+
+\begin{figure*}[t!]
+  \begin{minipage}[t]{.54\linewidth}
+    \hdr{Concrete Configuration}{}
+    \begin{code}
+      \Router{S1}
+        Match[100] \PREFIX=GP1, \PEER=*
+          \PEER \Arrow *
+        Match[100] \PREFIX=GP2, \PEER=*
+          \PEER \Arrow *
+        ...
+        Match[100] \PREFIX=LP1, \PEER=\{AG1, ..., AL1, ...\}
+          \PEER \Arrow \{AG1, ..., AL1, ...\}
+        Match[100] \PREFIX=LP2, \PEER=\{AG1, ..., AL1, ...\}
+          \PEER \Arrow \{AG1, ..., AL1, ...\}
+        ...
+        Match[110] \PREFIX=0.0.0.0/[0..32], \PEER=P1, 
+          \PEER \Arrow *, \COMM \Arrow (1,0)
+        Match[100] \PREFIX=0.0.0.0/[0..32], \PEER=P2, 
+          \PEER \Arrow *, \COMM \Arrow (0,1)
+        ...
+      \end{code}
+  \end{minipage}
+  %
+  \begin{minipage}[t]{.4\linewidth}
+    \hdr{Template Configuration}{}
+    \begin{code}
+      \Router{S}
+        Match[100] \PREFIX=\$GP, \PEER=*
+          \PEER \Arrow *
+        Match[100] \PREFIX=\$LP, \PEER=\{AG, AL\}
+          \PEER \Arrow \{AG, AL\}
+        Match[110] 0.0.0.0/[0..32], \PEER=P1, 
+          \PEER \Arrow *, \COMM \Arrow (1,0)
+        Match[100] 0.0.0.0/[0..32], \PEER=P2, 
+          \PEER \Arrow *, \COMM \Arrow (0,1)
+        ...
+      \end{code}
+  \end{minipage}%
+
+  \hrulefill
+  \vspace*{.4em}%
+
+  \caption{Spine configurations for concrete and abstract policies.}
+  \label{fig:bgp-configs}
+\end{figure*}
+
+By combining the tagging, filtering and preference mechanisms, we can generate safe BGP configurations. In general, configurations are generated by combining the per-prefix configurations in the same order specified in the policy. Figure~\ref{fig:bgp-configs} shows partial a configuration for the spine routers in the concrete and abstract policies.
+
+\subsection{Compilation Correctness}
 
 \begin{easylist}[itemize]
 & First show how to compile to the Product Graph, and from there to the ABGP
-& Show/Define safety analysis simulation relation for both concrete and abstract product graphs
-  and how it holds for both.
 & Next define the concretization & subst. functions for translating the abstract policy
    into the concrete policy, using the ABGP example for reference
-& Lemma: if safety analysis holdls in the abstract graph, it holds for the concrete one,
-   and the preferences are consistent.
 & Give abstraction theorem: commuting of concretization and compilation
 \end{easylist}
 
