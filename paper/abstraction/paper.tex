@@ -220,37 +220,37 @@ We test \sysname out on ... blah blah blah
 An important class of networks are the large \emph{structured networks}
 commonly deployed in industrial data centers.  These networks run
 many critical services and every second of downtime is at best
-costly and at worst dangerous.  Unfortunately, it is an enormous 
+costly and at worst dangerous.  Unfortunately, it is an enormous
 challenge to keep these complex networks up and
 running 24/7~\cite{mahajan+:bgp-misconfiguration,feamster+:rcc,batfish,dc-failure-study}.
 Moreover, while hardware faults, rodents, power failures and natural
 disasters can all cause significant downtime, studies have shown that
 \emph{human error}, which occurs during network configuration or
 update, is the single large cause of these
-outages~\cite{juniper-study}. 
+outages~\cite{juniper-study}.
 
 % These networks often
 % host a myriad of services and every second of downtime imposes significant
-% financial cost or disruption to consumers.  
+% financial cost or disruption to consumers.
 Such networks typically have uniform, tree-shaped topologies that involve
 hundreds or even thousands of devices.  Since it is not possible for humans
-to think about configuring each individual device independently, 
+to think about configuring each individual device independently,
 network operators typically classify the devices, assigning them a particular
 \emph{role} such as ``top-of-rack switch'' or ``tier-one aggregation switch.''
-Each such role is codified as a \emph{configuration template}---a macro 
+Each such role is codified as a \emph{configuration template}---a macro
 that may be instantiated with different concrete values to
 generate a configuration for each device that plays the role.
 
-Unfortunately, such templates have no particular semantics other than the 
+Unfortunately, such templates have no particular semantics other than the
 semantics
-that one obtains from instantiating a template's parameters.  
+that one obtains from instantiating a template's parameters.
 \dpw{add blah blah about low-level, assembly language, device by device}
 Moreover,
 template construction is a manual process:  network engineers do their
-best to design templates that will work effectively in the context 
+best to design templates that will work effectively in the context
 of their particular network topology.  However, there is no support for
-validating key properties of an assembly of templates, such as connectivity 
-and fault tolerance, 
+validating key properties of an assembly of templates, such as connectivity
+and fault tolerance,
 aside from instantiating the templates and testing.  In addition,
 network engineers have no tools to help them design for network
 evolution.  For instance, the process of adding new equipment to
@@ -262,14 +262,14 @@ is an important design goal.  It is no wonder that a major
 network outage, such as the one that grounded all United Air flights
 in July 2015~\cite{x}, makes international news every few months.
 
-To combat these problems, we present \sysname, a 
-new high-level language designed to 
+To combat these problems, we present \sysname, a
+new high-level language designed to
 provide improved support for the configuration of large, structured networks.
-\sysname allows network operators to define \emph{abstract network topologies} 
+\sysname allows network operators to define \emph{abstract network topologies}
 that
 classify devices in terms of their roles and how they are connected
 to one another.  For instance, a programmer may
-define separate roles for ``top-of-rack switch'' and 
+define separate roles for ``top-of-rack switch'' and
 ``tier-one aggregation switch'' and specify that every top-of-rack switch
 is connected to at least two different tier-one aggregation switches,
 thereby providing a degree of fault tolerance of one aggregation switch
@@ -280,23 +280,23 @@ To specify \emph{routing policy} for such abstract networks,
 programming language~\cite{propane}.  As such, it is able to
 specify the paths that traffic should flow along at a high-level of
 abstraction.  However, whereas \propane policies
-refer to paths of individual devices, \sysname policies 
+refer to paths of individual devices, \sysname policies
 refer to paths of abstract roles.  The \sysname compiler compiles such
 policies into templates, with one template per role, and these templates
-may be instantiated to generate concrete configurations. 
+may be instantiated to generate concrete configurations.
 
 During compilation, the \sysname compiler also analyzes policy with respect to the
-abstract topology and guarantees that the configurations will 
+abstract topology and guarantees that the configurations will
 faithfully implement the high-level policy on \emph{any} concrete
 topology that satisfies the given connectivity invariants.  The compiler
-will also optionally perform a second fault tolerance analysis that 
+will also optionally perform a second fault tolerance analysis that
 determines the minimum number of link failures required to disconnect
 \emph{any} concrete topology that once again satisfies the connectivity
-invariants.  
+invariants.
 
 Finally, generated \sysname configurations are designed to
 be \emph{evolution-friendly} in the sense that if an operator adds or
-removes any single link or device, they are guaranteed that only 
+removes any single link or device, they are guaranteed that only
 the configurations of adjacent devices need change (for instance, to
 activate a port on which the new device is connected).  Doing so
 helps minimize network instability as data centers are expanded or devices are
@@ -315,15 +315,15 @@ To summarize, the central contributions of this paper are:
 \begin{enumerate}
 \item Design of new topology abstractions involving roles and
 connectivity invariants for network programmers.
-\item Design of two new algorithms for analyzing routing policy over 
+\item Design of two new algorithms for analyzing routing policy over
 abstract networks: one which
-guarantees correct compilation and one which determines fault tolerance 
-properties of network policy.  Both algorithms provide guarantees for any 
+guarantees correct compilation and one which determines fault tolerance
+properties of network policy.  Both algorithms provide guarantees for any
 concrete network satisfying the abstract connectivity invariants.
 \item Design of template generation algorithms that support network
 evolution.
-\item Implementation and evaluation of a \sysname compiler that generates 
-configuration templates and is up to two orders of magnitude faster 
+\item Implementation and evaluation of a \sysname compiler that generates
+configuration templates and is up to two orders of magnitude faster
 than its closest competitor on large networks.
 \end{enumerate}
 
@@ -336,12 +336,12 @@ than its closest competitor on large networks.
 %% continue to use traditional networking techology---upgrading to SDN is
 %% expensive and technically challenging.
 
-%% In a traditional network, every router runs an independent instance of 
+%% In a traditional network, every router runs an independent instance of
 %% a distributed protocol that
-%% exchange messages about available routes to destination addresses.  
+%% exchange messages about available routes to destination addresses.
 %% Each router is configured independently, but the overall behavior
 %% of the network---the paths from one server to another, for instance---depend
-%% upon the 
+%% upon the
 
 %=====================================================
 %
@@ -351,9 +351,65 @@ than its closest competitor on large networks.
 %
 %=====================================================
 
+\section{Background}
+\label{sec:background}
 
-\section{Background and Motivation}
+In this work, we focus on synthesizing configurations for a network that runs the Border Gateway Protocol (BGP), which is the standard for routing across independent organizations and inside large datacenters. It scales effectively and allows operators to define flexible policies. 
+
+The interactions among BGP routers determines how the network forwards traffic. To invite traffic from a neighbor to a destination, routers announce the destination's address {\em prefix} (e.g., 10.1.1.0/24\footnote{An IP(v4) address
+such as 10.1.1.0 is 32 bits, with each of the four values representing 8 bits. A prefix such as 10.1.1.0/24 denotes the set of addresses that share the first 24 bits with 10.1.1.0, \IE, all addresses that begin with 10.1.1.}) to the neighbor. In this way, traffic flows in the opposite direction to such {\em route announcements.}
+
+Route announcements contain additional attributes. A common one is {\em AS path}, which denotes the sequence of Autonomous Systems that will be traversed to reach the destination. When BGP is used inside a datacenter, each router tends to be its own AS. Optional attributes include one or more {\em communities}, which are arbitrary strings. Operators agree on what each community value means out of band.
+
+A BGP router may receive one or more announcements from different neighbors for the same prefix. It selects the best one(s) based on its {\em import policy}. These policies are a function of the AS path, community values, or the neighbor that sent the announcement, and may even filter some announcements altogether (i.e., not use them even if no other announcements to the destination are available). Then, based on the {\em export policy}, the router announces the selected route to one or more neighbors, after adding itself to the AS path and, optionally, modifying the set of community values.
+
+%When this occurs,
+%it processes the messages as follows:
+%\begin{enumerate}
+%\item It \emph{filters} (drops) some of the incoming messages based on
+%any their attributes (AS path, community values, peer it came from, \ETC),
+%and optionally modifies attributes of the messages it does not drop.
+%This is usually called the \emph{import} stage.
+%\item From the remaining messages, it selects the one message it
+%most \emph{prefers}. Selection is based on a number of criteria, but the
+%most important is the local preference number: Higher local preferences
+%are preferred.  Ties are broken by AS path length --- BGP defaults to
+%shortest path routing in such cases.
+%\item Finally, it \emph{exports} the preferred message to selected neighbors,
+%adding its own AS number to the path and optionally adding or
+%modifying attributes.
+%\end{enumerate}
+%When a BGP router is configured, the user tunes the import and export
+%stages of the above process, choosing which messages to import, how to
+%modify them and how to export them.  By modifying the local preferences
+%on messages in the inport phase, the user determines which messages will
+%be selected.  This in turn determines how traffic destined for the given
+%address will be routed.  Keep in mind that if BGP messages to a destination
+%are propagated in one direction (left-to-right), then traffic will wind
+%up flowing in the opposite direction (right-to-left).
+
+A BGP router may also perform {\em route aggregation} when exporting to certain neighbors. That is, instead of announcing multiple prefixes it may announce a single covering prefix (e.g., 10.1.0.0/16 instead of 10.1.[1--255].0/24). The covering prefix is announced as long as the router has a valid route to any of the covered prefixes. Aggregation helps reduce the memory consumption of routers, but it can lead to traffic black holes~\cite{route-aggregation}. A router that announces 10.1.0.0/16, because it has a route to 10.1.1.0/24, may also get traffic for 10.1.2.0/24 to which it has no route.
+
+%Rather than export 2$^n$ addresses in the same range, routers will
+%often perform \emph{route aggregation}, and export a single (32-$n$)-bit
+%prefix.  During aggregation, whenever an advertisement for
+%\emph{any} of the 2$^n$ addresses
+%reaches the router, the \emph{entire} aggregate prefix will be announced.
+%While useful for decreasing announcements and avoiding churn, such
+%aggregation can be dangerous:  If a message for one of the 2$^n$ addresses (X)
+%reaches the aggregation router, but another one of the addresses (Y)
+%cannot reach the aggregation router due to a failure then the aggregate
+%will be announced, possibly drawing traffic to Y, even though Y cannot be
+%reached.  This is known as an \emph{aggregation-induced black hole}~\cite{route-aggregation}.
+%Networks should be configured to be sufficiently fault tolerant to minimize
+%the chances of such black holes.
+
+
+\section{Motivation}
 \label{sec:motivation}
+
+Configuring a BGP network requires configuring, among other things, the import and export policies for each router such that traffic flows in a way that is compliant with the network's global policies. We demonstrate the difficulty of this task using an example.
+
 
 \begin{figure}[t!]
   \centering
@@ -371,83 +427,16 @@ than its closest competitor on large networks.
   \vspace{-1em}
 \end{figure}
 
-\paragraph*{Background}  Traditional routers use 
-distributed protocols to exchange messages about available routes. 
-One such protocol is the Border Gateway Protocol (BGP).  BGP is the
-standard for inter-domain routing (the act of exchanging routing information 
-between independently-owned networks) and is also commonly used in
-data centers because it allows operators to define relatively flexible
-routing policy while also scaling effectively to large networks.
-When used within a data center, each router is configured with its own \emph{AS number},
-which identifies it.
+Consider the data center network in Figure~\ref{fig:example}. The boxes in the diagram
+represent \emph{switches}. Using terminology for fat tree networks~\cite{fattree}, T[1--8] denote top-of-rack (ToR) switches, A[1--8] denote aggregation switches, and S[1--2] denote spine switches. The spine switches are connected to the
+rest of the Internet; any traffic to or from the outside world flows through them.  The aggregation switches 
+bridge the spines to the ToRs which attach to a set of servers (``a rack''). P[1--8] denote address prefixes for services hosted in each rack.
 
-Each BGP message (also called a \emph{route announcement}) contains a 
-\emph{destination prefix}, such as 10.1.1.0/24,\footnote{An address
-such as 10.1.1.0 is 32 bits, with each of the four values representing 8 bits.  
-A prefix such
-as 10.1.1.0/24 denotes the set of addresses that begin with the first
-24 bits of 10.1.1.0, \IE, all addresses that begin with 10.1.1.} as well as an
-\emph{AS path}, such as XYZ (where each of X, Y and Z would be an AS number).  
-Such messages indicate that the set of addresses
-denoted by the prefix may be reached by following the path XYZ. 
-A BGP message may also contain additional attributes, such as 
-\emph{local preference} attribute and one or more
-\emph{community values}.
-
-A BGP router may receive messages about the same prefix from several
-of its \emph{peers} (\IE, neighbouring routers).  When this occurs,
-it processes the messages as follows:
-\begin{enumerate}
-\item It \emph{filters} (drops) some of the incoming messages based on
-any their attributes (AS path, community values, peer it came from, \ETC),
-and optionally modifies attributes of the messages it does not drop.
-This is usually called the \emph{import} stage.
-\item From the remaining messages, it selects the one message it
-most \emph{prefers}. Selection is based on a number of criteria, but the
-most important is the local preference number: Higher local preferences
-are preferred.  Ties are broken by AS path length --- BGP defaults to 
-shortest path routing in such cases.
-\item Finally, it \emph{exports} the preferred message to selected neighbors,
-adding its own AS number to the path and optionally adding or
-modifying attributes.
-\end{enumerate}
-When a BGP router is configured, the user tunes the import and export
-stages of the above process, choosing which messages to import, how to
-modify them and how to export them.  By modifying the local preferences
-on messages in the inport phase, the user determines which messages will
-be selected.  This in turn determines how traffic destined for the given
-address will be routed.  Keep in mind that if BGP messages to a destination
-are propagated in one direction (left-to-right), then traffic will wind
-up flowing in the opposite direction (right-to-left).
-
-Rather than export 2$^n$ addresses in the same range, routers will
-often perform \emph{route aggregation}, and export a single (32-$n$)-bit
-prefix.  During aggregation, whenever an advertisement for 
-\emph{any} of the 2$^n$ addresses
-reaches the router, the \emph{entire} aggregate prefix will be announced.
-While useful for decreasing announcements and avoiding churn, such
-aggregation can be dangerous:  If a message for one of the 2$^n$ addresses (X)
-reaches the aggregation router, but another one of the addresses (Y)
-cannot reach the aggregation router due to a failure then the aggregate
-will be announced, possibly drawing traffic to Y, even though Y cannot be
-reached.  This is known as an \emph{aggregation-induced black hole}~\cite{route-aggregation}.
-Networks should be configured to be sufficiently fault tolerant to minimize
-the chances of such black holes.
-
-\paragraph*{An Example}
-%We motivate \sysname using an example data center network. Our network, 
-Consider the data center network shown in Figure~\ref{fig:example}.  The boxes in the diagram
-represent \emph{switches}, and these switches play several different roles:  T[1--8] denote top-of-rack (ToR) switches, A[1--8] denote aggregation switches, and S[1--2] denote spine switches. The spine switches are connected to the
-rest of the internet; any traffic to or from the outside world flows through them.  The aggregation switches
-serve as a bridge between spine and ToR switches.   Finally, each ToR switch is
-connected to a set servers (``a rack''): P[1--8] denote groups of addresses for services hosted in each rack. 
-% Such groups are called address {\em prefixes} because they are encoded using the adresses' shared prefix. 
-
-%% We assume that each switch is running an instance of the \emph{Border Gateway Protocol} (BGP), 
+%% We assume that each switch is running an instance of the \emph{Border Gateway Protocol} (BGP),
 %% as is common in large data centers. In this protocol, adjacent switches use BGP to exchange messages
 %% with one another concerning the availability of routes to destinations.  A BGP \emph{configuration}
-%% (one for each switch) dictates which offered routes a switch will select and how to propagate chosen routes to its 
-%% neighbours.\footnote{If this submission is accepted and more space is available in the final version, 
+%% (one for each switch) dictates which offered routes a switch will select and how to propagate chosen routes to its
+%% neighbours.\footnote{If this submission is accepted and more space is available in the final version,
 %% we will give a detailed explanation of BGP for the PLDI audience.  Henceforth, we assume knowledge of basic BGP
 %% mechanics.}
 
@@ -464,33 +453,33 @@ As many have observed before, such configuration tasks are highly challenging. C
 In response, researchers have developed systems that synthesize low-level device configurations from high-level policy statements~\cite{narain:lisa05,narain+:configassure,dadc,propane}.
 %They take network topology and policy as input and output device configurations that are  guaranteed to be correct under all possible failures. Thus, they save the engineers from performing the complex task of breaking down global policies into device configurations.
 These systems eliminate entire classes of configuration errors by construction, and, in the case of
-Propane~\cite{propane}, guarantee that high-level policy is implemented correctly, even in the presence of 
+Propane~\cite{propane}, guarantee that high-level policy is implemented correctly, even in the presence of
 arbitrary combinations of failures.
 
-However, our conversations with network engineers at two major cloud providers reveal that they have two limitations that discourage adoption.  The first is a mismatch in abstraction. Engineers of large, structured networks tend to think of the network, and to develop management tools, using \emph{roles}, and not individual devices. 
-A {\em role} refers to specific functionality and is played by one or more routers. The network in Figure~\ref{fig:example} has five roles: spine, global aggregator, global ToR, local aggregator, and local ToR.  Engineers are naturally reluctant to use a system that does not 
-understand roles as a first-order abstraction because they think about 
-network policy in terms of roles, and, even more importantly, if they want to debug, analyze or 
-understand system output, they will have to consider 
+However, our conversations with network engineers at two major cloud providers reveal that they have two limitations that discourage adoption.  The first is a mismatch in abstraction. Engineers of large, structured networks tend to think of the network, and to develop management tools, using \emph{roles}, and not individual devices.
+A {\em role} refers to specific functionality and is played by one or more routers. The network in Figure~\ref{fig:example} has five roles: spine, global aggregator, global ToR, local aggregator, and local ToR.  Engineers are naturally reluctant to use a system that does not
+understand roles as a first-order abstraction because they think about
+network policy in terms of roles, and, even more importantly, if they want to debug, analyze or
+understand system output, they will have to consider
 \emph{hundreds} of independent device configurations instead of just
 \emph{a handful} of role configurations. Unfortunately, even if two devices play the same role,
 there is no guarantee a concrete synthesis system will generate (syntactically) similar configurations,
-making vetting system outputs extremely difficult. 
+making vetting system outputs extremely difficult.
 
-A second limitation is the inability to support network evolution. Networks evolve all the time as nodes and links are added or removed and the addresses of services are changed. A system that supports evolution would ensure that 
+A second limitation is the inability to support network evolution. Networks evolve all the time as nodes and links are added or removed and the addresses of services are changed. A system that supports evolution would ensure that
 small changes in topology require small, local changes in network configurations as opposed to pervasive
-changes across many devices.  Engineers want to minimize changes to device configurations because each change runs the risk of poor, transient behavior due to poor router software or routing protocol dynamics~\cite{ratulbgpmisconfigs}.  
+changes across many devices.  Engineers want to minimize changes to device configurations because each change runs the risk of poor, transient behavior due to poor router software or routing protocol dynamics~\cite{ratulbgpmisconfigs}.
 %These networks must be highly
 %available; it isn't plausible to bring down an entire data center network, or large portions of it, to make
 %incremental changes.
 
 Unfortunately, in general, any change in network topology requires re-execution of a
 concrete synthesis engine, from scratch,
-on the changed topology.  The result may be 
+on the changed topology.  The result may be
 a completely different set of configurations.  However, even if such configurations are
 largely semantically similar to existing configurations, they may be syntactically different,
 and may cause considerable network disruption when updates are pushed to switches.
-For instance, suppose an operator wants to modify the prefix of local ToR T8 in Figure~\ref{fig:example}. To accommodate the modification, Propane, a concrete synthesis tool, will, at a minimum, not only change T8's configuration but also those of the two spines because it uses prefix lists at spines to ensure that local prefixes are not advertised externally.  As we show later, there is a way to design the configurations of this network to avoid spine configuration changes while accommodating ToR prefix (and other) modifications.  Our new 
+For instance, suppose an operator wants to modify the prefix of local ToR T8 in Figure~\ref{fig:example}. To accommodate the modification, Propane, a concrete synthesis tool, will, at a minimum, not only change T8's configuration but also those of the two spines because it uses prefix lists at spines to ensure that local prefixes are not advertised externally.  As we show later, there is a way to design the configurations of this network to avoid spine configuration changes while accommodating ToR prefix (and other) modifications.  Our new
 abstraction-based synthesis framework synthesizes evolution-friendly roles automatically.
 
 %nof the new spine configurations outputted by Propane will not only enable the interfaces that connect to the new aggregators but will also have to update the prefix list filters. A system that supports incremental growth should need only interface configuration changes (not filter changes). It can configure all local ToRs, including the new ones, to attach a tag to their announcements and filter external announcements at the spines based on this tag. Engineers prefer fewer configuration changes because each change runs the risks of poor transient behavior (which synthesis tools do not reason about).
@@ -511,9 +500,9 @@ As a result, the types of configuration design errors pointed in prior work~\cit
 
 %Lacking correctness guarantees, engineers use simulations to analyze if templates are correct under a range of failure cases (e.g., combinations of two-link failures), but such analysis is highly expensive for large networks and still does not provide strong guarantees beyond the tested cases.
 
-The second limitation of today's template systems is that, like concrete synthesis tools, they do not support network evolution. One might hope that important network properties such as connectivity and fault tolerance persist when networks evolve in ways consistent with existing roles and templates.  However, existing 
-template systems provide no guarantees that seemingly-minor variations of a given topology have similar properties.    
-%In theory, templates do not have to be redesigned when the network evolves while keeping its basic structure of roles and their inter-connectivity. In practice, however, it is not guaranteed that templates that work for a given topology also work for seemingly-minor variations of the topology. 
+The second limitation of today's template systems is that, like concrete synthesis tools, they do not support network evolution. One might hope that important network properties such as connectivity and fault tolerance persist when networks evolve in ways consistent with existing roles and templates.  However, existing
+template systems provide no guarantees that seemingly-minor variations of a given topology have similar properties.
+%In theory, templates do not have to be redesigned when the network evolves while keeping its basic structure of roles and their inter-connectivity. In practice, however, it is not guaranteed that templates that work for a given topology also work for seemingly-minor variations of the topology.
 
 Consider the network in Figure~\ref{fig:example2}, which is similar to Figure~\ref{fig:example}, with the same folded-Clos structure and five roles. One might think that the same templates (with different database entries) can be re-used across topologies. However, that is not necessarily true.  For example,
 data centers are often susceptable to a phenomenon called an \emph{aggregation-induced black hole}~\cite{route-aggregation}.  Such black holes occur when a switch announces an aggregate prefix but has no valid path to a more specific prefix within the aggregate, so the black hole will draw traffic, but that traffic will be unable
@@ -521,17 +510,17 @@ to reach its destination.
 For instance, if a network operator uses templates designed for Figure~\ref{fig:example}, which
 disallow valley paths, on Figure~\ref{fig:example2}, they will find that while it takes two link failures to
 trigger a black hole in  Figure~\ref{fig:example}, it takes only 1 failure to trigger a black hole in
- Figure~\ref{fig:example2}.   
+ Figure~\ref{fig:example2}.
 More specifically, in Figure~\ref{fig:example2}, a blackhole will occur when the link S1--A1 fails; after this failure, S1 has no valley-free path to P[1--2] even though it will continue to get traffic for these prefixes by virtue of announcing the encompassing aggregate PG. In contrast, in Figure~\ref{fig:example}, no such blackhole will occur after a single failure.
 
-Thus, engineers today must reason about the correctness of templates for each topology change (using expensive simulations because current systems do not provide any correctness guarantee by design). Worse, for some changes, they may discover that their old templates will not work anymore and need modifications. ~\dpw{Note: This is going to be true for Methane too.}  This discovery is highly problematic because changing a template will cause a change in the configurations of all the devices that use that template---in many cases, an unacceptable disruption.  When that happens, network operators may abandon templates entirely and revert to hand-crafting configuration files, using localized patches to accommodate evolution. 
+Thus, engineers today must reason about the correctness of templates for each topology change (using expensive simulations because current systems do not provide any correctness guarantee by design). Worse, for some changes, they may discover that their old templates will not work anymore and need modifications. ~\dpw{Note: This is going to be true for Methane too.}  This discovery is highly problematic because changing a template will cause a change in the configurations of all the devices that use that template---in many cases, an unacceptable disruption.  When that happens, network operators may abandon templates entirely and revert to hand-crafting configuration files, using localized patches to accommodate evolution.
 Such patches reintroduce the complexity and errors that templates were meant to prevent.
 
 
 %As an aside, a possible template implementation that works correctly for both networks is: allow valley paths and use an explicit list of local prefixes at spines to decide which announcements should not be forwarded externally.
 
 \begin{figure}
-\begin{tabular}{|p{0.6in}|p{0.6in}p{0.7in}p{0.6in}|} 
+\begin{tabular}{|p{0.6in}|p{0.6in}p{0.7in}p{0.6in}|}
 \hline
 & Abstract Roles & Correctness Guarantees & Evolution Support  \\ \hline
 Concrete Synthesis & \xmark & \cmark & \xmark \\ \hline
@@ -545,11 +534,11 @@ Template Systems & \cmark & \xmark & \xmark \\ \hline
 
 \subsection{\sysnamesec}
 
-As Table~\ref{fig:marketing} shows, \sysname addresses the limitations of both concrete synthesis and current template systems. It operates at the right level of abstraction for network operators, provides strong guarantees about compiled configurations, supports verification of important correctness properties, and supports network evolution. As inputs, \sysname takes a global, network-wide policy (as opposed to a per-device or even per-role policy) and an 
-{\em abstract} topology that describes device roles and 
+As Table~\ref{fig:marketing} shows, \sysname addresses the limitations of both concrete synthesis and current template systems. It operates at the right level of abstraction for network operators, provides strong guarantees about compiled configurations, supports verification of important correctness properties, and supports network evolution. As inputs, \sysname takes a global, network-wide policy (as opposed to a per-device or even per-role policy) and an
+{\em abstract} topology that describes device roles and
 connectivity invariants.  It outputs a template for each role.  Per-device configurations may be generated
-from templates by instantiating their parameters with concrete values drawn from the network topology. 
-\sysname provides strong guarantees about its templates: 
+from templates by instantiating their parameters with concrete values drawn from the network topology.
+\sysname provides strong guarantees about its templates:
 (1) the configurations generated from them correctly implement the specified policy for {\em any} concrete topology that matches the given abstract topology; and (2) if you add or remove a single node or edge in a way compatible
 with the abstract topology, only configurations of adjacent devices ever need to be updated.
 
@@ -653,17 +642,17 @@ As we have seen, writing correct network configurations is challenging task. Ope
 
 \subsection{Abstract Compilation}
 
-\sysname builds on the Propane network configuration tool, by supporting both synthesis for and reasoning over parameterized classes of topologies and their interactions with user-specified routing policy. 
+\sysname builds on the Propane network configuration tool, by supporting both synthesis for and reasoning over parameterized classes of topologies and their interactions with user-specified routing policy.
 \sysname takes as input, (1) a topology abstraction in the form of a graph homomorphism annotated with logical constraints about node and edge mutliplicities, and (2) a domain-specific routing policy that consists of a mapping from predicates matching various classes of traffic, to a list of ranked constraints on the paths traffic matching the predicate should prefer to take through the network.
 
 \para{Topology Abstraction}
 
 Consider again the networks from \S\ref{sec:motivation}. Ideally, we would like
-to find a suitable topology abstraction that can describe both of the datacenters from figures~\ref{fig:example} and~\ref{fig:example2} as well as any reasonable generalization of these datacenters. \sysname provides several abstraction mechanisms to achieve this goal. 
+to find a suitable topology abstraction that can describe both of the datacenters from figures~\ref{fig:example} and~\ref{fig:example2} as well as any reasonable generalization of these datacenters. \sysname provides several abstraction mechanisms to achieve this goal.
 
-The first is a role-based abstraction that allows an operator to map routers in the concrete network to ``roles" or routers in the abstract network. Figure~\ref{fig:example3} shows an example of an abstraction for both datacenter networks from \S\ref{sec:motivation}. In particular the concrete networks are abstracted into a new topology with 5 different roles: local tor (TL), global tor (TG), local aggregator (AL), global aggregator (AG), and spine (S). 
+The first is a role-based abstraction that allows an operator to map routers in the concrete network to ``roles" or routers in the abstract network. Figure~\ref{fig:example3} shows an example of an abstraction for both datacenter networks from \S\ref{sec:motivation}. In particular the concrete networks are abstracted into a new topology with 5 different roles: local tor (TL), global tor (TG), local aggregator (AL), global aggregator (AG), and spine (S).
 
-More specifically, a network topology is a graph $G$ = ($V, E$), which consists of a set of vertices $V$ and a set of directed edges $E \colon V \times V$. A role-based abstraction is a graph homomorphism from $G$ to an abstract graph $G^A$ = ($V^A$,$E^A$). A graph homorphism $f : G \rightarrow G^A$ is a function that maps each node in the concrete graph to a node in the abstract graph such that, whenever $(u,v) \in E$, then $(f(u),f(v)) \in E^A$. 
+More specifically, a network topology is a graph $G$ = ($V, E$), which consists of a set of vertices $V$ and a set of directed edges $E \colon V \times V$. A role-based abstraction is a graph homomorphism from $G$ to an abstract graph $G^A$ = ($V^A$,$E^A$). A graph homorphism $f : G \rightarrow G^A$ is a function that maps each node in the concrete graph to a node in the abstract graph such that, whenever $(u,v) \in E$, then $(f(u),f(v)) \in E^A$.
 
 
 \begin{figure}[t!]
@@ -685,7 +674,7 @@ For example, in Figure~\ref{fig:example3}, the first two constraints: $e1 = AG$ 
 %
 The constraint $e3 \geq 2$ says that, in each pod, each aggregator node has at least 2 outgoing edges to nodes in the spine role. Symmetrically, the constraint $e4 \geq 1$ says that, for each pod P, each node in the spine role has at least one outgoing edge to a node in the $AG$ role. Again, similar constraints appear for the local aggregator role. Finally, the constraints $S \geq 2$, $(S \mod AG) = 0$, and $(S \mod AL) = 0$ ensure that there are at least 2 routers in the spine role, and that the number of spine routers is always divisible by the number of global and local aggregators.
 %
-The last two constraints are interesting in that they do not involve a simple inequality. In general operators can write constraints using logical formula for any theory supported by modern SMT solvers. 
+The last two constraints are interesting in that they do not involve a simple inequality. In general operators can write constraints using logical formula for any theory supported by modern SMT solvers.
 
 All the guarantees provided by \sysname hold for any instantiation of the abstract network. This means that operators can safely expand their network in the future so long as the new network also satisfies these logical constraints.
 
@@ -719,7 +708,7 @@ Next let us see how to configure each of the datacenter networks from \S\ref{sec
 \end{code}
 \noindent%
 
-The first line introduces a prefix \emph{template} variable. It says that traffic for each global prefix associated with the template variable \$GP has the constraint that it should follow a path that ends at its corresponding destination router contained in the abstract TG role. The second line does the same thing for all local prefixes. 
+The first line introduces a prefix \emph{template} variable. It says that traffic for each global prefix associated with the template variable \$GP has the constraint that it should follow a path that ends at its corresponding destination router contained in the abstract TG role. The second line does the same thing for all local prefixes.
 %
 The final rule matches all other IP prefix destinations and allows traffic to follow a path that leaves the datacenter through either of its peers (Peer1 or Peer2) with a preference for leaving through Peer1. The \Prefer~symbol indicates that traffic should satisfy the constraint on the left whenever possible (\IE, a path exists in the network), and only resort to the backup (right) when this is not possible due to failures.%
 
@@ -727,7 +716,7 @@ Next we can capture the constraint that traffic for local prefixes must stay loc
 We do this with the following \sysname constraint:
 %
 \begin{code}
-\Define Locality = 
+\Define Locality =
     \$LP \Path \Always(\In)
 \end{code}
 \noindent%
@@ -753,7 +742,7 @@ Suppose we want to find a worst-case lower bound on the fault tolerance between 
 
 We develop a disjoint path analysis works in the following way. For each abstract role in the network, we learn invariants about the number of disjoint paths to routers in that role. These invariants contain a sequence of labels followed by a pair of numbers $(i,j)$. For example, the analysis would start with a fact of the form: $S_P S_{TG} (1,1)$. This means that, there is some group of nodes of size 1 in the TG role in some pod P such that any initial node in the TG role has 1 disjoint path to it (and all such paths are edge-disjoint). Since we know that the each node in the TG role is in a full mesh with nodes in the AG role within any given pod, we might infer a fact for AG of the form: $S_P A_{AG}(e1,1)$. This says that any group of nodes of size e1 in the AG role is reachable with at least 1 edge-disjoint path to each such node from any initial node in the TG role.
 %
-If we run the abstract analysis over the abstract network from figure~\ref{fig:example3} the analysis will learn a fact of the form $A_{S}(1,2)$, which means that any single spine node is reachable via 2 disjoint paths from any initial global tor node \ryan{it will actually be 1, we need to add a constraint on e1}. 
+If we run the abstract analysis over the abstract network from figure~\ref{fig:example3} the analysis will learn a fact of the form $A_{S}(1,2)$, which means that any single spine node is reachable via 2 disjoint paths from any initial global tor node \ryan{it will actually be 1, we need to add a constraint on e1}.
 
 Suppose now that we want to disallow paths with valleys (\IE, paths that go down and then up at some point). Such a constraint can be added to the routing policy in \sysname:
 \begin{code}
@@ -763,7 +752,7 @@ Suppose now that we want to disallow paths with valleys (\IE, paths that go down
 \noindent%
 
 This adds a constraint that applies to all traffic and prevents valleys by defining each level in the datacenter.
-Because the abstract analysis is policy sensitive, if we were to run it again with the same abstract topology but the new routing policy, it would only be able to infer that there is a single disjoint path to any given spine router in the worst case. In fact this is exactly the case for the concrete network from figure~\ref{fig:example2}.  
+Because the abstract analysis is policy sensitive, if we were to run it again with the same abstract topology but the new routing policy, it would only be able to infer that there is a single disjoint path to any given spine router in the worst case. In fact this is exactly the case for the concrete network from figure~\ref{fig:example2}.
 
 %
 %The constraint prevents traffic from over taking a path that traverses
@@ -784,7 +773,7 @@ Because the abstract analysis is policy sensitive, if we were to run it again wi
 \section{Compilation}
 \label{sec:compilation}
 
-Configuration synthesis for network configurations is challenging for a number of reasons. First, although \sysname polices specify stable network-wide routing behavior, actual configurations are per-device and run distributed algorithms to compute routes. Thus the compiler must ensure that the result of the distributed computation matches the policy. Furthermore the distributed computation must compute the correct paths under all possible combinations of failures. Second, \sysname must find configurations that work across any valid concrete network topology matching the abstraction provided as input. Finally, \sysname must ensure that the resulting configurations can be evolved incrementally so that local changes to the topology ensure that only local changes to configurations are required to ensure global routing correctness. 
+Configuration synthesis for network configurations is challenging for a number of reasons. First, although \sysname polices specify stable network-wide routing behavior, actual configurations are per-device and run distributed algorithms to compute routes. Thus the compiler must ensure that the result of the distributed computation matches the policy. Furthermore the distributed computation must compute the correct paths under all possible combinations of failures. Second, \sysname must find configurations that work across any valid concrete network topology matching the abstraction provided as input. Finally, \sysname must ensure that the resulting configurations can be evolved incrementally so that local changes to the topology ensure that only local changes to configurations are required to ensure global routing correctness.
 
 In this section, we formalize the \sysname language and topology abstraction, describe how \sysname synthesizes network configurations over these abstractions, and formalize the guarantees provided by \sysname.
 
@@ -817,7 +806,7 @@ In this section, we formalize the \sysname language and topology abstraction, de
   %\vspace{-1em}
 \end{figure}%
 
-The syntax introduced in \S\ref{sec:overview} is just syntactic sugar for a core language based on regular expressions. Figure~\ref{fig:syntax} shows a simplified version of the core \sysname syntax that omits some details such as aggregation. The full langauge definition can be found in the appendix. 
+The syntax introduced in \S\ref{sec:overview} is just syntactic sugar for a core language based on regular expressions. Figure~\ref{fig:syntax} shows a simplified version of the core \sysname syntax that omits some details such as aggregation. The full langauge definition can be found in the appendix.
 
 A policy has one or more constraints, each of which consists of a test on the type of traffic being matched and a corresponding set of preferred regular expressions describing network paths. Regular expressions are defined over network locations, where each location is either a router inside the operators network, or an external neighbor. There are two special characters \In~ and \Out, which match any internal and external location respectively. There are two types of predicates: a test for a concrete prefix $d.d.d.d/[d..d]$ matches an IP prefix with value $d.d.d.d$ and length in the range $[d..d]$ where metavariable $d$ represents an integer. For example, the IP prefix 148.0.1.0/[24..32] would match traffic destined for IP address 148.0.1.* with a subnet length between 24 and 32 bits. \ryan{this needs to be explained clearer}.
 
@@ -834,11 +823,11 @@ Finally, each constraint desugars to a regular expression. For example, the cons
 
 \subsection{Product Graph}
 
-A key step for \sysname to generate device configurations is to build a data structure amenable to joint analysis of both the topology and routing policy. Intutively, \sysname captures both topology and routing constraints by ``intersecting" the finite automata associated with the policy regular expressions with the graph structure of the topology into a data structure called the Product Graph. 
+A key step for \sysname to generate device configurations is to build a data structure amenable to joint analysis of both the topology and routing policy. Intutively, \sysname captures both topology and routing constraints by ``intersecting" the finite automata associated with the policy regular expressions with the graph structure of the topology into a data structure called the Product Graph.
 
 The Product Graph is a compact representation of all paths distributed protocol messages might be passed through the network in order to result in policy-compliant paths.
-Although \sysname policies describe the routes that traffic should take through the network, network protocols (including BGP) typically disseminate router information in the opposite direction. 
-For example, a router Y will tell its neighbor X that it has a route to the destination meaning that X can send traffic through Y. For this reason, we start by compiling 
+Although \sysname policies describe the routes that traffic should take through the network, network protocols (including BGP) typically disseminate router information in the opposite direction.
+For example, a router Y will tell its neighbor X that it has a route to the destination meaning that X can send traffic through Y. For this reason, we start by compiling
 
 Since each predicate in a \sysname policy has its own set of regular expression path constraints, \sysname constructs one Product Graph per prefix and generates configuration on a per-prefix basis.
 
@@ -846,7 +835,7 @@ Since each predicate in a \sysname policy has its own set of regular expression 
 
 For each regular expression $r_i$ from $r_1 ~\Prefer~ .. ~\Prefer~ r_k$, we construct a DFA for the reverse of $r_i$. An automaton for $r_i$ is defined as a tuple ($\Sigma, Q_i, F_i, q_{0_i}, \sigma_i$). The alphabet $\Sigma = G^A$ is the set of topology locations, $Q_i$ is the set of states for automaton i, $F_i$ is the set of final states, $q_{0_i}$ is the initial state, and $\sigma_i \colon Q_i \times \Sigma \rightarrow Q_i$ is the state transition function.
 %
-The Product Graph is a tuple ($G'$, $s$, $P$) where $G' = (V',E')$ is a new graph with 
+The Product Graph is a tuple ($G'$, $s$, $P$) where $G' = (V',E')$ is a new graph with
 vertices $V' \colon V \times Q_1 \times \dots \times Q_j$,
 edges $E' \colon V' \times V'$,
 a unique starting vertex $s$,
@@ -860,21 +849,21 @@ The preference function $P(m)$ denotes the rank of paths through the Product Gra
 %
 Finally, we write $\tilde{m} = l$ to extract the topology location from a product graph node, when $m = (l, \dots) \in V'$.
 
-Figure~\ref{fig:example-compilation} shows an example of constructing a Product Graph for the policy that applies to all external traffic from the datacenter example in \S\ref{sec:overview}: 
+Figure~\ref{fig:example-compilation} shows an example of constructing a Product Graph for the policy that applies to all external traffic from the datacenter example in \S\ref{sec:overview}:
 %
 %\begin{code}
 %\True \Path \Exit(\sf{Peer1}) \Prefer \Exit(\sf{Peer2})
 %\end{code}
 %\noindent%
 %
-The first automaton represents the more preferred constraint $\Exit(Peer1)$ and the second automaton represents the less preferred constraint $\Exit(Peer2)$. The Product Graph representation is shown for both an instance of a concrete network matching the abstraction from \S\ref{sec:overview} as well as for the abstraction itself. 
+The first automaton represents the more preferred constraint $\Exit(Peer1)$ and the second automaton represents the less preferred constraint $\Exit(Peer2)$. The Product Graph representation is shown for both an instance of a concrete network matching the abstraction from \S\ref{sec:overview} as well as for the abstraction itself.
 
 Each node in the Product Graph tracks both where a protocol message is in the topology as well as how much progress has been made towards satisfying each policy constraint. In this example, all routes that eventually leave through Peer1 will lead to an accepting state for the first automaton and all routes that eventually leave through Peer2 will lead to an accepting state for the second automaton.
 
-From Figure~\ref{fig:example-compilation} we can see that both the concrete and abstract product graphs share a similar structure. This leads us to the following observation 
+From Figure~\ref{fig:example-compilation} we can see that both the concrete and abstract product graphs share a similar structure. This leads us to the following observation
 
 \begin{defn}
-If we have a graph homomorphism $f : G \rightarrow G^A$, concrete product graph $PG = (G',s,P)$ and abstract product graph $PG^A = (G'^A, s^A, P^A)$, then we can construct a new, lifted homomorphism $f_{pg} : G' \rightarrow G'^A$ in the following way: 
+If we have a graph homomorphism $f : G \rightarrow G^A$, concrete product graph $PG = (G',s,P)$ and abstract product graph $PG^A = (G'^A, s^A, P^A)$, then we can construct a new, lifted homomorphism $f_{pg} : G' \rightarrow G'^A$ in the following way:
 \[ \begin{array}{rcl}
   f_{pg}( s ) & = & s^A  \\
   f_{pg}( (l,q_1,\ldots,q_n) ) & = & (f(l),q_1,\ldots,q_n) \\
@@ -938,13 +927,13 @@ If we have a graph homomorphism $f : G \rightarrow G^A$, concrete product graph 
 
 \subsection{Compilation to configurations}
 
-The translation from the Product Graph to per-device configurations that run the distributed BGP protocol involves several ideas. 
+The translation from the Product Graph to per-device configurations that run the distributed BGP protocol involves several ideas.
 
 \para{Route filtering}
 
 The first idea is to tag every protocol message with a BGP community value that relays the state of each automaton when advertising a route to a neighbor. Routers can then allow route advertisements that correspond to an edge in the Product Graph (\IE, from a neighbor with the correct state) and block those that don't. This ensures that any path computed by BGP will be a valid path in the Product Graph, and thus is allowed by the policy. For example, in the concrete Product Graph in figure~\ref{fig:example-compilation}, router $S1$ will allow a route advertisement from its neighbor $P1$ and also from neighbor $P2$. If it uses neighbor $P1$, then it will add the tag $(1,0)$ before informing its neighbors about its route. On the other hand, if it uses neighbor $P2$, then it will add the tag $(0,1)$ before informing its neighbors about the route.
 %
-However, letting BGP find some allowed path is not enough. \sysname must ensure BGP always computes the \emph{best} path according to the user's preferences, even when failures occur. 
+However, letting BGP find some allowed path is not enough. \sysname must ensure BGP always computes the \emph{best} path according to the user's preferences, even when failures occur.
 
 
 \para{Preference Search}
@@ -960,7 +949,7 @@ Let $m \geq_{rank} n$ be a relation over Product Graph vertices that holds iff $
 %
 
 \begin{defn}
-The product graph can be viewed as a labelled transition system by pushing the topology location from each directed edge's target node onto the edge. That is, $m\overset{l}{\rightarrow}n$ if edge $(m,n) \in E'$ and $\tilde{n} = l$. 
+The product graph can be viewed as a labelled transition system by pushing the topology location from each directed edge's target node onto the edge. That is, $m\overset{l}{\rightarrow}n$ if edge $(m,n) \in E'$ and $\tilde{n} = l$.
 \end{defn}
 
 For example, in concrete product graph we would have the transition $(S1,1,0)\overset{A2}{\rightarrow}(A2,1,0)$
@@ -970,8 +959,8 @@ We write $m \leq m'$ if the subgraph reachable from $m$ and $m'$ respectively fo
 \end{defn}
 
 We can assign BGP local preferences for the policy in the following way: Check if each router has a total order with respect to the simulation relation ($\leq$) for its corresponding Product Graph nodes. If so, then simply sort the nodes and prefer advertisements from peers of node $m$ over those of node $m'$ if $m' \leq m$.
- 
-For example, in the concrete product graph we have $(S1,0,1) \leq (S1,1,0)$ since nodes on the left side of the product graph can always match transitions made on the right hand side while always maintaining a node ranking that is at least as good as that on the right hand side (since they match the preferred rank 1 automaton). This relation does not hold the other way around. Therefore, advertisements received at $S1$ in state $(1,0)$ must be preferred to those received in state $(0,1)$. 
+
+For example, in the concrete product graph we have $(S1,0,1) \leq (S1,1,0)$ since nodes on the left side of the product graph can always match transitions made on the right hand side while always maintaining a node ranking that is at least as good as that on the right hand side (since they match the preferred rank 1 automaton). This relation does not hold the other way around. Therefore, advertisements received at $S1$ in state $(1,0)$ must be preferred to those received in state $(0,1)$.
 
 Notice also that in the abstract product graph, node $(S,0,1) \leq (S,1,0)$. This leads us the the following observation:
 
@@ -1012,9 +1001,9 @@ Lemma~\ref{lem:preference} gives us reason to believe that we can perform compil
         Match[100] \PREFIX=LP2, \PEER=\{AG1, ..., AL1, ...\}
           \PEER \Arrow \{AG1, ..., AL1, ...\}
         ...
-        Match[110] \PREFIX=0.0.0.0/[0..32], \PEER=P1, 
+        Match[110] \PREFIX=0.0.0.0/[0..32], \PEER=P1,
           \PEER \Arrow *, \COMM \Arrow (1,0)
-        Match[100] \PREFIX=0.0.0.0/[0..32], \PEER=P2, 
+        Match[100] \PREFIX=0.0.0.0/[0..32], \PEER=P2,
           \PEER \Arrow *, \COMM \Arrow (0,1)
         ...
       \end{code}
@@ -1028,9 +1017,9 @@ Lemma~\ref{lem:preference} gives us reason to believe that we can perform compil
           \PEER \Arrow *
         Match[100] \PREFIX=\$LP, \PEER=\{AG, AL\}
           \PEER \Arrow \{AG, AL\}
-        Match[110] 0.0.0.0/[0..32], \PEER=P1, 
+        Match[110] 0.0.0.0/[0..32], \PEER=P1,
           \PEER \Arrow *, \COMM \Arrow (1,0)
-        Match[100] 0.0.0.0/[0..32], \PEER=P2, 
+        Match[100] 0.0.0.0/[0..32], \PEER=P2,
           \PEER \Arrow *, \COMM \Arrow (0,1)
         ...
       \end{code}
@@ -1043,9 +1032,9 @@ Lemma~\ref{lem:preference} gives us reason to believe that we can perform compil
   \label{fig:bgp-configs}
 \end{figure*}
 
-By combining the tagging, filtering and preference mechanisms, we can generate safe BGP configurations. In general, configurations are generated by combining the per-prefix configurations in the same order specified in the policy. Figure~\ref{fig:bgp-configs} shows part of the configuration for the spine routers for the concrete and abstract policies. 
+By combining the tagging, filtering and preference mechanisms, we can generate safe BGP configurations. In general, configurations are generated by combining the per-prefix configurations in the same order specified in the policy. Figure~\ref{fig:bgp-configs} shows part of the configuration for the spine routers for the concrete and abstract policies.
 
-The spine switches have a default rule for the prefix $0.0.0.0/[0..32]$ that will match advertisements from peer $P1$ and $P2$. The match for $P1$ is preferred since it has a higher BGP local-preference attribtue (110). If an advertisement from $P1$ is available the spine attaches the community tag $(1,0)$ and advertises the route to all its peers. If only an advertisement from the backup $P2$ is available, then it attaches the tag $(0,1)$ and advertises this to all peers instead. 
+The spine switches have a default rule for the prefix $0.0.0.0/[0..32]$ that will match advertisements from peer $P1$ and $P2$. The match for $P1$ is preferred since it has a higher BGP local-preference attribtue (110). If an advertisement from $P1$ is available the spine attaches the community tag $(1,0)$ and advertises the route to all its peers. If only an advertisement from the backup $P2$ is available, then it attaches the tag $(0,1)$ and advertises this to all peers instead.
 
 In the template configuration, it will have additional policy for the local and global prefixes. It will match any global prefix from any peer and re-advertise the route to all of its peers. For any local prefix it will allow an advertisement from any internal peer, and re-advertise the route to all other internal peers. The concrete configurations will have a similar configuration for each local and global prefix.
 
@@ -1065,7 +1054,7 @@ Suppose that we want to expand the concrete datacenter by adding an additional t
 
 The key observation is that the template variables tell us exactly where change can happen. For example, the only way in which the spine routers depend on anything nonlocal is in the prefix template variables. Instead, we replace each match on a template variable (\EG, matching \$GP) with a test on a new community tag that we associate with each template variable. So long as we ensure that routers always add the appropriate tags to the prefixes they originate, then the policies will be equivalent.
 
-Specifically, this ensures that each router has a template that has no dependency on any other non-adjacent router. If we make a change to the concrete network that matches the abstraction, then the templates do not change, and thus only configurations adjacent to the changes must also change. 
+Specifically, this ensures that each router has a template that has no dependency on any other non-adjacent router. If we make a change to the concrete network that matches the abstraction, then the templates do not change, and thus only configurations adjacent to the changes must also change.
 
 
 
@@ -1133,7 +1122,7 @@ In order to infer bounds on the number of disjoint paths between nodes we use in
 The idea is to maintain, for each role in the abstract product graph, facts learned about the number of disjoint paths to some number of concrete routers in that role from a given source location. More specifically, we maintain facts of the form:
 %
 \[ \begin{array}{c}
-  L_{X_1}, \ldots, L_{X_n}(j,k) 
+  L_{X_1}, \ldots, L_{X_n}(j,k)
 \end{array} \]
 \noindent
 %
@@ -1149,9 +1138,9 @@ Semantically, $L_{X_1}, \ldots, L_{X_n}(j,k)$ means that starting from some conc
   \vspace{-1em}
 \end{figure}
 
-For example, a fact of the form: $A_P, S_{TL}(2,4)$ means that for all pods P, there is some group of size 2 concrete routers in role TL such that they each have 4 disjoint to them from the source and all 8 paths are disjoint. 
+For example, a fact of the form: $A_P, S_{TL}(2,4)$ means that for all pods P, there is some group of size 2 concrete routers in role TL such that they each have 4 disjoint to them from the source and all 8 paths are disjoint.
 
-%suppose we want to compute the number of disjoint paths from the local ToR role $(TL,0,0)$ for  
+%suppose we want to compute the number of disjoint paths from the local ToR role $(TL,0,0)$ for
 \ryan{TODO: probably need a new image for local prefixes?}
 
 %=====================================================
@@ -1166,7 +1155,7 @@ For example, a fact of the form: $A_P, S_{TL}(2,4)$ means that for all pods P, t
 \section{Implementation}
 \label{sec:implementation}
 
-The \sysname compiler is implemented in approximately 9500 lines of F\# code. The compiler accepts both concrete and abstract topologies and will generate router configurations for open-source Quagga routers. Operators can specify their required fault tolerance level for aggregation safety. The abstract safety analysis uses Z3Opt \ryan{reference} to minimize variables subject to the annotated constraints. Since the analysis typically calls Z3 with many times with relatively simple optimization problems, we use a timeout of 200ms. 
+The \sysname compiler is implemented in approximately 9500 lines of F\# code. The compiler accepts both concrete and abstract topologies and will generate router configurations for open-source Quagga routers. Operators can specify their required fault tolerance level for aggregation safety. The abstract safety analysis uses Z3Opt \ryan{reference} to minimize variables subject to the annotated constraints. Since the analysis typically calls Z3 with many times with relatively simple optimization problems, we use a timeout of 200ms.
 
 The compiler performs the following to improve its performance.
 
