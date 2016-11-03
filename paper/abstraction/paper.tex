@@ -206,114 +206,6 @@ We test \sysname out on ... blah blah blah
 %
 %=====================================================
 
-\section{Outline/Notes}
-
-\begin{easylist}[itemize]
-& Network configuration is difficult/error-prone. Operators think of policy at
-  a high level of abstraction, yet for implementations:
-&& Often configs must be decomposed device-by-device
-&& Often need to create reusable configurations for different topologies/policies
-&& Ensure different devices/networks kept consistent when policy changes
-
-& Current state of the art is to capture abstractions using parameterized
-  device templates. The same templates can then be reused across multiple
-  devices. Unfortunately, existing template systems have many limitations
-&& Templates often still require the operator to reason about network-wide
-   policy device-by-device.
-&& Templates do not provide any guarantees of configuration correctness,
-   instead requiring the operator to manually reason about forwarding for
-   any possible concrete network
-&&& In addition, operators must reason about possible network failures that
-    might arise in one concrete network versus another
-
-& To this end, we build a language called \sysname to simplify the operators task.
-&& \sysname allows the operator to define high-level network abstractions to reflect
-   the operator's mental model, and then to write a centralized routing policy over the
-   abstraction.
-&& We extend the \sysname intermediate graph-based representation to support abstract policies,
-   and show how to compile abstract \sysname policies to this representation.
-&& As a major use-case, we show how the compilation and failure-safety analysis
-   of the Propane configuration-synthesis tool can be extended over abstract topologies.
-&& We develop an abstract interpretation that operates over this graph representation and verifies
-   if properties, such as reachability or k-disjoint paths between two nodes, are guaranteed
-   to hold for any possible concrete instantiation of the network.
-&& Our major result is an abstraction theorem, which states that ...
-&& The result is that policies compiled with the Propane compiler to distributed configurations
-   are guaranteed to have correct forwarding behavior for any possible concrete instantiation
-   of the network, and for any possible combination of failures in the given concrete network.
-&&& Finally, we show how abstract compilation makes it possible to dramatically speed up compilation
-    time for the Propane policies, cite some numbers here ...
-\end{easylist}
-
-% Some useful citations from the previous paper listed below
-
-%It is well known that configuring networks is error
-%prone and that such errors can lead to disruptive
-%downtimes~\cite{mahajan+:bgp-misconfiguration,feamster+:rcc,batfish,dc-failure-study}.
-%For instance, a recent misconfiguration led to an hour-long, nation-wide outage for Time Warner's backbone network~\cite{time-warner}; and a major BGP-related incident makes international news every few months~\cite{bgpmon}.%
-
-%A fundamental reason for the prevalence of misconfigurations is the
-%semantic mismatch between the intended high-level
-%policies and the low-level configurations.
-%Many policies involve network-wide properties---prefer a certain neighbor,
-%never announce a particular destination externally,
-%use a particular path only if another fails---but configurations describe the behavior of
-%individual devices.
-%%
-%Operators must manually decompose network-wide policy into
-%device behaviors, such that policy-compliant behavior results from the distributed interactions of
-%these devices.
-%%
-%Policy-compliance must be ensured not only under normal
-%circumstances but also during failures.  The need to reason
-%about all possible failures exacerbates the challenge
-%for network operators.  As a result, configurations that work
-%correctly in failure-free environments have nonetheless been found to violate key
-%network-wide properties when failures occur~\cite{batfish}.%
-
-%To reduce configuration errors, operators are increasingly adopting an
-%approach in which common tasks are captured as parameterized templates~\cite{hatch,thwack}.
-%%
-%While templates help ensure certain kinds of consistency across devices,
-%they do not provide fundamentally different abstractions from existing configuration languages
-%or bridge the semantic divide between network-wide policies and device-level configuration.
-%Thus, they still require operators to
-%manually decompose policies into device behaviors.%
-
-%As a complementary approach, configuration analysis tools can help reduce misconfigurations by checking if low-level configurations match high-level policy~\cite{batfish,feamster+:rcc}. However, such tools cannot help operators with the challenging task of generating configurations in the first place.%
-
-%Software-defined networking (SDN) and its abstractions
-%are, in part, the research
-%community's response to the difficulty of maintaining policy
-%compliance through distributed device interactions~\cite{ethane}.
-%Instead of organizing networks around a distributed
-%collection of devices that compute forwarding tables through
-%mutual interactions, the devices are told how to
-%forward packets by a centralized controller. The controller is responsible for ensuring that the
-%paths taken are compliant with operator specifications.%
-
-%The centralized control planes of SDN, however, are not a panacea.
-%First, while many SDN programming systems~\cite{sdn-languages} provide effective \emph{intra}-domain routing
-%abstractions, letting users specify paths within their network,
-%they fail to provide a coherent means to specify \emph{inter}-domain routes.
-%Second, centralized control planes
-%require careful design and engineering to be robust to failures---one must ensure that all devices can communicate with the controller at all times, even under arbitrary failure combinations. Even ignoring failures, it is necessary for the control system to
-%scale to meet the demands of large or geographically-distributed networks,
-%and to react quickly
-%to environmental changes. For this challenge, researchers are exploring
-%multi-controller systems with interacting controllers, thus bringing back distributed
-%control planes~\cite{mccauley2013extending,onos} and their current programming difficulties.%
-
-
-%=====================================================
-%
-%
-%  **Motivation**
-%
-%
-%=====================================================
-
-
 \section{Introduction}
 \label{sec:introduction}
 
@@ -426,8 +318,6 @@ than its closest competitor on large networks.
 \end{enumerate}
 
 
-
-
 %% Indeed, over the last several years, many researchers have begun to
 %% develop such languages~\cite{frenetic,pyretic,pane,nettle,netkat}.
 %% However, the bulk of this research has targeted software-defined
@@ -442,6 +332,14 @@ than its closest competitor on large networks.
 %% Each router is configured independently, but the overall behavior
 %% of the network---the paths from one server to another, for instance---depend
 %% upon the 
+
+%=====================================================
+%
+%
+%  **Motivation**
+%
+%
+%=====================================================
 
 
 \section{Motivation}
