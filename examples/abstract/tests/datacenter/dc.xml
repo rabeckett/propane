@@ -1,0 +1,37 @@
+<topology asn="100">  
+  <!-- Abstract Nodes -->
+  <abstractnode internal="true" label="TG"></abstractnode>
+  <abstractnode internal="true" label="TL"></abstractnode>
+  <abstractnode internal="true" label="AG"></abstractnode>
+  <abstractnode internal="true" label="AL"></abstractnode>
+  <abstractnode internal="true" label="S"></abstractnode>
+  <!-- Abstract Edges -->
+  <abstractedge source="TG" target="AG" labels="(E1,E2)"></abstractedge>
+  <abstractedge source="AG" target="S" labels="(E3,E4)"></abstractedge>
+  <abstractedge source="TL" target="AL" labels="(E5,E6)"></abstractedge>
+  <abstractedge source="AL" target="S" labels="(E7,E8)"></abstractedge>
+
+  <!-- Abstract Pods -->
+  <abstractpod label="P">
+	  <element>TG</element>
+	  <element>AG</element>
+  </abstractpod>
+  <abstractpod label="Q">
+	  <element>TL</element>
+	  <element>AL</element>
+  </abstractpod>
+  <!-- Abstract topology constraints -->
+  <constraint assertion="(= E1 AG)"></constraint>
+  <constraint assertion="(= E2 TG)"></constraint>
+  <constraint assertion="(= E5 AL)"></constraint>
+  <constraint assertion="(= E6 TL)"></constraint>
+  <constraint assertion="(= TG AG)"></constraint>
+  <constraint assertion="(= TL AL)"></constraint>
+  <constraint assertion="(>= AG 2)"></constraint>
+  <constraint assertion="(>= AL 2)"></constraint>
+  <constraint assertion="(>= E3 2)"></constraint>
+  <constraint assertion="(>= E4 1)"></constraint>
+  <constraint assertion="(>= E7 2)"></constraint>
+  <constraint assertion="(>= E8 1)"></constraint>
+  <constraint assertion="(>= S 2)"></constraint>
+</topology>

@@ -1084,9 +1084,6 @@ Specifically, this ensures that each router has a template that has no dependenc
 
 In the previous section we saw that \sysname can synthesize correct device configurations by operating directly over the abstract representation. However, in practice operators would often like to reason about other properties about their network. In this section we present an analysis that operates over the network abstraction to find a lower bound on the number of disjoint paths between pairs of concrete nodes. Answering questions about the number of disjoint paths allows operators to reason about many useful network properties such as reachability (\IE, is there at least one path) and fault tolerance (\EG, how many failures will disconnect certain routers). An important point is that the analysis takes place over the structure of the product graph, and so takes both the topology and routing policy into account.
 
-\subsection{Abstract k-disjoint paths}
-\label{sec:property-checking}
-
 
 \newcommand{\inference}[4]{
     \node[draw, anchor=west] at (#1 + .4, 1.25) {#3};
@@ -1127,6 +1124,10 @@ In the previous section we saw that \sysname can synthesize correct device confi
   %\vspace{-1em}
 \end{figure*}
 
+
+\subsection{Abstract k-disjoint paths}
+\label{sec:property-checking}
+
 In order to infer bounds on the number of disjoint paths between nodes we use information about the structure of the underlying concrete topologies encoded in the abstraction pod structure and node + edge multiplicity constraints.
 
 The idea is to maintain, for each role in the abstract product graph, facts learned about the number of disjoint paths to some number of concrete routers in that role from a given source location. More specifically, we maintain facts of the form:
@@ -1136,9 +1137,22 @@ The idea is to maintain, for each role in the abstract product graph, facts lear
 \end{array} \]
 \noindent
 %
-Each label $L \in \{S,A\}$ is either $S$, which stands for ``some" or is $A$, which stands for ``all". There is one label in the nesting for each pod scope in the network abstraction hierarchy. So for a given node, $L_{X_1}$ would correspond to the outermost pod scope, while $L_{X_n}$ would correspond the the node's label. The value $j$ tells us the number of concrete nodes in the group that are reachable, and the value $k$ tells us the number of disjoint paths to each of the $j$ nodes such that all $j*k$ paths are disjoint.
+Each label $L \in \{S,A\}$ is either $S$, which stands for ``some" or is $A$, which stands for ``all". There is one label in the nesting for each pod scope in the network abstraction hierarchy. So for a given node, $L_{X_1}$ would correspond to the outermost pod scope, while $L_{X_n}$ would correspond the the node's label.
 
+Semantically, $L_{X_1}, \ldots, L_{X_n}(j,k)$ means that starting from some concrete router in the abstract source, for ``some"/``all" scopes $X_1$, $L_{X_2}, \ldots, L_{X_n}(j,k)$ holds. The base case $L_{X_n}(j,k)$ means that for ``some"/``all" groups of size $j$ concrete routers, there are $k$ disjoint paths to each such that all $j*k$ paths are disjoint
 
+\begin{figure}
+  \begin{center}
+    \includegraphics[width=.66\columnwidth]{figures/analysis}
+  \end{center}
+  \caption{Abstract disjoint path analysis with valleyfree routing for global prefixes. \label{fig:compilation-times}}
+  \vspace{-1em}
+\end{figure}
+
+For example, a fact of the form: $A_P, S_{TL}(2,4)$ means that for all pods P, there is some group of size 2 concrete routers in role TL such that they each have 4 disjoint to them from the source and all 8 paths are disjoint. 
+
+%suppose we want to compute the number of disjoint paths from the local ToR role $(TL,0,0)$ for  
+\ryan{TODO: probably need a new image for local prefixes?}
 
 %=====================================================
 %

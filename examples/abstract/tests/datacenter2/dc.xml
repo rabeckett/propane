@@ -1,0 +1,27 @@
+<topology asn="100">  
+  <!-- Abstract Nodes -->
+  <abstractnode internal="true" label="TG"></abstractnode>
+  <abstractnode internal="true" label="TL"></abstractnode>
+  <abstractnode internal="true" label="AGG"></abstractnode>
+  <abstractnode internal="true" label="S"></abstractnode>
+  <!-- Abstract Edges -->
+  <abstractedge source="TG" target="AGG" labels="(E1,E2)"></abstractedge>
+  <abstractedge source="TL" target="AGG" labels="(E5,E6)"></abstractedge>
+  <abstractedge source="AGG" target="S" labels="(E3,E4)"></abstractedge>
+
+  <!-- Abstract Pods -->
+  <abstractpod label="P">
+	  <element>TG</element>
+	  <element>TL</element>
+	  <element>AGG</element>
+  </abstractpod>
+  <!-- Abstract topology constraints -->
+  <constraint assertion="(= E1 AGG)"></constraint>
+  <constraint assertion="(= E2 TG)"></constraint>
+  <constraint assertion="(= E5 AGG)"></constraint>
+  <constraint assertion="(= E6 TL)"></constraint>
+  <constraint assertion="(>= AGG 2)"></constraint>
+  <constraint assertion="(>= S 2)"></constraint>
+  <constraint assertion="(>= E3 2)"></constraint>
+  <constraint assertion="(>= E4 1)"></constraint>
+</topology>
