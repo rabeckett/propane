@@ -237,42 +237,51 @@ hundreds or even thousands of devices.  Since it is not possible for humans
 to think about configuring each individual device independently, 
 network operators typically classify the devices, assigning them a particular
 \emph{role} such as ``top-of-rack switch'' or ``tier-one aggregation switch.''
-Each such role is codified as a \emph{configuration template}---essentially
-a macro that may be instantiated with different concrete values to
+Each such role is codified as a \emph{configuration template}---a macro 
+that may be instantiated with different concrete values to
 generate a configuration for each device that plays the role.
 
-Such templates have no particular semantics other than the semantics
-that one obtains from instantiating a template's parameters.  Moreover,
+Unfortunately, such templates have no particular semantics other than the 
+semantics
+that one obtains from instantiating a template's parameters.  
+\dpw{add blah blah about low-level, assembly language, device by device}
+Moreover,
 template construction is a manual process:  network engineers do their
-best to design templates by hand that will work effectively in the context 
+best to design templates that will work effectively in the context 
 of their particular network topology.  However, there is no support for
-validating key properties such as connectivity and fault tolerance, 
+validating key properties of an assembly of templates, such as connectivity 
+and fault tolerance, 
 aside from instantiating the templates and testing.  In addition,
 network engineers have no tools to help them design for network
 evolution.  For instance, the process of adding new equipment to
 expand the capacity of data center may not be compatible with the original
 templates, or may cause a trickle-down of changes to be made network-wide.
-Unfortunately, each change to a router configuration typically incurs
+Each change to a router configuration typically incurs
 some risk of temporary instable in a network, so minimizing such changes
 is an important design goal.  It is no wonder that a major
 network outage, such as the one that grounded all United Air flights
 in July 2015~\cite{x}, makes international news every few months.
 
-To combat these problems, in this paper, we present \sysname, a 
+To combat these problems, we present \sysname, a 
 new high-level language designed to 
 provide improved support for the configuration of large, structured networks.
-\sysname allows network operators to define abstract network topologies that
-classify devices in terms of abstract roles and specify the connectivity
-invariants satisfied by each role.  For instance, a programmer may
+\sysname allows network operators to define \emph{abstract network topologies} 
+that
+classify devices in terms of their roles and how they are connected
+to one another.  For instance, a programmer may
 define separate roles for ``top-of-rack switch'' and 
 ``tier-one aggregation switch'' and specify that every top-of-rack switch
-is connected to at least two different tier-one aggregation switches.
+is connected to at least two different tier-one aggregation switches,
+thereby providing a degree of fault tolerance of one aggregation switch
+were to fail.
 
-In order to specify \emph{routing policy} for such abstract networks,
+To specify \emph{routing policy} for such abstract networks,
 \sysname borrows notation from the recently-defined \propane
-programming language~\cite{propane}.  However, whereas \propane policies
-refer to individual devices, \sysname policies allows users to
-refer to abstract roles.  The \sysname compiler compiles these role-based
+programming language~\cite{propane}.  As such, it is able to
+specify the paths that traffic should flow along at a high-level of
+abstraction.  However, whereas \propane policies
+refer to paths of individual devices, \sysname policies 
+refer to paths of abstract roles.  The \sysname compiler compiles such
 policies into templates, with one template per role, and these templates
 may be instantiated to generate concrete configurations. 
 
@@ -301,17 +310,18 @@ network grows, the number of distinct roles will often stay constant.
 Consequently, the \sysname compiler may be two orders of magnitude
 faster than \propane for large structured networks.
 
-To summarize, the central contribution of this paper are:
+To summarize, the central contributions of this paper are:
 
 \begin{enumerate}
-\item Design of new network topology abstraction mechanisms involving roles and
-connectivity invariants.
-\item Design of two new algorithms for analyzing abstract networks: one which
+\item Design of new topology abstractions involving roles and
+connectivity invariants for network programmers.
+\item Design of two new algorithms for analyzing routing policy over 
+abstract networks: one which
 guarantees correct compilation and one which determines fault tolerance 
 properties of network policy.  Both algorithms provide guarantees for any 
 concrete network satisfying the abstract connectivity invariants.
 \item Design of template generation algorithms that support network
-evolution with minimal change to existing devices.
+evolution.
 \item Implementation and evaluation of a \sysname compiler that generates 
 configuration templates and is up to two orders of magnitude faster 
 than its closest competitor on large networks.
@@ -342,7 +352,7 @@ than its closest competitor on large networks.
 %=====================================================
 
 
-\section{Motivation}
+\section{Background and Motivation}
 \label{sec:motivation}
 
 \begin{figure}[t!]
@@ -361,20 +371,85 @@ than its closest competitor on large networks.
   \vspace{-1em}
 \end{figure}
 
+\paragraph*{Background}  Traditional routers use 
+distributed protocols to exchange messages about available routes. 
+One such protocol is the Border Gateway Protocol (BGP).  BGP is the
+standard for inter-domain routing (the act of exchanging routing information 
+between independently-owned networks) and is also commonly used in
+data centers because it allows operators to define relatively flexible
+routing policy while also scaling effectively to large networks.
+When used within a data center, each router is configured with its own \emph{AS number},
+which identifies it.
+
+Each BGP message (also called a \emph{route announcement}) contains a 
+\emph{destination prefix}, such as 10.1.1.0/24,\footnote{An address
+such as 10.1.1.0 is 32 bits, with each of the four values representing 8 bits.  
+A prefix such
+as 10.1.1.0/24 denotes the set of addresses that begin with the first
+24 bits of 10.1.1.0, \IE, all addresses that begin with 10.1.1.} as well as an
+\emph{AS path}, such as XYZ (where each of X, Y and Z would be an AS number).  
+Such messages indicate that the set of addresses
+denoted by the prefix may be reached by following the path XYZ. 
+A BGP message may also contain additional attributes, such as 
+\emph{local preference} attribute and one or more
+\emph{community values}.
+
+A BGP router may receive messages about the same prefix from several
+of its \emph{peers} (\IE, neighbouring routers).  When this occurs,
+it processes the messages as follows:
+\begin{enumerate}
+\item It \emph{filters} (drops) some of the incoming messages based on
+any their attributes (AS path, community values, peer it came from, \ETC),
+and optionally modifies attributes of the messages it does not drop.
+This is usually called the \emph{import} stage.
+\item From the remaining messages, it selects the one message it
+most \emph{prefers}. Selection is based on a number of criteria, but the
+most important is the local preference number: Higher local preferences
+are preferred.  Ties are broken by AS path length --- BGP defaults to 
+shortest path routing in such cases.
+\item Finally, it \emph{exports} the preferred message to selected neighbors,
+adding its own AS number to the path and optionally adding or
+modifying attributes.
+\end{enumerate}
+When a BGP router is configured, the user tunes the import and export
+stages of the above process, choosing which messages to import, how to
+modify them and how to export them.  By modifying the local preferences
+on messages in the inport phase, the user determines which messages will
+be selected.  This in turn determines how traffic destined for the given
+address will be routed.  Keep in mind that if BGP messages to a destination
+are propagated in one direction (left-to-right), then traffic will wind
+up flowing in the opposite direction (right-to-left).
+
+Rather than export 2$^n$ addresses in the same range, routers will
+often perform \emph{route aggregation}, and export a single (32-$n$)-bit
+prefix.  During aggregation, whenever an advertisement for 
+\emph{any} of the 2$^n$ addresses
+reaches the router, the \emph{entire} aggregate prefix will be announced.
+While useful for decreasing announcements and avoiding churn, such
+aggregation can be dangerous:  If a message for one of the 2$^n$ addresses (X)
+reaches the aggregation router, but another one of the addresses (Y)
+cannot reach the aggregation router due to a failure then the aggregate
+will be announced, possibly drawing traffic to Y, even though Y cannot be
+reached.  This is known as an \emph{aggregation-induced black hole}~\cite{route-aggregation}.
+Networks should be configured to be sufficiently fault tolerant to minimize
+the chances of such black holes.
+
+\paragraph*{An Example}
 %We motivate \sysname using an example data center network. Our network, 
 Consider the data center network shown in Figure~\ref{fig:example}.  The boxes in the diagram
 represent \emph{switches}, and these switches play several different roles:  T[1--8] denote top-of-rack (ToR) switches, A[1--8] denote aggregation switches, and S[1--2] denote spine switches. The spine switches are connected to the
 rest of the internet; any traffic to or from the outside world flows through them.  The aggregation switches
 serve as a bridge between spine and ToR switches.   Finally, each ToR switch is
-connected to a set servers (``a rack''): P[1--8] denote groups of addresses for services hosted in each rack. Such groups are called address {\em prefixes} because they are encoded using the adresses' shared prefix. 
+connected to a set servers (``a rack''): P[1--8] denote groups of addresses for services hosted in each rack. 
+% Such groups are called address {\em prefixes} because they are encoded using the adresses' shared prefix. 
 
-We assume that each switch is running an instance of the \emph{Border Gateway Protocol} (BGP), 
-as is common in large data centers. In this protocol, adjacent switches use BGP to exchange messages
-with one another concerning the availability of routes to destinations.  A BGP \emph{configuration}
-(one for each switch) dictates which offered routes a switch will select and how to propagate chosen routes to its 
-neighbours.\footnote{If this submission is accepted and more space is available in the final version, 
-we will give a detailed explanation of BGP for the PLDI audience.  Henceforth, we assume knowledge of basic BGP
-mechanics.}
+%% We assume that each switch is running an instance of the \emph{Border Gateway Protocol} (BGP), 
+%% as is common in large data centers. In this protocol, adjacent switches use BGP to exchange messages
+%% with one another concerning the availability of routes to destinations.  A BGP \emph{configuration}
+%% (one for each switch) dictates which offered routes a switch will select and how to propagate chosen routes to its 
+%% neighbours.\footnote{If this submission is accepted and more space is available in the final version, 
+%% we will give a detailed explanation of BGP for the PLDI audience.  Henceforth, we assume knowledge of basic BGP
+%% mechanics.}
 
 %Assume that all nodes are running the border gateway protocol (BGP), as is common in large data centers~\cite{x}. \todo{more detail on BGP?}
 
@@ -384,7 +459,7 @@ To correctly configure the policy above, the network engineer's task is to gener
 
 As many have observed before, such configuration tasks are highly challenging. Consequently, configuration errors are the leading cause of network outages~\cite{juniper-study,bgpmon,batfish,propane}.
 
-\subsection{Limitations of concrete synthesis}
+\paragraph*{Limitations of concrete synthesis}
 
 In response, researchers have developed systems that synthesize low-level device configurations from high-level policy statements~\cite{narain:lisa05,narain+:configassure,dadc,propane}.
 %They take network topology and policy as input and output device configurations that are  guaranteed to be correct under all possible failures. Thus, they save the engineers from performing the complex task of breaking down global policies into device configurations.
@@ -424,7 +499,7 @@ abstraction-based synthesis framework synthesizes evolution-friendly roles autom
 %For instance, suppose the engineers want to add another pod with local services to the network in Figure~\ref{fig:example}. In this network, Propane, a concrete synthesis tool, uses prefix lists at spines to ensure that local prefixes are not advertised externally. To accommodate the expansion, the new spine configurations outputted by Propane will not only enable the interfaces that connect to the new aggregators but will also have to update the prefix list filters. A system that supports incremental growth should need only interface configuration changes (not filter changes). It can configure all local ToRs, including the new ones, to attach a tag to their announcements and filter external announcements at the spines based on this tag. Engineers prefer fewer configuration changes because each change runs the risks of poor transient behavior (which synthesis tools do not reason about).
 
 
-\subsection{Limitations of today's template systems}
+\paragraph*{Limitations of today's template systems}
 
 To simplify network configuration, and thus reduce errors, the network engineering community is adopting a template-based approach~\cite{hatch,thwack}. Instead of authoring one configuration file per router, engineers author one configuration template per role.\footnote{If a role is played by devices from different vendors, there is one template per role-vendor combination because templates use vendor configuration language.} Templates have parameters for various aspects of the configuration (\EG, interface addresses, neighbor list) and are compiled to device configurations by instantiating the parameters using a database of per-device values.
 
