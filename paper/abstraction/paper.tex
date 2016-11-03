@@ -87,6 +87,9 @@
 \newcommand{\hdr}[2]{\flushleft \chdr{\hspace{5mm}#1}{#2}}
 \newcommand{\chdr}[2]{\textbf{#1} {#2} \\ \centering}%
 
+\newtheorem{thm}{Theorem}[section]
+\newtheorem{defn}{Definition}
+\newtheorem{lem}[thm]{Lemma}
 
 \begin{document}
 
@@ -763,6 +766,8 @@ Routing & Locality & \Agg(PG, \In -> \Out)
 \end{code}
 \noindent%
 
+\ryan{we may need to add notransit constraint to make the compilation section simpler}
+
 This tells \sysname to find BGP router configurations that satisfy the conjunction of the Routing and Locality constraints. It also declares an additional constraint that we want to perform prefix summarization (as PG) for global prefixes at the border of the datacenter (\IE, along any edge starting inside our datacenter and ending at a peer outside the datacenter).
 
 When \sysname compiles the above policy, it guarantees that the forwarding behavior of the network will be correct for any concrete instantiation of the abstract network, and for any combination of failures that may occur in the concrete network. Furthermore, \sysname will generate configurations in such a way that, if we want to expand our network, for example by adding or removing a spine routers as in figure~\ref{fig:example2}, then the expansion can be performed by only ever touching device configurations that are adjacent to the change.
@@ -880,7 +885,7 @@ We add edges from the start node $s$ to any $m = (l, q_{m_1}, \dots, q_{m_k})$ w
 %
 The preference function $P(m)$ denotes the rank of paths through the Product Graph ending at node $m$ and is defined as $P(m) = \set{i~\vert~q_{m_i} \in F_i}$. 
 %
-We write $(m \leq_{rank} n)$ if $P(m) = \emptyset$ or $\min ~ P(m) \leq \min ~ P(n)$, which means that paths ending at PGIR node $m$ are better (lower rank) than paths ending at $n$.
+We write $worse(m,n)$ if $P(n) = \emptyset$ or $\min ~ P(m) \geq \min ~ P(n)$, which means that paths ending at PGIR node $m$ are worse (higher rank) than paths ending at $n$.
 %
 We write $m \approx n$ whenever two vertices $m,n = (l, \dots) \in V'$ share the same topology location $l$.
 
@@ -954,11 +959,32 @@ Each node in the Product Graph tracks both where a protocol message is in the to
 
 \subsection{Product graph distributed configurations}
 
-The translation from the Product Graph to per-device configurations that run the distributed BGP protocol consists of 2 steps. The first step is to generate per-device BGP import and export filters based on the edges in the Product Graph. The idea is to attach a tag to every route advertisement that routers send to their neighbors that encodes the current state of the automata. For example... \ryan{show example here}. This ensures that BGP will only find paths that exist in the Product Graph, and are thus allowed by the policy.
+The translation from the Product Graph to per-device configurations that run the distributed BGP protocol involves several ideas. 
 
-The second step is to find, for each router, a total ordering of Product Graph neighbors that tells it which advertisements to prefer in the routing protocol to others. In general, because BGP is distributed, each router does not have a full picture of the entire network when choosing which path to use. It is therefore possible for a router to choose a path that results in a less preferred network-wide path even though a better one is available in the network. In general, finding a collection of preferences to ensure correct end-to-end paths for all failures is a hard problem. The Propane tool introduced a conservative, yet effective algorithm for determining route preferences based on the following simulation relation:
+The first idea is to tag every protocol message with a BGP community value that relays the state of each automaton when advertising a route to a neighbor. Routers can then allow route advertisements that correspond to an edge in the Product Graph (\IE, from a neighbor with the correct state) and block those that don't. This ensures that any path computed by BGP will be a valid path in the Product Graph, and thus is allowed by the policy. For example, in the concrete Product Graph in figure~\ref{fig:example-compilation}, router $S1$ will allow a route advertisement from its neighbor $P1$ and also from neighbor $P2$. If it uses neighbor $P1$, then it will add the tag $(1,0)$ before informing its neighbors about its route. On the other hand, if it uses neighbor $P2$, then it will add the tag $(0,1)$ before informing its neighbors about the route.
+
+%The first step is to generate per-device BGP import and export filters based on the edges in the Product Graph. The idea is to attach a tag to every route advertisement that routers send to their neighbors that encodes the current state of the automata. For example... \ryan{show example here}. This ensures that BGP will only find paths that exist in the Product Graph, and are thus allowed by the policy.
+
+However, letting BGP find some allowed path is not enough. \sysname must ensure BGP always computes the \emph{best} path according to the user's preferences, even when failures occur. The second idea is to totally order advertisements each router might receive from neighbors in the Product Graph by preference. For example, to satisfy the policy that leaving through $\sf{P1}$ is preferred to leaving through $\sf{P2}$, router $S1$ should prefer a route it hears from $P1$ over one from $P2$. Similarly, router $A1$ should prefer routes tagged with $(1,0)$ over those tagged with $(0,1)$.
+
+In general, because BGP is distributed, each router does not have a full view of the entire network when choosing which path to use. Because finding a collection of preferences to ensure correct end-to-end behavior for all failures is a hard problem, Propane introduced a conservative, yet effective algorithm for determining route preferences based on the following observation about the structure of the Product Graph:
 
 
+\begin{defn}
+The product graph can be viewed as a labelled transition system where
+$m\overset{l}{\rightarrow}n$ if edge $(m,n) \in E'$ and $loc(n) = l$. We write $m \leq m'$ if $m$ simulates $m'$ with respect to the ``worse" relation on node rankings.
+\end{defn}
+
+We can assign BGP local preferences for the policy in the following way: Check if each router has a total order with respect to the simulation relation ($\leq$) for its corresponding Product Graph nodes. If so, then simply sort the nodes and prefer advertisements from peers of node $m$ over those of node $m'$ if $m' \leq m$.
+
+For example, in the concrete product graph we have $(S1,0,1) \leq (S1,1,0)$ but not the other way around. Therefore, advertisements received at $S1$ in state $(0,1)$ must be preferred to those received in state $(1,0)$. Observe also that in the abstract product graph, node $(S,0,1) \leq (S,1,0)$. This leads us the the following lemma:
+
+\begin{lem}
+\label{lem:preference}
+$m \leq m'$ in the concrete product graph iff $f(m) \leq f(m')$ in the abstract product graph under the lifted graph homomorphism $f$.
+\end{lem}
+
+Intuitively, Lemma~\ref{lem:preference} hints that we will be able to infer BGP local preferences over the abstract product graph rather than the concrete product graph.
 
 
 \subsection{Substitution Theorem}
