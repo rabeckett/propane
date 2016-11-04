@@ -1183,14 +1183,6 @@ Each label $L \in \{S,A\}$ is either $S$, which stands for ``some" or is $A$, wh
 
 Semantically, $L_{X_1}, \ldots, L_{X_n}(j,k)$ means that starting from some concrete router in the abstract source, for ``some"/``all" scopes $X_1$, $L_{X_2}, \ldots, L_{X_n}(j,k)$ holds. The base case $L_{X_n}(j,k)$ means that for ``some"/``all" groups of size $j$ concrete routers, there are $k$ disjoint paths to each such that all $j*k$ paths are disjoint
 
-\begin{figure}
-  \begin{center}
-    \includegraphics[width=.66\columnwidth]{figures/analysis}
-  \end{center}
-  \caption{Abstract disjoint path analysis with valleyfree routing for global prefixes. \label{fig:compilation-times}}
-  \vspace{-1em}
-\end{figure}
-
 For example, a fact of the form: $A_P, S_{TL}(2,4)$ means that for all pods P, there is some group of size 2 concrete routers in role TL such that they each have 4 disjoint paths to them from the source and all 8 paths are disjoint.
 
 \subsection{Inference rules}
@@ -1230,7 +1222,27 @@ Finally, the \infrule{I-local} and \infrule{I-global} rules allow us to lift eac
 
 \subsection{An inference algorithm}
 
-The abstract disjoint path analysis computes
+The abstract disjoint path analysis starts from a fixed source location $src$ and repeatedly applies the inference rules from Figure~\ref{fig:inference-rules} until a fixed point is reached. Inference rule conditions are checked for validity over all concrete topologies using the Z3 \ryan{cite} SMT solver. In order to ensure termination, we make the observation that, for any fact learned of the form $L(j,k)$, it is sound to instead infer $L(j',k')$ if $j' \leq j$ and $k' \leq k$. Therefore, for each inference rule that learns a fact of the form $L(j,k)$ we minimize the symbolic expressions for $j$ and $k$ subject to the topology constraints using the Z3 optimizing constraint solver. 
+
+\begin{figure}
+  \begin{center}
+    \includegraphics[width=.66\columnwidth]{figures/analysis}
+  \end{center}
+  \caption{Abstract disjoint path analysis with valleyfree routing for global prefixes. \label{fig:compilation-times}}
+  \label{fig:example-inference}
+  \vspace{-1em}
+\end{figure}
+
+Consider again the datacenter example from \S\ref{sec:overview}. For global prefixes we used the routing policy:
+%
+\[ \begin{array}{c}
+  \$PG \Path end(TG)
+\end{array} \]
+\noindent
+%
+Suppose now we additionally add the valleyfree constraint that traffic never has takes a path with a down-up in it. Figure~\ref{fig:example-inference} shows the abstract product graph representation for this routing policy. The inference algorith starts from the node $(TG,0,0)$ with the initial fact $S_P S_{TG}(1,\infty)$
+\ryan{todo}
+
 
 %=====================================================
 %
