@@ -1073,25 +1073,44 @@ Specifically, this ensures that each router has a template that has no dependenc
 In the previous section we saw that \sysname can synthesize correct device configurations by operating directly over the abstract representation. However, in practice operators would often like to reason about other properties about their network. In this section we present an analysis that operates over the network abstraction to find a lower bound on the number of disjoint paths between pairs of concrete nodes. Answering questions about the number of disjoint paths allows operators to reason about many useful network properties such as reachability (\IE, is there at least one path) and fault tolerance (\EG, how many failures will disconnect certain routers). An important point is that the analysis takes place over the structure of the product graph, and so takes both the topology and routing policy into account.
 
 
-\newcommand{\inference}[5]{
+\newcommand{\inference}[7]{
     \node[draw, anchor=west] at (#1 + .4, 1.25) {#3};
     \node[anchor=east] at (#1 - .4, 1.25) {\textbf{#5}};
-    \node at (#1 + .34, .6) {$e_1$};
-    \node at (#1 + .34, 1.9) {$e_2$};
+    \node at (#1 + .34, .6) {#6};
+    \node at (#1 + .34, 1.9) {#7};
     \node at (#1, -.8) {#2};
     \node at (#1, 3.3) {#4};
     \draw [] (#1, 2.5) circle [radius=0.45] node {$n$};
     \draw [] (#1, 0) circle [radius=0.45] node {$m$};
-    \draw [<-] (#1, .45) -- (#1, 2.05);
+    \draw [->] (#1, .45) -- (#1, 2.05);
+}
+
+\newcommand{\inferencetwo}[1]{
+    \node[draw, anchor=west] at (#1 + 2, 1.25) {$e_i > 0$};
+    \node[anchor=east] at (#1 - .4, 1.25) {\textbf{I-striping}};
+    \node at (#1 - 1 - .11, .6) {$e_1$};
+    \node at (#1 + .11, 1.9) {$e_2$};
+    \node at (#1 + 2 + .11, .6) {$e_3$};
+    \node at (#1 + .11 + .8, 1.9) {$e_4$};
+    \node at (#1 - 1, -.8) {L$(j,k)$};
+    \node at (#1 +. 5, 3.3) {S$(min(j*k,g),1)$};
+    \node at (#1 + 2, -.8) {L$\big( min(j, g *\frac{e_4}{e_3}),1\big)$};
+    \node at (#1, 3.3) {};
+    \draw [] (#1 + .5, 2.5) circle [radius=0.45] node {$n$};
+    \draw [] (#1 - 1, 0) circle [radius=0.45] node {$m$};
+    \draw [] (#1 + 2, 0) circle [radius=0.45] node {$o$};
+    \draw [->] (#1 - 1, .45) -- (#1 + .5, 2.05);
+    \draw [<-] (#1 + 2, .45) -- (#1 + .5, 2.05);
+
 }
 
 \begin{figure*}[t!]
   \begin{minipage}[t]{.5\linewidth}%
   \begin{tikzpicture}
-    \inference{0}{L$(j,k)$}{$e_1 > 0$}{S$(min(j*k,e_1),1)$}{I-out1}
-    \inference{4.5}{A$(j,k)$}{$e_2 > 0$}{A$(1,min(j,e2))$}{I-out2}
-    \inference{9}{L$(j,k)$}{$e_1=n$}{A$(min(j*k,n),1)$}{I-mesh1}
-    \inference{13.5}{L$(j,k)$}{$e_1=n$}{A$(1,j)$}{I-mesh2}
+    \inference{0}{L$(j,k)$}{$e_1 > 0$}{S$(min(j*k,e_1),1)$}{I-out1}{$e_1$}{$e_2$}
+    \inference{4.5}{A$(j,k)$}{$e_2 > 0$}{A$(1,min(j,e2))$}{I-out2}{$e_1$}{$e_2$}
+    \inference{9}{L$(j,k)$}{$e_1=n$}{A$(min(j*k,n),1)$}{I-mesh1}{$e_1$}{$e_2$}
+    \inference{13.5}{L$(j,k)$}{$e_1=n$}{A$(1,j)$}{I-mesh2}{$e_1$}{$e_2$}
 
   \end{tikzpicture}
   \end{minipage}
@@ -1101,14 +1120,18 @@ In the previous section we saw that \sysname can synthesize correct device confi
   %
   \begin{minipage}[t]{.5\linewidth}%
   \begin{tikzpicture}
-    \inference{0}{L$(j,k)$}{$e_1 > 0 \wedge e_2 > 0$}{S$(min(j*k,n-\dfrac{(m-j)*e_1}{e_2}),1)$}{I-out3}
-    \inference{10}{L$(j,k)$ ~~~ L$(j- m ~\text{mod}~ \big(\dfrac{n}{e_1}\big),1)$}{$e_1 > 0 \wedge e_2 > 0$}{}{I-striping}
+    % \inference{0}{L$(j,k)$}{$e_i > 0$}{S$(min(j*k,g),1)$}{I-out3}{$e_1$}{$e_2$}
+    \inferencetwo{0}
+
+    \node[anchor=west] at (3,2.4) {where $g=n-\dfrac{(m-j)*e_1}{e_2}$};
+
+    \inference{11}{L$(j,k)$}{$bisec(X)$}{A$(1,min(k,X))$}{I-bisec}{}{}
   \end{tikzpicture}
   \end{minipage}
 
   \hrule
   \vspace*{1em}
-  \caption{Abstract k-disjoint path analysis inference rules.}
+  \caption{Abstract k-disjoint path analysis inference rules. \ryan{added bisec idea a possibility, we can remove this}}
   \label{fig:inference-rules}
   %\vspace{-1em}
 \end{figure*}
@@ -1139,6 +1162,8 @@ Semantically, $L_{X_1}, \ldots, L_{X_n}(j,k)$ means that starting from some conc
 \end{figure}
 
 For example, a fact of the form: $A_P, S_{TL}(2,4)$ means that for all pods P, there is some group of size 2 concrete routers in role TL such that they each have 4 disjoint paths to them from the source and all 8 paths are disjoint.
+
+\subsection{Inference rules}
 
 In order to learn information about disjoint paths between routers, we develop a series of sound inference rules for facts of the above form. Figure~\ref{fig:inference-rules} shows each of the inference rules.
 
