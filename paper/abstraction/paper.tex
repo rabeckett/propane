@@ -1074,61 +1074,61 @@ In the previous section we saw that \sysname can synthesize correct device confi
 
 
 \newcommand{\inference}[7]{
-    \node[draw, anchor=west] at (#1 + .4, 1.25) {#3};
-    \node[anchor=east] at (#1 - .4, 1.25) {\textbf{#5}};
-    \node at (#1 + .34, .6) {#6};
-    \node at (#1 + .34, 1.9) {#7};
-    \node at (#1, -.8) {#2};
-    \node at (#1, 3.3) {#4};
-    \draw [] (#1, 2.5) circle [radius=0.45] node {$n$};
-    \draw [] (#1, 0) circle [radius=0.45] node {$m$};
-    \draw [->] (#1, .45) -- (#1, 2.05);
+    \node[draw, anchor=west] at (#1 + .5, 2.5 / 2) {#3};
+    \node[anchor=east] at (#1 - .4, 2.5 / 2) {\textbf{#5}};
+    \node at (#1 + .34, .6 + .2) {#6};
+    \node at (#1 + .34, 1.9 - .2) {#7};
+    \node at (#1, -.6) {#2};
+    \node at (#1, 2.5 + .4 + .2) {#4};
+    \draw [] (#1, 2.5 - .2) circle [radius=0.4] node {$n$};
+    \draw [] (#1, .2) circle [radius=0.4] node {$m$};
+    \draw [->] (#1, .4 + .2) -- (#1, 2.5 - .4 - .2);
 }
 
 \newcommand{\inferencenobox}[7]{
-    \node[anchor=west] at (#1 + .4, 1.25) {#3};
+    \node[anchor=west] at (#1 + .1, 1.25) {#3};
     \node[anchor=east] at (#1 - .4, 1.25) {\textbf{#5}};
     \node at (#1 + .34, .6) {#6};
     \node at (#1 + .34, 1.9) {#7};
-    \node at (#1, -.8) {#2};
-    \node at (#1, 3.3) {#4};
-    \draw [] (#1, 2.5 - .2) circle [radius=0.45] node {$n$};
-    \draw [] (#1, .2) circle [radius=0.45] node {$m$};
-    \draw [->] (#1, .2 + .45) -- (#1, 2.5 - .45 - .2);
+    \node at (#1, -.6) {#2};
+    \node at (#1, 2.5 + .4 + .2) {#4};
+    \draw [] (#1, 2.5 - .2) circle [radius=0.4] node {$n$};
+    \draw [] (#1, .2) circle [radius=0.4] node {$m$};
+    \draw [->] (#1, .2 + .4) -- (#1, 2.5 - .4 - .2);
 }
 
 \newcommand{\inferencetwo}[1]{
     \node[draw, anchor=west] at (#1 + 2, 1.25) {$e_i > 0$};
     \node[anchor=east] at (#1 - .4, 1.25) {\textbf{I-striping}};
     \node at (#1 - 1 - .11, .6) {$e_1$};
-    \node at (#1 + .11, 1.9) {$e_2$};
+    \node at (#1 + .11, 1.5) {$e_2$};
     \node at (#1 + 2 + .11, .6) {$e_3$};
-    \node at (#1 + .11 + .8, 1.9) {$e_4$};
+    \node at (#1 + .11 + .8, 1.5) {$e_4$};
     \node at (#1 - 1, -.8) {L$(j,k)$};
-    \node at (#1 +. 5, 3.3) {S$(min(j*k,g),1)$};
+    \node at (#1 +. 5, 2.9) {S$(min(j*k,g),1)$};
     \node at (#1 + 2, -.8) {L$\big( min(j, g *\frac{e_4}{e_3}),1\big)$};
     \node at (#1, 3.3) {};
-    \draw [] (#1 + .5, 2.5) circle [radius=0.45] node {$n$};
-    \draw [] (#1 - 1, 0) circle [radius=0.45] node {$m$};
-    \draw [] (#1 + 2, 0) circle [radius=0.45] node {$o$};
-    \draw [->] (#1 - 1, .45) -- (#1 + .5, 2.05);
-    \draw [<-] (#1 + 2, .45) -- (#1 + .5, 2.05);
+    \draw [] (#1 + .5, 2.01) circle [radius=0.4] node {$n$};
+    \draw [] (#1 - 1, 0) circle [radius=0.4] node {$m$};
+    \draw [] (#1 + 2, 0) circle [radius=0.4] node {$o$};
+    \draw [->] (#1 - 1, .4) -- (#1 + .5, 2 - .4);
+    \draw [<-] (#1 + 2, .4) -- (#1 + .5, 2 - .4);
 }
 
 \newcommand{\inferencelocal}[1]{
-    \inferencenobox{#1}{L$_1(j,k)$}{}{L$_2(j',k')$}{I-local}{}{}
-    \inferencenobox{#1+3}{$\ldots$ L$_P$ L$_1(j,k)$}{}{$\ldots$ L$_P$ L$_2(j',k')$}{}{}{}
-    \node[anchor=east] at (#1 + 3 - .6, 2.6) {P};
-    \draw[dashed] (#1+2 - .2, -.44) rectangle (#1+3+1 + .1, 2.95);
+    \inferencenobox{#1}{L$_m(j,k)$}{}{L$_n(j',k')$}{I-local}{}{}
+    \inferencenobox{#1+3}{$\ldots$ L$_P$ L$_m(j,k)$}{}{$\ldots$ L$_P$ L$_n(j',k')$}{}{}{}
+    \node[anchor=east] at (#1 + 3 - .6, 2.5) {P};
+    \draw[dashed] (#1+2 - .2, -.34) rectangle (#1+3+1 + .1, 2.85);
 }
 
 \newcommand{\inferenceglobal}[1]{
     \inferencenobox{#1}{L$_1(j,k)$}{}{L$_2(j',k')$}{I-global}{}{}
-    \inferencenobox{#1+3}{$\ldots$ L$_P$ L$_1(j,k)$}{}{$\ldots$ A$_P$ L$_2(j',k')$}{}{}{}  
-    \node[anchor=east] at (#1 + 3 - .6, .54) {P};  
-    \node[anchor=east] at (#1 + 3 - .6, 2.6) {Q};
-    \draw[dashed] (#1+2 - .2, -.44) rectangle (#1+3+1 + .1, .9);
-    \draw[dashed] (#1+2 - .2, 1.6) rectangle (#1+3+1 + .1, 2.95);
+    \inferencenobox{#1+3}{$\ldots$ L$_P$ L$_m(j,k)$}{}{$\ldots$ A$_Q$ L$_n(j',k')$}{}{}{}  
+    \node[anchor=east] at (#1 + 3 - .6, .4) {P};  
+    \node[anchor=east] at (#1 + 3 - .6, 2.5) {Q};
+    \draw[dashed] (#1+2 - .2, -.34) rectangle (#1+3+1 + .1, .8);
+    \draw[dashed] (#1+2 - .2, 1.7) rectangle (#1+3+1 + .1, 2.85);
 }
 
 \begin{figure*}[t!]
@@ -1146,8 +1146,8 @@ In the previous section we saw that \sysname can synthesize correct device confi
   \begin{tikzpicture}
     % \inference{0}{L$(j,k)$}{$e_i > 0$}{S$(min(j*k,g),1)$}{I-out3}{$e_1$}{$e_2$}
     \inferencetwo{0}
-    \node[anchor=west] at (2,2.4) {where $g=n-\dfrac{(m-j)*e_1}{e_2}$};
-    \inference{11}{L$(j,k)$}{$bisec(X)$}{A$(1,min(k,X))$}{I-bisec}{}{}
+    \node[anchor=west] at (2,2) {where $g=n-\dfrac{(m-j)*e_1}{e_2}$};
+    \inferencenobox{11}{L$(j,k)$}{$bisec(X)$}{A$(1,min(k,X))$}{I-bisec}{}{}
   \end{tikzpicture}
   \end{minipage}
 
@@ -1195,8 +1195,42 @@ For example, a fact of the form: $A_P, S_{TL}(2,4)$ means that for all pods P, t
 
 \subsection{Inference rules}
 
-In order to learn information about disjoint paths between routers, we develop a series of sound inference rules for facts of this form. Figure~\ref{fig:inference-rules} shows each of the inference rules.
+\newcommand{\infrule}[1]{{\small \sf #1}\xspace}
 
+In order to learn information about disjoint paths between routers, we develop a series of sound inference rules for facts of this form. Figure~\ref{fig:inference-rules} shows each of the inference rules. The rules are read from bottom to top. The label on the bottom left corresponds to a known fact of the form $L(j,k)$. We use $L$ to represent a rule that is parametric over the particular label. The labels on other nodes correspond to learned facts from applying the inference rule. Conditions that must be \emph{valid} for the node and edge multiplicities are shown in a box.
+
+In general, the inference rules try to learn information about (1) the largest number of disjoint paths to any single node in an abstract role and (2) the largest reachable group in a particular role with at least one disjoint path to each as this tends to be a valuable invariant.
+
+The first rule, \infrule{I-out1} applies to a learned fact of the form L$(j,k)$ where the number of out edges at the current node is greater than 0. In the worst case, the largest group of nodes we could hope to reach at the top node would be $e_1$ since all j nodes at the bottom may have the same outgoing edges to the nodes at the top. Furthermore, the total number of disjoint paths to the $j$ nodes at the bottom is equal to $j*k$. Since adding edges from between the nodes keeps the existing paths disjoint, and since we can not exceed the current number of disjoint paths to the node on the bottom, the largest reachable group for the top node will be $min(j*k,e_1)$. However, since we do not know for certain that all $j$ nodes have outgoing edges to the same nodes at the top, we conservatively use $1$ for the number of disjoint paths to each node on top.
+
+The rule \infrule{I-out2} follows a similar line of reasoning. It says that if any group of size $j$ with $k$ disjoint paths to each is reachable in the bottom node, and there is at least one incoming edge for each top node, then there are $min(j,e_2)$ disjoint paths to any single node in the top role. This is because we can choose the $j$ nodes on the bottom for which we want to find disjoint paths, and then use each of the $e_2$ incoming edges for the particular node at the top connecting it to the bottom, which preserve the disjointedness.
+
+The two rules \infrule{I-mesh1} and \infrule{I-mesh2} handle the case where there is a full mesh between the two roles. This happens when the number of outgoing edges from the bottom $e_1$ is equal to the number of nodes on the top $n$. The first case for \infrule{I-mesh1} says that we can find disjoint paths to each node in the top role restricted to the number of disjoint paths we started with. The second case for \infrule{I-mesh2} uses the fact that each node in the top role is connected to each node in the bottom role to infer that there can be $j$ disjoint paths to any single node in the top role. 
+
+The rule \infrule{I-striping} is the most complicated case.
+It starts with the fact L$(j,k)$ at role $m$ and can be applied if each edge multiplicity $e_i > 0$ is valid. The first inference for role $n$ tries to find the largest reachable group with disjoint paths to each. The idea is similar to the rule \infrule{I-out1}, but is able to use the fact that $e_2 > 0$ to learn more about the structure of the concrete topology. In particular it uses the following inequality, where $g$ represents the size of the group for the top role:
+%
+\[ \begin{array}{c}
+  (m-j)*e_1 \geq (n-g)*e_2
+\end{array} \]
+\noindent
+%
+This captures the fact that the remaining nodes ($m-j$) for which we are not considering, each have $e_1$ outgoing edges and must be able to fill the incoming edges for the remaining nodes not in the reachable group at the top ($n-g$) with $e_2$ incoming edges each. Solving the inequality yields:
+%
+\[ \begin{array}{c}
+  g \geq n - \dfrac{(m-j)*e_1}{e_2}
+\end{array} \]
+\noindent
+%
+The second part of the rule allows uses a similar idea to reason about the "striping", or overlap between roles $m$ and $o$ with respect to role $n$. Often times this rule is applied when $m$ and $o$ are in fact the same role.
+
+The rule \infrule{I-bisec} can be thought of as a programmer assertion about the bisection between two roles. The rule applies to an edge that has been annotated with a $bisec(X)$ statement, which means that there are $X$ disjoint paths between any node in role $m$ and any node in role $n$. Annotations of this form are useful for a "one big switch" type of abstraction where part of a complex network is abstracted into a single node.
+
+Finally, the \infrule{I-local} and \infrule{I-global} rules allow us to lift each of the other rules to reason across pod hierarchies. The first rule, \infrule{I-local}, says that if you have an inference from L$_m(j,k)$ to L$_n(j',k')$ on the left, then if both nodes are in the same local pod P, you can leave all labels up to P unchanged. The global rule \infrule{I-global} says the same thing except when the edge goes between pods, you can infer the fact for all pods Q since the multiplicities apply equally to each pod.
+
+\subsection{An inference algorithm}
+
+The abstract disjoint path analysis computes
 
 %=====================================================
 %
