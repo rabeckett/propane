@@ -1085,6 +1085,18 @@ In the previous section we saw that \sysname can synthesize correct device confi
     \draw [->] (#1, .45) -- (#1, 2.05);
 }
 
+\newcommand{\inferencenobox}[7]{
+    \node[anchor=west] at (#1 + .4, 1.25) {#3};
+    \node[anchor=east] at (#1 - .4, 1.25) {\textbf{#5}};
+    \node at (#1 + .34, .6) {#6};
+    \node at (#1 + .34, 1.9) {#7};
+    \node at (#1, -.8) {#2};
+    \node at (#1, 3.3) {#4};
+    \draw [] (#1, 2.5 - .2) circle [radius=0.45] node {$n$};
+    \draw [] (#1, .2) circle [radius=0.45] node {$m$};
+    \draw [->] (#1, .2 + .45) -- (#1, 2.5 - .45 - .2);
+}
+
 \newcommand{\inferencetwo}[1]{
     \node[draw, anchor=west] at (#1 + 2, 1.25) {$e_i > 0$};
     \node[anchor=east] at (#1 - .4, 1.25) {\textbf{I-striping}};
@@ -1101,31 +1113,49 @@ In the previous section we saw that \sysname can synthesize correct device confi
     \draw [] (#1 + 2, 0) circle [radius=0.45] node {$o$};
     \draw [->] (#1 - 1, .45) -- (#1 + .5, 2.05);
     \draw [<-] (#1 + 2, .45) -- (#1 + .5, 2.05);
+}
 
+\newcommand{\inferencelocal}[1]{
+    \inferencenobox{#1}{L$_1(j,k)$}{}{L$_2(j',k')$}{I-local}{}{}
+    \inferencenobox{#1+3}{$\ldots$ L$_P$ L$_1(j,k)$}{}{$\ldots$ L$_P$ L$_2(j',k')$}{}{}{}
+    \node[anchor=east] at (#1 + 3 - .6, 2.6) {P};
+    \draw[dashed] (#1+2 - .2, -.44) rectangle (#1+3+1 + .1, 2.95);
+}
+
+\newcommand{\inferenceglobal}[1]{
+    \inferencenobox{#1}{L$_1(j,k)$}{}{L$_2(j',k')$}{I-global}{}{}
+    \inferencenobox{#1+3}{$\ldots$ L$_P$ L$_1(j,k)$}{}{$\ldots$ A$_P$ L$_2(j',k')$}{}{}{}  
+    \node[anchor=east] at (#1 + 3 - .6, .54) {P};  
+    \node[anchor=east] at (#1 + 3 - .6, 2.6) {Q};
+    \draw[dashed] (#1+2 - .2, -.44) rectangle (#1+3+1 + .1, .9);
+    \draw[dashed] (#1+2 - .2, 1.6) rectangle (#1+3+1 + .1, 2.95);
 }
 
 \begin{figure*}[t!]
-  \begin{minipage}[t]{.5\linewidth}%
+  \begin{minipage}[t]{\linewidth}%
   \begin{tikzpicture}
     \inference{0}{L$(j,k)$}{$e_1 > 0$}{S$(min(j*k,e_1),1)$}{I-out1}{$e_1$}{$e_2$}
     \inference{4.5}{A$(j,k)$}{$e_2 > 0$}{A$(1,min(j,e2))$}{I-out2}{$e_1$}{$e_2$}
     \inference{9}{L$(j,k)$}{$e_1=n$}{A$(min(j*k,n),1)$}{I-mesh1}{$e_1$}{$e_2$}
     \inference{13.5}{L$(j,k)$}{$e_1=n$}{A$(1,j)$}{I-mesh2}{$e_1$}{$e_2$}
-
   \end{tikzpicture}
   \end{minipage}
 
-  %
   \vspace*{1em}
-  %
-  \begin{minipage}[t]{.5\linewidth}%
+  \begin{minipage}[t]{\linewidth}%
   \begin{tikzpicture}
     % \inference{0}{L$(j,k)$}{$e_i > 0$}{S$(min(j*k,g),1)$}{I-out3}{$e_1$}{$e_2$}
     \inferencetwo{0}
-
-    \node[anchor=west] at (3,2.4) {where $g=n-\dfrac{(m-j)*e_1}{e_2}$};
-
+    \node[anchor=west] at (2,2.4) {where $g=n-\dfrac{(m-j)*e_1}{e_2}$};
     \inference{11}{L$(j,k)$}{$bisec(X)$}{A$(1,min(k,X))$}{I-bisec}{}{}
+  \end{tikzpicture}
+  \end{minipage}
+
+  \vspace*{1em}
+  \begin{minipage}[t]{\linewidth}%
+  \begin{tikzpicture}
+    \inferencelocal{0}
+    \inferenceglobal{10}
   \end{tikzpicture}
   \end{minipage}
 
@@ -1165,7 +1195,7 @@ For example, a fact of the form: $A_P, S_{TL}(2,4)$ means that for all pods P, t
 
 \subsection{Inference rules}
 
-In order to learn information about disjoint paths between routers, we develop a series of sound inference rules for facts of the above form. Figure~\ref{fig:inference-rules} shows each of the inference rules.
+In order to learn information about disjoint paths between routers, we develop a series of sound inference rules for facts of this form. Figure~\ref{fig:inference-rules} shows each of the inference rules.
 
 
 %=====================================================
