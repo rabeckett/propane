@@ -1080,8 +1080,8 @@ In the previous section we saw that \sysname can synthesize correct device confi
     \node at (#1 + .34, 1.9) {$e_2$};
     \node at (#1, -.8) {#2};
     \node at (#1, 3.3) {#4};
-    \draw [] (#1, 2.5) circle [radius=0.45] node {$m$};
-    \draw [] (#1, 0) circle [radius=0.45] node {$n$};
+    \draw [] (#1, 2.5) circle [radius=0.45] node {$n$};
+    \draw [] (#1, 0) circle [radius=0.45] node {$m$};
     \draw [] (#1, .45) -- (#1, 2.05);
 }
 
@@ -1109,7 +1109,7 @@ In the previous section we saw that \sysname can synthesize correct device confi
   \hrule
   \vspace*{1em}
   \caption{Abstract k-disjoint path analysis inference rules.}
-  \label{fig:abstract-analysis}
+  \label{fig:inference-rules}
   %\vspace{-1em}
 \end{figure*}
 
@@ -1138,10 +1138,10 @@ Semantically, $L_{X_1}, \ldots, L_{X_n}(j,k)$ means that starting from some conc
   \vspace{-1em}
 \end{figure}
 
-For example, a fact of the form: $A_P, S_{TL}(2,4)$ means that for all pods P, there is some group of size 2 concrete routers in role TL such that they each have 4 disjoint to them from the source and all 8 paths are disjoint.
+For example, a fact of the form: $A_P, S_{TL}(2,4)$ means that for all pods P, there is some group of size 2 concrete routers in role TL such that they each have 4 disjoint paths to them from the source and all 8 paths are disjoint.
 
-%suppose we want to compute the number of disjoint paths from the local ToR role $(TL,0,0)$ for
-\ryan{TODO: probably need a new image for local prefixes?}
+In order to learn information about disjoint paths between routers, we develop a series of sound inference rules for facts of the above form. Figure~\ref{fig:inference-rules} shows each of the inference rules.
+
 
 %=====================================================
 %
