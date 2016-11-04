@@ -532,7 +532,6 @@ largely semantically similar to existing configurations, they may be syntactical
 %\label{fig:marketing}
 %\end{figure}
 
-
 %\subsection{\sysnamesec}
 %
 %As Table~\ref{fig:marketing} shows, \sysname addresses the limitations of both concrete synthesis and current template systems. It operates at the right level of abstraction for network operators, provides strong guarantees about compiled configurations, supports verification of important correctness properties, and supports network evolution. 
@@ -1074,38 +1073,39 @@ Specifically, this ensures that each router has a template that has no dependenc
 In the previous section we saw that \sysname can synthesize correct device configurations by operating directly over the abstract representation. However, in practice operators would often like to reason about other properties about their network. In this section we present an analysis that operates over the network abstraction to find a lower bound on the number of disjoint paths between pairs of concrete nodes. Answering questions about the number of disjoint paths allows operators to reason about many useful network properties such as reachability (\IE, is there at least one path) and fault tolerance (\EG, how many failures will disconnect certain routers). An important point is that the analysis takes place over the structure of the product graph, and so takes both the topology and routing policy into account.
 
 
-\newcommand{\inference}[4]{
+\newcommand{\inference}[5]{
     \node[draw, anchor=west] at (#1 + .4, 1.25) {#3};
+    \node[anchor=east] at (#1 - .4, 1.25) {\textbf{#5}};
     \node at (#1 + .34, .6) {$e_1$};
     \node at (#1 + .34, 1.9) {$e_2$};
     \node at (#1, -.8) {#2};
     \node at (#1, 3.3) {#4};
     \draw [] (#1, 2.5) circle [radius=0.45] node {$n$};
     \draw [] (#1, 0) circle [radius=0.45] node {$m$};
-    \draw [] (#1, .45) -- (#1, 2.05);
+    \draw [<-] (#1, .45) -- (#1, 2.05);
 }
 
 \begin{figure*}[t!]
   \begin{minipage}[t]{.5\linewidth}%
   \begin{tikzpicture}
-    \inference{0}{L$(j,k)$}{$\vDash e_1 > 0$}{S$(min(j*k,e_1),1)$}
-    \inference{5}{A$(j,k)$}{$e_2 > 0$}{A$(1,min(j,e2))$}
-    \inference{10}{L$(j,k)$}{$e_1=n$}{A$(min(j*k,n),1)$}
-    \inference{15}{L$(j,k)$}{$e_1=n$}{A$(1,j)$}
+    \inference{0}{L$(j,k)$}{$e_1 > 0$}{S$(min(j*k,e_1),1)$}{I-out1}
+    \inference{4.5}{A$(j,k)$}{$e_2 > 0$}{A$(1,min(j,e2))$}{I-out2}
+    \inference{9}{L$(j,k)$}{$e_1=n$}{A$(min(j*k,n),1)$}{I-mesh1}
+    \inference{13.5}{L$(j,k)$}{$e_1=n$}{A$(1,j)$}{I-mesh2}
+
   \end{tikzpicture}
   \end{minipage}
 
   %
-  \vspace*{3em}
+  \vspace*{1em}
   %
   \begin{minipage}[t]{.5\linewidth}%
   \begin{tikzpicture}
-    \inference{0}{L$(j,k)$}{$e_1 > 0$, $e_2 > 0$}{S$(min(j*k,n-\dfrac{(m-j)*e_1}{e_2}),1)$}
-    \inference{10}{L$(j,k)$ ~~~ L$(j- m ~\text{mod}~ \big(\dfrac{n}{e_1}\big),1)$}{$e_1 > 0$, $e_2 > 0$}{}
+    \inference{0}{L$(j,k)$}{$e_1 > 0 \wedge e_2 > 0$}{S$(min(j*k,n-\dfrac{(m-j)*e_1}{e_2}),1)$}{I-out3}
+    \inference{10}{L$(j,k)$ ~~~ L$(j- m ~\text{mod}~ \big(\dfrac{n}{e_1}\big),1)$}{$e_1 > 0 \wedge e_2 > 0$}{}{I-striping}
   \end{tikzpicture}
   \end{minipage}
 
-  \vspace*{1em}
   \hrule
   \vspace*{1em}
   \caption{Abstract k-disjoint path analysis inference rules.}
@@ -1252,7 +1252,7 @@ Hypercube variants can be used as an alternative to Clos-style topologies for ne
 
 \subsection{Compilation time}
 
-\begin{figure}
+\begin{figure}[t!]
   \subcaptionbox{Datacenter}
     {\includegraphics[width=.49\columnwidth]{figures/Fattree-time.png}}
   \subcaptionbox{Backbone}
@@ -1398,7 +1398,7 @@ Figure~\ref{fig:abstract-breakdown} shows the relative time taken by each phase 
 
 \appendix
 
-\begin{figure*}[t]\small
+\begin{figure*}[t!]\small
   \begin{minipage}[t]{.45\linewidth}
   \hdr{Syntax}{}
   \vspace*{-1\baselineskip}
