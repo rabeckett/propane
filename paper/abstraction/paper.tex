@@ -809,7 +809,7 @@ The syntax introduced in \S\ref{sec:overview} is just syntactic sugar for a core
 
 A policy has one or more constraints, each of which consists of a test on the type of traffic being matched and a corresponding set of preferred regular expressions describing network paths. Regular expressions are defined over network locations, where each location is either a router inside the operators network, or an external neighbor. There are two special characters \In~ and \Out, which match any internal and external location respectively. There are two types of predicates: a test for a concrete prefix $d.d.d.d/[d..d]$ matches an IP prefix with value $d.d.d.d$ and length in the range $[d..d]$ where metavariable $d$ represents an integer. For example, the IP prefix 148.0.1.0/[24..32] would match traffic destined for IP address 148.0.1.* with a subnet length between 24 and 32 bits. \ryan{this needs to be explained clearer}.
 
-Converting from the high-level syntax from \S\ref{sec:overview} to the core syntax is straightforward. For example, the predicate $\True$ becomes $0.0.0.0/[0..32]$. Preferences are lifted to the top level of the regular expression when unambiguous. For example, the constraint $\Exit(\sf{Peer1} \Prefer \sf{Peer2})$ becomes $\Exit(\sf{Peer1}) \Prefer \Exit(\sf{Peer2})$ before being rewritten into regular expressions. Each modular set of constraints are joined prefix-by-prefix by taking the intersection of their constraints. For example, the combining the Routing and Locality constraints in the data center policy from \S\ref{sec:overview} would result in the following \sysname policy:
+Converting from the high-level syntax from \S\ref{sec:overview} to the core syntax is straightforward. For example, the predicate $\True$ becomes $0.0.0.0/[0..32]$. Preferences are lifted to the top level of the regular expression when their use is unambiguous. For example, the constraint $\Exit\CD{(Peer1} ~\Prefer~ \CD{Peer2)}$ becomes $\Exit\CD{(Peer1)} \Prefer~ \Exit\CD{(Peer2)}$ before being rewritten into regular expressions. Each modular set of constraints are joined prefix-by-prefix by taking the intersection of their constraints. For example, the combining the Routing and Locality constraints in the data center policy from \S\ref{sec:overview} would result in the following \sysname policy:
 %
 \begin{code}
 \$PG  \Path \End(TG),
@@ -818,7 +818,7 @@ Converting from the high-level syntax from \S\ref{sec:overview} to the core synt
 \end{code}
 \noindent%
 %
-Finally, each constraint desugars to a regular expression. For example, the constraint $\Always(\In)$ becomes $\In^*$ and the constraint $\End({\small \mathsf{T0}})$ becomes $\Sigma^* \cdot \sf{T0}$.
+Finally, each constraint desugars to a regular expression. For example, the constraint $\Always\CD{(\In)}$ becomes $\In^*$ and the constraint $\CD{\End(T0)}$ becomes $\mathtt{\Sigma}^* \cdot \CD{T0}$.
 
 \subsection{Product Graph}
 
@@ -832,7 +832,7 @@ Since each predicate in a \sysname policy has its own set of regular expression 
 
 \para{Formal definition}
 
-For each regular expression $r_i$ from $r_1 ~\Prefer~ .. ~\Prefer~ r_k$, we construct a DFA for the reverse of $r_i$. An automaton for $r_i$ is defined as a tuple ($\Sigma, Q_i, F_i, q_{0_i}, \sigma_i$). The alphabet $\Sigma = G^A$ is the set of topology locations, $Q_i$ is the set of states for automaton i, $F_i$ is the set of final states, $q_{0_i}$ is the initial state, and $\sigma_i \colon Q_i \times \Sigma \rightarrow Q_i$ is the state transition function.
+For each regular expression constraint $r_i$ from $r_1 ~\Prefer~ .. ~\Prefer~ r_k$, we construct a DFA for the reverse of $r_i$. An automaton for $r_i$ is defined as a tuple ($\Sigma, Q_i, F_i, q_{0_i}, \sigma_i$). The alphabet $\Sigma = G^A$ is the set of topology locations for the abstraction, $Q_i$ is the set of states for automaton i, $F_i$ is the set of final states, $q_{0_i}$ is the initial state, and $\sigma_i \colon Q_i \times \Sigma \rightarrow Q_i$ is the state transition function.
 %
 The Product Graph is a tuple ($G'$, $s$, $P$) where $G' = (V',E')$ is a new graph with
 vertices $V' \colon V \times Q_1 \times \dots \times Q_j$,
@@ -855,7 +855,7 @@ Figure~\ref{fig:example-compilation} shows an example of constructing a Product 
 %\end{code}
 %\noindent%
 %
-The first automaton represents the more preferred constraint $\Exit(Peer1)$ and the second automaton represents the less preferred constraint $\Exit(Peer2)$. The Product Graph representation is shown for both an instance of a concrete network matching the abstraction from \S\ref{sec:overview} as well as for the abstraction itself.
+The first automaton represents the more preferred constraint $\CD{\Exit(Peer1)}$ and the second automaton represents the less preferred constraint $\CD{\Exit(Peer2)}$. The Product Graph representation is shown for both an instance of a concrete network matching the abstraction from \S\ref{sec:overview} as well as for the abstraction itself.
 
 Each node in the Product Graph tracks both where a protocol message is in the topology as well as how much progress has been made towards satisfying each policy constraint. In this example, all routes that eventually leave through Peer1 will lead to an accepting state for the first automaton and all routes that eventually leave through Peer2 will lead to an accepting state for the second automaton.
 
@@ -959,9 +959,9 @@ We write $m \leq m'$ if the subgraph reachable from $m$ and $m'$ respectively fo
 
 We can assign BGP local preferences for the policy in the following way: Check if each router has a total order with respect to the simulation relation ($\leq$) for its corresponding Product Graph nodes. If so, then simply sort the nodes and prefer advertisements from peers of node $m$ over those of node $m'$ if $m' \leq m$.
 
-For example, in the concrete product graph we have $(S1,0,1) \leq (S1,1,0)$ since nodes on the left side of the product graph can always match transitions made on the right hand side while always maintaining a node ranking that is at least as good as that on the right hand side (since they match the preferred rank 1 automaton). This relation does not hold the other way around. Therefore, advertisements received at $S1$ in state $(1,0)$ must be preferred to those received in state $(0,1)$.
+For example, in the concrete product graph the inequality $(S1,0,1) \leq (S1,1,0)$ holds since nodes on the left side of the product graph can always match transitions made on the right hand side while always maintaining a node ranking that is at least as good as that on the right hand side (since they match the preferred rank 1 automaton). This relation does not hold the other way around. Therefore, advertisements received at $S1$ in state $(1,0)$ must be preferred to those received in state $(0,1)$.
 
-Notice also that in the abstract product graph, node $(S,0,1) \leq (S,1,0)$. This leads us the the following observation:
+Notice also that in the abstract product graph the inequality $(S,0,1) \leq (S,1,0)$ holds. This leads us the the following observation:
 
 \begin{lem}
 \label{lem:preference}
@@ -1233,20 +1233,18 @@ The abstract disjoint path analysis starts from a fixed source location $src$ an
   \vspace{-1em}
 \end{figure}
 
-Consider again the datacenter example from \S\ref{sec:overview}. For global prefixes we used the routing policy:
+Consider again the datacenter example from \S\ref{sec:overview}. Suppose now we add the valleyfree constraint that traffic never has takes a path with a down-up in it for the routing policy for global prefixes:
 %
-\[ \begin{array}{c}
-  \$PG \Path end(TG)
-\end{array} \]
+\begin{code}
+\$GP  \Path \End(TG) \ensuremath{\cap} \Novalley(\{TG,TL\},\{AG,AL\},\{S\})
+\end{code}
 \noindent
 %
-Suppose now we additionally add the valleyfree constraint that traffic never has takes a path with a down-up in it. Figure~\ref{fig:example-inference} shows the abstract product graph representation for this routing policy. The inference algorithm starts from the node $(TG,0,0)$ with the initial fact $S_P S_{TG}(1,\infty)$ (\IE, no restriction on the number of disjoint paths initially). 
+Figure~\ref{fig:example-inference} shows the abstract product graph representation for this routing policy. The inference algorithm starts from the node $(TG,0,0)$ with the initial fact $S_P S_{TG}(1,\infty)$ (\IE, no restriction on the number of disjoint paths initially). 
 %
 The first step applies the rule \infrule{I-mesh1} together with \infrule{I-local} to reason about connectivity within a single pod for the TG and AG roles. This invokes a call to Z3Opt to minimize the expression $min(\infty, AG)$, which gives us 2. Therefore, the algorithm learns a new invariant of the form $S_P A_{AG} (2,1)$ for node $(AG, 0)$ to indicate that in some pod P, any group of 2 nodes is reachable.
 %
 The next step uses the inference rule \infrule{I-out2} to learn that any single spine node is reachable. It also can apply rule \infrule{I-striping} to determine that there is some group of at least 2 spine routers reachable at node $(S,0)$ and also that there is some group of at least 2 nodes reachable in the AL role in state $(AL,0)$. 
-
-\ryan{inference should only infer some}
 
 Note that, because each inference rule only applies to directed edges in the product graph, the algorithm can not make any inferences about connectivity from the AL role to the S role since there is no directed edge between them. It is this restriction that ensures that the analysis is both topology and policy dependent. 
 
