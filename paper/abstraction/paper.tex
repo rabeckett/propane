@@ -1040,12 +1040,15 @@ In the template configuration, it will have additional policy for the local and 
 
 \subsection{Compilation Correctness}
 
+Foo
+
 \begin{easylist}[itemize]
 & First show how to compile to the Product Graph, and from there to the ABGP
 & Next define the concretization & subst. functions for translating the abstract policy
    into the concrete policy, using the ABGP example for reference
 & Give abstraction theorem: commuting of concretization and compilation
 \end{easylist}
+
 
 \subsection{Incrementality}
 
@@ -1509,6 +1512,8 @@ Figure~\ref{fig:abstract-breakdown} shows the relative time taken by each phase 
 
 \appendix
 
+\section{Start}
+
 \begin{figure*}[t!]\small
   \begin{minipage}[t]{.45\linewidth}
   \hdr{Syntax}{}
@@ -1519,12 +1524,10 @@ Figure~\ref{fig:abstract-breakdown} shows the relative time taken by each phase 
 
      pol     &::=& p_1, \dots, p_n & \textit{policies} \\
      p       &::=& t \hspace{.3em} \Path \hspace{.3em} r_1 \Prefer \dots \Prefer r_m \BNFALT cc & \textit{constraints} \\
-     x       &::=& d.d.d.d/d & \textit{prefix} \\
-     t       &::=& \True & \textit{true} \\
-         &\BNFALT& \neg t & \textit{negation} \\
+     pfx     &::=& d.d.d.d/[d..d] & \textit{prefix} \\
+     t       &::=& \$x & \textit{template variable} \\
          &\BNFALT& t_1 \vee t_2 & \textit{disjunction} \\
-         &\BNFALT& t_1 \wedge t_2 & \textit{conjunction} \\
-         &\BNFALT& \textit{prefix} = x & \textit{prefix test} \\
+         &\BNFALT& pfx & \textit{prefix test} \\
      r       &::=& l & \textit{location} \\
          &\BNFALT& \emptyset & \textit{empty set} \\
          &\BNFALT& \In & \textit{internal loc} \\
@@ -1534,7 +1537,7 @@ Figure~\ref{fig:abstract-breakdown} shows the relative time taken by each phase 
          &\BNFALT& r_1 \cdot r_2 & \textit{concatenation} \\
          &\BNFALT& \NOT r & \textit{path negation} \\
          &\BNFALT& r^* & \textit{iteration} \\
-     cc     &::=& agg(x, r_1 \rightarrow r_2)  & \textit{control constraints} \\
+     cc     &::=& agg(pfx, r_1 \rightarrow r_2)  & \textit{control constraints} \\
   \end{array} \]%
 
   \end{minipage}
@@ -1555,8 +1558,6 @@ Figure~\ref{fig:abstract-breakdown} shows the relative time taken by each phase 
     \Always(X)         & = & X^* \\
     \Never(X)          & = & (!X)^* \\
     \Through(X)        & = & \Sigma^* \cdot X \cdot \Sigma^* \\
-    \Eventually(X)     & = & \Out^* \cdot (X \cap \Out) \cdot \Out^* \cdot \In^+ \cdot \Out^* \\
-    \Already(X)        & = & \Out^* \cdot \In^+ \cdot \Out^* \cdot (X \cap \Out) \cdot \Out^* \\
     \End(X)            & = & \Sigma^* \cdot X \\
     \Start(X)          & = & X \cdot \Sigma^* \\
     \Enter(X)          & = & \Sigma^* \cdot \Out \cdot (X \cap \In) \cdot \Sigma^* ~ \cup \\
@@ -1579,8 +1580,34 @@ Figure~\ref{fig:abstract-breakdown} shows the relative time taken by each phase 
   %\vspace{-1em}
 \end{figure*}%
 
+foo
 
+\begin{figure}[t]\small
+  \begin{minipage}[t]{\linewidth}
+  \vspace*{-1\baselineskip}
+  %
+  \[ \begin{array}{rclr}
+     pol     &::=& p_1, \dots, p_n & \textit{policies} \\
+     p       &::=& t \hspace{.3em} \Path \hspace{.3em} r_1 \Prefer \dots \Prefer r_m & \textit{constraints} \\
+     t       &::=& \$x & \textit{template variable} \\
+         &\BNFALT& d.d.d.d/[d..d] & \textit{prefix test} \\
+     r       &::=& l & \textit{location} \\
+         &\BNFALT& \emptyset & \textit{empty set} \\
+         &\BNFALT& \In & \textit{internal loc} \\
+         &\BNFALT& \Out & \textit{external loc} \\
+         &\BNFALT& r_1 \cup r_2 & \textit{union} \\
+         &\BNFALT& r_1 \cap r_2 & \textit{intersection} \\
+         &\BNFALT& r_1 \cdot r_2 & \textit{concatenation} \\
+         &\BNFALT& \NOT r & \textit{path negation} \\
+         &\BNFALT& r^* & \textit{iteration} \\
+  \end{array} \]%
 
+  \end{minipage}
+  \vspace{1em}
+  \caption{Simplified BGP syntax.}
+  \label{fig:abgp-syntax}
+\end{figure}%
 
+blah
 
 \end{document}

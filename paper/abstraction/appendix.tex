@@ -1,0 +1,313 @@
+\documentclass[twocolumn]{sig-alternate-10pt}
+%\documentclass[twocolumn]{article}
+%\documentclass[10pt]{sigalternate052015}
+
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{xcolor}
+\usepackage{url}
+\usepackage{times}
+\usepackage{xspace}
+\usepackage{listings}
+\usepackage{code}
+\usepackage{algorithm}
+\usepackage[noend]{algpseudocode}
+\usepackage{tikz}
+\usetikzlibrary{arrows,automata,positioning}
+\let\proof\relax
+\let\endproof\relax
+\usepackage{amsthm}
+\usepackage{subcaption}
+\usepackage{balance}
+\usepackage[ampersand]{easylist}
+\usepackage{textcomp}
+\usepackage{pifont}
+\newcommand{\cmark}{\ding{51}}
+\newcommand{\xmark}{\ding{55}}
+
+\definecolor{princetonorange}{RGB}{255,143,0}
+\definecolor{tmlblue}{RGB}{0,58,120}  % tmlblue == Toronto Maple Leafs Blue!
+
+\newcommand{\todo}[1]{\textcolor{red}{[TODO: #1]}}
+\newcommand{\ratul}[1]{\textcolor{blue}{[ratul: #1]}}
+\newcommand{\ryan}[1]{\textcolor{green}{[ryan: #1]}}
+\newcommand{\dpw}[1]{\textcolor{tmlblue}{[dpw: #1]}}
+\newcommand{\todd}[1]{\textcolor{princetonorange}{[todd: #1]}}
+
+\newcommand{\EG}{\emph{e.g.}}
+\newcommand{\IE}{\emph{i.e.}}
+\newcommand{\ETC}{\emph{etc.}}
+\newcommand{\ETAL}{\emph{et al.}}
+
+\newcommand{\sysname}{{\small \sf Methane}\xspace}
+\newcommand{\sysnamesec}{{\sf Methane}\xspace}
+\newcommand{\propane}{{\small \sf Propane}\xspace}
+
+\newcommand{\para}[1]{\paragraph*{\textbf{#1}}}
+
+\newcommand{\set}[1]{\ensuremath{\{ #1 \} }}
+\newcommand{\abs}[1]{\ensuremath{ \lvert #1 \rvert }}
+
+\newcommand{\CD}[1]{\texttt{\small #1}}  % code font
+\newcommand{\KW}[1]{\texttt{\small\bfseries{#1}}}
+
+\newcommand{\True}{\CD{true}}
+\newcommand{\Define}{\KW{define}}
+\newcommand{\Prefer}{\texttt{>>}}
+\newcommand{\Path}{\texttt{=>}}
+\newcommand{\Link}{\texttt{->}}
+\newcommand{\Agg}{\KW{agg}}
+\newcommand{\Any}{\KW{any}}
+\newcommand{\None}{\KW{drop}}
+\newcommand{\In}{\KW{in}}
+\newcommand{\Out}{\KW{out}}
+\newcommand{\AND}{\texttt{\&}}
+\newcommand{\OR}{\texttt{|}}
+\newcommand{\NOT}{\texttt{!}}
+\newcommand{\Intersect}{\ensuremath{\cap}}
+\newcommand{\Union}{\ensuremath{\cup}}
+
+\newcommand{\Exit}{\KW{exit}}
+\newcommand{\End}{\KW{end}}
+\newcommand{\Start}{\KW{start}}
+\newcommand{\Enter}{\KW{enter}}
+\newcommand{\Eventually}{\KW{eventually}}
+\newcommand{\Already}{\KW{already}}
+\newcommand{\Internal}{\KW{internal}}
+\newcommand{\Never}{\KW{never}}
+\newcommand{\Always}{\KW{always}}
+\newcommand{\Through}{\KW{through}}
+\newcommand{\LinkKW}{\KW{link}}
+\newcommand{\PathKW}{\KW{path}}
+\newcommand{\Novalley}{\KW{novalley}}
+
+\renewcommand{\path}[2]{ #1 \mapsto \ensuremath{#2} }
+
+%% grammar
+\newcommand{\BNFALT}{\;\;|\;\;}
+\newcommand{\hdr}[2]{\flushleft \chdr{\hspace{5mm}#1}{#2}}
+\newcommand{\chdr}[2]{\textbf{#1} {#2} \\ \centering}%
+
+\newtheorem{thm}{Theorem}[section]
+\newtheorem{defn}{Definition}
+\newtheorem{lem}[thm]{Lemma}
+
+\begin{document}
+
+\special{papersize=8.5in,11in}
+\setlength{\pdfpageheight}{\paperheight}
+\setlength{\pdfpagewidth}{\paperwidth}
+
+\appendix
+
+\onecolumn
+\section{Preliminaries}
+
+\subsection{Methane}
+
+The full \sysname syntax as well as expansions from constraints into regular expressions are shown in Figure~\ref{fig:syntax}. The language includes constraints of the form $\CD{\Agg(pfx, \ensuremath{r_1 \rightarrow r_2})}$ that say that aggregation for summary prefix $\CD{pfx}$ will occur from any single location matching $\CD{\ensuremath{r_1}}$ to any location matching $\CD{\ensuremath{r_2}}$.
+
+
+\begin{figure*}[h!]\small
+  \begin{minipage}[t]{.45\linewidth}
+  \hdr{Syntax}{}
+  \vspace*{-1\baselineskip}
+  %
+  \[ \begin{array}{rclr}
+    \hline%
+
+     pol     &::=& p_1, \dots, p_n & \textit{policies} \\
+     p       &::=& t \hspace{.3em} \Path \hspace{.3em} r_1 \Prefer \dots \Prefer r_m \BNFALT cc & \textit{constraints} \\
+     pfx     &::=& d.d.d.d/[d..d] & \textit{prefix} \\
+     t       &::=& \$x & \textit{template variable} \\
+         &\BNFALT& pfx & \textit{prefix test} \\
+     r       &::=& l & \textit{location} \\
+         &\BNFALT& \emptyset & \textit{empty set} \\
+         &\BNFALT& \In & \textit{internal loc} \\
+         &\BNFALT& \Out & \textit{external loc} \\
+         &\BNFALT& r_1 \cup r_2 & \textit{union} \\
+         &\BNFALT& r_1 \cap r_2 & \textit{intersection} \\
+         &\BNFALT& r_1 \cdot r_2 & \textit{concatenation} \\
+         &\BNFALT& \NOT r & \textit{path negation} \\
+         &\BNFALT& r^* & \textit{iteration} \\
+     cc     &::=& agg(pfx, r_1 \rightarrow r_2)  & \textit{control constraints} \\
+  \end{array} \]%
+
+  \end{minipage}
+  %
+  ~~
+  \vrule
+  ~~
+  %
+  \begin{minipage}[t]{.5\linewidth}\small
+  \hdr{Expansions}{}
+  \vspace*{-1\baselineskip}
+  %
+  \[\begin{array}{rcl}
+    \hline
+    \Any               & = & \Sigma^* \\
+    \None              & = & \emptyset \\
+    \Internal          & = & \In^+ \\
+    \Always(X)         & = & X^* \\
+    \Never(X)          & = & (!X)^* \\
+    \Through(X)        & = & \Sigma^* \cdot X \cdot \Sigma^* \\
+    \End(X)            & = & \Sigma^* \cdot X \\
+    \Start(X)          & = & X \cdot \Sigma^* \\
+    \Enter(X)          & = & \Sigma^* \cdot \Out \cdot (X \cap \In) \cdot \Sigma^* ~ \cup \\
+                       &   & \Sigma^* \cdot (X \cap \Out) \cdot \In \cdot \Sigma^* \\
+    \Exit(X)           & = & \Sigma^* \cdot \In \cdot (X \cap \Out) \cdot \Sigma^* ~ \cup \\
+                       &   & \Sigma^* \cdot (X \cap \In) \cdot \Out \cdot \Sigma^* \\
+    \LinkKW(X,Y)       & = & \Sigma^* \cdot X \cdot Y \cdot \Sigma^* \\
+    \PathKW(\vec{X})   & = & \Sigma^* \cdot X_1 \dots X_n \cdot \Sigma^* \\
+    \Novalley(\vec{X}) & = & \NOT\PathKW(X_2,X_1,X_2) ~ \cap \dots \cap \\
+                       &   & \NOT\PathKW(X_n,X_{n-1},X_n) \\
+  \end{array} \]%
+
+  \end{minipage}%
+
+  \hrulefill%
+  \vspace{1em}
+
+  \caption{Methane syntax and expansions.}
+  \label{fig:syntax}
+  %\vspace{-1em}
+\end{figure*}%
+
+
+
+\subsection{BGP Configuration}
+
+We define syntax for an abstraction of BGP configurations -- called ABGP -- in Figure~\ref{fig:abgp-syntax}. An ABGP policy consists of a map from topology locations $l$ to router configurations $rc$. Each router configuration $rc$ is a sequence of prefix (templates) $t$ and their corresponding prefix configuration $pc$. A prefix configuration $pc$ is a sequence of match actions $ma$. Each match action $ma$ consists of a preference value $n$, followed by a set of peers $ns$ and community value (\IE, state of the product graph) $n$, and the exports the route to a new set of neighbors $ns$ and updates the community value $n$.
+
+\vspace{2em}
+\begin{figure}[h!]\small
+
+  \hrulefill%
+  \vspace{1em}
+
+  \begin{minipage}[t]{.5\linewidth}
+  \vspace*{-1\baselineskip}
+  %
+  \[ \begin{array}{rclr}
+     abgp &::=& l_1 \rightarrow {rc}_1, ~\dots,~ l_k \rightarrow {rc}_k & \textit{abgp policy} \\
+     rc   &::=& t_1 \rightarrow {pc}_1, ~\dots,~ t_k \rightarrow {pc}_k & \textit{router config} \\
+     pc   &::=& ma_1, \dots, ma_k & \textit{prefix config} \\
+     ma   &::=& n_1 : ({ns}_1, n_2) \rightarrow ({ns}_2, n_3) & \textit{match action} \\
+     ns   &::=& \{ l_1, ~\dots,~ l_k \} & \textit{peers} \\
+  \end{array} \]%
+
+  \end{minipage}
+  %
+  ~~
+  \vrule
+  ~~
+  %
+  \begin{minipage}[t]{.5\linewidth}
+  \vspace*{-1\baselineskip}
+  %
+  \[ \begin{array}{l}
+     \textbf{compile}_\textbf{ABGP}(PG,ord) = \{ \\
+     ~~~~~ \{ l \rightarrow rc ~\vert \\
+     ~~~~~~~~~ l \in internal(V) \\
+     ~~~~~~~~~ m = (l,q_m) \in PG, \\
+     ~~~~~~~~~ in = \{ b_i ~\vert~ n_i = (b_i,q_n) \in \text{adjIn}(PG,m) \} \\
+     ~~~~~~~~~ out = \{ c ~\vert~ (c,\dots) \in \text{adjOut}(PG,m) \} \\
+     ~~~~~~~~~ rc = ord(m) : (in,q_n) \rightarrow (out,q_m) \\
+
+     ~~~~~ \}
+  \end{array} \]%
+
+  \end{minipage}
+
+  \vspace{1em}
+  \hrulefill%
+  \vspace{1em}
+
+  \caption{Simplified BGP syntax.}
+  \label{fig:abgp-syntax}
+\end{figure}%
+
+We assume a particular router $l$ appears at most once in any abgp specification.
+An abgp configuration is a partial function from router to prefix configuration.
+We write $abgp(l)$ to apply such a config to a router location $l$.
+%
+We often build configs using set-builder notation.  For instance,
+$\{l \rightarrow rc ~\vert~ l \in V \wedge p(l,rc)\}$ denotes the abgp policy
+
+\[ \begin{array}{c}
+  l_1 \rightarrow rc_{11},... \\
+  ...           \\
+  l_k \rightarrow rc_{1k},... \\
+\end{array} \]
+
+
+where $l_1, ..., l_k$ are the nodes in the topology
+and each $rc_{ij}$ satisfies $p(l_i,rc_{ij})$. Similarly for $rc$.
+
+Figure~\ref{fig:abgp-syntax} also defines the translation of the product graph $PG = (G', s, P)$ to the ABGP representation. It looks at each incoming neighbor with the same community state $q_n$ and matches any of those neighbor with the preference provided by the ordering $ord$ obtained from the search for local preferences. It then exports this advertisement to each adjacent peer along an outgoing edge and adds the community value for the current state $q_m$.
+
+
+\subsection{Concretization}
+
+Here we define what it means to concretize an abstract \sysname policy. 
+Concretization takes as input, a policy and a map $m$ from template prefix to a set of concrete prefixes.
+
+\[ \begin{array}{rcl}
+  con(\emptyset,m)                        & = & \emptyset \\
+  con(l,m)                                & = & \Sigma ~ \{ l_i \in f^{-1}(l) \} \\
+  con(r_1 \cup r_2,m)                     & = & con(r_1,m) \cup con(r_2,m) \\
+  con(r_1 \cap r_2,m)                     & = & con(r_1,m) \cap con(r_2,m) \\
+  con(!r,m)                               & = & !con(r,m) \\
+  con(r^*,m)                              & = & con(r,m)^* \\
+  con(pfx \Rightarrow r_1, \dots, r_n,m)  & = & pfx \Rightarrow con(r_1,m), \dots, con(r_n,m) \\
+  con(\$x \Rightarrow r_1, \dots, r_n,m)  & = & \{ pfx \Rightarrow con(r_1,m), \dots, con(r_n,m) ~\vert~ {pfx} \in m(x) \} \\
+\end{array} \]
+
+For each regular expression $r$, we replace each abstract location with the sum over its corresponding concrete locations under the inverse homomorphism $f^{-1}$. For each template variable, we replace it with a single entry for each of its corresponding concrete values under the supplied mapping $m$.
+We can also define concretization over the ABGP policy as:
+
+\[ \begin{array}{rcl}
+     con(l_1 \rightarrow {rc}_1, ~\dots,~ l_k \rightarrow {rc}_k,m) 
+        & = & 
+        \{ x \rightarrow con(rc_i,m)  ~\vert~ x \in f^{-1}(l_i) \}
+        \\
+     con(t_1 \rightarrow {pc}_1, ~\dots,~ t_k \rightarrow {pc}_k,m) 
+        & = &  
+        \{ pfx \rightarrow con(pc_i,m) ~\vert~ pfx \in m(t_i) \}
+        \\
+     con(ma_1, \dots, ma_k,m) 
+        & = &
+        con(ma_1,m), \dots, con(ma_k,m)
+        \\
+     con(n_1 : ({ns}_1, n_2) \rightarrow ({ns}_2, n_3),m) 
+        & = & 
+        n_1 : (con({ns}_1,m), n_2) \rightarrow (con({ns}_2,m),n_3)
+        \\
+     con(\{ l_1, ~\dots,~ l_k \}, m) 
+        & = &  
+        \bigcup ~ \{ f^{-1}(l_i) \}
+        \\
+\end{array} \]
+
+\subsection{Notation}
+
+Throughout the remainder of the appendix, we use the following convention for metavariables:
+
+\[ \begin{array}{ll}
+  \text{Product Graph nodes} & n,m,o \\
+  \text{Topology locations} & a,b,c \\
+  \text{Automata states} & q_i \\
+  \text{Topologies} & G, G^A \\
+  \text{Product Graph} & PG, PG^A \\
+  \text{Automata} & M_i, M_i^A \\
+\end{array} \]
+
+We use capital letters for abstract topology/product graph nodes and we use lower case letters for concrete topology nodes. By default, product graph nodes with different subscripts refer to nodes that share the same topology location (\IE, $n_1 \approx n_2$). A superscript $G^A$ refers to the abstract version (in this case of the topology), while the non-superscripted value refers to the concrete version.
+
+
+\section{Substitution Theorem}
+
+The goal of this section is to prove that the concretization and compilation functions commute. That is -- we can perform compilation directly over the abstraction and only substitute for the concrete values afterwards.
+
+
+\end{document}
