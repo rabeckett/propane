@@ -206,14 +206,13 @@ We define syntax for an abstraction of BGP configurations -- called ABGP -- in F
   \vspace*{-1\baselineskip}
   %
   \[ \begin{array}{l}
-     \textbf{compile}_\textbf{ABGP}(PG,ord) = \{ \\
+     \textbf{compile}_\textbf{ABGP}(PG,ord) = \\
      ~~~~~ \{ l \rightarrow rc ~\vert \\
      ~~~~~~~~~ l \in internal(V) \\
      ~~~~~~~~~ m = (l,q_m) \in PG, \\
      ~~~~~~~~~ in = \{ b_i ~\vert~ n_i = (b_i,q_n) \in \text{adjIn}(PG,m) \} \\
      ~~~~~~~~~ out = \{ c ~\vert~ (c,\dots) \in \text{adjOut}(PG,m) \} \\
      ~~~~~~~~~ rc = ord(m) : (in,q_n) \rightarrow (out,q_m) \\
-
      ~~~~~ \}
   \end{array} \]%
 
@@ -269,23 +268,23 @@ We can also define concretization over the ABGP policy as:
 \[ \begin{array}{rcl}
      con(l_1 \rightarrow {rc}_1, ~\dots,~ l_k \rightarrow {rc}_k,m) 
         & = & 
-        \{ x \rightarrow con(rc_i,m)  ~\vert~ x \in f^{-1}(l_i) \}
+        \{ x \rightarrow con(rc_i,x,m)  ~\vert~ x \in f^{-1}(l_i) \}
         \\
-     con(t_1 \rightarrow {pc}_1, ~\dots,~ t_k \rightarrow {pc}_k,m) 
+     con(t_1 \rightarrow {pc}_1, ~\dots,~ t_k \rightarrow {pc}_k,x,m) 
         & = &  
-        \{ pfx \rightarrow con(pc_i,m) ~\vert~ pfx \in m(t_i) \}
+        \{ pfx \rightarrow con(pc_i,x,m) ~\vert~ pfx \in m(t_i) \}
         \\
-     con(ma_1, \dots, ma_k,m) 
+     con(ma_1, \dots, ma_k,x,m) 
         & = &
-        con(ma_1,m), \dots, con(ma_k,m)
+        con(ma_1,x,m), \dots, con(ma_k,x,m)
         \\
-     con(n_1 : ({ns}_1, n_2) \rightarrow ({ns}_2, n_3),m) 
+     con(n_1 : ({ns}_1, n_2) \rightarrow ({ns}_2, n_3),x,m) 
         & = & 
-        n_1 : (con({ns}_1,m), n_2) \rightarrow (con({ns}_2,m),n_3)
+        n_1 : ( con({ns}_1,E^{-1},x,m), n_2) \rightarrow (con({ns}_2,E,x,m),n_3)
         \\
-     con(\{ l_1, ~\dots,~ l_k \}, m) 
+     con(\{ l_1, ~\dots,~ l_k \}, R, x, m) 
         & = &  
-        \bigcup ~ \{ f^{-1}(l_i) \}
+        \bigcup ~ \{ f^{-1}(l_i) \} \cap R
         \\
 \end{array} \]
 
@@ -513,9 +512,140 @@ That is, we construct a new automata over the same states and final states, but 
     Simply take $N = f_{pg}(n)$ and $N' = f_{pg}(n')$. If we know that $M' \overset{b}{\rightarrow} N'$ then we already know that $M \overset{b}{\rightarrow} N$ from the homomorphism. All that's required is to show that $N' \geq_{rank} N$. This follows trivially from the fact that $P(n) = P(N)$ and $P(n') = P(N')$.
   \end{proof}
 
-
 \end{thm}
 
+\subsection{Substitution}
 
+\begin{defn}
+  The previous theorem tells us that the total ordering between node preferences is preserved under the lifted graph homomorphism $f_{pg}$. 
+  We use this fact to define an ordering ($ord : V \rightarrow \mathbb{N}$) that maps product graph nodes to numbers reflecting the total ordering such that $ord(m) = ord(f(m))$ for all product graph nodes $m$.
+\end{defn} 
+
+
+\begin{thm}
+  $con(compile_{ABGP}(compile_{PG}(pol))) = compile_{ABGP}(compile_{PG}(con(pol)))$
+
+  \begin{proof}
+
+    We know from the previous theorems the following:
+
+    \[ \begin{array}{lll}
+       PG^A, ord^A      &=& compile_{PG}(pol) \\
+       PG, ord          &=& compile_{PG}(con(pol)) \\
+    \end{array} \]%
+
+    where for all product graph nodes $m$ we have $ord(m) = ord^A(f(m))$. Therefore we must prove:
+
+    $$compile_{ABGP}(PG,ord) = con(compile_{ABGP}(PG^A,ord^A))$$
+
+    \ryan{need to worry about prefixes}
+
+    \[ \begin{array}{l}
+       \textbf{compile}_\textbf{ABGP}(PG,ord) = \\
+       ~~~~~ \{ l \rightarrow rc ~\vert \\
+       ~~~~~~~~~ l \in internal(V) \\
+       ~~~~~~~~~ m = (l,q_m) \in PG, \\
+       ~~~~~~~~~ in = \{ b_i ~\vert~ n_i = (b_i,q_n) \in \text{adjIn}(PG,m) \} \\
+       ~~~~~~~~~ out = \{ c ~\vert~ (c,\dots) \in \text{adjOut}(PG,m) \} \\
+       ~~~~~~~~~ rc = ord(m) : (in,q_n) \rightarrow (out,q_m) \\
+       ~~~~~ \}
+    \end{array} \]%
+
+    \[ \begin{array}{l}
+       \textbf{compile}_\textbf{ABGP}(PG,ord) = \\
+       ~~~~~ \{ l \rightarrow rc ~\vert \\
+       ~~~~~~~~~ l \in internal(V) \\
+       ~~~~~~~~~ m = (l,q_m) \in PG, \\
+       ~~~~~~~~~ in = \{ b_i ~\vert~ n_i = (b_i,q_n) \in \text{adjIn}(PG,m) \} \\
+       ~~~~~~~~~ out = \{ c ~\vert~ (c,\dots) \in \text{adjOut}(PG,m) \} \\
+       ~~~~~~~~~ rc = ord^A(f(m)) : (in,q_n) \rightarrow (out,q_m) \\
+       ~~~~~ \}
+    \end{array} \]%
+
+    \[ \begin{array}{l}
+       \textbf{compile}_\textbf{ABGP}(PG^A,ord^A) = \\
+       ~~~~~ \{ l \rightarrow rc ~\vert \\
+       ~~~~~~~~~ l \in internal(V) \\
+       ~~~~~~~~~ M = (l,q_M) \in PG^A, \\
+       ~~~~~~~~~ in = \bigcup \{ f^{-1}(b_i) ~\vert~ N_i = (b_i,q_N) \in \text{adjIn}(PG^A,M) \} \cap E^{-1} \\
+       ~~~~~~~~~ out = \bigcup \{ f^{-1}(c) ~\vert~ (c,\dots) \in \text{adjOut}(PG^A,M) \}) \cap E \\
+       ~~~~~~~~~ rc = ord^A(M) : (in,q_N) \rightarrow (out,q_M)) \\
+       ~~~~~ \}
+    \end{array} \]%
+
+    \[ \begin{array}{l}
+       \textbf{compile}_\textbf{ABGP}(PG^A,ord^A) = \\
+       ~~~~~ \{ l' \rightarrow rc ~\vert \\
+       ~~~~~~~~~ l' \in f^{-1}(l) \\
+       ~~~~~~~~~ l \in internal(V^A) \\
+       ~~~~~~~~~ M = (l,q_M) \in PG^A, \\
+       ~~~~~~~~~ in = \bigcup \{ f^{-1}(b_i) ~\vert~ N_i = (b_i,q_N) \in \text{adjIn}(PG^A,M) \} \cap E^{-1} \\
+       ~~~~~~~~~ out = \bigcup \{ f^{-1}(c) ~\vert~ (c,\dots) \in \text{adjOut}(PG^A,M) \}) \cap E \\ 
+       ~~~~~~~~~ rc = ord^A(M) : (in,q_N) \rightarrow (out,q_M)) \\
+       ~~~~~ \}
+    \end{array} \]%
+
+    \[ \begin{array}{l}
+       \textbf{compile}_\textbf{ABGP}(PG^A,ord^A) = \\
+       ~~~~~ \{ l' \rightarrow rc ~\vert \\
+       ~~~~~~~~~ l' \in f^{-1}(l) \\
+       ~~~~~~~~~ l \in internal(V^A) \\
+       ~~~~~~~~~ M = (l,q_M) \in PG^A, \\
+       ~~~~~~~~~ in = con(\{ b_i ~\vert~ N_i = (b_i,q_N) \in \text{adjIn}(PG^A,M) \}) \\
+       ~~~~~~~~~ out = con(\{ c ~\vert~ (c,\dots) \in \text{adjOut}(PG^A,M) \}) \\
+       ~~~~~~~~~ rc = ord^A(M) : (in,q_N) \rightarrow (out,q_M)) \\
+       ~~~~~ \}
+    \end{array} \]%
+
+    \[ \begin{array}{l}
+       \textbf{compile}_\textbf{ABGP}(PG^A,ord^A) = \\
+       ~~~~~ \{ l' \rightarrow rc ~\vert \\
+       ~~~~~~~~~ l' \in f^{-1}(l) \\
+       ~~~~~~~~~ l \in internal(V^A) \\
+       ~~~~~~~~~ M = (l,q_M) \in PG^A, \\
+       ~~~~~~~~~ in = \{ b_i ~\vert~ N_i = (b_i,q_N) \in \text{adjIn}(PG^A,M) \} \\
+       ~~~~~~~~~ out = \{ c ~\vert~ (c,\dots) \in \text{adjOut}(PG^A,M) \} \\
+       ~~~~~~~~~ rc = ord^A(M) : (con(in),q_N) \rightarrow (con(out),q_M)) \\
+       ~~~~~ \}
+    \end{array} \]%
+
+    \[ \begin{array}{l}
+       \textbf{compile}_\textbf{ABGP}(PG^A,ord^A) = \\
+       ~~~~~ \{ l' \rightarrow rc ~\vert \\
+       ~~~~~~~~~ l' \in f^{-1}(l) \\
+       ~~~~~~~~~ l \in internal(V^A) \\
+       ~~~~~~~~~ M = (l,q_M) \in PG^A, \\
+       ~~~~~~~~~ in = \{ b_i ~\vert~ N_i = (b_i,q_N) \in \text{adjIn}(PG^A,M) \} \\
+       ~~~~~~~~~ out = \{ c ~\vert~ (c,\dots) \in \text{adjOut}(PG^A,M) \} \\
+       ~~~~~~~~~ rc = con(ord^A(M) : (in,q_N) \rightarrow (out,q_M)) \\
+       ~~~~~ \}
+    \end{array} \]%
+
+    \[ \begin{array}{l}
+       \textbf{compile}_\textbf{ABGP}(PG^A,ord^A) = \\
+       ~~~~~ \{ l' \rightarrow con(rc) ~\vert \\
+       ~~~~~~~~~ l' \in f^{-1}(l) \\
+       ~~~~~~~~~ l \in internal(V^A) \\
+       ~~~~~~~~~ M = (l,q_M) \in PG^A, \\
+       ~~~~~~~~~ in = \{ b_i ~\vert~ N_i = (b_i,q_N) \in \text{adjIn}(PG^A,M) \} \\
+       ~~~~~~~~~ out = \{ c ~\vert~ (c,\dots) \in \text{adjOut}(PG^A,M) \} \\
+       ~~~~~~~~~ rc = ord^A(M) : (in,q_N) \rightarrow (out,q_M) \\
+       ~~~~~ \}
+    \end{array} \]%
+
+    \[ \begin{array}{l}
+       con(\textbf{compile}_\textbf{ABGP}(PG^A,ord^A) = \\
+       ~~~~~ \{ l \rightarrow rc ~\vert \\
+       ~~~~~~~~~ l \in internal(V^A) \\
+       ~~~~~~~~~ M = (l,q_M) \in PG^A, \\
+       ~~~~~~~~~ in = \{ b_i ~\vert~ N_i = (b_i,q_N) \in \text{adjIn}(PG^A,M) \} \\
+       ~~~~~~~~~ out = \{ c ~\vert~ (c,\dots) \in \text{adjOut}(PG^A,M) \} \\
+       ~~~~~~~~~ rc = ord^A(M) : (in,q_N) \rightarrow (out,q_M) \\
+       ~~~~~ \})
+    \end{array} \]%
+
+  \end{proof}
+
+\end{thm}
 
 \end{document}
