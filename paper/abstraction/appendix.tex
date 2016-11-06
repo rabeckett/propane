@@ -101,7 +101,7 @@
 \appendix
 
 \onecolumn
-\section{Preliminaries}
+\section{Definitions}
 
 \subsection{Methane}
 
@@ -289,6 +289,11 @@ We can also define concretization over the ABGP policy as:
         \\
 \end{array} \]
 
+\subsection{Abstraction}
+
+A network topology is a graph $G$ = ($V, E$), where $V$ is a set of vertices and $E \colon V \times V$ a set of directed edges. A role-based abstraction is a graph homomorphism from $G$ to an abstract graph $G^A$ = ($V^A$,$E^A$). A graph homorphism $f : G \rightarrow G^A$ is a function that maps each node in the concrete graph to a node in the abstract graph such that, whenever $(u,v) \in E$, then $(f(u),f(v)) \in E^A$. We write $f^{-1}(v)$ to denote the set of concrete nodes mapping to the abstract node $v$. Given a path as a sequence of locations $p = l_1, \dots, l_k$ we define $f(p) = f(l_1), \dots, f(l_k)$.
+
+
 \subsection{Notation}
 
 Throughout the remainder of the appendix, we use the following convention for metavariables:
@@ -308,6 +313,209 @@ We use capital letters for abstract topology/product graph nodes and we use lowe
 \section{Substitution Theorem}
 
 The goal of this section is to prove that the concretization and compilation functions commute. That is -- we can perform compilation directly over the abstraction and only substitute for the concrete values afterwards.
+
+\subsection{Automata}
+
+\newcommand{\Lang}{\ensuremath{\mathcal{L}}}
+
+
+
+\begin{lem}
+  For any map $m$ and regular expression $r$ over abstract locations, path $p \in \Lang(con(r,m)) \iff f(p) \in \Lang(r)$.
+\end{lem}
+\begin{proof}
+By induction on the structure of $r$
+
+\emph{Case $\emptyset$:}
+  \[ \begin{array}{lll}
+    p \in \Lang(con(\emptyset)) &\iff& f(p) \in \Lang(\emptyset) \\
+    p \in \emptyset &\iff& f(p) \in \emptyset \\
+  \end{array} \]
+
+\emph{Case $l$:}
+  \[ \begin{array}{lll}
+    p \in \Lang(con(l)) &\iff& f(p) \in \Lang(l) \\
+    p \in \Lang(\Sigma ~ f^{-1}(l)) &\iff& f(p) \in \Lang(l) \\
+    p \in \bigcup f^{-1}(l) &\iff& f(p) \in \Lang(l) \\
+    p \in f^{-1}(l) &\iff& f(p) \in \{ l \} \\
+    p \in f^{-1}(l) &\iff& f(p) = l \\
+    \text{by homomorphism} & & \\
+  \end{array} \]
+
+\emph{Case $r_1 \cup r_2$:}
+  \[ \begin{array}{lll}
+    p \in \Lang(con(r_1 \cup r_1)) &\iff& f(p) \in \Lang(r_1 \cup r_2) \\
+    p \in \Lang(con(r_1) \cup con(r_1)) &\iff& f(p) \in \Lang(r_1 \cup r_2) \\
+    p \in \Lang(con(r_1)) \cup \Lang(con(r_1)) &\iff& f(p) \in \Lang(r_1 \cup r_2) \\
+    p \in \Lang(con(r_1)) \vee p \in \Lang(con(r_1)) 
+       &\iff& 
+       f(p) \in \Lang(r_1) \vee f(p) \in \Lang(r_2) \\
+    \text{by cases + IH} & & \\
+  \end{array} \]
+
+\emph{Case $r_1 \cap r_2$:} 
+  \[ \begin{array}{c}
+    \text{symmetric to } \cup \text{ case}
+  \end{array} \]
+
+\emph{Case $!r$:}
+  \[ \begin{array}{lll}
+    p \in \Lang(con(!r)) &\iff& f(p) \in \Lang(!r) \\
+    p \in \Lang(!con(r)) &\iff& f(p) \in \Lang(!r) \\
+    p \in \Sigma^* - \Lang(con(r)) &\iff& f(p) \in \Sigma^* - \Lang(r) \\
+    \text{by IH} & & \\
+  \end{array} \]
+
+\emph{Case $r^*$:}
+  \[ \begin{array}{lll}
+    p \in \Lang(con(r^*)) &\iff& f(p) \in \Lang(r^*) \\
+    \ryan{TODO} & & \\
+  \end{array} \]
+
+\end{proof}
+
+
+
+\begin{defn}
+If $r$ complies to state machine $M^A$, then we compile the policy $con(r)$ in the following way:
+
+  \[ \begin{array}{ll}
+    1. & \sigma^A(q,f(l)) = q' \iff \sigma(q,l) = q' \\
+    2. & q \in F^A \iff q \in F \\
+  \end{array} \]
+
+That is, we construct a new automata over the same states and final states, but with a different transition function $\sigma$. This ensures that there is a bisimulation between the two state machines.
+
+\end{defn}
+
+
+\begin{lem}
+  $M^A$ matches $f(p)$ $\iff$ $M$ matches $p$.
+\end{lem}
+
+\begin{proof}
+  Suppose $M^A$ matches $f(p) = A_1, \dots, A_k$, then there exists a trace through $M^A$ of the form:
+
+  $$q_0, q_1, \dots, q_{k+1}$$
+
+  where $\sigma^A(q_i, A_i) = q_{i+1}$ and $q_{k+1} \in F^A$. We must show that $M$ matches $p = a_1, \dots, a_k$. 
+
+  From the construction of the automaton, we know that $\sigma(q_i, a_i) = q_{i+1}$ and $q_{k+1} \in F \iff q_{k+1} \in F^A$. Therefore, the trace $q_0, q_1, \dots, q_{k+1}$ is accepted by $M$. 
+  %
+  The same proof is symmetric for the other direction.
+\end{proof}
+
+
+\begin{thm}
+  $M$ matches $p$ $\iff$ $p \in \Lang(con(r))$
+  \begin{proof}
+    \[ \begin{array}{lllr}
+      M ~\text{matches}~ p &\iff& M^A ~\text{matches}~ f(p) & \textit{previous lemma} \\
+                         &\iff& f(p) \in \Lang(r) & \textit{automaton construction} \\
+                         &\iff& p \in \Lang(con(r)) & \textit{first lemma} \\
+    \end{array} \]
+
+  \end{proof}
+\end{thm}
+
+
+\subsection{Product Graph}
+
+\begin{defn}
+  Because compilation guarantees that the automata states are the same under the concretization function, we can lift the graph homomorphism $f$ to a new homomorphism $f_{pg}$ over the product graph in the following way:
+  \[ \begin{array}{rcl}
+    f_{pg}( s ) & = & s^A  \\
+    f_{pg}( (l,q_1,\ldots,q_n) ) & = & (f(l),q_1,\ldots,q_n) \\
+  \end{array} \]
+\end{defn}
+
+
+\begin{lem}
+  If, for product graph $PG = (G,s,P)$ with $G=(V,E)$, if we have the following:
+
+  \[ \begin{array}{ll}
+    1. & (a,b) ~\text{is an edge in the concrete topology} \\
+    2. & \tilde{m} = a \\
+    3. & f_{pg}(m) = M \\
+    4. & (M,N) ~ \text{is an edge in the product graph}~ PG^A \\
+    5. & \tilde{N} = f(b) \\
+  \end{array} \]
+
+  then there exists a node $n$ in the concrete product graph $PG$ where:
+
+  \[ \begin{array}{ll}
+    1. & \tilde{n} = b \\
+    2. & f_{pg}(n) = N \\
+    3. & (m,n) ~ \text{is an edge in the product graph}~ PG \\
+    4. & P(n) = P(N) \\
+  \end{array} \]
+
+  \begin{proof}
+
+    suppose that $m = (a, q_1, \dots, q_k)$. Then we know that $M = (f(a), q_1, \dots, q_k)$. Also suppose there is some $b$ such that $N = (f(b), s_1, \dots, s_k)$ since $f^{-1}(N) \neq \emptyset$. This means that, since $(a,b)$ is an edge in the concrete topology, so $(f(a),f(b))$ is an edge in the abstract topology. Also we know that $\tilde{N} = f(b)$.
+
+    Let us take the node $n = (b, s_1, \dots, s_k)$. 
+
+    \begin{easylist}
+      & Clearly $\tilde{n} = b$
+      & Clearly $f_{pg}(n) = (f(b), s_1, \dots, s_k) = N$
+      & For each regular expression $\sigma^A(q_i, f(b)) = s_i$. This means that for each regular expression, $\sigma(q_i, b) = s_i$. It follows that $(m,n)$ is an edge in the product graph by definition.
+      & Since the final states are the same for each state $q_i$ of each product graph state, it follows that $P(n) = P^A(f(n)) = P^A(N)$.
+    \end{easylist}
+
+  \end{proof}
+\end{lem}
+
+
+\begin{thm}
+  $m \leq m'$ in the concrete product graph iff $f_{pg}(m) \leq f_{pg}(m')$ in the abstract product graph under the lifted graph homomorphism $f_{pg}$.
+
+  \begin{proof}
+    $(\leftarrow)$
+
+    Suppose we have a simulation relation from the subgraphs rooted at nodes $M$ and $M'$ with $M' \geq_{rank} M$ in the abstract product graph. Assume that $\tilde{M} = f(a)$ and $\tilde{N} = f(b)$. For each neighbor $N'$, if we can make a move from $M'$:
+
+    $$M' \overset{\tilde{N'}}{\rightarrow} N'$$
+
+    then we also make a similar move for $M$ for some $N$ where $N \approx N'$ and $N' \geq_{rank} N$:
+
+    $$M \overset{\tilde{N}}{\rightarrow} N$$
+
+    We must show that the same relation holds for $m$ and $m'$. 
+
+    Now assume $m'$ has a neighbor $n'$ where $\tilde{m} = a$ and $\tilde{n} = b$. Then clearly $(a,b)$ is a valid topology edge since it is a transition in the product graph. We now apply the previous lemma with the following facts:
+
+    \[ \begin{array}{ll}
+      1. & (a,b) ~\text{is a topology edge} \\
+      2. & \tilde{m} = a \\
+      3. & f_{pg}(m) = M \\
+      4. & (M,N) ~\text{is an edge in}~ PG^A \\
+      5. & \tilde{N} = f(b) \\
+    \end{array} \]
+
+    This lets us conclude that there exists a node $n'$ such that:
+
+    \[ \begin{array}{ll}
+      1. & \tilde{n} = b \\
+      2. & f_{pg}(n) = N \\
+      3. & (m,n) ~\text{is an edge in}~ PG \\
+      4. & P(n) = P(N) \\
+    \end{array} \] 
+
+    Thus if we have $m' \overset{b}{\rightarrow} n'$, then we also have $m \overset{b}{\rightarrow} n$. The previous lemma can also be used to show that $P(n') = P(N')$ in a symmetric fashion, so we are guaranteed that $n' \geq_{rank} n$ from the fact that $N' \geq_{rank} N$.
+
+  \end{proof}
+
+  \begin{proof}
+    $(\rightarrow)$
+
+    This is the simpler case. We assume we have $m' \overset{b}{\rightarrow} n'$ implies $m \overset{b}{\rightarrow} n$.
+    Simply take $N = f_{pg}(n)$ and $N' = f_{pg}(n')$. If we know that $M' \overset{b}{\rightarrow} N'$ then we already know that $M \overset{b}{\rightarrow} N$ from the homomorphism. All that's required is to show that $N' \geq_{rank} N$. This follows trivially from the fact that $P(n) = P(N)$ and $P(n') = P(N')$.
+  \end{proof}
+
+
+\end{thm}
+
 
 
 \end{document}
