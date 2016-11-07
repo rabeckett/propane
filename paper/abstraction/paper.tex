@@ -219,14 +219,14 @@ We test \sysname out on ... blah blah blah
 
 An important class of networks are the large \emph{structured networks}
 commonly deployed in industrial data centers.  These networks run
-many critical services and every second of downtime is at best
-costly and at worst dangerous.  Unfortunately, it is an enormous
+many critical services; every second of downtime is
+costly at best and dangerous at worst.  Unfortunately, it is an enormous
 challenge to keep these complex networks up and
 running 24/7~\cite{mahajan+:bgp-misconfiguration,feamster+:rcc,batfish,dc-failure-study}.
 Moreover, while hardware faults, rodents, power failures and natural
 disasters can all cause significant downtime, studies have shown that
 \emph{human error}, which occurs during network configuration or
-update, is the single large cause of these
+update, is the single largest cause of these
 outages~\cite{juniper-study}.
 
 % These networks often
@@ -244,23 +244,24 @@ generate a configuration for each device that plays the role.
 Unfortunately, such templates have no particular semantics other than the
 semantics
 that one obtains from instantiating a template's parameters.
-\dpw{add blah blah about low-level, assembly language, device by device}
 Moreover,
-template construction is a manual process:  network engineers do their
-best to design templates that will work effectively in the context
-of their particular network topology.  However, there is no support for
-validating key properties of an assembly of templates, such as connectivity
-and fault tolerance,
-aside from instantiating the templates and testing.  In addition,
+template construction is a low-level, manual process:  
+network engineers do their
+best to design templates using assembly-language-like primitives.
+They hope their templates
+that will work properly, test them using simulations, but
+there is no support for verification of key network-wide properties 
+such as connectivity and fault tolerance. In addition,
 network engineers have no tools to help them design for network
 evolution.  For instance, the process of adding new equipment to
 expand the capacity of data center may not be compatible with the original
 templates, or may cause a trickle-down of changes to be made network-wide.
 Each change to a router configuration typically incurs
 some risk of temporary instable in a network, so minimizing such changes
-is an important design goal.  It is no wonder that a major
-network outage, such as the one that grounded all United Air flights
-in July 2015~\cite{x}, makes international news every few months.
+is an important design goal.  
+%It is no wonder that a major
+%network outage, such as the one that grounded all United Air flights
+%in July 2015~\cite{x}, makes international news every few months.
 
 To combat these problems, we present \sysname, a
 new high-level language designed to
@@ -291,8 +292,7 @@ faithfully implement the high-level policy on \emph{any} concrete
 topology that satisfies the given connectivity invariants.  The compiler
 will also optionally perform a second fault tolerance analysis that
 determines the minimum number of link failures required to disconnect
-\emph{any} concrete topology that once again satisfies the connectivity
-invariants.
+\emph{any} valid concrete topology.
 
 Finally, generated \sysname configurations are designed to
 be \emph{evolution-friendly} in the sense that if an operator adds or
@@ -313,8 +313,8 @@ faster than \propane for large structured networks.
 To summarize, the central contributions of this paper are:
 
 \begin{enumerate}
-\item Design of new topology abstractions involving roles and
-connectivity invariants for network programmers.
+\item Design of new topology abstractions for network programming
+based on graph homomorphisms and connectivity invariants.
 \item Design of two new algorithms for analyzing routing policy over
 abstract networks: one which
 guarantees correct compilation and one which determines fault tolerance
@@ -665,7 +665,7 @@ More specifically, a network topology is a graph $G$ = ($V, E$), which consists 
 \begin{figure}[t!]
   \centering
   \includegraphics[width=\columnwidth]{figures/example3}
-  \caption{Role-based abstraction for the datacenters in Figure~\ref{fig:example}.}
+  \caption{An abstraction for the datacenters in Figure~\ref{fig:example}.}
   \label{fig:example3}
   \vspace{-1em}
 \end{figure}
