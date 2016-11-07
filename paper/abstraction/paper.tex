@@ -165,7 +165,7 @@ David Walker\\
 
 
 \textbf{Abstract---}
-We develop techniques for automated reasoning about end-to-end properties of abstract network topologies. We extend a network synthesis tool, \sysname, to allow network operators to write a high-level routing policy over an abstraction of their network topology. From such a specification, \sysname synthesizes a collection router configurations running the distributed Border Gateway Protocol (BGP) that are guaranteed to implement the centralized routing policy for any concrete instantiation of the abstract topology, and for any combination of network failures in the resulting concrete topology.
+We develop techniques for automated reasoning about end-to-end properties of abstract network topologies. We develop a network synthesis tool, \sysname, to allow network operators to write a high-level routing policy over an abstraction of their network topology. From such a specification, \sysname synthesizes a collection of router configurations running the distributed Border Gateway Protocol (BGP) that are guaranteed to implement the centralized routing policy for any concrete instantiation of the abstract topology, and for any combination of network failures in the resulting concrete topology.
 %
 Additionally, properties proven by \sysname over the abstract topology, such as reachability between a source and destination under k-failures, are also guaranteed to hold under any concrete instantiation of the abstract topology.
 %
@@ -247,9 +247,9 @@ that one obtains from instantiating a template's parameters.
 Moreover,
 template construction is a low-level, manual process:  
 network engineers do their
-best to design templates using assembly-language-like primitives.
+best to design templates despite the assembly-language-like primitives for network configuration.
 They hope their templates
-that will work properly, test them using simulations, but
+will work properly and test concrete instantiations of them using simulations, but
 there is no support for verification of key network-wide properties 
 such as connectivity and fault tolerance. In addition,
 network engineers have no tools to help them design for network
@@ -257,7 +257,7 @@ evolution.  For instance, the process of adding new equipment to
 expand the capacity of data center may not be compatible with the original
 templates, or may cause a trickle-down of changes to be made network-wide.
 Each change to a router configuration typically incurs
-some risk of temporary instable in a network, so minimizing such changes
+some risk of temporary instability in a network, so minimizing such changes
 is an important design goal.  
 %It is no wonder that a major
 %network outage, such as the one that grounded all United Air flights
@@ -273,7 +273,7 @@ to one another.  For instance, a programmer may
 define separate roles for ``top-of-rack router'' and
 ``tier-one aggregation router'' and specify that every top-of-rack router
 is connected to at least two different tier-one aggregation routers,
-thereby providing a degree of fault tolerance of one aggregation router
+thereby providing a degree of fault tolerance if one aggregation router
 were to fail.
 
 To specify \emph{routing policy} for such abstract networks,
@@ -426,9 +426,9 @@ Configuring a BGP network requires configuring, among other things, the import a
   \vspace{-1em}
 \end{figure}
 
-We demonstrate the difficulty of configuring networks using the example data center network in Figure~\ref{fig:example}. The boxes denote routers. Using terminology for fat tree networks~\cite{fattree}, T[1--8] denote top-of-rack (ToR) routers, A[1--8] denote aggregation routers, and S[1--2] denote spine routers. The spine routers are connected to the
+We demonstrate the difficulty of configuring networks using the example data center network in Figure~\ref{fig:example}. The boxes denote routers. Using terminology for fat tree networks~\cite{fattree}, S[1--2] denote spine routers, A[1--8] denote aggregation routers, and T[1--8] denote top-of-rack (ToR) routers. The spine routers are connected to the
 rest of the Internet through Peer[1--2]. The aggregation routers
-bridge the spine to the ToRs routers. The ToR routers attach to a set of servers (``a rack'') that host services with address prefixes P[1--8].
+bridge the spine to the ToR routers. The ToR routers attach to a set of servers (``a rack'') that host services with address prefixes P[1--8].
 
 %% We assume that each router is running an instance of the \emph{Border Gateway Protocol} (BGP),
 %% as is common in large data centers. In this protocol, adjacent routers use BGP to exchange messages
@@ -453,7 +453,7 @@ To correctly configure this policy, network operators must generate configuratio
 
 To simplify network configuration, the operations community is adopting a template-based approach~\cite{hatch,thwack}. Instead of authoring a configuration file per router, operators author one configuration template per role.
 %
-A {\em role} refers to specific functionality and is played by one or more routers.\footnote{If a role is played by devices from multiple vendors, there is one template per role-vendor combination because templates use vendor configuration language.}
+A {\em role} refers to specific functionality and is played by one or more routers.\footnote{If a role is played by devices from multiple vendors, there is one template per role-vendor combination because templates use vendor-specific configuration languages.}
 %
 The network in Figure~\ref{fig:example} has five roles: spine, global aggregator, global ToR, local aggregator, and local ToR.
 %
@@ -482,7 +482,7 @@ Such patches reintroduce the complexity and errors that templates were meant to 
 %% This discovery is highly problematic because changing a template may cause a configuration change of all the devices that use that template---an unacceptable disruption in many cases.  When that happens, network operators may abandon templates entirely and revert to hand-crafting configurations, using local patches to accommodate the topological change.
 %% Such patches reintroduce the complexity and errors that templates were meant to prevent.
 
-Consider the network in Figure~\ref{fig:example2}, which is similar to Figure~\ref{fig:example}; it has the same five roles, connected in a similar hierarchy. One might think that the same templates (with different database entries) can be used for both topologies, but that is not true. For instance, consider templates that disallow ``valley" paths, which go up, down, and then up again; it is a common to disallow valley paths in a data center because they are longer than shortest paths. These templates will work perfectly for Figure~\ref{fig:example}, but violate the fault tolerance requirement ($p7$) when used for Figure~\ref{fig:example2}.  Specifically, in Figure~\ref{fig:example2}, an aggregation-induced blackhole (\S\ref{sec:motivation}) will occur when the link S1--A1 fails; after this failure, S1 has no valley-free path to P[1--2] even though it will continue to get traffic for these prefixes as it announces  the covering prefix PG (because it gets routes for P[3--4]). In contrast, in Figure~\ref{fig:example}, no such blackhole will occur after a single link failure because spine routers have two links to each pod.
+Consider the network in Figure~\ref{fig:example2}, which is similar to Figure~\ref{fig:example}; it has the same five roles, connected in a similar hierarchy. One might think that the same templates (with different database entries) can be used for both topologies, but that is not true. For instance, consider templates that disallow ``valley" paths, which go up, down, and then up again; it is a common to disallow valley paths in a data center because they are longer than shortest paths. These templates will work perfectly for Figure~\ref{fig:example} but silently violate the fault tolerance requirement ($p7$) when used for Figure~\ref{fig:example2}.  Specifically, in Figure~\ref{fig:example2}, an aggregation-induced blackhole (\S\ref{sec:motivation}) will occur when the link S1--A1 fails; after this failure, S1 has no valley-free path to P[1--2] even though it will continue to get traffic for these prefixes as it announces  the covering prefix PG (because it gets routes for P[3--4]). In contrast, in Figure~\ref{fig:example}, no such blackhole will occur after a single link failure because spine routers have two links to each pod.
 
 %% Thus, today, operators test templates for each topology change. For some changes, they may discover that their old templates will not work anymore. ~\dpw{Note: This is going to be true for Methane too.} ~\ratul{Not really; our abstract topologies encode all possible future topologies} ~\dpw{Our abstract topologies precisely define a set of topologies for which our 
 %% This discovery is highly problematic because changing a template may cause a configuration change of all the devices that use that template---an unacceptable disruption in many cases.  When that happens, network operators may abandon templates entirely and revert to hand-crafting configurations, using local patches to accommodate the topological change.
@@ -495,7 +495,7 @@ Many recent systems generate router configurations using high-level policy state
 %Propane~\cite{propane}, guarantee that high-level policy is implemented correctly, even in the presence of
 %arbitrary combinations of failures.
 They are able to provide strong guarantees on configuration correctness but 
-our conversations with operators at two major cloud providers reveal that they have two limitations that discourage adoption.  The first is abstraction mismatch. Operators of large networks think of the network, and to develop management tools, using \emph{roles}, and not individual devices. They are naturally reluctant to use a system that does not
+our conversations with operators at two major cloud providers reveal that they have two limitations that discourage adoption.  The first is abstraction mismatch. Operators of large networks think of the network, and develop management tools, using \emph{roles}, and not individual devices. They are naturally reluctant to use a system that does not
 understand roles as a first-order abstraction. If they want to debug, analyze or
 understand system output, they will have to consider
 \emph{hundreds} of independent device configurations instead of just
