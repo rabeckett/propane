@@ -300,7 +300,7 @@ We can also define concretization over the ABGP policy as:
         \\
 
      con(n_1 : ({ns}_1, n_2) \rightarrow ({ns}_2, n_3),o,\ell,\Gamma,G) 
-        & = & \textbf{if}~ ns_1 = G.s ~\text{and}~ o = \text{false} ~\textbf{then}~ \bullet \\
+        & = & \textbf{if}~ ns_1 = \{G.s\} ~\text{and}~ o = \text{false} ~\textbf{then}~ \bullet \\
         &   & \textbf{else}~ n_1 : ( con({ns}_1,\ell,\Gamma,G), n_2) \rightarrow (con({ns}_2,\ell,\Gamma,G),n_3)
 
         \\
@@ -325,7 +325,7 @@ Throughout the remainder of the appendix, we use the following convention for me
   \text{Automata states} & q_i \\
   \text{Topologies} & G, G^A \\
   \text{Product Graph} & PG, PG^A \\
-  \text{Automata} & M_i, M_i^A \\
+  \text{Automata} & M, M^A \\
 \end{array} \]
 
 We use capital letters for abstract topology/product graph nodes and we use lower case letters for concrete topology nodes. By default, product graph nodes with different subscripts refer to nodes that share the same topology location (\IE, $n_1 \approx n_2$). A superscript $G^A$ refers to the abstract version (in this case of the topology), while the non-superscripted value refers to the concrete version.
@@ -397,47 +397,120 @@ By induction on the structure of $r$
 
 
 
-\begin{defn}
-If $r$ complies to state machine $M^A$, then we compile the policy $con(r)$ in the following way:
+%\begin{defn}
+%If $r$ complies to state machine $M^A$, then we compile the policy $con(r)$ in the following way:%
 
-  \[ \begin{array}{ll}
-    1. & \sigma^A(q,f(l)) = q' \iff \sigma(q,l) = q' \\
-    2. & q \in F^A \iff q \in F \\
-  \end{array} \]
+%  \[ \begin{array}{ll}
+%    1. & \sigma^A(q,f(l)) = q' \iff \sigma(q,l) = q' \\
+%    2. & q \in F^A \iff q \in F \\
+%  \end{array} \]%
 
-That is, we construct a new automata over the same states and final states, but with a different transition function $\sigma$. This ensures that there is a bisimulation between the two state machines.
+%That is, we construct a new automata over the same states and final states, but with a different transition function $\sigma$. This ensures that there is a bisimulation between the two state machines.%
 
-\end{defn}
+%\end{defn}%
+%
+
+%\begin{lem}
+%  $M^A$ matches $f(p)$ $\iff$ $M$ matches $p$.
+%\end{lem}%
+
+%\begin{proof}
+%  Suppose $M^A$ matches $f(p) = A_1, \dots, A_k$, then there exists a trace through $M^A$ of the form:%
+
+%  $$q_0, q_1, \dots, q_{k+1}$$%
+
+%  where $\sigma^A(q_i, A_i) = q_{i+1}$ and $q_{k+1} \in F^A$. We must show that $M$ matches $p = a_1, \dots, a_k$. %
+
+%  From the construction of the automaton, we know that $\sigma(q_i, a_i) = q_{i+1}$ and $q_{k+1} \in F \iff q_{k+1} \in F^A$. Therefore, the trace $q_0, q_1, \dots, q_{k+1}$ is accepted by $M$. 
+%  %
+%  The same proof is symmetric for the other direction.
+%\end{proof}%
+%
+
+%\begin{lem}
+%  $M$ matches $p$ $\iff$ $p \in \Lang(con(r))$
+%  \begin{proof}
+%    \[ \begin{array}{lllr}
+%      M ~\text{matches}~ p &\iff& M^A ~\text{matches}~ f(p) & \textit{previous lemma} \\
+%                         &\iff& f(p) \in \Lang(r) & \textit{automaton construction} \\
+%                         &\iff& p \in \Lang(con(r)) & \textit{first lemma} \\
+%    \end{array} \]%
+
+%  \end{proof}
+%\end{lem}
 
 
 \begin{lem}
-  $M^A$ matches $f(p)$ $\iff$ $M$ matches $p$.
-\end{lem}
-
-\begin{proof}
-  Suppose $M^A$ matches $f(p) = A_1, \dots, A_k$, then there exists a trace through $M^A$ of the form:
-
-  $$q_0, q_1, \dots, q_{k+1}$$
-
-  where $\sigma^A(q_i, A_i) = q_{i+1}$ and $q_{k+1} \in F^A$. We must show that $M$ matches $p = a_1, \dots, a_k$. 
-
-  From the construction of the automaton, we know that $\sigma(q_i, a_i) = q_{i+1}$ and $q_{k+1} \in F \iff q_{k+1} \in F^A$. Therefore, the trace $q_0, q_1, \dots, q_{k+1}$ is accepted by $M$. 
-  %
-  The same proof is symmetric for the other direction.
-\end{proof}
-
-
-\begin{thm}
-  $M$ matches $p$ $\iff$ $p \in \Lang(con(r))$
-  \begin{proof}
-    \[ \begin{array}{lllr}
-      M ~\text{matches}~ p &\iff& M^A ~\text{matches}~ f(p) & \textit{previous lemma} \\
-                         &\iff& f(p) \in \Lang(r) & \textit{automaton construction} \\
-                         &\iff& p \in \Lang(con(r)) & \textit{first lemma} \\
+  Consider the PG created from compiling the constraint $p = (t ~\Path~ r_1 ~\Prefer~,\dots, ~\Prefer~ r_k)$ with state machine $M^A_i$ for each $r_i$. We know that, for each $(pfx ~\Path~ r'_1 ~\Prefer~,\dots, ~\Prefer~ r'_k) \in con(p)$ where $r'_i$ is of the form $r \cap \text{end}(L)$ we can constuct state machine $M_i$ for $r'_i$ in the following way:
+    
+    \[ \begin{array}{lll}
+      1. & \sigma(q_0,l) = q' \iff \sigma^A(q,f(l)) = q' & \textbf{for each}~~ l \in L \\
+      2. & \sigma(q,l) = q' \iff \sigma^A(q,f(l)) = q' & \textbf{for each}~~ l \in \Sigma \\
+      3. & q \in F \iff q \in F^A & \\
     \end{array} \]
 
+  then $M_i$ matches $p$ $\iff$ $p \in \Lang(r_i')$
+  
+  \vspace{1em}
+  \begin{proof} by cases on $t$
+
+    \vspace{1em}
+
+    \textbf{Case} $(\$x ~\Path~ r_1 ~\Prefer~,\dots, ~\Prefer~ r_k)$
+
+    \[ \begin{array}{lcl}
+      con(p) &=& pfx_1 ~\Path~ con(r_1) \cap \text{end}(l_1), ~\Prefer~ \dots ~\Prefer~ con(r_k) \cap \text{end}(l_1)  \\
+             & & \dots, \\
+             & & pfx_n ~\Path~ con(r_1) \cap \text{end}(l_n), ~\Prefer~ \dots ~\Prefer~ con(r_k) \cap \text{end}(l_n)
+    \end{array} \]
+
+    Case ($\Rightarrow$)
+
+    Assume $M_i$ matches $p$. Then this means that $M^A_i$ matches $f(p)$. If we have a trace of string of the form $ p = x_1 \cdot \dots \cdot x_n$, then $f(p) = f(x_1) \cdot \dots \cdot f(x_n)$. For each transition $\sigma(q,l) = q'$ in the concrete automaton, we have transition $\sigma(q,f(l)) = q'$ in the abstract automaton, and they have the same final states, so this trace is accepting for $M^A_i$. Because $M^A_i$ matches $f(p)$, this means that $f(p) \in \Lang(r_i)$. From our above lemma, this means that $p \in \Lang(con(r_i))$. We also know that, since $L = \{ l_i \}$, the first transition $\sigma(q_0,l_i)$ is the only transition allowed from the initial state for $M_i$. So this means that $p \in \Lang(\text{end}(l_i))$. Since we know that $p \in \Lang(con(r_i))$ and $p \in \Lang(\text{end}(l_i))$, we know that $p \in \Lang(con(r_i) \cap \text{end}(l_i))$ and thus $p \in \Lang(r'_i)$.
+
+    \vspace{1em}
+    Case ($\Leftarrow$)
+
+    Assume $p \in \Lang(r'_i)$. This means that $p \in \Lang(con(r_i) \cap \text{end}(l_i))$. In turn, this means that $p \in \Lang(con(r_i))$ and $p \in \Lang(\text{end}(l_i))$. From the above lemma, we know that $f(p) \in \Lang(r_i)$, which means that $M^A_i$ matches $f(p)$. 
+    %
+    Consider any string of the form $p = l_i \cdot x_2 \cdot \dots \cdot x_n$ such that $p \in \Lang(con(r_i) \cap \text{end}(l_i))$. Clearly there is a transition defined for $\sigma(q_0,l_i) = q_1$.
+    %
+    This means that $M^A_i$ matches $f(l_i) \cdot f(x_2) \cdot \dots \cdot f(x_n)$
+    %
+    For each transition $\sigma^A(q,f(x_i)) = q'$, we have $\sigma(q,x_i) = q'$ in $M_i$.
+    %
+    Thus the string $l_i \cdot x_2 \cdot \dots \cdot x_n$ is accepted along the same path of automaton states.
+
+  \vspace{1em}
+
+  \textbf{Case} $(pfx ~\Path~ r_1 ~\Prefer~,\dots, ~\Prefer~ r_k)$
+
+    \[ \begin{array}{lcl}
+      con(p) &=& pfx_1 ~\Path~ con(r_1) \cap \text{end}(\Sigma^*), ~\Prefer~ \dots ~\Prefer~ con(r_k) \cap \text{end}(\Sigma^*) \\
+    \end{array} \]
+
+    First we observe that: $M^A_i$ matches $f(p)$ $\iff$ $M_i$ matches $p$.
+    %
+    Suppose $M^A_i$ matches $f(p) = A_1, \dots, A_k$, then there exists a trace through $M^A_i$ of the form:%
+    %
+    $q_0, q_1, \dots, q_{k+1}$
+    %
+    where $\sigma^A_i(q_i, A_i) = q_{i+1}$ and $q_{k+1} \in F^A$. We must show that $M_i$ matches $p = a_1, \dots, a_k$. %
+    %
+    From the construction of the automaton, we know that $\sigma_i(q_i, a_i) = q_{i+1}$ and $q_{k+1} \in F \iff q_{k+1} \in F^A_i$. Therefore, the trace $q_0, q_1, \dots, q_{k+1}$ is accepted by $M_i$. 
+    %
+    The same proof is symmetric for the other direction. It follows that:
+
+    \[ \begin{array}{lll}
+      M ~\text{matches}~ p &\iff& M^A ~\text{matches}~ f(p) \\
+                         &\iff& f(p) \in \Lang(r) \\
+                         &\iff& p \in \Lang(con(r)) \\
+    \end{array} \]%
+
   \end{proof}
-\end{thm}
+
+\end{lem}
+
 
 
 \subsection{Product Graph}
