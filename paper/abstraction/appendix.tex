@@ -190,9 +190,10 @@ We define syntax for an abstraction of BGP configurations -- called ABGP -- in F
   %
   \[ \begin{array}{rclr}
      abgp &::=& l_1 \rightarrow {rc}_1, ~\dots,~ l_k \rightarrow {rc}_k & \textit{abgp policy} \\
-     rc   &::=& t_1 \rightarrow {pc}_1, ~\dots,~ t_k \rightarrow {pc}_k & \textit{router config} \\
+     rc   &::=& ps_1 \rightarrow {pc}_1, ~\dots,~ ps_k \rightarrow {pc}_k & \textit{router config} \\
      pc   &::=& ma_1, \dots, ma_k & \textit{prefix config} \\
      ma   &::=& n_1 : ({ns}_1, n_2) \rightarrow ({ns}_2, n_3) & \textit{match action} \\
+     ps   &::=& \{ t_1, ~\dots,~ t_k \} & \textit{predicates} \\
      ns   &::=& \{ l_1, ~\dots,~ l_k \} & \textit{peers} \\
   \end{array} \]%
 
@@ -206,14 +207,14 @@ We define syntax for an abstraction of BGP configurations -- called ABGP -- in F
   \vspace*{-1\baselineskip}
   %
   \[ \begin{array}{l}
-     \textbf{compile}_\textbf{ABGP}(PG,ord) = \\
-     ~~~~~ \{ l \rightarrow rc ~\vert \\
-     ~~~~~~~~~ l \in internal(V) \\
-     ~~~~~~~~~ m = (l,q_m) \in PG, \\
-     ~~~~~~~~~ in = \{ b_i ~\vert~ n_i = (b_i,q_n) \in \text{adjIn}(PG,m) \} \\
-     ~~~~~~~~~ out = \{ c ~\vert~ (c,\dots) \in \text{adjOut}(PG,m) \} \\
-     ~~~~~~~~~ rc = ord(m) : (in,q_n) \rightarrow (out,q_m) \\
-     ~~~~~ \}
+     \textbf{compile}_\textbf{ABGP}( (ps_1,PG_1,ord_1), \dots, (ps_k,PG_k,ord_k) ) = \\
+     ~~~~~ \{ l \rightarrow rc ~\vert~ rc = \\
+     ~~~~~~~ \bigcup~ \{ ps_i \rightarrow ma ~\vert~ \\
+     ~~~~~~~~~~~~~~~~~~ l \in internal(V), \\
+     ~~~~~~~~~~~~~~~~~~ m = (l,q_m) \in PG_i, \\
+     ~~~~~~~~~~~~~~~~~~ in = \{ b ~\vert~ (b,q_n) \in \text{adjIn}(PG_i,m) \} \\
+     ~~~~~~~~~~~~~~~~~~ out = \{ c ~\vert~ (c,\_) \in \text{adjOut}(PG_i,m) \} \\
+     ~~~~~~~~~~~~~~~~~~ ma = ord_i(m) : (in,q_n) \rightarrow (out,q_m) \} \} \\
   \end{array} \]%
 
   \end{minipage}
@@ -222,7 +223,7 @@ We define syntax for an abstraction of BGP configurations -- called ABGP -- in F
   \hrulefill%
   \vspace{1em}
 
-  \caption{Simplified BGP syntax.}
+  \caption{BGP syntax and compilation.}
   \label{fig:abgp-syntax}
 \end{figure}%
 
@@ -527,122 +528,139 @@ That is, we construct a new automata over the same states and final states, but 
 
   \begin{proof}
 
-    We know from the previous theorems the following:
+    We know from the previous theorems and the definition of concretization, we have the following:
 
     \[ \begin{array}{lll}
-       PG^A, ord^A      &=& compile_{PG}(pol) \\
-       PG, ord          &=& compile_{PG}(con(pol)) \\
+       (t_1, PG^A_1, ord^A_1), \dots, (t_k,PG^A_k,ord^A_k)    &=& compile_{PG}(pol) \\
+       (\Gamma(t1), PG_1, ord_1), \dots, (\Gamma(t_k),PG_k,ord_k)  &=& compile_{PG}(con(pol)) \\
     \end{array} \]%
 
-    where for all product graph nodes $m$ we have $ord(m) = ord^A(f(m))$. Therefore we must prove:
+    where for all product graph nodes $m$ we have $ord_i(m) = ord^A_i(f(m))$.
 
-    $$compile_{ABGP}(PG,ord) = con(compile_{ABGP}(PG^A,ord^A))$$
 
-    \ryan{need to worry about prefixes}
+  \[ \begin{array}{l}
+     \textbf{compile}_\textbf{ABGP}( (\Gamma(t_1),PG_1,ord_1), \dots, (\Gamma(t_k),PG_k,ord_k) ) = \\
+     ~~~~~ \{ l \rightarrow rc ~\vert~ rc = \\
+     ~~~~~~~ \bigcup~ \{ \Gamma(t_i) \rightarrow ma ~\vert~ \\
+     ~~~~~~~~~~~~~~~~~~ l \in internal(V), \\
+     ~~~~~~~~~~~~~~~~~~ m = (l,q_m) \in PG_i, \\
+     ~~~~~~~~~~~~~~~~~~ in = \{ b ~\vert~ (b,q_n) \in \text{adjIn}(PG_i,m) \} \\
+     ~~~~~~~~~~~~~~~~~~ out = \{ c ~\vert~ (c,\_) \in \text{adjOut}(PG_i,m) \} \\
+     ~~~~~~~~~~~~~~~~~~ ma = ord_i(M) : (in,q_n) \rightarrow (out,q_m) \} \} \\
+  \end{array} \]%
 
-    \[ \begin{array}{l}
-       \textbf{compile}_\textbf{ABGP}(PG,ord) = \\
-       ~~~~~ \{ l \rightarrow rc ~\vert \\
-       ~~~~~~~~~ l \in internal(V) \\
-       ~~~~~~~~~ m = (l,q_m) \in PG, \\
-       ~~~~~~~~~ in = \{ b_i ~\vert~ n_i = (b_i,q_n) \in \text{adjIn}(PG,m) \} \\
-       ~~~~~~~~~ out = \{ c ~\vert~ (c,\dots) \in \text{adjOut}(PG,m) \} \\
-       ~~~~~~~~~ rc = ord(m) : (in,q_n) \rightarrow (out,q_m) \\
-       ~~~~~ \}
-    \end{array} \]%
+  \[ \begin{array}{l}
+     \textbf{compile}_\textbf{ABGP}( (t_1,PG^A_1,ord^A_1), \dots, (t_k,PG^A_k,ord^A_k) ) = \\
+     ~~~~~ \{ l \rightarrow rc ~\vert~ rc = \\
+     ~~~~~~~ \bigcup~ \{ pfx \rightarrow ma ~\vert~ \\
+     ~~~~~~~~~~~~~~~~~~ pfx \in \Gamma(t_i), \\
+     ~~~~~~~~~~~~~~~~~~ l \in internal(V), \\
+     ~~~~~~~~~~~~~~~~~~ m = (l,q_m) \in PG_i, \\
+     ~~~~~~~~~~~~~~~~~~ in = \{ b ~\vert~ (b,q_n) \in \text{adjIn}(PG_i,m) \} \\
+     ~~~~~~~~~~~~~~~~~~ out = \{ c ~\vert~ (c,\dots) \in \text{adjOut}(PG_i,m) \} \\ 
+     ~~~~~~~~~~~~~~~~~~ ma = ord_i(f(m)) : (in,q_n) \rightarrow (out,q_m) \} \} \\
+  \end{array} \]%
 
-    \[ \begin{array}{l}
-       \textbf{compile}_\textbf{ABGP}(PG,ord) = \\
-       ~~~~~ \{ l \rightarrow rc ~\vert \\
-       ~~~~~~~~~ l \in internal(V) \\
-       ~~~~~~~~~ m = (l,q_m) \in PG, \\
-       ~~~~~~~~~ in = \{ b_i ~\vert~ n_i = (b_i,q_n) \in \text{adjIn}(PG,m) \} \\
-       ~~~~~~~~~ out = \{ c ~\vert~ (c,\dots) \in \text{adjOut}(PG,m) \} \\
-       ~~~~~~~~~ rc = ord^A(f(m)) : (in,q_n) \rightarrow (out,q_m) \\
-       ~~~~~ \}
-    \end{array} \]%
+  \[ \begin{array}{l}
+     \textbf{compile}_\textbf{ABGP}( (t_1,PG^A_1,ord^A_1), \dots, (t_k,PG^A_k,ord^A_k) ) = \\
+     ~~~~~ \{ l \rightarrow rc ~\vert~ rc = \\
+     ~~~~~~~ \bigcup~ \{ pfx \rightarrow ma ~\vert~ \\
+     ~~~~~~~~~~~~~~~~~~ pfx \in \Gamma(t_i), \\
+     ~~~~~~~~~~~~~~~~~~ l \in internal(V), \\
+     ~~~~~~~~~~~~~~~~~~ M = (l,q_M) \in PG^A_i, \\
+     ~~~~~~~~~~~~~~~~~~ in = \bigcup \{ f^{-1}(b) ~\vert~ (b,q_N) \in \text{adjIn}(PG^A_i,M) \} \cap E^{-1} \\
+     ~~~~~~~~~~~~~~~~~~ out = \bigcup \{ f^{-1}(c) ~\vert~ (c,\dots) \in \text{adjOut}(PG^A_i,M) \}) \cap E \\ 
+     ~~~~~~~~~~~~~~~~~~ ma = ord^A_i(M) : (in,q_n) \rightarrow (out,q_M) \} \} \\
+  \end{array} \]%
 
-    \[ \begin{array}{l}
-       \textbf{compile}_\textbf{ABGP}(PG^A,ord^A) = \\
-       ~~~~~ \{ l \rightarrow rc ~\vert \\
-       ~~~~~~~~~ l \in internal(V) \\
-       ~~~~~~~~~ M = (l,q_M) \in PG^A, \\
-       ~~~~~~~~~ in = \bigcup \{ f^{-1}(b_i) ~\vert~ N_i = (b_i,q_N) \in \text{adjIn}(PG^A,M) \} \cap E^{-1} \\
-       ~~~~~~~~~ out = \bigcup \{ f^{-1}(c) ~\vert~ (c,\dots) \in \text{adjOut}(PG^A,M) \}) \cap E \\
-       ~~~~~~~~~ rc = ord^A(M) : (in,q_N) \rightarrow (out,q_M)) \\
-       ~~~~~ \}
-    \end{array} \]%
+  \[ \begin{array}{l}
+     \textbf{compile}_\textbf{ABGP}( (t_1,PG^A_1,ord^A_1), \dots, (t_k,PG^A_k,ord^A_k) ) = \\
+     ~~~~~ \{ l' \rightarrow rc ~\vert~ rc = \\
+     ~~~~~~~ \bigcup~ \{ pfx \rightarrow ma ~\vert~ \\
+     ~~~~~~~~~~~~~~~~~~ pfx \in \Gamma(t_i), \\
+     ~~~~~~~~~~~~~~~~~~ l' \in f^{-1}(l), \\
+     ~~~~~~~~~~~~~~~~~~ l \in internal(V^A), \\
+     ~~~~~~~~~~~~~~~~~~ M = (l,q_M) \in PG^A_i, \\
+     ~~~~~~~~~~~~~~~~~~ in = \bigcup \{ f^{-1}(b) ~\vert~ (b,q_N) \in \text{adjIn}(PG^A_i,M) \} \cap E^{-1} \\
+     ~~~~~~~~~~~~~~~~~~ out = \bigcup \{ f^{-1}(c) ~\vert~ (c,\dots) \in \text{adjOut}(PG^A_i,M) \}) \cap E \\ 
+     ~~~~~~~~~~~~~~~~~~ ma = ord^A_i(M) : (in,q_n) \rightarrow (out,q_M) \} \} \\
+  \end{array} \]%
 
-    \[ \begin{array}{l}
-       \textbf{compile}_\textbf{ABGP}(PG^A,ord^A) = \\
-       ~~~~~ \{ l' \rightarrow rc ~\vert \\
-       ~~~~~~~~~ l' \in f^{-1}(l) \\
-       ~~~~~~~~~ l \in internal(V^A) \\
-       ~~~~~~~~~ M = (l,q_M) \in PG^A, \\
-       ~~~~~~~~~ in = \bigcup \{ f^{-1}(b_i) ~\vert~ N_i = (b_i,q_N) \in \text{adjIn}(PG^A,M) \} \cap E^{-1} \\
-       ~~~~~~~~~ out = \bigcup \{ f^{-1}(c) ~\vert~ (c,\dots) \in \text{adjOut}(PG^A,M) \}) \cap E \\ 
-       ~~~~~~~~~ rc = ord^A(M) : (in,q_N) \rightarrow (out,q_M)) \\
-       ~~~~~ \}
-    \end{array} \]%
+  \[ \begin{array}{l}
+     \textbf{compile}_\textbf{ABGP}( (t_1,PG^A_1,ord^A_1), \dots, (t_k,PG^A_k,ord^A_k) ) = \\
+     ~~~~~ \{ l' \rightarrow rc ~\vert~ rc = \\
+     ~~~~~~~ \bigcup~ \{ pfx \rightarrow ma ~\vert~ \\
+     ~~~~~~~~~~~~~~~~~~ pfx \in \Gamma(t_i), \\
+     ~~~~~~~~~~~~~~~~~~ l' \in f^{-1}(l), \\
+     ~~~~~~~~~~~~~~~~~~ l \in internal(V^A), \\
+     ~~~~~~~~~~~~~~~~~~ M = (l,q_M) \in PG^A_i, \\
+     ~~~~~~~~~~~~~~~~~~ in = con(\{ b ~\vert~ (b,q_N) \in \text{adjIn}(PG^A_i,M) \}) \\
+     ~~~~~~~~~~~~~~~~~~ out = con(\{ c ~\vert~ (c,\_) \in \text{adjOut}(PG^A_i,M) \}) \\
+     ~~~~~~~~~~~~~~~~~~ ma = ord^A_i(M) : (in,q_n) \rightarrow (out,q_M) \} \} \\
+  \end{array} \]%
 
-    \[ \begin{array}{l}
-       \textbf{compile}_\textbf{ABGP}(PG^A,ord^A) = \\
-       ~~~~~ \{ l' \rightarrow rc ~\vert \\
-       ~~~~~~~~~ l' \in f^{-1}(l) \\
-       ~~~~~~~~~ l \in internal(V^A) \\
-       ~~~~~~~~~ M = (l,q_M) \in PG^A, \\
-       ~~~~~~~~~ in = con(\{ b_i ~\vert~ N_i = (b_i,q_N) \in \text{adjIn}(PG^A,M) \}) \\
-       ~~~~~~~~~ out = con(\{ c ~\vert~ (c,\dots) \in \text{adjOut}(PG^A,M) \}) \\
-       ~~~~~~~~~ rc = ord^A(M) : (in,q_N) \rightarrow (out,q_M)) \\
-       ~~~~~ \}
-    \end{array} \]%
+  \[ \begin{array}{l}
+     \textbf{compile}_\textbf{ABGP}( (t_1,PG^A_1,ord^A_1), \dots, (t_k,PG^A_k,ord^A_k) ) = \\
+     ~~~~~ \{ l' \rightarrow rc ~\vert~ rc = \\
+     ~~~~~~~ \bigcup~ \{ pfx \rightarrow ma ~\vert~ \\
+     ~~~~~~~~~~~~~~~~~~ pfx \in \Gamma(t_i), \\
+     ~~~~~~~~~~~~~~~~~~ l' \in f^{-1}(l), \\
+     ~~~~~~~~~~~~~~~~~~ l \in internal(V^A), \\
+     ~~~~~~~~~~~~~~~~~~ M = (l,q_M) \in PG^A_i, \\
+     ~~~~~~~~~~~~~~~~~~ in = \{ b ~\vert~ (b,q_N) \in \text{adjIn}(PG^A_i,M) \} \\
+     ~~~~~~~~~~~~~~~~~~ out = \{ c ~\vert~ (c,\_) \in \text{adjOut}(PG^A_i,M) \} \\
+     ~~~~~~~~~~~~~~~~~~ ma = con(ord^A_i(M) : (in,q_n) \rightarrow (out,q_M)) \} \} \\
+  \end{array} \]%
 
-    \[ \begin{array}{l}
-       \textbf{compile}_\textbf{ABGP}(PG^A,ord^A) = \\
-       ~~~~~ \{ l' \rightarrow rc ~\vert \\
-       ~~~~~~~~~ l' \in f^{-1}(l) \\
-       ~~~~~~~~~ l \in internal(V^A) \\
-       ~~~~~~~~~ M = (l,q_M) \in PG^A, \\
-       ~~~~~~~~~ in = \{ b_i ~\vert~ N_i = (b_i,q_N) \in \text{adjIn}(PG^A,M) \} \\
-       ~~~~~~~~~ out = \{ c ~\vert~ (c,\dots) \in \text{adjOut}(PG^A,M) \} \\
-       ~~~~~~~~~ rc = ord^A(M) : (con(in),q_N) \rightarrow (con(out),q_M)) \\
-       ~~~~~ \}
-    \end{array} \]%
+  \[ \begin{array}{l}
+     \textbf{compile}_\textbf{ABGP}( (t_1,PG^A_1,ord^A_1), \dots, (t_k,PG^A_k,ord^A_k) ) = \\
+     ~~~~~ \{ l' \rightarrow rc ~\vert~ rc = \\
+     ~~~~~~~ \bigcup~ \{ pfx \rightarrow con(ma) ~\vert~ \\
+     ~~~~~~~~~~~~~~~~~~ pfx \in \Gamma(t_i), \\
+     ~~~~~~~~~~~~~~~~~~ l' \in f^{-1}(l), \\
+     ~~~~~~~~~~~~~~~~~~ l \in internal(V^A), \\
+     ~~~~~~~~~~~~~~~~~~ M = (l,q_M) \in PG^A_i, \\
+     ~~~~~~~~~~~~~~~~~~ in = \{ b ~\vert~ (b,q_N) \in \text{adjIn}(PG^A_i,M) \} \\
+     ~~~~~~~~~~~~~~~~~~ out = \{ c ~\vert~ (c,\_) \in \text{adjOut}(PG^A_i,M) \} \\
+     ~~~~~~~~~~~~~~~~~~ ma = ord^A_i(M) : (in,q_n) \rightarrow (out,q_M) \} \} \\
+  \end{array} \]%
 
-    \[ \begin{array}{l}
-       \textbf{compile}_\textbf{ABGP}(PG^A,ord^A) = \\
-       ~~~~~ \{ l' \rightarrow rc ~\vert \\
-       ~~~~~~~~~ l' \in f^{-1}(l) \\
-       ~~~~~~~~~ l \in internal(V^A) \\
-       ~~~~~~~~~ M = (l,q_M) \in PG^A, \\
-       ~~~~~~~~~ in = \{ b_i ~\vert~ N_i = (b_i,q_N) \in \text{adjIn}(PG^A,M) \} \\
-       ~~~~~~~~~ out = \{ c ~\vert~ (c,\dots) \in \text{adjOut}(PG^A,M) \} \\
-       ~~~~~~~~~ rc = con(ord^A(M) : (in,q_N) \rightarrow (out,q_M)) \\
-       ~~~~~ \}
-    \end{array} \]%
+  \[ \begin{array}{l}
+     \textbf{compile}_\textbf{ABGP}( (t_1,PG^A_1,ord^A_1), \dots, (t_k,PG^A_k,ord^A_k) ) = \\
+     ~~~~~ \{ l' \rightarrow rc ~\vert~ rc = \\
+     ~~~~~~~ con(\bigcup~ \{ t_i \rightarrow ma ~\vert~ \\
+     ~~~~~~~~~~~~~~~~~~ l' \in f^{-1}(l), \\
+     ~~~~~~~~~~~~~~~~~~ l \in internal(V^A), \\
+     ~~~~~~~~~~~~~~~~~~ M = (l,q_M) \in PG^A_i, \\
+     ~~~~~~~~~~~~~~~~~~ in = \{ b ~\vert~ (b,q_N) \in \text{adjIn}(PG^A_i,M) \} \\
+     ~~~~~~~~~~~~~~~~~~ out = \{ c ~\vert~ (c,\_) \in \text{adjOut}(PG^A_i,M) \} \\
+     ~~~~~~~~~~~~~~~~~~ ma = ord^A_i(M) : (in,q_n) \rightarrow (out,q_M) \}) \} \\
+  \end{array} \]%
 
-    \[ \begin{array}{l}
-       \textbf{compile}_\textbf{ABGP}(PG^A,ord^A) = \\
-       ~~~~~ \{ l' \rightarrow con(rc) ~\vert \\
-       ~~~~~~~~~ l' \in f^{-1}(l) \\
-       ~~~~~~~~~ l \in internal(V^A) \\
-       ~~~~~~~~~ M = (l,q_M) \in PG^A, \\
-       ~~~~~~~~~ in = \{ b_i ~\vert~ N_i = (b_i,q_N) \in \text{adjIn}(PG^A,M) \} \\
-       ~~~~~~~~~ out = \{ c ~\vert~ (c,\dots) \in \text{adjOut}(PG^A,M) \} \\
-       ~~~~~~~~~ rc = ord^A(M) : (in,q_N) \rightarrow (out,q_M) \\
-       ~~~~~ \}
-    \end{array} \]%
 
-    \[ \begin{array}{l}
-       con(\textbf{compile}_\textbf{ABGP}(PG^A,ord^A) = \\
-       ~~~~~ \{ l \rightarrow rc ~\vert \\
-       ~~~~~~~~~ l \in internal(V^A) \\
-       ~~~~~~~~~ M = (l,q_M) \in PG^A, \\
-       ~~~~~~~~~ in = \{ b_i ~\vert~ N_i = (b_i,q_N) \in \text{adjIn}(PG^A,M) \} \\
-       ~~~~~~~~~ out = \{ c ~\vert~ (c,\dots) \in \text{adjOut}(PG^A,M) \} \\
-       ~~~~~~~~~ rc = ord^A(M) : (in,q_N) \rightarrow (out,q_M) \\
-       ~~~~~ \})
-    \end{array} \]%
+  \[ \begin{array}{l}
+     \textbf{compile}_\textbf{ABGP}( (t_1,PG^A_1,ord^A_1), \dots, (t_k,PG^A_k,ord^A_k) ) = \\
+     ~~~~~ \{ l' \rightarrow rc ~\vert~ con(rc) = \\
+     ~~~~~~~ \bigcup~ \{ t_i \rightarrow ma ~\vert~ \\
+     ~~~~~~~~~~~~~~~~~~ l' \in f^{-1}(l), \\
+     ~~~~~~~~~~~~~~~~~~ l \in internal(V^A), \\
+     ~~~~~~~~~~~~~~~~~~ M = (l,q_M) \in PG^A_i, \\
+     ~~~~~~~~~~~~~~~~~~ in = \{ b ~\vert~ (b,q_N) \in \text{adjIn}(PG^A_i,M) \} \\
+     ~~~~~~~~~~~~~~~~~~ out = \{ c ~\vert~ (c,\_) \in \text{adjOut}(PG^A_i,M) \} \\
+     ~~~~~~~~~~~~~~~~~~ ma = ord^A_i(M) : (in,q_n) \rightarrow (out,q_M) \} \} \\
+  \end{array} \]%
+
+  \[ \begin{array}{l}
+     con(\textbf{compile}_\textbf{ABGP}( (t_1,PG^A_1,ord^A_1), \dots, (t_k,PG^A_k,ord^A_k) ) = \\
+     ~~~~~ \{ l \rightarrow rc ~\vert~ rc = \\
+     ~~~~~~~ \bigcup~ \{ t_i \rightarrow ma ~\vert~ \\
+     ~~~~~~~~~~~~~~~~~~ l \in internal(V^A), \\
+     ~~~~~~~~~~~~~~~~~~ M = (l,q_M) \in PG^A_i, \\
+     ~~~~~~~~~~~~~~~~~~ in = \{ b ~\vert~ (b,q_N) \in \text{adjIn}(PG^A_i,M) \} \\
+     ~~~~~~~~~~~~~~~~~~ out = \{ c ~\vert~ (c,\_) \in \text{adjOut}(PG^A_i,M) \} \\
+     ~~~~~~~~~~~~~~~~~~ ma = ord^A_i(M) : (in,q_n) \rightarrow (out,q_M) \} \}) \\
+  \end{array} \]%
+
 
   \end{proof}
 
