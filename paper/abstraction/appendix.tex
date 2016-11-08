@@ -91,6 +91,7 @@
 \newtheorem{thm}{Theorem}[section]
 \newtheorem{defn}{Definition}
 \newtheorem{lem}[thm]{Lemma}
+\newtheorem*{cor}{Corollary}
 
 \begin{document}
 
@@ -339,10 +340,10 @@ The goal of this section is to prove that the concretization and compilation fun
 
 \newcommand{\Lang}{\ensuremath{\mathcal{L}}}
 
-
+We compile regular expressions to automata. As a side condition, we ensure that there are no transitions from some state $q$ to the initial state: $\sigma(q,x) = q_0$. This is done by creating another state $q_0'$ with the same transition function as $q_0$ and all other states transition to $q_0'$ instead of $q_0$.
 
 \begin{lem}
-  For any map $m$ and regular expression $r$ over abstract locations, path $p \in \Lang(con(r,m)) \iff f(p) \in \Lang(r)$.
+  For any map $\Gamma$ and regular expression $r$ over abstract locations, path $p \in \Lang(con(r,\Gamma)) \iff f(p) \in \Lang(r)$.
 \end{lem}
 \begin{proof}
 By induction on the structure of $r$
@@ -441,7 +442,7 @@ By induction on the structure of $r$
 
 
 \begin{lem}
-  Consider the PG created from compiling the constraint $p = (t ~\Path~ r_1 ~\Prefer~,\dots, ~\Prefer~ r_k)$ with state machine $M^A_i$ for each $r_i$. We know that, for each $(pfx ~\Path~ r'_1 ~\Prefer~,\dots, ~\Prefer~ r'_k) \in con(p)$ where $r'_i$ is of the form $r \cap \text{end}(L)$ we can constuct state machine $M_i$ for $r'_i$ in the following way:
+  Consider the PG created from compiling the constraint $p = (t ~\Path~ r_1 ~\Prefer~,\dots, ~\Prefer~ r_k)$ with state machine $M^A_i$ for each $r_i$. We know that, for each $(pfx ~\Path~ r'_1 ~\Prefer~,\dots, ~\Prefer~ r'_k) \in con(p)$ where $r'_i$ is of the form $r \cap \text{end}(L)$ we can constuct state machine $M_i$ for $r'_i$ over the same states in the following way:
     
     \[ \begin{array}{lll}
       1. & \sigma(q_0,l) = q' \iff \sigma^A(q,f(l)) = q' & \textbf{for each}~~ l \in L \\
@@ -511,6 +512,10 @@ By induction on the structure of $r$
 
 \end{lem}
 
+\begin{cor}
+  foo
+\end{cor}
+
 
 
 \subsection{Product Graph}
@@ -523,9 +528,20 @@ By induction on the structure of $r$
   \end{array} \]
 \end{defn}
 
+\begin{lem}
+  If $f_{pg}(n) = N$, then $P(n) = P^A(N)$.
+
+  \begin{proof}
+    Assume $n = (a,q_1,\dots,q_k)$. We know that $f_{pg}(n) = (f(a),q_1,\dots,q_k)$. 
+    We also know that $q_i \in F_i \iff q_i \in F^A_i$. 
+    By the definition of the preference function $P$, then $P(n) = P^A(N)$.
+  \end{proof}
+
+\end{lem}
+
 
 \begin{lem}
-  If, for product graph $PG = (G,s,P)$ with $G=(V,E)$, if we have the following:
+  If, for abstract product graph $PG$, if we have the following:
 
   \[ \begin{array}{ll}
     1. & (a,b) ~\text{is an edge in the concrete topology} \\
@@ -541,25 +557,22 @@ By induction on the structure of $r$
     1. & \tilde{n} = b \\
     2. & f_{pg}(n) = N \\
     3. & (m,n) ~ \text{is an edge in the product graph}~ PG \\
-    4. & P(n) = P(N) \\
   \end{array} \]
 
   \begin{proof}
 
-    suppose that $m = (a, q_1, \dots, q_k)$. Then we know that $M = (f(a), q_1, \dots, q_k)$. Also suppose there is some $b$ such that $N = (f(b), s_1, \dots, s_k)$ since $f^{-1}(N) \neq \emptyset$. This means that, since $(a,b)$ is an edge in the concrete topology, so $(f(a),f(b))$ is an edge in the abstract topology. Also we know that $\tilde{N} = f(b)$.
+    suppose that $m = (a, q_1, \dots, q_k)$. Then we know that $M = (f(a), q_1, \dots, q_k)$. Also suppose there is some $b$ such that $N = (f(b), s_1, \dots, s_k)$ since $f^{-1}(N) \neq \emptyset$. This means that, since $(a,b)$ is an edge in the concrete topology, $(f(a),f(b))$ is an edge in the abstract topology. Also we know that $\tilde{N} = f(b)$.
 
     Let us take the node $n = (b, s_1, \dots, s_k)$. 
 
     \begin{easylist}
       & Clearly $\tilde{n} = b$
       & Clearly $f_{pg}(n) = (f(b), s_1, \dots, s_k) = N$
-      & For each regular expression $\sigma^A(q_i, f(b)) = s_i$. This means that for each regular expression, $\sigma(q_i, b) = s_i$. It follows that $(m,n)$ is an edge in the product graph by definition.
-      & Since the final states are the same for each state $q_i$ of each product graph state, it follows that $P(n) = P^A(f(n)) = P^A(N)$.
+      & For each regular expression $\sigma^A(q_i, f(b)) = s_i$. This means that for each regular expression, $\sigma(q_i, b) = s_i$ if $q_i \neq q_{0_i}$. We know that $q_i \neq q_{0_i}$ due to the side condition for automaton construction. It follows that $(m,n)$ is an edge in the product graph by definition.
     \end{easylist}
 
   \end{proof}
 \end{lem}
-
 
 \begin{thm}
   $m \leq m'$ in the concrete product graph iff $f_{pg}(m) \leq f_{pg}(m')$ in the abstract product graph under the lifted graph homomorphism $f_{pg}$.

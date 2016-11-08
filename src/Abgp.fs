@@ -939,9 +939,7 @@ module Outgoing =
          let nin = neighborsIn cg x
          if peerOnly cg routs nin then PeerMatch x
          else 
-            printfn "construct regex"
             let re = CGraph.ToRegex.constructRegex cg x
-            printfn "done"
             RegexMatch(re)
       else PeerMatch x
 
