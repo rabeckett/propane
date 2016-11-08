@@ -622,6 +622,12 @@ By induction on the structure of $r$
 
 \end{thm}
 
+\begin{defn}
+  Assign $ord(m) = ord^A(f_{pg}(m))$ as increasing integers according to the total ordering for $\leq$.
+  Clearly $ord(m) \leq ord(m') \iff m \leq m'$ and $ord(f_{pg}(m)) \leq ord(f_{pg}(m')) \iff f_{pg}(m) \leq f_{pg}(m')$
+\end{defn}
+
+
 \subsection{Substitution}
 
 \begin{defn}
@@ -631,18 +637,78 @@ By induction on the structure of $r$
 
 
 \begin{thm}
-  $con(compile(pol)) = compile(con(pol))$
+  $compile(con(pol)) = con(compile(pol))$
 
-  \begin{proof}
+  \begin{proof} \text{ }
 
-    We know from the previous theorems and the definition of concretization, we have the following:
+    Suppose that $pol = p_1, \dots, p_n$. Each $p_i$ has the form $(t_i ~\Path~ r_{i1} ~\Prefer~,\dots, ~\Prefer~ r_{ik})$. Then by evaulating:
 
-    \[ \begin{array}{lll}
-       (t_1, PG^A_1, ord^A_1), \dots, (t_k,PG^A_k,ord^A_k)    &=& compile_{ABGP}(pol) \\
-       (\Gamma(t1), PG_1, ord_1), \dots, (\Gamma(t_k),PG_k,ord_k)  &=& compile_{ABGP}(con(pol)) \\
-    \end{array} \]%
+    \[ \begin{array}{lcl}
+      con(pol) & = & con(p_1,\dots,p_n) \\
+               & = & con(p_1), \dots, con(p_n) \\
+               & = & con(t_1 ~\Path~ r_{11} ~\Prefer~,\dots, ~\Prefer~ r_{1k}), \\
+               &   & \dots, \\
+               &   & con(t_n ~\Path~ r_{n1} ~\Prefer~,\dots, ~\Prefer~ r_{nk}) \\
+    \end{array} \]
 
-    where for all product graph nodes $m$ we have $ord_i(m) = ord^A_i(f(m))$, and $PG_i$ and $PG^A_i$ are related by a bisimulation induced by $f$.
+    For each test $t_i$, if $t_i = pfx$, then we get 
+
+    \[ \begin{array}{lcl}
+        con({pfx}_{i1} ~\Path~ r_{i1} ~\Prefer~,\dots, ~\Prefer~ r_{ik}) 
+           & = & {pfx}_{i1} ~\Path~ con(r_{i1}) ~\Prefer~,\dots, ~\Prefer~ con(r_{ik}) \\
+    \end{array} \]
+
+    For each test $t_i$, if $t_i = \$x$, then we get
+
+    \[ \begin{array}{lcl}
+        con(\$x_{i} ~\Path~ r_{i1} ~\Prefer~,\dots, ~\Prefer~ r_{ik}) 
+            & = & {pfx}_{i1} ~\Path~ con(r_{i1}) \cap \text{end}(l_{i1}) ~\Prefer~,\dots, ~\Prefer~ con(r_{ik}) \cap \text{end}(l_{i1}), \\
+            &   & \dots, \\ 
+            &   & {pfx}_{ij} ~\Path~ con(r_{i1}) \cap \text{end}(l_{ij}) ~\Prefer~,\dots, ~\Prefer~ con(r_{ik}) \cap \text{end}(l_{ij}), \\
+            &   & \\
+            &   & \text{for each } (pfx_{ij}, l_{ij}) \in \Gamma(x) \\
+    \end{array} \]
+
+    Next we compute $compile(con(pol))$:
+
+    \[ \begin{array}{lcl}
+        compile(con(pol)) &=& compile_{ABGP}( \\
+                          & & ~~~~ compile_{PG}(pfx_{11} ~\Path~ r'_{111} ~\Prefer~,\dots, ~\Prefer~ r'_{11k} ), \\
+                          & & ~~~~ \dots, \\
+                          & & ~~~~ compile_{PG}(pfx_{1j} ~\Path~ r'_{1j1} ~\Prefer~,\dots, ~\Prefer~ r'_{1jk} ), \\
+                          & & ~~~~ \dots, \\
+                          & & ~~~~ compile_{PG}(pfx_{i1} ~\Path~ r'_{i11} ~\Prefer~,\dots, ~\Prefer~ r'_{i1k} ), \\
+                          & & ~~~~ \dots, \\
+                          & & ~~~~ compile_{PG}(pfx_{ij} ~\Path~ r'_{ij1} ~\Prefer~,\dots, ~\Prefer~ r'_{ijk} ) \\
+                          & & ) \\
+    \end{array} \]
+ 
+    This results in a series of prefixes, product graphs, and orderings of the form: $(pfx_{ij}, PG_{ij}, ord_{ij})$.
+
+    \vspace{1em}
+    Similarly, we can compute $compile(pol)$:
+
+    \[ \begin{array}{lcl}
+        compile(pol) &=& compile_{ABGP}( \\
+                     & & ~~~~ compile_{PG}(t_1 ~\Path~ r_{11} ~\Prefer~,\dots, ~\Prefer~ r_{1k} ), \\
+                     & & ~~~~ \dots, \\
+                     & & ~~~~ compile_{PG}(t_i ~\Path~ r_{i1} ~\Prefer~,\dots, ~\Prefer~ r'_{ik} ), \\
+                     & & ) \\
+    \end{array} \]
+
+    This results in a series of prefixes, product graphs, and orderings of the form $(t_i, PG^A_i, ord^A_i)$.
+
+    We know the follwing:
+
+    \begin{itemize}
+      \item each $PG^A_i$ and $PG_ij$ are related by a bisimulation induced by $f_{pg}$ for thos product graphs
+      \item each $ord^A_i$ and $ord_{ij}$ have the property that $ord^A(f_{pg}(m)) = ord_{ij}(m)$
+      \item each $t_i$ has either $t_i = pfx_{ij}$ or $t_i = \$x$ and $\exists l, (pfx_{ij},l) \in \Gamma(x)$.
+    \end{itemize}
+      
+
+
+    %where for all product graph nodes $m$ we have $ord_i(m) = ord^A_i(f(m))$, and $PG_i$ and $PG^A_i$ are related by a bisimulation induced by $f$.
 
   \[ \begin{array}{l}
      \textbf{compile}( (\Gamma(t_1),PG_1,ord_1), \dots, (\Gamma(t_k),PG_k,ord_k) ) = \\
