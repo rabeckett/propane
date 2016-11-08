@@ -997,7 +997,131 @@ In the template configuration, it will have additional policy for the local and 
 
 \subsection{Compilation Correctness}
 
-Foo
+\newcommand{\Con}{\text{con}}
+
+\vspace{2em}
+\begin{figure*}[t!]\small
+
+  \hrulefill%
+  \vspace{1em}
+
+  \begin{minipage}[t]{.46\linewidth}
+  \hdr{ABGP Syntax}{}
+  \vspace*{-1\baselineskip}
+  %
+  \[ \begin{array}{rclr}
+     abgp &::=& l_1 \rightarrow {rc}_1, ~\dots,~ l_k \rightarrow {rc}_k & \textit{abgp policy} \\
+     rc   &::=& t_1 \rightarrow {pc}_1, ~\dots,~ t_k \rightarrow {pc}_k & \textit{router config} \\
+     pc   &::=& ma_1, \dots, ma_k & \textit{prefix config} \\
+     ma   &::=& n_1 : ({ns}_1, n_2) \rightarrow ({ns}_2, n_3) & \textit{match action} \\
+     ps   &::=& \{ t_1, ~\dots,~ t_k \} & \textit{predicates} \\
+     ns   &::=& \{ l_1, ~\dots,~ l_k \} & \textit{peers} \\
+  \end{array} \]%
+
+  \end{minipage}
+  %
+  %
+  \begin{minipage}[t]{.5\linewidth}
+  \hdr{Compilation}{}
+  \vspace*{-1\baselineskip}
+  %
+  \[ \begin{array}{l}
+     \text{compile}_\text{ABGP}( (t_1,PG_1,ord_1), \dots, (t_k,PG_k,ord_k) ) = \\
+     ~~~~~ \{ l \rightarrow rc ~\vert~ \\
+     ~~~~~~~~~ l \in internal(V), \\
+     ~~~~~~~~~ rc = \bigcup_i~ \{ t_i \rightarrow ma_1, \dots, ma_k ~\vert~ \\
+     ~~~~~~~~~~~~~~~~~~~~~ m = (l,q_m) \in PG_i, \\
+     ~~~~~~~~~~~~~~~~~~~~~ in = \{ b ~\vert~ (b,q_n) \in \text{adjIn}(PG_i,m) \} \\
+     ~~~~~~~~~~~~~~~~~~~~~ out = \{ c ~\vert~ (c,\_) \in \text{adjOut}(PG_i,m) \} \\
+     ~~~~~~~~~~~~~~~~~~~~~ ma_j = ord_i(m) : (in,q_n) \rightarrow (out,q_m) \} \} \\
+     \\
+     \text{compile}( p_1, \dots, p_k ) = \\
+     ~~~~~~ \text{compile}_\text{ABGP}(\text{compile}_\text{PG}(p_1), \dots, \text{compile}_\text{PG}(p_k)) \\
+  \end{array} \]%
+  \end{minipage}
+
+  \vspace{1em}
+  \vspace{1em}
+
+  \vspace*{-2\baselineskip}
+  \begin{minipage}[t]{\linewidth}
+  \hdr{Policy Concretization}{}
+  \vspace*{-2\baselineskip}
+  %
+  \[ \begin{array}{lcl}
+     \\
+     \Con(\emptyset, \Gamma, f)      &=& \emptyset \\
+     \Con(l, \Gamma, f)              &=& \Sigma ~ f^{-1}(l) \\
+     \Con(r_1 \cup r_2, \Gamma, f)   &=& \Con(r_1,\Gamma,f) \cup \Con(r_2,\Gamma,f) \\
+     \Con(r_1 \cap r_2, \Gamma, f)   &=& \Con(r_1,\Gamma,f) \cap \Con(r_2,\Gamma,f) \\
+     \Con(!r, \Gamma, f)             &=& !\Con(r,\Gamma,f) \\
+     \Con(r^*, \Gamma, f)            &=& \Con(r,\Gamma,f)^* \\
+     
+     \Con(pfx ~\Path~ r_1, ~\dots~, r_k, \Gamma, f) &=& 
+          pfx ~\Path~ \Con(r_1,\Gamma,f), ~\dots~, \Con(r_k,\Gamma,f)  \\
+
+     \Con(\$x ~\Path~ r_1, ~\dots~, r_k, \Gamma, f) &=&
+          
+         \{ pfx ~\Path~ \Con(r_1,\Gamma,f) \cap \text{end}(l), ~\dots~,
+           \Con(r_k,\Gamma,f) \cap \text{end}(l) ~\vert~ (pfx,l) \in \Gamma(x) \}  \\
+
+     \Con(p_1, \dots, p_n, \Gamma,f) &=& \Con(p_1, \Gamma,f), \dots, \Con(p_n, \Gamma,f) \\
+      
+  \end{array} \]%
+  \end{minipage}
+
+  \vspace{1em}
+  \vspace{1em}
+
+  \begin{minipage}[t]{\linewidth}
+  \hdr{ABGP Concretization}{}
+  \vspace*{-2\baselineskip}
+  %
+  \[ \begin{array}{lcl}
+     \\
+     \Con(l_1 \rightarrow {rc}_1, ~\dots,~ l_k \rightarrow {rc}_k,\Gamma,f,G) 
+        & = & 
+        \{ \ell \rightarrow con(rc_i,\ell,\Gamma,f,G)  ~\vert~ \ell \in f^{-1}(l_i) \}
+        \\
+     \Con(t_1 \rightarrow {pc}_1, ~\dots,~ t_k \rightarrow {pc}_k,\ell,\Gamma,f,G) 
+        & = &  
+        \Con(t_1 \rightarrow {pc}_1,\ell,\Gamma,f,G), \dots, \Con(t_k \rightarrow {pc}_k,\ell,\Gamma,f,G)
+        \\
+     \Con(pfx \rightarrow {pc},\ell,\Gamma,f,G) 
+        & = &  
+        pfx \rightarrow \Con(pc,\text{true},\ell,\Gamma,f,G)
+        \\
+     \Con(\$x \rightarrow {pc},\ell,\Gamma,f,G) 
+        & = &  
+        \{ pfx \rightarrow \Con(pc, l=\ell, \ell,\Gamma,f,G) ~\vert~ (pfx, l) \in \Gamma(x) \}
+        \\
+     \Con(ma_1, \dots, ma_k,o,\ell,\Gamma,f,G) 
+        & = &
+        \Con(ma_1,o,\ell,\Gamma,f,G), \dots, \Con(ma_k,o,\ell,\Gamma,f,G)
+        \\
+
+     \Con(n_1 : ({ns}_1, n_2) \rightarrow ({ns}_2, n_3),o,\ell,\Gamma,f,G) 
+        & = & \textbf{if}~ ns_1 = \{G.s\} ~\text{and}~ o = \text{false} ~\textbf{then}~ \bullet \\
+        &   & \textbf{else}~ n_1 : ( \Con({ns}_1,\ell,\Gamma,f,G), n_2) \rightarrow (\Con({ns}_2,\ell,\Gamma,f,G),n_3)
+
+        \\
+     \Con(\{ l_1, ~\dots,~ l_k \}, \ell, \Gamma,f,G) 
+        & = &  
+        \bigcup_i ~ \{ x ~\vert~ x \in f^{-1}(l_i),~ (x,\ell) \in G.E \}
+        \\
+  \end{array} \]%
+  \end{minipage}
+
+  \vspace{1em}
+  \hrulefill%
+  \vspace{1em}
+
+  \caption{ABGP syntax (a), compilation from product graphs (b), Policy concretization (c), and ABGP concretization (d).}
+  \label{fig:abgp-syntax}
+
+\end{figure*}%
+
+
 
 \begin{easylist}[itemize]
 & First show how to compile to the Product Graph, and from there to the ABGP
