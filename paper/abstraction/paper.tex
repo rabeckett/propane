@@ -87,7 +87,7 @@
 \newcommand{\hdr}[2]{\flushleft \chdr{\hspace{5mm}#1}{#2}}
 \newcommand{\chdr}[2]{\textbf{#1} {#2} \\ \centering}%
 
-\newtheorem{thm}{Theorem}[section]
+\newtheorem{thm}{Theorem}
 \newtheorem{defn}{Definition}
 \newtheorem{lem}[thm]{Lemma}
 
@@ -1130,6 +1130,11 @@ In the template configuration, it will have additional policy for the local and 
 & Give abstraction theorem: commuting of concretization and compilation
 \end{easylist}
 
+
+\begin{thm}
+  For any context $\Gamma$, concrete topology $G$, homomorphism $f : G \rightarrow G^A$, and policy $pol$,
+  $$\Con(\text{compile}(pol), \Gamma,f,G) = \text{compile}(\Con(pol,\Gamma,f))$$
+\end{thm}
 
 \subsection{Incrementality}
 
