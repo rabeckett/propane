@@ -217,91 +217,40 @@ We test \sysname out on ... blah blah blah
 % verification of important properties, thereby avoiding entire classes
 % of configuration errors automatically.
 
-An important class of networks are the large \emph{structured networks}
-commonly deployed in industrial data centers.  These networks run
-many critical services; every second of downtime is
-costly at best and dangerous at worst.  Unfortunately, it is an enormous
-challenge to keep these complex networks up and
-running 24/7~\cite{mahajan+:bgp-misconfiguration,feamster+:rcc,batfish,dc-failure-study}.
-Moreover, while hardware faults, rodents, power failures and natural
-disasters can all cause significant downtime, studies have shown that
-\emph{human error}, which occurs during network configuration or
-update, is the single largest cause of these
-outages~\cite{juniper-study}.
+%An important class of networks are the large \emph{structured networks}
+%commonly deployed in industrial data centers.
 
-% These networks often
-% host a myriad of services and every second of downtime imposes significant
-% financial cost or disruption to consumers.
-Such networks typically have uniform, tree-shaped topologies that involve
-hundreds or even thousands of devices.  Since it is not possible for humans
-to think about configuring each individual device independently,
-network operators typically classify the devices, assigning them a particular
-\emph{role} such as ``top-of-rack router'' or ``tier-one aggregation router.''
-Each such role is codified as a \emph{configuration template}---a macro
-that may be instantiated with different concrete values to
-generate a configuration for each device that plays the role.
+Computer networks run many critical services, and every second of downtime is
+costly at best and dangerous at worst.  Keeping these complex systems up and running 24/7 is an enormous challenge~\cite{mahajan+:bgp-misconfiguration,feamster+:rcc,batfish,dc-failure-study}.
+%
+While hardware faults, rodents, power failures and natural disasters all pose problems, studies have consistently shown that human error in network configuration is one of the most error-prone task and the leading cause of network outages~\cite{juniper-study,xx}.
 
-Unfortunately, such templates have no particular semantics other than the
-semantics
-that one obtains from instantiating a template's parameters.
-Moreover,
-template construction is a low-level, manual process:  
-network engineers do their
-best to design templates despite the assembly-language-like primitives for network configuration.
-They hope their templates
-will work properly and test concrete instantiations of them using simulations, but
-there is no support for verification of key network-wide properties 
-such as connectivity and fault tolerance. In addition,
-network engineers have no tools to help them design for network
-evolution.  For instance, the process of adding new equipment to
-expand the capacity of data center may not be compatible with the original
-templates, or may cause a trickle-down of changes to be made network-wide.
-Each change to a router configuration typically incurs
-some risk of temporary instability in a network, so minimizing such changes
-is an important design goal.  
+To manage and configure large networks today, instead of considering individual devices, operators classify devices devices into {\em roles}. A role refers to specific functionality and is played by one or more devices. For instance, in a data center, roles may correspond to "top-of-rack," "aggregation," and "spine" switches; and in a backbone network, they may correspond to "core" and "border" routers. While the network may have hundreds or thousands of devices---a scale that is impossible for humans to handle---there tend to be a handful of roles.
+%
+Operators author a configuration {\em template} for each role. Templates are macros that can be instantiated with different concrete values, based on the network topology, to generate a configuration for each device.
+
+Unfortunately, template construction is a low-level, manual process. Operators manually decompose network-wide routing and fault-tolerance policies (e.g., prefer one end-to-end path over another or no loss in connectivity after any one-link failure) across roles and encode them using assembly-language-like configuration primitives (e.g., role A should not transmit routing information from B to C). Such decomposition tasks are highly complex~\cite{propane}.
+
+Worse, operators can never be sure that the generated templates correctly implement the policy,  beyond testing some concrete instantiations using simulation or verification tools~\cite{x,y}. Testing based on concrete instantiations is insufficient because large networks evolve continuously, as devices and links are added or taken offline for maintenance. Templates that work for the current network topology, may or may not work for future topologies. Updating the templates, if found to not work for a future topology, may cause trickle-down, network-wide configuration changes, which is highly disruptive. Building sophisticated tools for validating templates is difficult because the templates today have no particular semantics---which policies they implement and for which topologies---other than the semantics of the configurations that one obtains from instantiating them.
+
 %It is no wonder that a major
 %network outage, such as the one that grounded all United Air flights
 %in July 2015~\cite{x}, makes international news every few months.
 
-To combat these problems, we present \sysname, a
-new high-level language designed to
-provide improved support for the configuration of large, structured networks.
-\sysname allows network operators to define \emph{abstract network topologies}
-that
-classify devices in terms of their roles and how they are connected
-to one another.  For instance, a programmer may
-define separate roles for ``top-of-rack router'' and
-``tier-one aggregation router'' and specify that every top-of-rack router
-is connected to at least two different tier-one aggregation routers,
-thereby providing a degree of fault tolerance if one aggregation router
-were to fail.
+Given the challenges of generating and validating network configurations, one might think that operators will be receptive to systems that can generate provably-correct configurations from high-level policy specifications~\cite{x,y,z,configassure,propane}. However, our conversations with two major cloud providers reveal that operators of large networks are reluctant to use such systems. While they think of their network abstractly, in terms of roles, these systems require concrete topologies, with no understanding of roles as a first-order abstraction.
+Even if two devices play the same role,
+there is no guarantee that the systems will generate (syntactically) similar configurations; if the operators want to debug or analyze system output, they will have to consider
+hundreds of device configurations instead of a handful of role configurations. These systems become even more brittle when the network evolves. Any change in network topology requires re-execution of the engine, from scratch, on the changed topology.  The result may be
+a completely different set of configurations.
 
-To specify \emph{routing policy} for such abstract networks,
-\sysname borrows notation from the recently-defined \propane
-programming language~\cite{propane}.  As such, it is able to
-specify the paths that traffic should flow along at a high-level of
-abstraction.  However, whereas \propane policies
-refer to paths of individual devices, \sysname policies
-refer to paths of abstract roles.  The \sysname compiler compiles such
-policies into templates, with one template per role, and these templates
-may be instantiated to generate concrete configurations.
+We present \sysname, a system to generate provably-correct role templates. It allows operators to input \emph{abstract network topologies} in terms of roles and their connectivity. For instance, they may specify roles for ``top-of-rack'' and ``aggregation" switches and specify that every top-of-rack switch connects to at least two aggregation switches (to tolerate the failure of a link to an aggregation switch). Other inputs to \sysname include the routing policy of the network and its fault-tolerance requirements (e.g., the number of link failures to tolerate). For routing policy, we borrow notation from Propane~\cite{propane},  which specifies traffic paths at a high-level of abstraction. But while Propane policies
+refer concrete devices, \sysname policies refer to abstract roles.  
 
-During compilation, the \sysname compiler also analyzes policy with respect to the
-abstract topology and guarantees that the configurations will
-faithfully implement the high-level policy on \emph{any} concrete
-topology that satisfies the given connectivity invariants.  The compiler
-will also optionally perform a second fault tolerance analysis that
-determines the minimum number of link failures required to disconnect
-\emph{any} valid concrete topology.
+Based on these inputs, the \sysname compiler generates one template per role. It guarantees that, when the templates are instantiated to configurations for {\em any} concrete topology that complies with the abstract topology, the result network will correctly implement the routing policy and meet the fault-tolerance requirements. We show how fault-tolerance analysis can be done over abstract topology itself using \todo{say something cool about about the inference rules and such}.
 
-Finally, generated \sysname configurations are designed to
-be \emph{evolution-friendly} in the sense that if an operator adds or
-removes any single link or device, they are guaranteed that only
-the configurations of adjacent devices need change (for instance, to
-activate a port on which the new device is connected).  Doing so
-helps minimize network instability as data centers are expanded or devices are
-temporarily taken offline for maintenance.
+\sysname templates are also evolution-friendly. When the network migrates from one concrete topology to another, both of which comply with the abstract topology, it is guaranteed that only the configurations of devices that acquire or lose a neighboring device needs to change (e.g., to activate a port on which the new device is connected).  No other device in the network is impacted. 
 
+\todo{Talk about evaluation result here ... roll the point about faster compilation there.}
 As an aside, a pleasant side effect of this new compiler
 infrastructure, designed to make life easier on network operators, is
 that for structured networks, it scales substantially better than its
@@ -478,43 +427,43 @@ Worse, when operators discover their old templates no longer work, a change to a
 cause a change to all devices that use that template---an unacceptable disruption in many cases.  When that happens, network operators may abandon templates entirely and revert to hand-crafting configurations, using local patches to accommodate the topological change.
 Such patches reintroduce the complexity and errors that templates were meant to prevent.
 
-%% For some changes, they may discover that their old templates will not work anymore. ~\dpw{Note: This is going to be true for Methane too.} ~\ratul{Not really; our abstract topologies encode all possible future topologies} ~\dpw{Our abstract topologies precisely define a set of topologies for which our 
+%% For some changes, they may discover that their old templates will not work anymore. ~\dpw{Note: This is going to be true for Methane too.} ~\ratul{Not really; our abstract topologies encode all possible future topologies} ~\dpw{Our abstract topologies precisely define a set of topologies for which our
 %% This discovery is highly problematic because changing a template may cause a configuration change of all the devices that use that template---an unacceptable disruption in many cases.  When that happens, network operators may abandon templates entirely and revert to hand-crafting configurations, using local patches to accommodate the topological change.
 %% Such patches reintroduce the complexity and errors that templates were meant to prevent.
 
 Consider the network in Figure~\ref{fig:example2}, which is similar to Figure~\ref{fig:example}; it has the same five roles, connected in a similar hierarchy. One might think that the same templates (with different database entries) can be used for both topologies, but that is not true. For instance, consider templates that disallow ``valley" paths, which go up, down, and then up again; it is a common to disallow valley paths in a data center because they are longer than shortest paths. These templates will work perfectly for Figure~\ref{fig:example} but silently violate the fault tolerance requirement ($p7$) when used for Figure~\ref{fig:example2}.  Specifically, in Figure~\ref{fig:example2}, an aggregation-induced blackhole (\S\ref{sec:motivation}) will occur when the link S1--A1 fails; after this failure, S1 has no valley-free path to P[1--2] even though it will continue to get traffic for these prefixes as it announces  the covering prefix PG (because it gets routes for P[3--4]). In contrast, in Figure~\ref{fig:example}, no such blackhole will occur after a single link failure because spine routers have two links to each pod.
 
-%% Thus, today, operators test templates for each topology change. For some changes, they may discover that their old templates will not work anymore. ~\dpw{Note: This is going to be true for Methane too.} ~\ratul{Not really; our abstract topologies encode all possible future topologies} ~\dpw{Our abstract topologies precisely define a set of topologies for which our 
+%% Thus, today, operators test templates for each topology change. For some changes, they may discover that their old templates will not work anymore. ~\dpw{Note: This is going to be true for Methane too.} ~\ratul{Not really; our abstract topologies encode all possible future topologies} ~\dpw{Our abstract topologies precisely define a set of topologies for which our
 %% This discovery is highly problematic because changing a template may cause a configuration change of all the devices that use that template---an unacceptable disruption in many cases.  When that happens, network operators may abandon templates entirely and revert to hand-crafting configurations, using local patches to accommodate the topological change.
 %% Such patches reintroduce the complexity and errors that templates were meant to prevent.
 
 
-\para{Configuration synthesis with concrete topologies}
-Many recent systems generate router configurations using high-level policy statements~\cite{narain:lisa05,narain+:configassure,dadc,propane} and the network's concrete topology.
-%These systems eliminate entire classes of configuration errors by construction, and, in the case of
-%Propane~\cite{propane}, guarantee that high-level policy is implemented correctly, even in the presence of
-%arbitrary combinations of failures.
-They are able to provide strong guarantees on configuration correctness but 
-our conversations with operators at two major cloud providers reveal that they have two limitations that discourage adoption.  The first is abstraction mismatch. Operators of large networks think of the network, and develop management tools, using \emph{roles}, and not individual devices. They are naturally reluctant to use a system that does not
-understand roles as a first-order abstraction. If they want to debug, analyze or
-understand system output, they will have to consider
-\emph{hundreds} of independent device configurations instead of just
-\emph{a handful} of role configurations. Unfortunately, even if two devices play the same role,
-there is no guarantee a concrete synthesis system will generate (syntactically) similar configurations.
-
-%A second limitation is the inability to support network evolution. Networks evolve all the time as nodes and links are added or removed and the addresses of services are changed. A system that supports evolution would ensure that
-%small changes in topology require small, local changes in network configurations as opposed to pervasive
-%changes across many devices.  Engineers want to minimize changes to device configurations because each change runs the risk of poor, transient behavior due to poor router software or routing protocol dynamics~\cite{ratulbgpmisconfigs}.
-%These networks must be highly
-%available; it isn't plausible to bring down an entire data center network, or large portions of it, to make
-%incremental changes.
-
-Second, these systems become even more brittle in the face of network evolution.
-Any change in network topology requires re-execution of a
-concrete synthesis engine, from scratch,
-on the changed topology.  The result may be
-a completely different set of configurations.  Even if such configurations are
-largely semantically similar to existing configurations, they may be syntactically different and cause considerable network disruption when updates are pushed to routers.
+%\para{Configuration synthesis with concrete topologies}
+%Many recent systems generate router configurations using high-level policy statements~\cite{narain:lisa05,narain+:configassure,dadc,propane} and the network's concrete topology.
+%%These systems eliminate entire classes of configuration errors by construction, and, in the case of
+%%Propane~\cite{propane}, guarantee that high-level policy is implemented correctly, even in the presence of
+%%arbitrary combinations of failures.
+%They are able to provide strong guarantees on configuration correctness but
+%our conversations with operators at two major cloud providers reveal that they have two limitations that discourage adoption.  The first is abstraction mismatch. Operators of large networks think of the network, and develop management tools, using \emph{roles}, and not individual devices. They are naturally reluctant to use a system that does not
+%understand roles as a first-order abstraction. If they want to debug, analyze or
+%understand system output, they will have to consider
+%\emph{hundreds} of independent device configurations instead of just
+%\emph{a handful} of role configurations. Unfortunately, even if two devices play the same role,
+%there is no guarantee a concrete synthesis system will generate (syntactically) similar configurations.
+%
+%%A second limitation is the inability to support network evolution. Networks evolve all the time as nodes and links are added or removed and the addresses of services are changed. A system that supports evolution would ensure that
+%%small changes in topology require small, local changes in network configurations as opposed to pervasive
+%%changes across many devices.  Engineers want to minimize changes to device configurations because each change runs the risk of poor, transient behavior due to poor router software or routing protocol dynamics~\cite{ratulbgpmisconfigs}.
+%%These networks must be highly
+%%available; it isn't plausible to bring down an entire data center network, or large portions of it, to make
+%%incremental changes.
+%
+%Second, these systems become even more brittle in the face of network evolution.
+%Any change in network topology requires re-execution of a
+%concrete synthesis engine, from scratch,
+%on the changed topology.  The result may be
+%a completely different set of configurations.  Even if such configurations are
+%largely semantically similar to existing configurations, they may be syntactically different and cause considerable network disruption when updates are pushed to routers.
 
 %For instance, suppose an operator wants to modify the prefix of local ToR T8 in Figure~\ref{fig:example}. To accommodate the modification, Propane, a concrete synthesis tool, will, at a minimum, not only change T8's configuration but also those of the two spines because it uses prefix lists at spines to ensure that local prefixes are not advertised externally.  As we show later, there is a way to design the configurations of this network to avoid spine configuration changes while accommodating ToR prefix (and other) modifications.  Our new abstraction-based synthesis framework synthesizes evolution-friendly roles automatically.
 
@@ -542,7 +491,7 @@ largely semantically similar to existing configurations, they may be syntactical
 
 %\subsection{\sysnamesec}
 %
-%As Table~\ref{fig:marketing} shows, \sysname addresses the limitations of both concrete synthesis and current template systems. It operates at the right level of abstraction for network operators, provides strong guarantees about compiled configurations, supports verification of important correctness properties, and supports network evolution. 
+%As Table~\ref{fig:marketing} shows, \sysname addresses the limitations of both concrete synthesis and current template systems. It operates at the right level of abstraction for network operators, provides strong guarantees about compiled configurations, supports verification of important correctness properties, and supports network evolution.
 
 %=====================================================
 %
@@ -1135,8 +1084,8 @@ In the previous section we saw that \sysname can synthesize correct device confi
 
 \newcommand{\inferenceglobal}[1]{
     \inferencenobox{#1}{L$_1(j,k)$}{}{L$_2(j',k')$}{I-global}{}{}
-    \inferencenobox{#1+3}{$\ldots$ L$_P$ L$_m(j,k)$}{}{$\ldots$ A$_Q$ L$_n(j',k')$}{}{}{}  
-    \node[anchor=east] at (#1 + 3 - .6, .4) {P};  
+    \inferencenobox{#1+3}{$\ldots$ L$_P$ L$_m(j,k)$}{}{$\ldots$ A$_Q$ L$_n(j',k')$}{}{}{}
+    \node[anchor=east] at (#1 + 3 - .6, .4) {P};
     \node[anchor=east] at (#1 + 3 - .6, 2.5) {Q};
     \draw[dashed] (#1+2 - .2, -.34) rectangle (#1+3+1 + .1, .8);
     \draw[dashed] (#1+2 - .2, 1.7) rectangle (#1+3+1 + .1, 2.85);
@@ -1208,7 +1157,7 @@ The first rule, \infrule{I-out1} applies to a learned fact of the form L$(j,k)$ 
 
 The rule \infrule{I-out2} follows a similar line of reasoning. It says that if any group of size $j$ with $k$ disjoint paths to each is reachable in the bottom node, and there is at least one incoming edge for each top node, then there are $min(j,e_2)$ disjoint paths to any single node in the top role. This is because we can choose the $j$ nodes on the bottom for which we want to find disjoint paths, and then use each of the $e_2$ incoming edges for the particular node at the top connecting it to the bottom, which preserve the disjointedness.
 
-The two rules \infrule{I-mesh1} and \infrule{I-mesh2} handle the case where there is a full mesh between the two roles. This happens when the number of outgoing edges from the bottom $e_1$ is equal to the number of nodes on the top $n$. The first case for \infrule{I-mesh1} says that we can find disjoint paths to each node in the top role restricted to the number of disjoint paths we started with. The second case for \infrule{I-mesh2} uses the fact that each node in the top role is connected to each node in the bottom role to infer that there can be $j$ disjoint paths to any single node in the top role. 
+The two rules \infrule{I-mesh1} and \infrule{I-mesh2} handle the case where there is a full mesh between the two roles. This happens when the number of outgoing edges from the bottom $e_1$ is equal to the number of nodes on the top $n$. The first case for \infrule{I-mesh1} says that we can find disjoint paths to each node in the top role restricted to the number of disjoint paths we started with. The second case for \infrule{I-mesh2} uses the fact that each node in the top role is connected to each node in the bottom role to infer that there can be $j$ disjoint paths to any single node in the top role.
 
 The rule \infrule{I-striping} is the most complicated case.
 It starts with the fact L$(j,k)$ at role $m$ and can be applied if each edge multiplicity $e_i > 0$ is valid. The first inference for role $n$ tries to find the largest reachable group with disjoint paths to each. The idea is similar to the rule \infrule{I-out1}, but is able to use the fact that $e_2 > 0$ to learn more about the structure of the concrete topology. In particular it uses the following inequality, where $g$ represents the size of the group for the top role:
@@ -1233,7 +1182,7 @@ Finally, the \infrule{I-local} and \infrule{I-global} rules allow us to lift eac
 
 \subsection{An inference algorithm}
 
-The abstract disjoint path analysis starts from a fixed source location $src$ and repeatedly applies the inference rules from Figure~\ref{fig:inference-rules} until a fixed point is reached. Inference rule conditions are checked for validity over all concrete topologies using the Z3 \ryan{cite} SMT solver. In order to ensure termination, we make the observation that, for any fact learned of the form $L(j,k)$, it is sound to instead infer $L(j',k')$ if $j' \leq j$ and $k' \leq k$. Therefore, for each inference rule that learns a fact of the form $L(j,k)$ we minimize the symbolic expressions for $j$ and $k$ subject to the topology constraints using the Z3 optimizing constraint solver. 
+The abstract disjoint path analysis starts from a fixed source location $src$ and repeatedly applies the inference rules from Figure~\ref{fig:inference-rules} until a fixed point is reached. Inference rule conditions are checked for validity over all concrete topologies using the Z3 \ryan{cite} SMT solver. In order to ensure termination, we make the observation that, for any fact learned of the form $L(j,k)$, it is sound to instead infer $L(j',k')$ if $j' \leq j$ and $k' \leq k$. Therefore, for each inference rule that learns a fact of the form $L(j,k)$ we minimize the symbolic expressions for $j$ and $k$ subject to the topology constraints using the Z3 optimizing constraint solver.
 
 \begin{figure}
   \begin{center}
@@ -1251,15 +1200,15 @@ Consider again the datacenter example from \S\ref{sec:overview}. Suppose now we 
 \end{code}
 \noindent
 %
-Figure~\ref{fig:example-inference} shows the abstract product graph representation for this routing policy. The inference algorithm starts from the node $(TG,0,0)$ with the initial fact $S_P S_{TG}(1,\infty)$ (\IE, no restriction on the number of disjoint paths initially). 
+Figure~\ref{fig:example-inference} shows the abstract product graph representation for this routing policy. The inference algorithm starts from the node $(TG,0,0)$ with the initial fact $S_P S_{TG}(1,\infty)$ (\IE, no restriction on the number of disjoint paths initially).
 %
 The first step applies the rule \infrule{I-mesh1} together with \infrule{I-local} to reason about connectivity within a single pod for the TG and AG roles. This invokes a call to Z3Opt to minimize the expression $min(\infty, AG)$, which gives us 2. Therefore, the algorithm learns a new invariant of the form $S_P A_{AG} (2,1)$ for node $(AG, 0)$ to indicate that in some pod P, any group of 2 nodes is reachable.
 %
-The next step uses the inference rule \infrule{I-out2} to learn that any single spine node is reachable. It also can apply rule \infrule{I-striping} to determine that there is some group of at least 2 spine routers reachable at node $(S,0)$ and also that there is some group of at least 2 nodes reachable in the AL role in state $(AL,0)$. 
+The next step uses the inference rule \infrule{I-out2} to learn that any single spine node is reachable. It also can apply rule \infrule{I-striping} to determine that there is some group of at least 2 spine routers reachable at node $(S,0)$ and also that there is some group of at least 2 nodes reachable in the AL role in state $(AL,0)$.
 
-Note that, because each inference rule only applies to directed edges in the product graph, the algorithm can not make any inferences about connectivity from the AL role to the S role since there is no directed edge between them. It is this restriction that ensures that the analysis is both topology and policy dependent. 
+Note that, because each inference rule only applies to directed edges in the product graph, the algorithm can not make any inferences about connectivity from the AL role to the S role since there is no directed edge between them. It is this restriction that ensures that the analysis is both topology and policy dependent.
 
-The next step is to use \infrule{I-mesh2} together with \infrule{I-local} to infer than any single node in the TL role for any pod P is reachable via at least 2 disjoint paths. This process will continue until a fixed point is reached. 
+The next step is to use \infrule{I-mesh2} together with \infrule{I-local} to infer than any single node in the TL role for any pod P is reachable via at least 2 disjoint paths. This process will continue until a fixed point is reached.
 
 In this case, the algorithm was able to infer that, with the valleyfree routing policy, any node in the spine role has at least 1 disjoint path and any node in the TL node has at least 2 disjoint paths to a prefix originator in role TG. Note that, in this case, the analysis is precise. There exists a concrete network, namely the datacenter from Figure~\ref{fig:example2}, where a single failure can disconnect a global tor from a spine router. In this case, the analysis can be used to determine the number of failures that can induce an aggregation black-hole at the border of the datacenter.
 
