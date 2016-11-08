@@ -88,7 +88,7 @@
 \newcommand{\hdr}[2]{\flushleft \chdr{\hspace{5mm}#1}{#2}}
 \newcommand{\chdr}[2]{\textbf{#1} {#2} \\ \centering}%
 
-\newtheorem{thm}{Theorem}[section]
+\newtheorem{thm}{Theorem}
 \newtheorem{defn}{Definition}
 \newtheorem{lem}[thm]{Lemma}
 \newtheorem*{cor}{Corollary}
@@ -390,7 +390,9 @@ By induction on the structure of $r$
 \emph{Case $r^*$:}
   \[ \begin{array}{lll}
     p \in \Lang(con(r^*)) &\iff& f(p) \in \Lang(r^*) \\
-    \ryan{TODO} & & \\
+    p \in \Lang(con(r)^*) &\iff& f(p) \in \Lang(r^*) \\
+    p \in \bigcup_{i \in \mathbb{N}} \Lang(con(r))^i &\iff& f(p) \in \bigcup_{i \in \mathbb{N}} \in \Lang(r)^i \\
+    \text{Follows from IH and definition of } \Lang(r)^i & & \\
   \end{array} \]
 
 \end{proof}
@@ -511,11 +513,6 @@ By induction on the structure of $r$
 
 \end{lem}
 
-\begin{cor}
-  foo
-\end{cor}
-
-
 
 \subsection{Product Graph}
 
@@ -573,11 +570,11 @@ By induction on the structure of $r$
   \end{proof}
 \end{lem}
 
-\begin{thm}
+\begin{lem}
   $m \leq m'$ in the concrete product graph iff $f_{pg}(m) \leq f_{pg}(m')$ in the abstract product graph under the lifted graph homomorphism $f_{pg}$.
 
   \begin{proof}
-    $(\leftarrow)$
+    $(\Leftarrow)$
 
     Suppose we have a simulation relation from the subgraphs rooted at nodes $M$ and $M'$ with $M' \geq_{rank} M$ in the abstract product graph. Assume that $\tilde{M} = f(a)$ and $\tilde{N} = f(b)$. For each neighbor $N'$, if we can make a move from $M'$:
 
@@ -613,21 +610,18 @@ By induction on the structure of $r$
   \end{proof}
 
   \begin{proof}
-    $(\rightarrow)$
+    $(\Rightarrow)$
 
     This is the simpler case. We assume we have $m' \overset{b}{\rightarrow} n'$ implies $m \overset{b}{\rightarrow} n$.
     Simply take $N = f_{pg}(n)$ and $N' = f_{pg}(n')$. If we know that $M' \overset{b}{\rightarrow} N'$ then we already know that $M \overset{b}{\rightarrow} N$ from the homomorphism. All that's required is to show that $N' \geq_{rank} N$. This follows trivially from the fact that $P(n) = P(N)$ and $P(n') = P(N')$.
   \end{proof}
 
-\end{thm}
+\end{lem}
 
 \begin{defn}
   Assign $ord(m) = ord^A(f_{pg}(m))$ as increasing integers according to the total ordering for $\leq$.
   Clearly $ord(m) \leq ord(m') \iff m \leq m'$ and $ord(f_{pg}(m)) \leq ord(f_{pg}(m')) \iff f_{pg}(m) \leq f_{pg}(m')$
 \end{defn}
-
-
-\subsection{Substitution}
 
 \begin{defn}
   The previous theorem tells us that the total ordering between node preferences is preserved under the lifted graph homomorphism $f_{pg}$. 
@@ -635,6 +629,40 @@ By induction on the structure of $r$
 \end{defn} 
 
 
+
+\subsection{Substitution}
+
+
+\begin{lem}
+
+  For concrete ($PG$) and abstract ($PG^A$) product graphs related by $f_{pg}$
+
+  \[ \begin{array}{l}
+     ~~~~~~~~~ \{ pfx \rightarrow ma_1, \dots, ma_k ~\vert~ \\
+     ~~~~~~~~~~~~~~~~~~ M = (l,q_M) \in PG^A, \\
+     ~~~~~~~~~~~~~~~~~~ in = \bigcup_B~ \{ b \in f^{-1}(B), (b,\ell) \in G.E, (B,q_N) \in \text{adjIn}(PG^A,M) \}) \\
+     ~~~~~~~~~~~~~~~~~~ out = \bigcup_C~ \{ c \in f^{-1}(C), (c,\ell) \in G.E, (C,\_) \in \text{adjOut}(PG^A,M) \} \\
+     ~~~~~~~~~~~~~~~~~~ ma_h = ord^A(M) : (in,q_N) \rightarrow (out,q_M) \} \\
+  \end{array} \]%
+
+  Is equivalent to
+
+  \[ \begin{array}{l}
+     ~~~~~~~~~ \{ pfx \rightarrow ma_1, \dots, ma_k ~\vert~ \\
+     ~~~~~~~~~~~~~~~~~~ m = (l,q_M) \in PG, \\
+     ~~~~~~~~~~~~~~~~~~ in = \bigcup \{ b ~\vert~ (b,q_N) \in \text{adjIn}(PG,m) \}) \\
+     ~~~~~~~~~~~~~~~~~~ out = \bigcup \{ c ~\vert~ (c,\_) \in \text{adjOut}(PG,m) \} \\
+     ~~~~~~~~~~~~~~~~~~ ma_h = ord^A(f_{pg}(m)) : (in,q_N) \rightarrow (out,q_M) \} \\
+  \end{array} \]%
+
+  \begin{proof}
+    For each $M$ there exists at least one $m$ such that $f_{pg}(m) = M$. Note that $f_{pg}$ overapproximates the connectivity of the product graph, by virtue of being a graph homomorphism. For each concrete node $n$ such that $n = (b,q_n) \in adjIn(PG,m)$ we know that if $f_{pg}(n) = N$ where $N = (f(b),q_N)$, then $N \in adjIn(PG^A,M)$ and $q_n = q_N$ from the homomorphism. Thus by taking $\bigcup f^{-1}(f(b))$, for each such $f(b)$ for node $N$ that shares the same state $q_N$, we get a superset of the locations from the concrete graph. However, by restricting those locations to only those that appear in the topology $(b,\ell)$, we get exactly the set that appears in the concrete product graph. This is because we know $q_n \rightarrow q_m$ from the abstract product graph is a valid transition and the topology edge exists.
+  \end{proof}
+
+\end{lem}
+
+
+\vspace{2em}
 \begin{thm}
   $compile(con(pol)) = con(compile(pol))$
 
@@ -827,12 +855,12 @@ Unfold definition of compile
   \[ \begin{array}{l}
      ~~~~~~~~~ \{ pfx \rightarrow ma_1, \dots, ma_k ~\vert~ \\
      ~~~~~~~~~~~~~~~~~~ M = (l,q_M) \in PG^A_i, \\
-     ~~~~~~~~~~~~~~~~~~ in = \{ b \in f^{-1}(B), (B,\ell) \in G.E, (B,q_N) \in \text{adjIn}(PG^A_i,M) \}) \\
-     ~~~~~~~~~~~~~~~~~~ out = \{ c \in f^{-1}(C), (C,\ell) \in G.E, (C,\_) \in \text{adjOut}(PG^A_i,M) \} \\
+     ~~~~~~~~~~~~~~~~~~ in = \bigcup_B~ \{ b \in f^{-1}(B), (b,\ell) \in G.E, (B,q_N) \in \text{adjIn}(PG^A_i,M) \}) \\
+     ~~~~~~~~~~~~~~~~~~ out = \bigcup_C~ \{ c \in f^{-1}(C), (c,\ell) \in G.E, (C,\_) \in \text{adjOut}(PG^A_i,M) \} \\
      ~~~~~~~~~~~~~~~~~~ ma_h = ord^A_i(M) : (in,q_N) \rightarrow (out,q_M) \} \\
   \end{array} \]%
 
-  From the relation between concrete ($PG$) and abstract ($PG^A$) product graphs
+  From the relation between concrete ($PG$) and abstract ($PG^A$) product graphs given by the previous lemma
 
   \[ \begin{array}{l}
      ~~~~~~~~~ \{ pfx \rightarrow ma_1, \dots, ma_k ~\vert~ \\
@@ -841,8 +869,6 @@ Unfold definition of compile
      ~~~~~~~~~~~~~~~~~~ out = \{ c ~\vert~ (c,\_) \in \text{adjOut}(PG_{i1},m) \} \\
      ~~~~~~~~~~~~~~~~~~ ma_h = ord^A_i(f_{pg}(m)) : (in,q_N) \rightarrow (out,q_M) \} \\
   \end{array} \]%
-
-  \ryan {Proof that we can change this to concrete topology}
 
   Since $ord^A_i(f_{pg}(m)) = ord_{i1}(m)$
 
