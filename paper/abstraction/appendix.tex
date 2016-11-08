@@ -1,4 +1,4 @@
-\documentclass[twocolumn]{sig-alternate-10pt}
+\documentclass[twocolumn, openany]{sig-alternate-10pt}
 %\documentclass[twocolumn]{article}
 %\documentclass[10pt]{sigalternate052015}
 
@@ -93,20 +93,22 @@
 \newtheorem{lem}[thm]{Lemma}
 \newtheorem*{cor}{Corollary}
 
+
 \begin{document}
 
 \special{papersize=8.5in,11in}
 \setlength{\pdfpageheight}{\paperheight}
 \setlength{\pdfpagewidth}{\paperwidth}
 
+\onecolumn
+
 \appendix
 
-\onecolumn
 \section{Definitions}
 
 \subsection{Methane}
 
-The full \sysname syntax as well as expansions from constraints into regular expressions are shown in Figure~\ref{fig:syntax}. The language includes constraints of the form $\CD{\Agg(pfx, \ensuremath{r_1 \rightarrow r_2})}$ that say that aggregation for summary prefix $\CD{pfx}$ will occur from any single location matching $\CD{\ensuremath{r_1}}$ to any location matching $\CD{\ensuremath{r_2}}$.
+The full \sysname syntax as well as expansions from constraints into regular expressions are shown in Figure~\ref{fig:syntax}. The language includes constraints of the form $\CD{\Agg(pfx, \ensuremath{r_1 \rightarrow r_2})}$ that say that aggregation for summary prefix $\CD{pfx}$ will occur from any single location matching $\CD{\ensuremath{r_1}}$ to any location matching $\CD{\ensuremath{r_2}}$. For simplicity, we prove the substitution property for \sysname for the fragment without aggregation.
 
 
 \begin{figure*}[h!]\small
@@ -180,7 +182,7 @@ The full \sysname syntax as well as expansions from constraints into regular exp
 
 \para{Syntax}
 
-We define syntax for an abstraction of BGP configurations -- called ABGP -- in Figure~\ref{fig:abgp-syntax}. An ABGP policy consists of a map from topology locations $l$ to router configurations $rc$. Each router configuration $rc$ is a sequence of prefix (templates) $t$ and their corresponding prefix configuration $pc$. A prefix configuration $pc$ is a sequence of match actions $ma$. Each match action $ma$ consists of a preference value $n$, followed by a set of peers $ns$ and community value (\IE, state of the product graph) $n$, and the exports the route to a new set of neighbors $ns$ and updates the community value $n$.
+We define syntax for an abstraction of BGP configurations -- called ABGP -- in Figure~\ref{fig:abgp-syntax}. An ABGP policy consists of a map from topology locations $l$ to router configurations $rc$. Each router configuration $rc$ is a sequence of prefix (templates) $t$ and their corresponding prefix configuration $pc$. A prefix configuration $pc$ is a sequence of match actions $ma$. Each match action $ma$ consists of a preference value $n_1$, followed by a set of imports from neighbors $ns_1$ and community value (\IE, state of the product graph) $n_2$, as well as export neighbors $ns_2$ and the updated community value $n_3$.
 
 \vspace{2em}
 \begin{figure}[h!]\small
@@ -233,10 +235,16 @@ We define syntax for an abstraction of BGP configurations -- called ABGP -- in F
   \label{fig:abgp-syntax}
 \end{figure}%
 
+
+\para{Compilation}
+
+Figure~\ref{fig:abgp-syntax} also defines compilation from a \sysname policy to an ABGP policy. It starts by compiling separately each constraint of the form $p_i = (t_i ~\Path~ r_{i1} ~\Prefer~ r_{ik})$ to a product graph $PG = (G', s, P)$, the particular test $t_i$, and the preference ordering $ord_i$. 
+
+The function $compile_{ABGP}$ then takes tuples $(t_i, PG_i, ord_i)$ and returns an ABGP policy. It looks at each incoming neighbor with the same community state $q_n$ and matches any of those neighbor with the preference provided by the ordering $ord$ obtained from the search for local preferences. It then exports this advertisement to each adjacent peer along an outgoing edge and adds the community value for the current state $q_m$.
+
+\vspace{1em}
+
 We assume a particular router $l$ appears at most once in any abgp specification.
-An abgp configuration is a partial function from router to prefix configuration.
-We write $abgp(l)$ to apply such a config to a router location $l$.
-%
 We often build configs using set-builder notation.  For instance,
 $\{l \rightarrow rc ~\vert~ l \in V \wedge p(l,rc)\}$ denotes the abgp policy
 
@@ -248,67 +256,68 @@ $\{l \rightarrow rc ~\vert~ l \in V \wedge p(l,rc)\}$ denotes the abgp policy
 
 
 where $l_1, ..., l_k$ are the nodes in the topology
-and each $rc_{ij}$ satisfies $p(l_i,rc_{ij})$. Similarly for $rc$.
-
-\para{Compilation}
-
-Figure~\ref{fig:abgp-syntax} also defines compilation from a \sysname policy to an ABGP policy. It starts by compiling separately each constraint of the form $p_i = (t_i ~\Path~ r_{i1} ~\Prefer~ r_{ik})$ to a product graph $PG = (G', s, P)$, the particular test $t_i$, and the preference ordering $ord_i$. 
-
-The function $compile_{ABGP}$ then takes tuples of $(t_i, PG_i, ord_i)$ and returns an ABGP policy. It looks at each incoming neighbor with the same community state $q_n$ and matches any of those neighbor with the preference provided by the ordering $ord$ obtained from the search for local preferences. It then exports this advertisement to each adjacent peer along an outgoing edge and adds the community value for the current state $q_m$.
+and each $rc_{ij}$ satisfies $p(l_i,rc_{ij})$.
 
 
 \subsection{Concretization}
 
-Here we define what it means to concretize an abstract \sysname policy. 
+We define what it means to concretize an abstract \sysname policy. 
 Concretization takes as input, a policy and a context $\Gamma$ mapping from a template prefix to a set of pairs of a concrete prefix and a concrete location where the prefix is owned.
 
 \[ \begin{array}{lcl}
-  con(\emptyset,\Gamma)                        & = & \emptyset \\
-  con(l,\Gamma)                                & = & \Sigma ~ f^{-1}(l) \\
-  con(r_1 \cup r_2,\Gamma)                     & = & con(r_1,\Gamma) \cup con(r_2,\Gamma) \\
-  con(r_1 \cap r_2,\Gamma)                     & = & con(r_1,\Gamma) \cap con(r_2,\Gamma) \\
-  con(!r,\Gamma)                               & = & !con(r,\Gamma) \\
-  con(r^*,\Gamma)                              & = & con(r,\Gamma)^* \\
-  con(pfx \Rightarrow r_1, \dots, r_k,\Gamma)  & = & pfx \Rightarrow con(r_1,\Gamma), \dots, con(r_k,\Gamma) \\
-  con(\$x \Rightarrow r_1, \dots, r_k,\Gamma)  & = & \{ pfx \Rightarrow con(r_1,\Gamma) \cap \textbf{end}(l), \dots, \\
-  & & ~~~~~~~~~~~~~~~ con(r_k,\Gamma) \cap \textbf{end}(l) ~\vert~ (pfx,l) \in \Gamma(x) \} \\
+  con(\emptyset,\Gamma,f)                        & = & \emptyset \\
+  con(l,\Gamma,f)                                & = & \Sigma ~ f^{-1}(l) \\
+  con(r_1 \cup r_2,\Gamma,f)                     & = & con(r_1,\Gamma,f) \cup con(r_2,\Gamma,f) \\
+  con(r_1 \cap r_2,\Gamma,f)                     & = & con(r_1,\Gamma,f) \cap con(r_2,\Gamma,f) \\
+  con(!r,\Gamma,f)                               & = & !con(r,\Gamma,f) \\
+  con(r^*,\Gamma,f)                              & = & con(r,\Gamma,f)^* \\
+  con(pfx \Rightarrow r_1, \dots, r_k,\Gamma,f)  & = & pfx \Rightarrow con(r_1,\Gamma,f), \dots, con(r_k,\Gamma,f) \\
+  con(\$x \Rightarrow r_1, \dots, r_k,\Gamma,f)  & = & 
+       \{ pfx \Rightarrow con(r_1,\Gamma,f) \cap \text{end}(l), 
+          \dots, 
+          con(r_k,\Gamma,f) \cap \text{end}(l) ~\vert~ (pfx,l) \in \Gamma(x) \} \\
+  %& & ~~~~~~~~~~~~~~~ \dots, \\
+  %& & ~~~~~~~~~~~~~~~ con(r_k,\Gamma,G) \cap \text{end}(l) ~\vert~ (pfx,l) \in \Gamma(x),  ~l \in G.V \} \\
+  con(p_1, \dots, p_n, \Gamma, f)                & = & con(p_1,\Gamma,f), \dots, con(p_n,\Gamma,f) \\
 \end{array} \]
 
-For each regular expression $r$, we replace each abstract location with the sum over its corresponding concrete locations under the inverse homomorphism $f^{-1}$. For each template variable, we replace it with a new entry for each of its corresponding concrete values under the supplied mapping $\Gamma$. We also intersect the resulting concretized regular expression with $\textbf{end}(l)$ to capture the fact that traffic is owned by the concrete location $l$. \textbf{Note}: we need the side condition that $\textbf{end}(l) \cap con(r_i,\Gamma) \neq \emptyset$ if $con(r_i,\Gamma) \neq \emptyset$.
+For each regular expression $r$, we replace each abstract location with the sum over its corresponding concrete locations under the inverse homomorphism $f^{-1}$. For each template variable, we replace it with a new entry for each of its corresponding concrete values under the supplied mapping $\Gamma$. We also intersect the resulting concretized regular expression with $\text{end}(l)$ to capture the fact that traffic is owned by the concrete location $l$. \textbf{Note}: we need the side condition that $\text{end}(l) \cap con(r_i,\Gamma) \neq \emptyset$ if $con(r_i,\Gamma) \neq \emptyset$.
 We can also define concretization over the ABGP policy as:
 
 \[ \begin{array}{lcl}
-     con(l_1 \rightarrow {rc}_1, ~\dots,~ l_k \rightarrow {rc}_k,\Gamma,G) 
+     con(l_1 \rightarrow {rc}_1, ~\dots,~ l_k \rightarrow {rc}_k,\Gamma,f,G) 
         & = & 
-        \{ \ell \rightarrow con(rc_i,\ell,\Gamma,G)  ~\vert~ \ell \in f^{-1}(l_i) \}
+        \{ \ell \rightarrow con(rc_i,\ell,\Gamma,f,G)  ~\vert~ \ell \in f^{-1}(l_i) \}
         \\
-     con(t_1 \rightarrow {pc}_1, ~\dots,~ t_k \rightarrow {pc}_k,\ell,\Gamma,G) 
+     con(t_1 \rightarrow {pc}_1, ~\dots,~ t_k \rightarrow {pc}_k,\ell,\Gamma,f,G) 
         & = &  
-        con(t_1 \rightarrow {pc}_1,\ell,\Gamma,G), \dots, con(t_k \rightarrow {pc}_k,\ell,\Gamma,G)
+        con(t_1 \rightarrow {pc}_1,\ell,\Gamma,f,G), \dots, con(t_k \rightarrow {pc}_k,\ell,\Gamma,f,G)
         \\
-     con(pfx \rightarrow {pc},\ell,\Gamma,G) 
+     con(pfx \rightarrow {pc},\ell,\Gamma,f,G) 
         & = &  
-        pfx \rightarrow con(pc,\text{true},\ell,\Gamma,G)
+        pfx \rightarrow con(pc,\text{true},\ell,\Gamma,f,G)
         \\
-     con(\$x \rightarrow {pc},\ell,\Gamma,G) 
+     con(\$x \rightarrow {pc},\ell,\Gamma,f,G) 
         & = &  
-        \{ pfx \rightarrow con(pc, l=\ell, \ell,\Gamma,G) ~\vert~ (pfx, l) \in \Gamma(x) \}
+        \{ pfx \rightarrow con(pc, l=\ell, \ell,\Gamma,f,G) ~\vert~ (pfx, l) \in \Gamma(x) \}
         \\
-     con(ma_1, \dots, ma_k,o,\ell,\Gamma,G) 
+     con(ma_1, \dots, ma_k,o,\ell,\Gamma,f,G) 
         & = &
-        con(ma_1,o,\ell,\Gamma,G), \dots, con(ma_k,o,\ell,\Gamma,G)
+        con(ma_1,o,\ell,\Gamma,f,G), \dots, con(ma_k,o,\ell,\Gamma,f,G)
         \\
 
-     con(n_1 : ({ns}_1, n_2) \rightarrow ({ns}_2, n_3),o,\ell,\Gamma,G) 
+     con(n_1 : ({ns}_1, n_2) \rightarrow ({ns}_2, n_3),o,\ell,\Gamma,f,G) 
         & = & \textbf{if}~ ns_1 = \{G.s\} ~\text{and}~ o = \text{false} ~\textbf{then}~ \bullet \\
-        &   & \textbf{else}~ n_1 : ( con({ns}_1,\ell,\Gamma,G), n_2) \rightarrow (con({ns}_2,\ell,\Gamma,G),n_3)
+        &   & \textbf{else}~ n_1 : ( con({ns}_1,\ell,\Gamma,f,G), n_2) \rightarrow (con({ns}_2,\ell,\Gamma,f,G),n_3)
 
         \\
-     con(\{ l_1, ~\dots,~ l_k \}, \ell, \Gamma,G) 
+     con(\{ l_1, ~\dots,~ l_k \}, \ell, \Gamma,f,G) 
         & = &  
         \bigcup_i ~ \{ x ~\vert~ x \in f^{-1}(l_i),~ (x,\ell) \in G.E \}
         \\
 \end{array} \]
+
+We use the symbol $\bullet$ to denote that a particular value in a sequence is removed from the sequence.
 
 \subsection{Abstraction}
 
@@ -333,7 +342,9 @@ We use capital letters for abstract topology/product graph nodes and we use lowe
 
 \section{Substitution Theorem}
 
-The goal of this section is to prove that the concretization and compilation functions commute. That is -- we can perform compilation directly over the abstraction and only substitute for the concrete values afterwards. First we need a few helper theorems about compilation.
+The goal of this section is to prove that the concretization and compilation functions commute: 
+$$con(compile(pol),\Gamma,f,G) = compile(con(pol,\Gamma,f))$$ 
+That is -- we can perform compilation directly over the abstraction and only substitute for the concrete values on after compilation is complete. Note that the theorem states that the resulting ABGP policies are actually syntactically equivalent and not semantically equivalent. First we need a few helper theorems about compilation.
 
 \subsection{Automata}
 
@@ -341,21 +352,22 @@ The goal of this section is to prove that the concretization and compilation fun
 
 We compile regular expressions to automata. As a side condition, we ensure that there are no transitions from some state $q$ to the initial state: $\sigma(q,x) = q_0$. This is done by creating another state $q_0'$ with the same transition function as $q_0$ and all other states transition to $q_0'$ instead of $q_0$.
 
+\vspace{1em}
 \begin{lem}
-  For any map $\Gamma$ and regular expression $r$ over abstract locations, path $p \in \Lang(con(r,\Gamma)) \iff f(p) \in \Lang(r)$.
+  For any $\Gamma$, $f$, and $r$, path $p \in \Lang(con(r,\Gamma,f)) \iff f(p) \in \Lang(r)$.
 \end{lem}
 \begin{proof}
 By induction on the structure of $r$
 
 \emph{Case $\emptyset$:}
   \[ \begin{array}{lll}
-    p \in \Lang(con(\emptyset)) &\iff& f(p) \in \Lang(\emptyset) \\
+    p \in \Lang(con(\emptyset,\Gamma,f)) &\iff& f(p) \in \Lang(\emptyset) \\
     p \in \emptyset &\iff& f(p) \in \emptyset \\
   \end{array} \]
 
 \emph{Case $l$:}
   \[ \begin{array}{lll}
-    p \in \Lang(con(l)) &\iff& f(p) \in \Lang(l) \\
+    p \in \Lang(con(l,\Gamma,f)) &\iff& f(p) \in \Lang(l) \\
     p \in \Lang(\Sigma ~ f^{-1}(l)) &\iff& f(p) \in \Lang(l) \\
     p \in \bigcup f^{-1}(l) &\iff& f(p) \in \Lang(l) \\
     p \in f^{-1}(l) &\iff& f(p) \in \{ l \} \\
@@ -365,10 +377,10 @@ By induction on the structure of $r$
 
 \emph{Case $r_1 \cup r_2$:}
   \[ \begin{array}{lll}
-    p \in \Lang(con(r_1 \cup r_1)) &\iff& f(p) \in \Lang(r_1 \cup r_2) \\
-    p \in \Lang(con(r_1) \cup con(r_1)) &\iff& f(p) \in \Lang(r_1 \cup r_2) \\
-    p \in \Lang(con(r_1)) \cup \Lang(con(r_1)) &\iff& f(p) \in \Lang(r_1 \cup r_2) \\
-    p \in \Lang(con(r_1)) \vee p \in \Lang(con(r_1)) 
+    p \in \Lang(con(r_1 \cup r_1,\Gamma,f)) &\iff& f(p) \in \Lang(r_1 \cup r_2) \\
+    p \in \Lang(con(r_1,\Gamma,f) \cup con(r_1,\Gamma,f)) &\iff& f(p) \in \Lang(r_1 \cup r_2) \\
+    p \in \Lang(con(r_1,\Gamma,f)) \cup \Lang(con(r_1,\Gamma,f)) &\iff& f(p) \in \Lang(r_1 \cup r_2) \\
+    p \in \Lang(con(r_1,\Gamma,f)) \vee p \in \Lang(con(r_1,\Gamma,f)) 
        &\iff& 
        f(p) \in \Lang(r_1) \vee f(p) \in \Lang(r_2) \\
     \text{by cases + IH} & & \\
@@ -376,22 +388,22 @@ By induction on the structure of $r$
 
 \emph{Case $r_1 \cap r_2$:} 
   \[ \begin{array}{c}
-    \text{symmetric to } \cup \text{ case}
+    \text{symmetric to } \cup \text{ case with } \wedge \text{ instead of } \vee
   \end{array} \]
 
 \emph{Case $!r$:}
   \[ \begin{array}{lll}
-    p \in \Lang(con(!r)) &\iff& f(p) \in \Lang(!r) \\
-    p \in \Lang(!con(r)) &\iff& f(p) \in \Lang(!r) \\
-    p \in \Sigma^* - \Lang(con(r)) &\iff& f(p) \in \Sigma^* - \Lang(r) \\
+    p \in \Lang(con(!r,\Gamma,f)) &\iff& f(p) \in \Lang(!r) \\
+    p \in \Lang(!con(r,\Gamma,f)) &\iff& f(p) \in \Lang(!r) \\
+    p \in \Sigma^* - \Lang(con(r,\Gamma,f)) &\iff& f(p) \in \Sigma^* - \Lang(r) \\
     \text{by IH} & & \\
   \end{array} \]
 
 \emph{Case $r^*$:}
   \[ \begin{array}{lll}
-    p \in \Lang(con(r^*)) &\iff& f(p) \in \Lang(r^*) \\
-    p \in \Lang(con(r)^*) &\iff& f(p) \in \Lang(r^*) \\
-    p \in \bigcup_{i \in \mathbb{N}} \Lang(con(r))^i &\iff& f(p) \in \bigcup_{i \in \mathbb{N}} \in \Lang(r)^i \\
+    p \in \Lang(con(r^*,\Gamma,f)) &\iff& f(p) \in \Lang(r^*) \\
+    p \in \Lang(con(r,\Gamma,f)^*) &\iff& f(p) \in \Lang(r^*) \\
+    p \in \bigcup_{i \in \mathbb{N}} \Lang(con(r,\Gamma,f))^i &\iff& f(p) \in \bigcup_{i \in \mathbb{N}} \in \Lang(r)^i \\
     \text{Follows from IH and definition of } \Lang(r)^i & & \\
   \end{array} \]
 
@@ -443,7 +455,7 @@ By induction on the structure of $r$
 
 
 \begin{lem}
-  Consider the PG created from compiling the constraint $p = (t ~\Path~ r_1 ~\Prefer~,\dots, ~\Prefer~ r_k)$ with state machine $M^A_i$ for each $r_i$. We know that, for each $(pfx ~\Path~ r'_1 ~\Prefer~,\dots, ~\Prefer~ r'_k) \in con(p)$ where $r'_i$ is of the form $r \cap \text{end}(L)$ we can constuct state machine $M_i$ for $r'_i$ over the same states in the following way:
+  Consider the PG created from compiling the constraint $p = (t ~\Path~ r_1 ~\Prefer~,\dots, ~\Prefer~ r_k)$ with state machine $M^A_i$ for each $r_i$. We know that, for each $(pfx ~\Path~ r'_1 ~\Prefer~,\dots, ~\Prefer~ r'_k) \in con(p,\Gamma,f)$ where $r'_i$ is of the form $r \cap \text{end}(L)$ we can constuct state machine $M_i$ for $r'_i$ over the same states in the following way:
     
     \[ \begin{array}{lll}
       1. & \sigma(q_0,l) = q' \iff \sigma^A(q,f(l)) = q' & \textbf{for each}~~ l \in L \\
@@ -461,14 +473,14 @@ By induction on the structure of $r$
     \textbf{Case} $(\$x ~\Path~ r_1 ~\Prefer~,\dots, ~\Prefer~ r_k)$
 
     \[ \begin{array}{lcl}
-      con(p) &=& pfx_1 ~\Path~ con(r_1) \cap \text{end}(l_1), ~\Prefer~ \dots ~\Prefer~ con(r_k) \cap \text{end}(l_1)  \\
+      con(p) &=& pfx_1 ~\Path~ con(r_1,\Gamma,f) \cap \text{end}(l_1), ~\Prefer~ \dots ~\Prefer~ con(r_k,\Gamma,f) \cap \text{end}(l_1)  \\
              & & \dots, \\
-             & & pfx_n ~\Path~ con(r_1) \cap \text{end}(l_n), ~\Prefer~ \dots ~\Prefer~ con(r_k) \cap \text{end}(l_n)
+             & & pfx_n ~\Path~ con(r_1,\Gamma,f) \cap \text{end}(l_n), ~\Prefer~ \dots ~\Prefer~ con(r_k,\Gamma,f) \cap \text{end}(l_n)
     \end{array} \]
 
     Case ($\Rightarrow$)
 
-    Assume $M_i$ matches $p$. Then this means that $M^A_i$ matches $f(p)$. If we have a trace of string of the form $ p = x_1 \cdot \dots \cdot x_n$, then $f(p) = f(x_1) \cdot \dots \cdot f(x_n)$. For each transition $\sigma(q,l) = q'$ in the concrete automaton, we have transition $\sigma(q,f(l)) = q'$ in the abstract automaton, and they have the same final states, so this trace is accepting for $M^A_i$. Because $M^A_i$ matches $f(p)$, this means that $f(p) \in \Lang(r_i)$. From our above lemma, this means that $p \in \Lang(con(r_i))$. We also know that, since $L = \{ l_i \}$, the first transition $\sigma(q_0,l_i)$ is the only transition allowed from the initial state for $M_i$. So this means that $p \in \Lang(\text{end}(l_i))$. Since we know that $p \in \Lang(con(r_i))$ and $p \in \Lang(\text{end}(l_i))$, we know that $p \in \Lang(con(r_i) \cap \text{end}(l_i))$ and thus $p \in \Lang(r'_i)$.
+    Assume $M_i$ matches $p$. Then this means that $M^A_i$ matches $f(p)$. If we have a trace of string of the form $ p = x_1 \cdot \dots \cdot x_n$, then $f(p) = f(x_1) \cdot \dots \cdot f(x_n)$. For each transition $\sigma(q,l) = q'$ in the concrete automaton, we have transition $\sigma(q,f(l)) = q'$ in the abstract automaton, and they have the same final states, so this trace is accepting for $M^A_i$. Because $M^A_i$ matches $f(p)$, this means that $f(p) \in \Lang(r_i)$. From our above lemma, this means that $p \in \Lang(con(r_i,\Gamma,f))$. We also know that, since $L = \{ l_i \}$, the first transition $\sigma(q_0,l_i)$ is the only transition allowed from the initial state for $M_i$. So this means that $p \in \Lang(\text{end}(l_i))$. Since we know that $p \in \Lang(con(r_i,\Gamma,f))$ and $p \in \Lang(\text{end}(l_i))$, we know that $p \in \Lang(con(r_i,\Gamma,f) \cap \text{end}(l_i))$ and thus $p \in \Lang(r'_i)$.
 
     \vspace{1em}
     Case ($\Leftarrow$)
@@ -488,7 +500,7 @@ By induction on the structure of $r$
   \textbf{Case} $(pfx ~\Path~ r_1 ~\Prefer~,\dots, ~\Prefer~ r_k)$
 
     \[ \begin{array}{lcl}
-      con(p) &=& pfx_1 ~\Path~ con(r_1) \cap \text{end}(\Sigma^*), ~\Prefer~ \dots ~\Prefer~ con(r_k) \cap \text{end}(\Sigma^*) \\
+      con(p,\Gamma,f) &=& pfx_1 ~\Path~ con(r_1,\Gamma,f) \cap \text{end}(\Sigma^*), ~\Prefer~ \dots ~\Prefer~ con(r_k,\Gamma,f) \cap \text{end}(\Sigma^*) \\
     \end{array} \]
 
     First we observe that: $M^A_i$ matches $f(p)$ $\iff$ $M_i$ matches $p$.
@@ -506,14 +518,14 @@ By induction on the structure of $r$
     \[ \begin{array}{lll}
       M ~\text{matches}~ p &\iff& M^A ~\text{matches}~ f(p) \\
                          &\iff& f(p) \in \Lang(r) \\
-                         &\iff& p \in \Lang(con(r)) \\
+                         &\iff& p \in \Lang(con(r,\Gamma,f)) \\
     \end{array} \]%
 
   \end{proof}
 
 \end{lem}
 
-
+\vspace{1em}
 \subsection{Product Graph}
 
 \begin{defn}
@@ -524,6 +536,7 @@ By induction on the structure of $r$
   \end{array} \]
 \end{defn}
 
+\vspace{1em}
 \begin{lem}
   If $f_{pg}(n) = N$, then $P(n) = P^A(N)$.
 
@@ -535,7 +548,7 @@ By induction on the structure of $r$
 
 \end{lem}
 
-
+\vspace{1em}
 \begin{lem}
   If, for abstract product graph $PG$, if we have the following:
 
@@ -618,18 +631,20 @@ By induction on the structure of $r$
 
 \end{lem}
 
+\vspace{1em}
 \begin{defn}
   Assign $ord(m) = ord^A(f_{pg}(m))$ as increasing integers according to the total ordering for $\leq$.
   Clearly $ord(m) \leq ord(m') \iff m \leq m'$ and $ord(f_{pg}(m)) \leq ord(f_{pg}(m')) \iff f_{pg}(m) \leq f_{pg}(m')$
 \end{defn}
 
+\vspace{1em}
 \begin{defn}
   The previous theorem tells us that the total ordering between node preferences is preserved under the lifted graph homomorphism $f_{pg}$. 
   We use this fact to define an ordering ($ord : V \rightarrow \mathbb{N}$) that maps product graph nodes to numbers reflecting the total ordering such that $ord(m) = ord(f(m))$ for all product graph nodes $m$.
 \end{defn} 
 
 
-
+\vspace{1em}
 \subsection{Substitution}
 
 
@@ -664,63 +679,69 @@ By induction on the structure of $r$
 
 \vspace{2em}
 \begin{thm}
-  $compile(con(pol)) = con(compile(pol))$
+  For any $\Gamma$, $f$, $G$ such that $\Gamma$ is well-formed with respect to $G$,
+  $$con(compile(pol),\Gamma,f,G) = compile(con(pol,\Gamma,f))$$
 
   \begin{proof} \text{ }
 
     Suppose that $pol = p_1, \dots, p_n$. Each $p_i$ has the form $(t_i ~\Path~ r_{i1} ~\Prefer~,\dots, ~\Prefer~ r_{ik})$. Then by evaulating:
 
     \[ \begin{array}{lcl}
-      con(pol) & = & con(p_1,\dots,p_n) \\
-               & = & con(p_1), \dots, con(p_n) \\
-               & = & con(t_1 ~\Path~ r_{11} ~\Prefer~,\dots, ~\Prefer~ r_{1k}), \\
-               &   & \dots, \\
-               &   & con(t_n ~\Path~ r_{n1} ~\Prefer~,\dots, ~\Prefer~ r_{nk}) \\
+      con(pol,\Gamma,f) & = & con(p_1,\dots,p_n,\Gamma,f) \\
+                        & = & con(p_1,\Gamma,f), \dots, con(p_n,\Gamma,f) \\
+                        & = & con(t_1 ~\Path~ r_{11} ~\Prefer~,\dots, ~\Prefer~ r_{1k},\Gamma,f), \\
+                        &   & \dots, \\
+                        &   & con(t_n ~\Path~ r_{n1} ~\Prefer~,\dots, ~\Prefer~ r_{nk},\Gamma,f) \\
     \end{array} \]
 
     For each test $t_i$, if $t_i = pfx$, then we get 
 
-    \[ \begin{array}{lcl}
-        con({pfx}_{i1} ~\Path~ r_{i1} ~\Prefer~,\dots, ~\Prefer~ r_{ik}) 
-           & = & {pfx}_{i1} ~\Path~ con(r_{i1}) ~\Prefer~,\dots, ~\Prefer~ con(r_{ik}) \\
+    \[ \begin{array}{ll}
+          & con({pfx}_{i1} ~\Path~ r_{i1} ~\Prefer~,\dots, ~\Prefer~ r_{ik},\Gamma,f) \\
+        = & {pfx}_{i1} ~\Path~ con(r_{i1},\Gamma,f) ~\Prefer~,\dots, ~\Prefer~ con(r_{ik},\Gamma,f) \\
     \end{array} \]
 
     For each test $t_i$, if $t_i = \$x$, then we get
 
     \[ \begin{array}{lcl}
-        con(\$x_{i} ~\Path~ r_{i1} ~\Prefer~,\dots, ~\Prefer~ r_{ik}) 
-            & = & {pfx}_{i1} ~\Path~ con(r_{i1}) \cap \text{end}(l_{i1}) ~\Prefer~,\dots, ~\Prefer~ con(r_{ik}) \cap \text{end}(l_{i1}), \\
+        con(\$x_{i} ~\Path~ r_{i1} ~\Prefer~,\dots, ~\Prefer~ r_{ik},\Gamma,f) 
+            & = & {pfx}_{i1} ~\Path~ con(r_{i1},\Gamma,f) \cap \text{end}(l_{i1}) ~\Prefer~,\dots, ~\Prefer~ con(r_{ik},\Gamma,f) \cap \text{end}(l_{i1}), \\
             &   & \dots, \\ 
-            &   & {pfx}_{ij} ~\Path~ con(r_{i1}) \cap \text{end}(l_{ij}) ~\Prefer~,\dots, ~\Prefer~ con(r_{ik}) \cap \text{end}(l_{ij}), \\
+            &   & {pfx}_{ij} ~\Path~ con(r_{i1},\Gamma,f) \cap \text{end}(l_{ij}) ~\Prefer~,\dots, ~\Prefer~ con(r_{ik},\Gamma,f) \cap \text{end}(l_{ij}), \\
             &   & \\
             &   & \text{for each } (pfx_{ij}, l_{ij}) \in \Gamma(x) \\
     \end{array} \]
 
-    Next we compute $compile(con(pol))$:
+    Next we compute $compile(con(pol,\Gamma,f))$:
 
-    \[ \begin{array}{lcl}
-        compile(con(pol)) &=& compile_{ABGP}( \\
-                          & & ~~~~ compile_{PG}(pfx_{11} ~\Path~ r'_{111} ~\Prefer~,\dots, ~\Prefer~ r'_{11k} ), \\
-                          & & ~~~~ \dots, \\
-                          & & ~~~~ compile_{PG}(pfx_{1j} ~\Path~ r'_{1j1} ~\Prefer~,\dots, ~\Prefer~ r'_{1jk} ), \\
-                          & & ~~~~ \dots, \\
-                          & & ~~~~ compile_{PG}(pfx_{i1} ~\Path~ r'_{i11} ~\Prefer~,\dots, ~\Prefer~ r'_{i1k} ), \\
-                          & & ~~~~ \dots, \\
-                          & & ~~~~ compile_{PG}(pfx_{ij} ~\Path~ r'_{ij1} ~\Prefer~,\dots, ~\Prefer~ r'_{ijk} ) \\
-                          & & ) \\
+    \[ \begin{array}{ll}
+        & compile(con(pol,\Gamma,f))  \\
+                          & \\
+                         =& compile_{ABGP}( \\
+                          &  ~~~~ compile_{PG}(pfx_{11} ~\Path~ r'_{111} ~\Prefer~,\dots, ~\Prefer~ r'_{11k} ), \\
+                          &  ~~~~ \dots, \\
+                          &  ~~~~ compile_{PG}(pfx_{1j} ~\Path~ r'_{1j1} ~\Prefer~,\dots, ~\Prefer~ r'_{1jk} ), \\
+                          &  ~~~~ \dots, \\
+                          &  ~~~~ compile_{PG}(pfx_{i1} ~\Path~ r'_{i11} ~\Prefer~,\dots, ~\Prefer~ r'_{i1k} ), \\
+                          &  ~~~~ \dots, \\
+                          &  ~~~~ compile_{PG}(pfx_{ij} ~\Path~ r'_{ij1} ~\Prefer~,\dots, ~\Prefer~ r'_{ijk} ) \\
+                          &  ) \\
     \end{array} \]
  
+    \vspace{.5em}
     This results in a series of prefixes, product graphs, and orderings of the form: $(pfx_{ij}, PG_{ij}, ord_{ij})$.
 
     \vspace{1em}
     Similarly, we can compute $compile(pol)$:
 
-    \[ \begin{array}{lcl}
-        compile(pol) &=& compile_{ABGP}( \\
-                     & & ~~~~ compile_{PG}(t_1 ~\Path~ r_{11} ~\Prefer~,\dots, ~\Prefer~ r_{1k} ), \\
-                     & & ~~~~ \dots, \\
-                     & & ~~~~ compile_{PG}(t_i ~\Path~ r_{i1} ~\Prefer~,\dots, ~\Prefer~ r'_{ik} ), \\
-                     & & ) \\
+    \[ \begin{array}{ll}
+        & compile(pol)  \\
+                      & \\
+                     =& compile_{ABGP}( \\
+                      & ~~~~ compile_{PG}(t_1 ~\Path~ r_{11} ~\Prefer~,\dots, ~\Prefer~ r_{1k} ), \\
+                      & ~~~~ \dots, \\
+                      & ~~~~ compile_{PG}(t_i ~\Path~ r_{i1} ~\Prefer~,\dots, ~\Prefer~ r'_{ik} ), \\
+                      & ) \\
     \end{array} \]
 
     This results in a series of prefixes, product graphs, and orderings of the form $(t_i, PG^A_i, ord^A_i)$.
@@ -735,7 +756,7 @@ By induction on the structure of $r$
 
 
   \[ \begin{array}{l}
-     con(\textbf{compile}( (t_1,PG^A_1,ord^A_1), \dots, (t^A_i,PG^A_i,ord^A_i) )) \\
+     con(\textbf{compile}( (t_1,PG^A_1,ord^A_1), \dots, (t^A_i,PG^A_i,ord^A_i) ), \Gamma,f,G) \\
   \end{array} \]%
 
 Unfold definition of compile
@@ -747,13 +768,13 @@ Unfold definition of compile
      ~~~~~~~~~~~~~~~~~~~~~ M = (l,q_M) \in PG^A_i, \\
      ~~~~~~~~~~~~~~~~~~~~~ in = \{ B ~\vert~ (B,q_N) \in \text{adjIn}(PG^A_i,M) \} \\
      ~~~~~~~~~~~~~~~~~~~~~ out = \{ C ~\vert~ (C,\_) \in \text{adjOut}(PG^A_i,M) \} \\
-     ~~~~~~~~~~~~~~~~~~~~~ ma_h = ord^A_i(M) : (in,q_n) \rightarrow (out,q_M) \} \}) \\
+     ~~~~~~~~~~~~~~~~~~~~~ ma_h = ord^A_i(M) : (in,q_n) \rightarrow (out,q_M) \} \}, \Gamma,f,G) \\
   \end{array} \]%
 
   Apply the definition of $con$
 
   \[ \begin{array}{l}
-     ~~~~~ \{ \ell \rightarrow con(rc) ~\vert~ \\
+     ~~~~~ \{ \ell \rightarrow con(rc,\ell,\Gamma,f,G)) ~\vert~ \\
      ~~~~~~~~~ \ell \in f^{-1}(l), \\
      ~~~~~~~~~ l \in internal(V^A), \\
      ~~~~~~~~~ rc = \bigcup_i~ \{ t_i \rightarrow ma_1, \dots, ma_k ~\vert~ \\
@@ -773,7 +794,7 @@ Unfold definition of compile
      ~~~~~~~~~~~~~~~~~~~~~ M = (l,q_M) \in PG^A_i, \\
      ~~~~~~~~~~~~~~~~~~~~~ in = \{ B ~\vert~ (B,q_N) \in \text{adjIn}(PG^A_i,M) \} \\
      ~~~~~~~~~~~~~~~~~~~~~ out = \{ C ~\vert~ (C,\_) \in \text{adjOut}(PG^A_i,M) \} \\
-     ~~~~~~~~~~~~~~~~~~~~~ ma_h = ord^A_i(M) : (in,q_N) \rightarrow (out,q_M) \}) \} \\
+     ~~~~~~~~~~~~~~~~~~~~~ ma_h = ord^A_i(M) : (in,q_N) \rightarrow (out,q_M) \}, \ell,\Gamma,f,G) \} \\
   \end{array} \]%
 
   Apply definition of $con$
@@ -786,7 +807,7 @@ Unfold definition of compile
      ~~~~~~~~~~~~~~~~~~~~~ M = (l,q_M) \in PG^A_i, \\
      ~~~~~~~~~~~~~~~~~~~~~ in = \{ B ~\vert~ (B,q_N) \in \text{adjIn}(PG^A_i,M) \} \\
      ~~~~~~~~~~~~~~~~~~~~~ out = \{ C ~\vert~ (C,\_) \in \text{adjOut}(PG^A_i,M) \} \\
-     ~~~~~~~~~~~~~~~~~~~~~ ma_h = ord^A_i(M) : (in,q_N) \rightarrow (out,q_M) \}) \} \\
+     ~~~~~~~~~~~~~~~~~~~~~ ma_h = ord^A_i(M) : (in,q_N) \rightarrow (out,q_M) \}, \ell,\Gamma,f,G) \} \\
   \end{array} \]%
 
   \vspace{1em}
@@ -797,13 +818,13 @@ Unfold definition of compile
      ~~~~~~~~~~~~~~~~~~ M = (l,q_M) \in PG^A_i, \\
      ~~~~~~~~~~~~~~~~~~ in = \{ B ~\vert~ (B,q_N) \in \text{adjIn}(PG^A_i,M) \} \\
      ~~~~~~~~~~~~~~~~~~ out = \{ C ~\vert~ (C,\_) \in \text{adjOut}(PG^A_i,M) \} \\
-     ~~~~~~~~~~~~~~~~~~ ma_h = ord^A_i(M) : (in,q_N) \rightarrow (out,q_M) \}) \\
+     ~~~~~~~~~~~~~~~~~~ ma_h = ord^A_i(M) : (in,q_N) \rightarrow (out,q_M) \},\ell,\Gamma,f,G) \\
   \end{array} \]%
 
   Apply definition of $con$
 
   \[ \begin{array}{l}
-     ~~~~~~~~~ \{ pfx \rightarrow con(ma_1, \dots, ma_k) ~\vert~ \\
+     ~~~~~~~~~ \{ pfx \rightarrow con(ma_1, \dots, ma_k,\text{true},\ell,\Gamma,f,G) ~\vert~ \\
      ~~~~~~~~~~~~~~~~~~ M = (l,q_M) \in PG^A_i, \\
      ~~~~~~~~~~~~~~~~~~ in = \{ B ~\vert~ (B,q_N) \in \text{adjIn}(PG^A_i,M) \} \\
      ~~~~~~~~~~~~~~~~~~ out = \{ C ~\vert~ (C,\_) \in \text{adjOut}(PG^A_i,M) \} \\
@@ -813,7 +834,7 @@ Unfold definition of compile
   Apply definition of $con$
 
   \[ \begin{array}{l}
-     ~~~~~~~~~ \{ pfx \rightarrow con(ma_1), \dots, con(ma_k) ~\vert~ \\
+     ~~~~~~~~~ \{ pfx \rightarrow con(ma_1,\text{true},\ell,\Gamma,f,G), \dots, con(ma_k,\text{true},\ell,\Gamma,f,G) ~\vert~ \\
      ~~~~~~~~~~~~~~~~~~ M = (l,q_M) \in PG^A_i, \\
      ~~~~~~~~~~~~~~~~~~ in = \{ B ~\vert~ (B,q_N) \in \text{adjIn}(PG^A_i,M) \} \\
      ~~~~~~~~~~~~~~~~~~ out = \{ C ~\vert~ (C,\_) \in \text{adjOut}(PG^A_i,M) \} \\
@@ -823,11 +844,11 @@ Unfold definition of compile
   Apply definition of $con$
 
   \[ \begin{array}{l}
-     ~~~~~~~~~ con(\{ pfx \rightarrow ma_1, \dots, ma_k ~\vert~ \\
+     ~~~~~~~~~ \{ pfx \rightarrow ma_1, \dots, ma_k ~\vert~ \\
      ~~~~~~~~~~~~~~~~~~ M = (l,q_M) \in PG^A_i, \\
      ~~~~~~~~~~~~~~~~~~ in = \{ B ~\vert~ (B,q_N) \in \text{adjIn}(PG^A_i,M) \} \\
      ~~~~~~~~~~~~~~~~~~ out = \{ C ~\vert~ (C,\_) \in \text{adjOut}(PG^A_i,M) \} \\
-     ~~~~~~~~~~~~~~~~~~ ma_h = con(ord^A_i(M) : (in,q_N) \rightarrow (out,q_M), \text{true}) \}) \\
+     ~~~~~~~~~~~~~~~~~~ ma_h = con(ord^A_i(M) : (in,q_N) \rightarrow (out,q_M), \text{true},\ell,\Gamma,f,G) \}) \\
   \end{array} \]%
 
   Apply definition of $con$
@@ -837,7 +858,7 @@ Unfold definition of compile
      ~~~~~~~~~~~~~~~~~~ M = (l,q_M) \in PG^A_i, \\
      ~~~~~~~~~~~~~~~~~~ in = \{ B ~\vert~ (B,q_N) \in \text{adjIn}(PG^A_i,M) \} \\
      ~~~~~~~~~~~~~~~~~~ out = \{ C ~\vert~ (C,\_) \in \text{adjOut}(PG^A_i,M) \} \\
-     ~~~~~~~~~~~~~~~~~~ ma_h = ord^A_i(M) : (con(in),q_N) \rightarrow (con(out),q_M) \} \\
+     ~~~~~~~~~~~~~~~~~~ ma_h = ord^A_i(M) : (con(in,\ell,\Gamma,f,G),q_N) \rightarrow (con(out,\ell,\Gamma,f,G),q_M) \} \\
   \end{array} \]%
 
   Rewrite on $in$ and $out$
@@ -845,8 +866,8 @@ Unfold definition of compile
   \[ \begin{array}{l}
      ~~~~~~~~~ \{ pfx \rightarrow ma_1, \dots, ma_k ~\vert~ \\
      ~~~~~~~~~~~~~~~~~~ M = (l,q_M) \in PG^A_i, \\
-     ~~~~~~~~~~~~~~~~~~ in = con(\{ B ~\vert~ (B,q_N) \in \text{adjIn}(PG^A_i,M) \}) \\
-     ~~~~~~~~~~~~~~~~~~ out = con(\{ C ~\vert~ (C,\_) \in \text{adjOut}(PG^A_i,M) \}) \\
+     ~~~~~~~~~~~~~~~~~~ in = con(\{ B ~\vert~ (B,q_N) \in \text{adjIn}(PG^A_i,M) \},\ell,\Gamma,f,G) \\
+     ~~~~~~~~~~~~~~~~~~ out = con(\{ C ~\vert~ (C,\_) \in \text{adjOut}(PG^A_i,M) \},\ell,\Gamma,f,G) \\
      ~~~~~~~~~~~~~~~~~~ ma_h = ord^A_i(M) : (in,q_N) \rightarrow (out,q_M) \} \\
   \end{array} \]%
 
@@ -898,13 +919,13 @@ Unfold definition of compile
      ~~~~~~~~~~~~~~~~~~ M = (l,q_M) \in PG^A_i, \\
      ~~~~~~~~~~~~~~~~~~ in = \{ B ~\vert~ (B,q_N) \in \text{adjIn}(PG^A_i,M) \} \\
      ~~~~~~~~~~~~~~~~~~ out = \{ C ~\vert~ (C,\_) \in \text{adjOut}(PG^A_i,M) \} \\
-     ~~~~~~~~~~~~~~~~~~ ma_h = ord^A_i(M) : (in,q_N) \rightarrow (out,q_M) \}) \\
+     ~~~~~~~~~~~~~~~~~~ ma_h = ord^A_i(M) : (in,q_N) \rightarrow (out,q_M) \},\ell,\Gamma,f,G) \\
   \end{array} \]%
 
   Apply the definition of $con$
 
   \[ \begin{array}{l}
-     ~~~~~~~~~ \{ pfx_{ij} \rightarrow con(ma_1, \dots, ma_k) ~\vert~ \\
+     ~~~~~~~~~ \{ pfx_{ij} \rightarrow con(ma_1, \dots, ma_k,l_{ij} = \ell,\ell,\Gamma,f,G) ~\vert~ \\
      ~~~~~~~~~~~~~~~~~~ (pfx_{ij}, l_{ij}) \in \Gamma(x), \\
      ~~~~~~~~~~~~~~~~~~ M = (l,q_M) \in PG^A_i, \\
      ~~~~~~~~~~~~~~~~~~ in = \{ B ~\vert~ (B,q_N) \in \text{adjIn}(PG^A_i,M) \} \\
@@ -915,7 +936,8 @@ Unfold definition of compile
   Apply definition $con$
 
   \[ \begin{array}{l}
-     ~~~~~~~~~ \{ pfx_{ij} \rightarrow con(ma_1), \dots, con(ma_k) ~\vert~ \\
+     ~~~~~~~~~ \{ pfx_{ij} \rightarrow con(ma_1,l_{ij} = \ell,\ell,\Gamma,f,G), \dots, \\ 
+     ~~~~~~~~~~~~~~~~~~~~~~~~~~~ con(ma_k,l_{ij} = \ell,\ell,\Gamma,f,G) ~\vert~ \\
      ~~~~~~~~~~~~~~~~~~ (pfx_{ij}, l_{ij}) \in \Gamma(x), \\
      ~~~~~~~~~~~~~~~~~~ M = (l,q_M) \in PG^A_i, \\
      ~~~~~~~~~~~~~~~~~~ in = \{ B ~\vert~ (B,q_N) \in \text{adjIn}(PG^A_i,M) \} \\
@@ -931,7 +953,7 @@ Unfold definition of compile
      ~~~~~~~~~~~~~~~~~~ M = (l,q_M) \in PG^A_i, \\
      ~~~~~~~~~~~~~~~~~~ in = \{ B ~\vert~ (B,q_N) \in \text{adjIn}(PG^A_i,M) \} \\
      ~~~~~~~~~~~~~~~~~~ out = \{ C ~\vert~ (C,\_) \in \text{adjOut}(PG^A_i,M) \} \\
-     ~~~~~~~~~~~~~~~~~~ ma_h = con(ord^A_i(M) : (in,q_N) \rightarrow (out,q_M), l_{ij} = \ell) \} \\
+     ~~~~~~~~~~~~~~~~~~ ma_h = con(ord^A_i(M) : (in,q_N) \rightarrow (out,q_M),l_{ij} = \ell,\ell,\Gamma,f,G) \} \\
   \end{array} \]%
 
   Apply definition of $con$
@@ -943,11 +965,11 @@ Unfold definition of compile
      ~~~~~~~~~~~~~~~~~~ in = \{ B ~\vert~ (B,q_N) \in \text{adjIn}(PG^A_i,M) \} \\
      ~~~~~~~~~~~~~~~~~~ out = \{ C ~\vert~ (C,\_) \in \text{adjOut}(PG^A_i,M) \} \\
      ~~~~~~~~~~~~~~~~~~ ma_h = \textbf{if}~ in=\{ G.s \} \text{ and } l_{ij} \neq \ell ~\textbf{then}~ \bullet \\ 
-     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ \textbf{else}~ ord^A_i(M) : (con(in),q_N) \rightarrow (con(out),q_M) \} \\
+     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ \textbf{else}~ ord^A_i(M) : (con(in,\ell,\Gamma,f,G),q_N) \rightarrow (con(out,\ell,\Gamma,f,G),q_M) \} \\
   \end{array} \]%
 
   \textbf{Observation}: 
-  By filtering the cases where $in = \{ G.s \}$ and $l_{ij} \neq \ell$ we get the same thing as before after applying the definition of $con$:
+  By filtering the cases where $in = \{ G.s \}$ and $l_{ij} \neq \ell$ we get the same thing as before after applying the definition of $con$, however for each $(pfx_{ij}, l_{ij}) \in \Gamma(x)$.
 
  \[ \begin{array}{l}
      ~~~~~~~~~ \{ pfx_{ij} \rightarrow ma_1, \dots, ma_k ~\vert~ \\
