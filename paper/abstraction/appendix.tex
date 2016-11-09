@@ -201,8 +201,8 @@ We define syntax for an abstraction of BGP configurations -- called ABGP -- in F
      rc   &::=& t_1 \rightarrow {pc}_1, ~\dots,~ t_k \rightarrow {pc}_k & \textit{router config} \\
      pc   &::=& ma_1, \dots, ma_k & \textit{prefix config} \\
      ma   &::=& n_1 : ({ns}_1, n_2) \rightarrow ({ns}_2, n_3) & \textit{match action} \\
-     ps   &::=& \{ t_1, ~\dots,~ t_k \} & \textit{predicates} \\
      ns   &::=& \{ l_1, ~\dots,~ l_k \} & \textit{peers} \\
+     t    &::=& \$x \BNFALT d.d.d.d/[d..d] & \textit{predicate} \\
   \end{array} \]%
 
   \end{minipage}
