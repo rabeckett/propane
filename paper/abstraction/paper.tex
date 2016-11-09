@@ -729,9 +729,9 @@ Because the abstract analysis is policy sensitive, if we were to run it again wi
 \section{Language}
 \label{sec:language}
 
-Configuration synthesis for network configurations is challenging for a number of reasons. First, although \sysname polices specify stable network-wide routing behavior, actual configurations are per-device and run distributed algorithms to compute routes. Thus the compiler must ensure that the result of the distributed computation matches the policy. Furthermore the distributed computation must compute the correct paths under all possible combinations of failures. Second, \sysname must find configurations that work across any valid concrete network topology matching the abstraction provided as input. Finally, \sysname must ensure that the resulting configurations can be evolved incrementally so that local changes to the topology ensure that only local changes to configurations are required to ensure global routing correctness.
+Configuration synthesis for network configurations is challenging for a number of reasons. First, although \sysname polices specify network-wide routing behavior, actual configurations are per-device and run distributed algorithms to compute routes. Thus the compiler must ensure that the result of the distributed interaction of devices correctly implements the policy including when failures occur. Second, \sysname must find configurations that work for any valid concrete network topology matching the user-specified abstraction. Finally, \sysname must ensure that the resulting configurations can be evolved incrementally so that local changes to the topology ensure that only local changes to configurations are required to ensure global routing correctness.
 
-In this section, we formalize the \sysname language and topology abstraction, describe how \sysname synthesizes network configurations over these abstractions, and formalize the guarantees provided by \sysname.
+In this section, we formalize the \sysname language and describe how \sysname translates policies to a graph-based intermediate representation.
 
 \subsection{Methane Language}
 
@@ -762,64 +762,69 @@ In this section, we formalize the \sysname language and topology abstraction, de
   %\vspace{-1em}
 \end{figure}%
 
-The syntax introduced in \S\ref{sec:overview} is just syntactic sugar for a core language based on regular expressions. Figure~\ref{fig:syntax} shows a simplified version of the core \sysname syntax that omits some details such as aggregation. The full langauge definition can be found in the appendix.
+The syntax introduced in \S\ref{sec:overview} is syntactic sugar for a core language based on regular expressions. Figure~\ref{fig:syntax} shows a simplified version of the core \sysname syntax that omits some details such as aggregation. The full langauge definition, including aggregation, can be found in the appendix.
 
-A policy has one or more constraints, each of which consists of a test on the type of traffic being matched and a corresponding set of preferred regular expressions describing network paths. Regular expressions are defined over network locations, where each location is either a router inside the operators network, or an external neighbor. There are two special characters \In~ and \Out, which match any internal and external location respectively. There are two types of predicates: a test for a concrete prefix $d.d.d.d/[d..d]$ matches an IP prefix with value $d.d.d.d$ and length in the range $[d..d]$ where metavariable $d$ represents an integer. For example, the IP prefix 148.0.1.0/[24..32] would match traffic destined for IP address 148.0.1.* with a subnet length between 24 and 32 bits. \ryan{this needs to be explained clearer}.
+A policy has one or more constraints, each of which consists of a test on the type of traffic being matched and a list of regular expressions describing preferred network paths. Regular expressions are defined over network locations, where each location is either a router inside the operator's network, or an external neighbor connected to the operator's network. Two special characters \In~ and \Out, will match any internal and external location respectively. There are two types of predicates: a test for a concrete prefix $d.d.d.d/[d..d]$ matches a range of IP prefixes (\EG, 1.2.3.4/[24..32]) where metavariable $d$ represents an integer. 
 
-Converting from the high-level syntax from \S\ref{sec:overview} to the core syntax is straightforward. For example, the predicate $\True$ becomes $0.0.0.0/[0..32]$. Preferences are lifted to the top level of the regular expression when their use is unambiguous. For example, the constraint $\Exit\CD{(Peer1} ~\Prefer~ \CD{Peer2)}$ becomes $\Exit\CD{(Peer1)} \Prefer~ \Exit\CD{(Peer2)}$ before being rewritten into regular expressions. Each modular set of constraints are joined prefix-by-prefix by taking the intersection of their constraints. For example, the combining the Routing and Locality constraints in the data center policy from \S\ref{sec:overview} would result in the following \sysname policy:
+Converting from the high-level syntax from \S\ref{sec:overview} to the core syntax is straightforward. The predicate $\True$ becomes the prefix range $0.0.0.0/[0..32]$. 
 %
-\begin{code}
-\$PG  \Path \End(TG),
-\$PL  \Path \End(TL) \ensuremath{\cap} \Always(\In),
-\True \Path \Exit(Peer1) \Prefer \Exit(Peer2)
-\end{code}
-\noindent%
+Each constraint desugars to a regular expression. For example, the constraint $\Always\CD{(\In)}$ becomes $\In^*$ and the constraint $\CD{\End(T0)}$ becomes $\mathtt{\Sigma}^* \cdot \CD{T0}$.
 %
-Finally, each constraint desugars to a regular expression. For example, the constraint $\Always\CD{(\In)}$ becomes $\In^*$ and the constraint $\CD{\End(T0)}$ becomes $\mathtt{\Sigma}^* \cdot \CD{T0}$.
+Preferences are lifted to the top level of the regular expression when their use is unambiguous, and separate sets of constraints are joined prefix-by-prefix by taking the intersection of their constraints.
+
+%For example, the combining the Routing and Locality constraints in the data center policy from \S\ref{sec:overview} would result in the following \sysname policy:
+%
+%\begin{code}
+%\$PG  \Path \End(TG),
+%\$PL  \Path \End(TL) \ensuremath{\cap} \Always(\In),
+%\True \Path \Exit(Peer1) \Prefer \Exit(Peer2)
+%\end{code}
+%\noindent%
+%
 
 \subsection{Product Graph}
 
 A key step for \sysname to generate device configurations is to build a data structure amenable to joint analysis of both the topology and routing policy. Intutively, \sysname captures both topology and routing constraints by ``intersecting" the finite automata associated with the policy regular expressions with the graph structure of the topology into a data structure called the Product Graph.
 
-The Product Graph is a compact representation of all paths distributed protocol messages might be passed through the network in order to result in policy-compliant paths.
-Although \sysname policies describe the routes that traffic should take through the network, network protocols (including BGP) typically disseminate router information in the opposite direction.
-For example, a router Y will tell its neighbor X that it has a route to the destination meaning that X can send traffic through Y. For this reason, we start by compiling
-
-Since each predicate in a \sysname policy has its own set of regular expression path constraints, \sysname constructs one Product Graph per prefix and generates configuration on a per-prefix basis.
-
-\para{Formal definition}
-
-For each regular expression constraint $r_i$ from $r_1 ~\Prefer~ .. ~\Prefer~ r_k$, we construct a DFA for the reverse of $r_i$. An automaton for $r_i$ is defined as a tuple ($\Sigma, Q_i, F_i, q_{0_i}, \sigma_i$). The alphabet $\Sigma = G^A$ is the set of topology locations for the abstraction, $Q_i$ is the set of states for automaton i, $F_i$ is the set of final states, $q_{0_i}$ is the initial state, and $\sigma_i \colon Q_i \times \Sigma \rightarrow Q_i$ is the state transition function.
+The Product Graph is a compact representation of all paths distributed protocol messages might be passed through the network in order to find policy-compliant paths dynamically.
 %
-The Product Graph is a tuple ($G'$, $s$, $P$) where $G' = (V',E')$ is a new graph with
+%Although \sysname policies describe the routes that traffic should take through the network, network protocols (including BGP) typically disseminate router information in the opposite direction. For example, a router Y will tell its neighbor X that it has a route to the destination meaning that X can send traffic through Y. For this reason, we start by compiling
+%
+Because \sysname policies can have a separate routing policy for each predicate matching traffic, we construct one such Product Graph for each predicate.
+
+\para{Product Graph construction}
+
+We construct a Product Graph in the following way. For each regular expression constraint $r_i$ from $r_1 ~\Prefer~ .. ~\Prefer~ r_k$, we construct a DFA for the reverse of $r_i$. A DFA for $r_i$ is defined as a tuple ($\Sigma, Q_i, F_i, q_{0_i}, \sigma_i$). The alphabet $\Sigma$ is the set of topology locations, $Q_i$ is the set of states for automaton i, $F_i$ is the set of final states, $q_{0_i}$ is the initial state, and $\sigma_i \colon Q_i \times \Sigma \rightarrow Q_i$ is the state transition function.
+%
+The Product Graph is a tuple ($G'$, $start$, $P$) where $G' = (V',E')$ is a new graph with
 vertices $V' \colon V \times Q_1 \times \dots \times Q_j$,
 edges $E' \colon V' \times V'$,
-a unique starting vertex $s$,
-and a preference function $P \colon V' \rightarrow 2^{\set{1, \dots, j}}$ , which maps nodes in the product graph to a set of path ranks.
+a unique starting vertex $start$,
+and a preference function $P \colon V' \rightarrow 2^{\set{1, \dots, j}}$, mapping nodes in the product graph to a set of path ranks.
 
 The Product Graph is constructed by adding an edge from state $m = (l_m, q_{m_1}, \dots, q_{m_k})$ to $n = (l_n, q_{n_1}, \dots, q_{n_k})$ whenever $\sigma_i(q_{m_i}, l_n) = q_{n_i}$ for each $i$ and $(l_m,l_n) \in E$ is a valid topology link.
 %
-We add edges from the start node $s$ to any $m = (l, q_{m_1}, \dots, q_{m_k})$ when $\sigma_i(q_{0_i}, l) = q_{m_i}$ for each $i$.
+We add edges from the start node to any $m = (l, q_{m_1}, \dots, q_{m_k})$ when $\sigma_i(q_{0_i}, l) = q_{m_i}$ for each $i$.
 %
 The preference function $P(m)$ denotes the rank of paths through the Product Graph ending at node $m$ and is defined as $P(m) = \set{i~\vert~q_{m_i} \in F_i}$.
 %
-Finally, we write $\tilde{m} = l$ to extract the topology location from a product graph node, when $m = (l, \dots) \in V'$.
+Finally, we write $\tilde{m} = l$ to extract the topology location from a product graph node, when $m = (l, q_{m_1}, \dots, q_{m_k}) \in V'$.
 
-Figure~\ref{fig:example-compilation} shows an example of constructing a Product Graph for the policy that applies to all external traffic from the datacenter example in \S\ref{sec:overview}:
+Figure~\ref{fig:example-compilation} shows an example of a Product Graph for the policy that applies to all external traffic from the datacenter example in \S\ref{sec:overview} ($\True ~\Path~ \CD{\Exit(Peer1)} ~\Prefer~ \CD{\Exit(Peer2)}$).
 %
 %\begin{code}
 %\True \Path \Exit(\sf{Peer1}) \Prefer \Exit(\sf{Peer2})
 %\end{code}
 %\noindent%
 %
-The first automaton represents the more preferred constraint $\CD{\Exit(Peer1)}$ and the second automaton represents the less preferred constraint $\CD{\Exit(Peer2)}$. The Product Graph representation is shown for both an instance of a concrete network matching the abstraction from \S\ref{sec:overview} as well as for the abstraction itself.
+The first automaton represents the more preferred constraint $\CD{\Exit(Peer1)}$ and the second automaton represents the less preferred constraint $\CD{\Exit(Peer2)}$. The Product Graph representation is shown for both an instance of a simple concrete network matching the abstraction from \S\ref{sec:overview} as well as for the abstract topology itself.
 
-Each node in the Product Graph tracks both where a protocol message is in the topology as well as how much progress has been made towards satisfying each policy constraint. In this example, all routes that eventually leave through Peer1 will lead to an accepting state for the first automaton and all routes that eventually leave through Peer2 will lead to an accepting state for the second automaton.
+Each node in the Product Graph tracks both where a protocol message is in the topology as well as how much progress has been made towards satisfying each policy constraint. In this example, all routes that eventually leave through Peer1 (protocol message sent from $P_1$) will lead to an accepting state for the first automaton and all routes that eventually leave through Peer2 will lead to an accepting state for the second automaton.
 
-From Figure~\ref{fig:example-compilation} we can see that both the concrete and abstract product graphs share a similar structure. This leads us to the following observation
+One interesting observation is that the Product Graph for both the concrete and abstract networks share a similar structure. This leads us to the following observation
 
 \begin{defn}
-If we have a graph homomorphism $f : G \rightarrow G^A$, concrete product graph $PG = (G',s,P)$ and abstract product graph $PG^A = (G'^A, s^A, P^A)$, then we can construct a new, lifted homomorphism $f_{pg} : G' \rightarrow G'^A$ in the following way:
+If we have a graph homomorphism $f : G \rightarrow G^A$, concrete product graph $PG = (G',start,P)$ and abstract product graph $PG^A = (G'^A, start^A, P^A)$, then we can construct a new homomorphism $f_{pg} : G' \rightarrow G'^A$:
 \[ \begin{array}{rcl}
   f_{pg}( s ) & = & s^A  \\
   f_{pg}( (l,q_1,\ldots,q_n) ) & = & (f(l),q_1,\ldots,q_n) \\
