@@ -947,9 +947,9 @@ Lemma~\ref{lem:preference} gives us reason to believe that we can perform compil
     \hdr{Concrete Configuration}{}
     \begin{code}
       \Router{S1, S2}
-        Match[100] \PREFIX=GP1, \PEER=*
+        Match[100] \PREFIX=GP1, \PEER=\{AG1, ..., AL1, ...\}
           \PEER \Arrow *
-        Match[100] \PREFIX=GP2, \PEER=*
+        Match[100] \PREFIX=GP2, \PEER=\{AG1, ..., AL1, ...\}
           \PEER \Arrow *
         ...
         Match[100] \PREFIX=LP1, \PEER=\{AG1, ..., AL1, ...\}
@@ -969,7 +969,7 @@ Lemma~\ref{lem:preference} gives us reason to believe that we can perform compil
     \hdr{Template Configuration}{}
     \begin{code}
       \Router{S}
-        Match[100] \PREFIX=\$GP, \PEER=*
+        Match[100] \PREFIX=\$GP, \PEER=\{AG, AL\}
           \PEER \Arrow *
         Match[100] \PREFIX=\$LP, \PEER=\{AG, AL\}
           \PEER \Arrow \{AG, AL\}
@@ -1081,7 +1081,7 @@ In the template configuration, it will have additional policy for the local and 
      \\
      \Con(l_1 \rightarrow {rc}_1, ~\dots,~ l_k \rightarrow {rc}_k,\Gamma,f,G) 
         & = & 
-        \{ \ell \rightarrow con(rc_i,\ell,\Gamma,f,G)  ~\vert~ \ell \in f^{-1}(l_i) \}
+        \bigcup_i~ \{ \ell \rightarrow con(rc_i,\ell,\Gamma,f,G)  ~\vert~ \ell \in f^{-1}(l_i) \}
         \\
      \Con(t_1 \rightarrow {pc}_1, ~\dots,~ t_k \rightarrow {pc}_k,\ell,\Gamma,f,G) 
         & = &  
@@ -1122,13 +1122,48 @@ In the template configuration, it will have additional policy for the local and 
 \end{figure*}%
 
 
+An important observation is that the topology abstraction $f$ is preserved throughout compilation. This is reflected in the structure of the template and concrete configurations from Figure~\ref{fig:bgp-configs}. At a first cut, the configurations appear the same except for the fact that (1) the abstract locations are replaced with the union of all concrete locations in the concrete configurations, and (2) the prefix templates are replaced with an entry for each unique prefix in the concrete policy.
 
-\begin{easylist}[itemize]
-& First show how to compile to the Product Graph, and from there to the ABGP
-& Next define the concretization & subst. functions for translating the abstract policy
-   into the concrete policy, using the ABGP example for reference
-& Give abstraction theorem: commuting of concretization and compilation
-\end{easylist}
+In this section, we formalize this observation. We introduce a simple language for BGP configurations called ABGP and define compilation over both concrete and abstract topologies to ABGP. In addition we define a concretization function for both \sysname policies as well as ABGP configurations that take an abstract policy/configuration and turn it into a concrete policy/configuration. The main theoretical result is that the compilation and concretization functions commute. This means we can perform compilation over the abstract representation to generate templates, and only concretize these templates when we need to instantiate the network.
+
+\para{ABGP language}
+
+We introduct a simple language for BGP configurations called ABGP. Figure~\ref{fig:concretization} shows the syntax for an ABGP policy.
+
+ An ABGP policy consists of a map from topology locations $l$ to router configurations $rc$. Each router configuration $rc$ is a sequence of prefix (templates) $t$ and their corresponding prefix configuration $pc$. A prefix configuration $pc$ is a sequence of match actions $ma$. Each match action $ma$ consists of a preference value $n_1$, followed by a set of imports from neighbors $ns_1$ and community value (\IE, state of the product graph) $n_2$, as well as export neighbors $ns_2$ and the updated community value $n_3$.
+
+ \vspace{1em}
+
+We assume a particular router $l$ appears at most once in any abgp specification.
+We often build configs using set-builder notation.  For instance,
+$\{l \rightarrow rc ~\vert~ l \in V \wedge p(l,rc)\}$ denotes the abgp policy
+
+\[ \begin{array}{c}
+  l_1 \rightarrow rc_{11},... \\
+  ...           \\
+  l_k \rightarrow rc_{1k},... \\
+\end{array} \]
+
+
+where $l_1, ..., l_k$ are the nodes in the topology
+and each $rc_{ij}$ satisfies $p(l_i,rc_{ij})$.
+
+
+\para{Compilation}
+
+Figure~\ref{fig:abgp-syntax} also defines compilation from a \sysname policy to an ABGP policy. It starts by compiling separately each constraint of the form $p_i = (t_i ~\Path~ r_{i1} ~\Prefer~ r_{ik})$ to a product graph $PG = (G', s, P)$, the particular test $t_i$, and the preference ordering $ord_i$. 
+
+The function $compile_{ABGP}$ then takes tuples $(t_i, PG_i, ord_i)$ and returns an ABGP policy. It looks at each incoming neighbor with the same community state $q_n$ and matches any of those neighbor with the preference provided by the ordering $ord$ obtained from the search for local preferences. It then exports this advertisement to each adjacent peer along an outgoing edge and adds the community value for the current state $q_m$.
+
+\para{Concretization}
+
+We define what it means to concretize an abstract \sysname policy. 
+Concretization takes as input, a policy and a context $\Gamma$ mapping from a template prefix to a set of pairs of a concrete prefix and a concrete location where the prefix is owned.
+
+For each regular expression $r$, we replace each abstract location with the sum over its corresponding concrete locations under the inverse homomorphism $f^{-1}$. For each template variable, we replace it with a new entry for each of its corresponding concrete values under the supplied mapping $\Gamma$. We also intersect the resulting concretized regular expression with $\text{end}(l)$ to capture the fact that traffic is owned by the concrete location $l$. \textbf{Note}: we need the side condition that $\text{end}(l) \cap con(r_i,\Gamma) \neq \emptyset$ if $con(r_i,\Gamma) \neq \emptyset$.
+We can also define concretization over the ABGP policy as:
+
+We use the symbol $\bullet$ to denote that a particular value in a sequence is removed from the sequence.
 
 
 \begin{thm}
