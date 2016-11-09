@@ -743,7 +743,7 @@ In this section, we formalize the \sysname language and topology abstraction, de
      pol     &::=& p_1, \dots, p_n & \textit{policies} \\
      p       &::=& t \hspace{.3em} \Path \hspace{.3em} r_1 \Prefer \dots \Prefer r_m & \textit{constraints} \\
      t       &::=& \$x & \textit{template variable} \\
-         &\BNFALT& d.d.d.d/[d..d] & \textit{prefix test} \\
+         &\BNFALT& d.d.d.d/[d..d] ~~~~~~~~~~~~~~~~~~~  & \textit{prefix test} \\
      r       &::=& l & \textit{location} \\
          &\BNFALT& \emptyset & \textit{empty set} \\
          &\BNFALT& \In & \textit{internal loc} \\
@@ -1101,7 +1101,7 @@ In the template configuration, it will have additional policy for the local and 
         \\
 
      \Con(n_1 : ({ns}_1, n_2) \rightarrow ({ns}_2, n_3),o,\ell,\Gamma,f,G) 
-        & = & \textbf{if}~ ns_1 = \{G.s\} ~\text{and}~ o = \text{false} ~\textbf{then}~ \bullet \\
+        & = & \textbf{if}~ ns_1 = \{\text{start}\} ~\text{and}~ o = \text{false} ~\textbf{then}~ \bullet \\
         &   & \textbf{else}~ n_1 : ( \Con({ns}_1,\ell,\Gamma,f,G), n_2) \rightarrow (\Con({ns}_2,\ell,\Gamma,f,G),n_3)
 
         \\
@@ -1116,8 +1116,8 @@ In the template configuration, it will have additional policy for the local and 
   \hrulefill%
   \vspace{1em}
 
-  \caption{ABGP syntax (a), compilation from product graphs (b), Policy concretization (c), and ABGP concretization (d).}
-  \label{fig:abgp-syntax}
+  \caption{ABGP syntax, compilation from product graphs, policy concretization, and ABGP concretization.}
+  \label{fig:concretization}
 
 \end{figure*}%
 
