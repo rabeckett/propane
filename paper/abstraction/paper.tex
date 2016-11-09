@@ -1097,36 +1097,36 @@ The translation from the Product Graph to per-device configurations that run the
 
 \para{Route filtering}
 
-The first idea is to tag every protocol message with a BGP community value that relays the state of each automaton when advertising a route to a neighbor. Routers can then allow route advertisements that correspond to an edge in the Product Graph (\IE, from a neighbor with the correct state) and block those that don't. This ensures that any path computed by BGP will be a valid path in the Product Graph, and thus is allowed by the policy. For example, in the concrete Product Graph in figure~\ref{fig:example-compilation}, router $S1$ will allow a route advertisement from its neighbor $P1$ and also from neighbor $P2$. If it uses neighbor $P1$, then it will add the tag $(1,0)$ before informing its neighbors about its route. On the other hand, if it uses neighbor $P2$, then it will add the tag $(0,1)$ before informing its neighbors about the route.
-%
-However, letting BGP find some allowed path is not enough. \sysname must ensure BGP always computes the \emph{best} path according to the user's preferences, even when failures occur.
+The first idea is to tag every protocol message with a BGP community value that encodes the state of each automaton when advertising a route to a neighbor. Routers can then allow route advertisements that correspond to an edge in the Product Graph and block those that don't. 
+%This ensures that any path computed by BGP will be a valid path in the Product Graph, and thus is allowed by the policy. 
+For example, in the concrete Product Graph in figure~\ref{fig:example-compilation}, router $S1$ will allow a route advertisement from its neighbor $P1$ and also from neighbor $P2$. If it uses the path provided by neighbor $P1$, then it will add the tag $(1,0)$ before informing its neighbors about this route. On the other hand, if it uses neighbor $P2$, then it will add the tag $(0,1)$ instead.
 
 
 \para{Preference Search}
-The second idea is to totally order advertisements each router might receive from neighbors in the Product Graph by preference. For example, to satisfy the policy that leaving through $\sf{P1}$ is preferred to leaving through $\sf{P2}$, router $S1$ should prefer a route it hears from $P1$ over one from $P2$. Similarly, router $A1$ should prefer routes tagged with $(1,0)$ over those tagged with $(0,1)$.
-
-In general, because BGP is distributed, each router does not have a full view of the entire network when choosing which path to use. Because finding a collection of preferences to ensure correct end-to-end behavior for all failures is a hard problem, Propane introduced a conservative, yet effective algorithm for determining route preferences based on the following observation about the structure of the Product Graph:
+The second idea is to have each router totally order advertisements from neighbors. For example, to satisfy the policy that leaving through $\sf{P1}$ is preferred to leaving through $\sf{P2}$, router $S1$ should prefer a message it hears from $P1$ over one from $P2$. Similarly, router $A1$ should prefer routes tagged with $(1,0)$ over those tagged with $(0,1)$.
+%In general, because BGP is distributed, each router does not have a full view of the entire network when choosing which path to use. Because finding a collection of preferences to ensure correct end-to-end behavior for all failures is a hard problem, 
+Propane introduced a conservative, yet effective algorithm for determining route preferences based on the following observation about the structure of the Product Graph:
 
 \begin{defn}
-Let $m \geq_{rank} n$ be a relation over Product Graph vertices that holds iff $P(n) = \emptyset$ or $\min P(m) \geq \min P(n)$. Intuitively $m \geq_{rank} n$ means that paths ending at PGIR node $m$ are no better (higher rank) than paths ending at $n$.
+Let $m \geq_{rank} n$ be a relation over Product Graph vertices that holds iff $P(n) = \emptyset$ or $\min P(m) \geq \min P(n)$. Intuitively $m \geq_{rank} n$ means that paths ending at PGIR node $m$ are no better than paths ending at $n$.
 %
 \end{defn}
 \noindent
 %
 
+%\begin{defn}
+The product graph can be viewed as a labelled transition system by pushing the location from each directed edge's target node onto the edge. That is, $m\overset{l}{\rightarrow}n$ if edge $(m,n) \in E'$ and $\tilde{n} = l$.
+%\end{defn}
+%
+For example, in the concrete product graph we would have the transition $(S1,1,0)\overset{A2}{\rightarrow}(A2,1,0)$.
+
 \begin{defn}
-The product graph can be viewed as a labelled transition system by pushing the topology location from each directed edge's target node onto the edge. That is, $m\overset{l}{\rightarrow}n$ if edge $(m,n) \in E'$ and $\tilde{n} = l$.
+We write $m \leq m'$ if the subgraph reachable from $m$ and $m'$ respectively form a simulation relation with respect to the $\geq_{rank}$ relation.
 \end{defn}
 
-For example, in concrete product graph we would have the transition $(S1,1,0)\overset{A2}{\rightarrow}(A2,1,0)$
-
-\begin{defn}
-We write $m \leq m'$ if the subgraph reachable from $m$ and $m'$ respectively form a simulation relation with respect to the $\geq_{rank}$ relation on node rankings.
-\end{defn}
-
-We can assign BGP local preferences for the policy in the following way: Check if each router has a total order with respect to the simulation relation ($\leq$) for its corresponding Product Graph nodes. If so, then simply sort the nodes and prefer advertisements from peers of node $m$ over those of node $m'$ if $m' \leq m$.
-
-For example, in the concrete product graph the inequality $(S1,0,1) \leq (S1,1,0)$ holds since nodes on the left side of the product graph can always match transitions made on the right hand side while always maintaining a node ranking that is at least as good as that on the right hand side (since they match the preferred rank 1 automaton). This relation does not hold the other way around. Therefore, advertisements received at $S1$ in state $(1,0)$ must be preferred to those received in state $(0,1)$.
+If each router has a total order with respect to the simulation relation ($\leq$) for its corresponding Product Graph nodes, then we simply sort the nodes and prefer advertisements from peers of node $m$ over those of node $m'$ if $m' \leq m$.
+%
+For example, in the concrete product graph the inequality $(S1,0,1) \leq (S1,1,0)$ holds since nodes on the left side of the product graph can always match transitions made on the right hand side with respect to the $\geq_{rank}$ relation. This relation does not hold the other way around since $(S1,0,1) \ngeq_{rank} (S1,1,0)$. Therefore, advertisements received at $S1$ in state $(1,0)$ must be preferred to those received in state $(0,1)$.
 
 Notice also that in the abstract product graph the inequality $(S,0,1) \leq (S,1,0)$ holds. This leads us the the following observation:
 
@@ -1194,15 +1194,16 @@ Lemma~\ref{lem:preference} gives us reason to believe that we can perform compil
   \hrulefill
   \vspace*{.4em}%
 
-  \caption{Spine configurations for concrete and abstract policies. \ryan{TODO: this would look good in powerpoint and by connecting related components}}
+  \caption{Spine configurations for concrete and abstract policies.}
   \label{fig:bgp-configs}
 \end{figure*}
 
-By combining the tagging, filtering and preference mechanisms, we can generate safe BGP configurations. In general, configurations are generated by combining the per-prefix configurations in the same order specified in the policy. Figure~\ref{fig:bgp-configs} shows part of the configuration for the spine routers for the concrete and abstract policies.
-
-The spine routers have a default rule for the prefix $0.0.0.0/[0..32]$ that will match advertisements from peer $P1$ and $P2$. The match for $P1$ is preferred since it has a higher BGP local-preference attribtue (110). If an advertisement from $P1$ is available the spine attaches the community tag $(1,0)$ and advertises the route to all its peers. If only an advertisement from the backup $P2$ is available, then it attaches the tag $(0,1)$ and advertises this to all peers instead.
-
-In the template configuration, it will have additional policy for the local and global prefixes. It will match any global prefix from any peer and re-advertise the route to all of its peers. For any local prefix it will allow an advertisement from any internal peer, and re-advertise the route to all other internal peers. The concrete configurations will have a similar configuration for each local and global prefix.
+%By combining the tagging, filtering and preference mechanisms, we can generate safe BGP configurations. In general, configurations are generated by combining the per-prefix configurations in the same order specified in the policy. 
+Figure~\ref{fig:bgp-configs} shows part of the final configuration for spine routers for the concrete and abstract policies.
+%
+For prefix $0.0.0.0/[0..32]$, the spine routers will match advertisements from peer $P1$ and $P2$. The match for $P1$ is preferred since it has a higher BGP local-preference attribute (110). If an advertisement from $P1$ is available the spine uses this and attaches the community tag $(1,0)$ and advertises the route to all its peers. If only an advertisement from the backup $P2$ is available, then it attaches the tag $(0,1)$ and advertises this to all peers instead.
+%
+There is also additional policy for the Product Graphs from constraints for the local and global prefixes. In the template configuration, it matches any global prefix from any internal peer and re-advertise the route to all of its peers. For any local prefix it will allow an advertisement from any internal peer, and re-advertise the route to only other internal peers (thus implementing the Locality constraint). The concrete configurations have a similar configuration for each local and global prefix.
 
 
 \subsection{Compilation Correctness}
