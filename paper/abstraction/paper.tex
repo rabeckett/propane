@@ -742,8 +742,7 @@ In this section, we formalize the \sysname language and describe how \sysname tr
   \[ \begin{array}{rclr}
      pol     &::=& p_1, \dots, p_n & \textit{policies} \\
      p       &::=& t \hspace{.3em} \Path \hspace{.3em} r_1 \Prefer \dots \Prefer r_m & \textit{constraints} \\
-     t       &::=& \$x & \textit{template variable} \\
-         &\BNFALT& d.d.d.d/[d..d] ~~~~~~~~~~~~~~~~~~~  & \textit{prefix test} \\
+     t       &::=& \$x \BNFALT d.d.d.d/[d..d] \hspace{1.5em} & \textit{template variable} \\
      r       &::=& l & \textit{location} \\
          &\BNFALT& \emptyset & \textit{empty set} \\
          &\BNFALT& \In & \textit{internal loc} \\
@@ -835,7 +834,7 @@ If we have a graph homomorphism $f : G \rightarrow G^A$, concrete product graph 
 \newcommand{\transition}[4]{\path[->] (#1) edge [#4] node {#3} (#2);}
 
 \begin{figure*}[t!]
-  \begin{minipage}[t]{.2\linewidth}
+  \begin{minipage}[t]{.4\linewidth}
   \hdr{Policy Automata}{}
     \begin{tikzpicture}[>=stealth',shorten >=1pt,auto,node distance=2cm,minimum size=.5cm]
       \state{0}{$0$}{              }{}
@@ -843,30 +842,32 @@ If we have a graph homomorphism $f : G \rightarrow G^A$, concrete product graph 
       \transition{0}{0}{out}{loop above}
       \transition{0}{1}{Peer1}{}
       \transition{1}{1}{in}{loop above}
+      \node at (1,-1){Rank 1 DFA};
     \end{tikzpicture}
-
+    ~~~~~
     \begin{tikzpicture}[>=stealth',shorten >=1pt,auto,node distance=2cm,minimum size=.5cm]
       \state{0}{$0$}{              }{}
       \state{1}{$1$}{right of=0}{accepting}
       \transition{0}{0}{out}{loop above}
       \transition{0}{1}{Peer2}{}
       \transition{1}{1}{in}{loop above}
+      \node at (1,-1){Rank 2 DFA};
     \end{tikzpicture}%
   \end{minipage}
   %
   ~~~~~~
   %
-  \begin{minipage}[t]{.4\linewidth}
+  \begin{minipage}[t]{.3\linewidth}
     \hdr{Concrete Topology}{}
     \includegraphics[width=.7\columnwidth]{figures/topology-con}
   \end{minipage}%
   %
-  \begin{minipage}[t]{.4\linewidth}
+  \begin{minipage}[t]{.3\linewidth}
     \hdr{Abstract Topology}{}
     \includegraphics[width=.57\columnwidth]{figures/topology-abs}
   \end{minipage}%
 
-  \vspace{2em}
+  \vspace{1em}
   \begin{minipage}[t]{.6\linewidth}
     \hdr{Concrete Product Graph}{}
     \includegraphics[width=.9\columnwidth]{figures/pg-con}
@@ -1090,6 +1091,58 @@ In this case, the algorithm was able to infer that, with the valleyfree routing 
 %
 %=====================================================
 
+\newcommand{\highlight}[1]{%
+  \colorbox{red!50}{$\displaystyle#1$}}
+\newcommand{\Router}[1]{\KW{Router} #1:}
+\newcommand{\Template}[1]{\KW{Template} #1:}
+\newcommand{\REGEX}[1]{\texttt{regex}(#1)}
+\newcommand{\PEER}{\texttt{peer}}
+\newcommand{\PREFIX}{\texttt{prefix}}
+\newcommand{\IF}{\texttt{if}}
+\newcommand{\THEN}{\texttt{then}}
+\newcommand{\COMM}{\texttt{comm}}
+\newcommand{\MED}{\texttt{MED}}
+\newcommand{\Arrow}{\ensuremath{\leftarrow}}
+
+\begin{figure}[t!]
+  \begin{code}
+    \Template{S}
+      Match[100] \PREFIX=\$GP, \PEER=\{AG, AL\}
+        \PEER \Arrow *
+      Match[100] \PREFIX=\$LP, \PEER=\{AG, AL\}
+        \PEER \Arrow \{AG, AL\}
+      Match[110] \PREFIX=true \PEER=\{P1\},
+        \PEER \Arrow *, \COMM \Arrow (1,0)
+      Match[100] \PREFIX=true \PEER=\{P2\},
+        \PEER \Arrow *, \COMM \Arrow (0,1)
+      ...
+  \end{code}
+  
+  \vspace{-2em}
+  \begin{code}
+    \Router{S1, S2}
+      Match[100] \PREFIX=GP1, \PEER=\{AG1, AL1, ...\}
+        \PEER \Arrow *
+      Match[100] \PREFIX=GP2, \PEER=\{AG1, AL1, ...\}
+        \PEER \Arrow *
+      ...
+      Match[100] \PREFIX=LP1, \PEER=\{AG1, AL1, ...\}
+        \PEER \Arrow \{AG1, AL1, ...\}
+      Match[100] \PREFIX=LP2, \PEER=\{AG1, AL1, ...\}
+        \PEER \Arrow \{AG1, AL1, ...\}
+      ...
+      Match[110] \PREFIX=true, \PEER=\{P1\},
+        \PEER \Arrow *, \COMM \Arrow (1,0)
+      Match[100] \PREFIX=true, \PEER=\{P2\},
+        \PEER \Arrow *, \COMM \Arrow (0,1)
+      ...
+    \end{code}
+
+  \vspace{-1em}
+  \caption{Spine template and concrete configurations.}
+  \label{fig:bgp-configs}
+\end{figure}
+
 
 \section{Compilation}
 
@@ -1138,65 +1191,8 @@ $m \leq m'$ in the concrete product graph iff $f_{pg}(m) \leq f_{pg}(m')$ in the
 Lemma~\ref{lem:preference} gives us reason to believe that we can perform compilation over the abstract product graph and ensure that the inferred device-level preferences will be correct when instantiating the template with a concrete network.
 
 
-\newcommand{\highlight}[1]{%
-  \colorbox{red!50}{$\displaystyle#1$}}
-\newcommand{\Router}[1]{\KW{Router} #1:}
-\newcommand{\REGEX}[1]{\texttt{regex}(#1)}
-\newcommand{\PEER}{\texttt{peer}}
-\newcommand{\PREFIX}{\texttt{prefix}}
-\newcommand{\IF}{\texttt{if}}
-\newcommand{\THEN}{\texttt{then}}
-\newcommand{\COMM}{\texttt{comm}}
-\newcommand{\MED}{\texttt{MED}}
-\newcommand{\Arrow}{\ensuremath{\leftarrow}}
 
 \para{BGP configurations}
-
-\begin{figure*}[t!]
-  \begin{minipage}[t]{.54\linewidth}
-    \hdr{Concrete Configuration}{}
-    \begin{code}
-      \Router{S1, S2}
-        Match[100] \PREFIX=GP1, \PEER=\{AG1, ..., AL1, ...\}
-          \PEER \Arrow *
-        Match[100] \PREFIX=GP2, \PEER=\{AG1, ..., AL1, ...\}
-          \PEER \Arrow *
-        ...
-        Match[100] \PREFIX=LP1, \PEER=\{AG1, ..., AL1, ...\}
-          \PEER \Arrow \{AG1, ..., AL1, ...\}
-        Match[100] \PREFIX=LP2, \PEER=\{AG1, ..., AL1, ...\}
-          \PEER \Arrow \{AG1, ..., AL1, ...\}
-        ...
-        Match[110] \PREFIX=0.0.0.0/[0..32], \PEER=P1,
-          \PEER \Arrow *, \COMM \Arrow (1,0)
-        Match[100] \PREFIX=0.0.0.0/[0..32], \PEER=P2,
-          \PEER \Arrow *, \COMM \Arrow (0,1)
-        ...
-      \end{code}
-  \end{minipage}
-  %
-  \begin{minipage}[t]{.4\linewidth}
-    \hdr{Template Configuration}{}
-    \begin{code}
-      \Router{S}
-        Match[100] \PREFIX=\$GP, \PEER=\{AG, AL\}
-          \PEER \Arrow *
-        Match[100] \PREFIX=\$LP, \PEER=\{AG, AL\}
-          \PEER \Arrow \{AG, AL\}
-        Match[110] 0.0.0.0/[0..32], \PEER=P1,
-          \PEER \Arrow *, \COMM \Arrow (1,0)
-        Match[100] 0.0.0.0/[0..32], \PEER=P2,
-          \PEER \Arrow *, \COMM \Arrow (0,1)
-        ...
-      \end{code}
-  \end{minipage}%
-
-  \hrulefill
-  \vspace*{.4em}%
-
-  \caption{Spine configurations for concrete and abstract policies.}
-  \label{fig:bgp-configs}
-\end{figure*}
 
 %By combining the tagging, filtering and preference mechanisms, we can generate safe BGP configurations. In general, configurations are generated by combining the per-prefix configurations in the same order specified in the policy. 
 Figure~\ref{fig:bgp-configs} shows part of the final configuration for spine routers for the concrete and abstract policies.
@@ -1206,7 +1202,43 @@ For prefix $0.0.0.0/[0..32]$, the spine routers will match advertisements from p
 There is also additional policy for the Product Graphs from constraints for the local and global prefixes. In the template configuration, it matches any global prefix from any internal peer and re-advertise the route to all of its peers. For any local prefix it will allow an advertisement from any internal peer, and re-advertise the route to only other internal peers (thus implementing the Locality constraint). The concrete configurations have a similar configuration for each local and global prefix.
 
 
-\section{Concretization}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+%=====================================================
+%
+%
+%  **Concretization**
+%
+%
+%=====================================================
 
 \newcommand{\Con}{\text{con}}
 
@@ -1329,8 +1361,12 @@ There is also additional policy for the Product Graphs from constraints for the 
 
   \caption{ABGP syntax, compilation from product graphs, policy concretization, and ABGP concretization.}
   \label{fig:concretization}
-
 \end{figure*}%
+
+
+
+
+\section{Concretization}
 
 One interesting observation is that the spine template configuration and concrete spine configurations are structured similarly. In this section, we formalize this observation. We introduce a simple language for BGP configurations called ABGP and define compilation policies over both concrete and abstract topologies to ABGP. In addition we define a concretization function for that translates an abstract \sysname policy or ABGP configuration to a concrete \sysname policy or ABGP configuration respectively. The main result is that the compilation and concretization functions commute. This means performing compilation over the abstract representation first allows us to generate templates, and only concretize these templates when we need to instantiate the network.
 
