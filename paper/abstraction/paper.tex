@@ -1241,133 +1241,134 @@ There is also additional policy for the Product Graphs from constraints for the 
 %=====================================================
 
 \newcommand{\Con}{\text{con}}
-\newcommand{\Pfx}{\mathit{pfx}}
+\newcommand{\Pfx}{\mathit{pfx}}%
 
-\vspace{2em}
-\begin{figure*}[t!]\small
+%\vspace{2em}
+%\begin{figure*}[t!]\small%
 
-  \hrulefill%
-  \vspace{1em}
+%  \hrulefill%
+%  \vspace{1em}%
 
-  \begin{minipage}[t]{.46\linewidth}
-  \hdr{ABGP Syntax}{}
-  \vspace*{-1\baselineskip}
-  %
-  \[ \begin{array}{rclr}
-     d    &   & & \textit{integer} \\
-     c    &   & & \textit{community} \\
-     t    &::=& \$x \BNFALT d.d.d.d/[d..d] & \textit{predicate} \\
-     ns   &::=& \{ l_1, ~\dots,~ l_k \} & \textit{peers} \\
-     ma   &::=& d : ({ns}_1, c_1) \rightarrow ({ns}_2, c_2) & \textit{match action} \\
-     pc   &::=& ma_1, \dots, ma_k & \textit{prefix config} \\
-     rc   &::=& t_1 \rightarrow {pc}_1, ~\dots,~ t_k \rightarrow {pc}_k & \textit{router config} \\
-     abgp &::=& l_1 \rightarrow {rc}_1, ~\dots,~ l_k \rightarrow {rc}_k & \textit{abgp policy} \\
+%  \begin{minipage}[t]{.46\linewidth}
+%  \hdr{ABGP Syntax}{}
+%  \vspace*{-1\baselineskip}
+%  %
+%  \[ \begin{array}{rclr}
+%     d    &   & & \textit{integer} \\
+%     c    &   & & \textit{community} \\
+%     t    &::=& \$x \BNFALT d.d.d.d/[d..d] & \textit{predicate} \\
+%     ns   &::=& \{ l_1, ~\dots,~ l_k \} & \textit{peers} \\
+%     ma   &::=& d : ({ns}_1, c_1) \rightarrow ({ns}_2, c_2) & \textit{match action} \\
+%     pc   &::=& ma_1, \dots, ma_k & \textit{prefix config} \\
+%     rc   &::=& t_1 \rightarrow {pc}_1, ~\dots,~ t_k \rightarrow {pc}_k & \textit{router config} \\
+%     abgp &::=& l_1 \rightarrow {rc}_1, ~\dots,~ l_k \rightarrow {rc}_k & \textit{abgp policy} \\%
 
-  \end{array} \]%
+%  \end{array} \]%%
 
-  \end{minipage}
-  %
-  %
-  \begin{minipage}[t]{.5\linewidth}
-  \hdr{Compilation}{}
-  \vspace*{-1\baselineskip}
-  %
-  \[ \begin{array}{l}
-     \text{compile}_\text{ABGP}( (t_1,PG_1,ord_1), \dots, (t_k,PG_k,ord_k), G ) = \\
-     ~~~~~ [~ l \rightarrow rc ~\vert~ \\
-     ~~~~~~~~~ l \in internal(G.V), \\
-     ~~~~~~~~~ rc = \mathit{append}_i~  \\
-     ~~~~~~~~~~~~~~~ [~ t_i \rightarrow ma_1, \dots, ma_k ~\vert~ \\
-     ~~~~~~~~~~~~~~~~~~~~~ m = (l,q_m) \in PG_i, \\
-     ~~~~~~~~~~~~~~~~~~~~~ pin = \text{adjIn}(PG_i,m), \\
-     ~~~~~~~~~~~~~~~~~~~~~ (in,q_n) = \{ (bs,q_n) ~\vert~ (\_,q_n) \in pin, bs=\{b ~\vert~ (b,q_n) \in pin \} \} \\
-     ~~~~~~~~~~~~~~~~~~~~~ out = \{ c ~\vert~ (c,\_) \in \text{adjOut}(PG_i,m) \} \\
-     ~~~~~~~~~~~~~~~~~~~~~ ma_j = ord_i(m) : (in,q_n) \rightarrow (out,q_m) ~] ~] \\
-     \\
-     \text{compile}( p_1, \dots, p_k, G) = \\
-     ~~~~~~ \text{compile}_\text{ABGP}(\text{compile}_\text{PG}(p_1,G), \dots, \text{compile}_\text{PG}(p_k,G), G) \\
-  \end{array} \]%
-  \end{minipage}
+%  \end{minipage}
+%  %
+%  %
+%  \begin{minipage}[t]{.5\linewidth}
+%  \hdr{Compilation}{}
+%  \vspace*{-1\baselineskip}
+%  %
+%  \[ \begin{array}{l}
+%     \text{compile}_\text{ABGP}( (t_1,PG_1,ord_1), \dots, (t_k,PG_k,ord_k), G ) = \\
+%     ~~~~~ [~ l \rightarrow rc ~\vert~ \\
+%     ~~~~~~~~~ l \in internal(G.V), \\
+%     ~~~~~~~~~ rc = \mathit{append}_i~  \\
+%     ~~~~~~~~~~~~~~~ [~ t_i \rightarrow ma_1, \dots, ma_k ~\vert~ \\
+%     ~~~~~~~~~~~~~~~~~~~~~ m = (l,q_m) \in PG_i, \\
+%     ~~~~~~~~~~~~~~~~~~~~~ pin = \text{adjIn}(PG_i,m), \\
+%     ~~~~~~~~~~~~~~~~~~~~~ (in,q_n) = \{ (bs,q_n) ~\vert~ (\_,q_n) \in pin, bs=\{b ~\vert~ (b,q_n) \in pin \} \} \\
+%     ~~~~~~~~~~~~~~~~~~~~~ out = \{ c ~\vert~ (c,\_) \in \text{adjOut}(PG_i,m) \} \\
+%     ~~~~~~~~~~~~~~~~~~~~~ ma_j = ord_i(m) : (in,q_n) \rightarrow (out,q_m) ~] ~] \\
+%     \\
+%     \text{compile}( p_1, \dots, p_k, G) = \\
+%     ~~~~~~ \text{compile}_\text{ABGP}(\text{compile}_\text{PG}(p_1,G), \dots, \text{compile}_\text{PG}(p_k,G), G) \\
+%  \end{array} \]%
+%  \end{minipage}%
 
-  \vspace{1em}
-  \vspace{1em}
+%  \vspace{1em}
+%  \vspace{1em}%
 
-  \vspace*{-2\baselineskip}
-  \begin{minipage}[t]{\linewidth}
-  \hdr{Policy Concretization}{}
-  \vspace*{-2\baselineskip}
-  %
-  \[ \begin{array}{lcl}
-     \\
-     \Con(\emptyset, \Gamma, f)      &=& \emptyset \\
-     \Con(l, \Gamma, f)              &=& \Sigma_i ~ f_i^{-1}(l) \\
-     \Con(r_1 \cup r_2, \Gamma, f)   &=& \Con(r_1,\Gamma,f) \cup \Con(r_2,\Gamma,f) \\
-     \Con(r_1 \cap r_2, \Gamma, f)   &=& \Con(r_1,\Gamma,f) \cap \Con(r_2,\Gamma,f) \\
-     \Con(!r, \Gamma, f)             &=& !\Con(r,\Gamma,f) \\
-     \Con(r^*, \Gamma, f)            &=& \Con(r,\Gamma,f)^* \\
+%  \vspace*{-2\baselineskip}
+%  \begin{minipage}[t]{1.01\linewidth}
+%  \hdr{Policy Concretization}{}
+%  \vspace*{-2\baselineskip}
+%  %
+%  \[ \begin{array}{lcl}
+%     \\
+%     \Con(\emptyset, \Gamma, f)      &=& \emptyset \\
+%     \Con(l, \Gamma, f)              &=& \Sigma_i ~ f_i^{-1}(l) \\
+%     \Con(r_1 \cup r_2, \Gamma, f)   &=& \Con(r_1,\Gamma,f) \cup \Con(r_2,\Gamma,f) \\
+%     \Con(r_1 \cap r_2, \Gamma, f)   &=& \Con(r_1,\Gamma,f) \cap \Con(r_2,\Gamma,f) \\
+%     \Con(!r, \Gamma, f)             &=& !\Con(r,\Gamma,f) \\
+%     \Con(r^*, \Gamma, f)            &=& \Con(r,\Gamma,f)^* \\%
 
-     \Con(\Pfx ~\Path~ r_1, ~\dots~, r_k, \Gamma, f) &=&
-          \Pfx ~\Path~ \Con(r_1,\Gamma,f), ~\dots~, \Con(r_k,\Gamma,f)  \\
+%     \Con(\Pfx ~\Path~ r_1, ~\dots~, r_k, \Gamma, f) &=&
+%          \Pfx ~\Path~ \Con(r_1,\Gamma,f), ~\dots~, \Con(r_k,\Gamma,f)  \\%
 
-     \Con(\$x ~\Path~ r_1, ~\dots~, r_k, \Gamma, f) &=&
+%     \Con(\$x ~\Path~ r_1, ~\dots~, r_k, \Gamma, f) &=&%
 
-         \{ \Pfx ~\Path~ \Con(r_1,\Gamma,f) \cap \text{end}(l), ~\dots~,
-           \Con(r_k,\Gamma,f) \cap \text{end}(l) ~\vert~ (\Pfx,l) \in \Gamma(x) \}  \\
+%         [~ \Pfx ~\Path~ \Con(r_1,\Gamma,f) \cap \text{end}(l), ~\dots~, \\%
 
-     \Con(p_1, \dots, p_n, \Gamma,f) &=& \Con(p_1, \Gamma,f), \dots, \Con(p_n, \Gamma,f) \\
+%         & & ~~~~~~~~~~~~~~~ \Con(r_k,\Gamma,f) \cap \text{end}(l) ~\vert~ (\Pfx,l) \in \Gamma(x) ~]  \\%
 
-  \end{array} \]%
-  \end{minipage}
+%     \Con(p_1, \dots, p_n, \Gamma,f) &=& \Con(p_1, \Gamma,f), \dots, \Con(p_n, \Gamma,f) \\%
 
-  \vspace{1em}
-  \vspace{1em}
+%  \end{array} \]%
+%  \end{minipage}%
 
-  \begin{minipage}[t]{\linewidth}
-  \hdr{ABGP Concretization}{}
-  \vspace*{-2\baselineskip}
-  %
-  \[ \begin{array}{lcl}
-     \\
-     \Con(l_1 \rightarrow {rc}_1, ~\dots,~ l_k \rightarrow {rc}_k,\Gamma,f,G)
-        & = &
-        \mathit{append}_i~ [~ \ell \rightarrow con(rc_i,\ell,\Gamma,f,G)  ~\vert~ \ell \in f^{-1}(l_i) ~]
-        \\
-     \Con(t_1 \rightarrow {pc}_1, ~\dots,~ t_k \rightarrow {pc}_k,\ell,\Gamma,f,G)
-        & = &
-        \Con(t_1 \rightarrow {pc}_1,\ell,\Gamma,f,G), \dots, \Con(t_k \rightarrow {pc}_k,\ell,\Gamma,f,G)
-        \\
-     \Con(\Pfx \rightarrow {pc},\ell,\Gamma,f,G)
-        & = &
-        \Pfx \rightarrow \Con(pc,\text{true},\ell,\Gamma,f,G)
-        \\
-     \Con(\$x \rightarrow {pc},\ell,\Gamma,f,G)
-        & = &
-        [~ \Pfx \rightarrow \Con(pc, l=\ell, \ell,\Gamma,f,G) ~\vert~ (\Pfx, l) \in \Gamma(x) ~]
-        \\
-     \Con(ma_1, \dots, ma_k,o,\ell,\Gamma,f,G)
-        & = &
-        \Con(ma_1,o,\ell,\Gamma,f,G), \dots, \Con(ma_k,o,\ell,\Gamma,f,G)
-        \\
+%  \vspace{1em}
+%  \vspace{1em}%
 
-     \Con(n_1 : ({ns}_1, n_2) \rightarrow ({ns}_2, n_3),o,\ell,\Gamma,f,G)
-        & = & \textbf{if}~ ns_1 = \{\text{start}\} ~\text{and}~ o = \text{false} ~\textbf{then}~ \bullet \\
-        &   & \textbf{else}~ n_1 : ( \Con({ns}_1,\ell,\Gamma,f,G), n_2) \rightarrow (\Con({ns}_2,\ell,\Gamma,f,G),n_3)
+%  \begin{minipage}[t]{\linewidth}
+%  \hdr{ABGP Concretization}{}
+%  \vspace*{-2\baselineskip}
+%  %
+%  \[ \begin{array}{lcl}
+%     \\
+%     \Con(l_1 \rightarrow {rc}_1, ~\dots,~ l_k \rightarrow {rc}_k,\Gamma,f,G)
+%        & = &
+%        \mathit{append}_i~ [~ \ell \rightarrow con(rc_i,\ell,\Gamma,f,G)  ~\vert~ \ell \in f^{-1}(l_i) ~]
+%        \\
+%     \Con(t_1 \rightarrow {pc}_1, ~\dots,~ t_k \rightarrow {pc}_k,\ell,\Gamma,f,G)
+%        & = &
+%        \Con(t_1 \rightarrow {pc}_1,\ell,\Gamma,f,G), \dots, \Con(t_k \rightarrow {pc}_k,\ell,\Gamma,f,G)
+%        \\
+%     \Con(\Pfx \rightarrow {pc},\ell,\Gamma,f,G)
+%        & = &
+%        \Pfx \rightarrow \Con(pc,\text{true},\ell,\Gamma,f,G)
+%        \\
+%     \Con(\$x \rightarrow {pc},\ell,\Gamma,f,G)
+%        & = &
+%        [~ \Pfx \rightarrow \Con(pc, l=\ell, \ell,\Gamma,f,G) ~\vert~ (\Pfx, l) \in \Gamma(x) ~]
+%        \\
+%     \Con(ma_1, \dots, ma_k,o,\ell,\Gamma,f,G)
+%        & = &
+%        \Con(ma_1,o,\ell,\Gamma,f,G), \dots, \Con(ma_k,o,\ell,\Gamma,f,G)
+%        \\%
 
-        \\
-     \Con(\{ l_1, ~\dots,~ l_k \}, \ell, \Gamma,f,G)
-        & = &
-        \bigcup_i ~ \{ x ~\vert~ x \in f^{-1}(l_i),~ (x,\ell) \in G.E \}
-        \\
-  \end{array} \]%
-  \end{minipage}
+%     \Con(n_1 : ({ns}_1, n_2) \rightarrow ({ns}_2, n_3),o,\ell,\Gamma,f,G)
+%        & = & \textbf{if}~ ns_1 = \{\text{start}\} ~\text{and}~ o = \text{false} ~\textbf{then}~ \bullet \\
+%        &   & \textbf{else}~ n_1 : ( \Con({ns}_1,\ell,\Gamma,f,G), n_2) \rightarrow (\Con({ns}_2,\ell,\Gamma,f,G),n_3)%
 
-  \vspace{1em}
-  \hrulefill%
-  \vspace{1em}
+%        \\
+%     \Con(\{ l_1, ~\dots,~ l_k \}, \ell, \Gamma,f,G)
+%        & = &
+%        \bigcup_i ~ \{ x ~\vert~ x \in f^{-1}(l_i),~ (x,\ell) \in G.E \}
+%        \\
+%  \end{array} \]%
+%  \end{minipage}%
 
-  \caption{ABGP syntax, compilation from product graphs, policy concretization, and ABGP concretization.}
-  \label{fig:concretization}
-\end{figure*}%
+%  \vspace{1em}
+%  \hrulefill%
+%  \vspace{1em}%
+
+%  \caption{ABGP syntax, compilation from product graphs, policy concretization, and ABGP concretization.}
+%  \label{fig:concretization}
+%\end{figure*}%
 
 
 
@@ -1376,42 +1377,42 @@ There is also additional policy for the Product Graphs from constraints for the 
 
 One interesting observation is that the spine template configuration and concrete spine configurations are structured similarly. In this section, we formalize this observation. We introduce a simple language for BGP configurations called ABGP and define compilation policies over both concrete and abstract topologies to ABGP. In addition we define a concretization function for that translates an abstract \sysname policy or ABGP configuration to a concrete \sysname policy or ABGP configuration respectively. The main result is that the compilation and concretization functions commute. This means performing compilation over the abstract representation first allows us to generate templates, and only concretize these templates when we need to instantiate the network.
 
-\para{ABGP language}
+%\para{ABGP language}%
 
-We introduct a simple language for BGP configurations called ABGP. Figure~\ref{fig:concretization} shows the syntax for an ABGP policy. An ABGP policy maps topology locations $l$ to router configurations $rc$. Each router configuration $rc$ is a sequence of predicates $t$ and their corresponding configuration $pc$. A prefix configuration $pc$ is a sequence of match actions. Each match action $ma$ consists of a preference value $d_1$, followed by a set of imports from neighbors $ns_1$ and community value (\IE, state of the product graph) $d_2$ expected from those neighbors, as well as export neighbors $ns_2$ and the community value $d_3$ to attach before sending to those neighbors.
-
-
-\para{Compilation}
-
-Figure~\ref{fig:concretization} defines compilation from a \sysname policy to an ABGP policy. It starts by compiling ($\text{compile}_\text{PG}$) separately each constraint of the form $p_i = (t_i ~\Path~ r_{i1} ~\Prefer~ r_{ik})$ to a product graph $PG = (G', s, P)$. The function $\text{compile}_\text{PG}$ returns the test $t_i$, product graph $PG_i$, and the preference ordering $ord_i$.
+%We introduct a simple language for BGP configurations called ABGP. Figure~\ref{fig:concretization} shows the syntax for an ABGP policy. An ABGP policy maps topology locations $l$ to router configurations $rc$. Each router configuration $rc$ is a sequence of predicates $t$ and their corresponding configuration $pc$. A prefix configuration $pc$ is a sequence of match actions. Each match action $ma$ consists of a preference value $d_1$, followed by a set of imports from neighbors $ns_1$ and community value (\IE, state of the product graph) $d_2$ expected from those neighbors, as well as export neighbors $ns_2$ and the community value $d_3$ to attach before sending to those neighbors.%
 %
-The function $\text{compile}_\text{ABGP}$ then takes a sequence of tuples $(t_i, PG_i, ord_i)$ and returns an ABGP policy. For each internal router, it looks at each set of neighbor with the same community state $q_n$ and matches any of those neighbors with the preference provided by the ordering $ord$. It then exports this advertisement to each adjacent peer along an outgoing edge and adds the community value for the current state $q_m$.
 
-%We assume a particular router $l$ appears at most once in any abgp specification.
-We build configs using set-builder notation.  For instance,
-$\{l \rightarrow rc ~\vert~ l \in V \wedge p(l,rc)\}$ denotes the abgp policy
-%
-\[ \begin{array}{c}
-  l_1 \rightarrow rc_{1},... \\
-  ...           \\
-  l_k \rightarrow rc_{k},... \\
-\end{array} \]
+%\para{Compilation}%
+
+%Figure~\ref{fig:concretization} defines compilation from a \sysname policy to an ABGP policy. It starts by compiling ($\text{compile}_\text{PG}$) separately each constraint of the form $p_i = (t_i ~\Path~ r_{i1} ~\Prefer~ r_{ik})$ to a product graph $PG = (G', s, P)$. The function $\text{compile}_\text{PG}$ returns the test $t_i$, product graph $PG_i$, and the preference ordering $ord_i$.
+%%
+%The function $\text{compile}_\text{ABGP}$ then takes a sequence of tuples $(t_i, PG_i, ord_i)$ and returns an ABGP policy. For each internal router, it looks at each set of neighbor with the same community state $q_n$ and matches any of those neighbors with the preference provided by the ordering $ord$. It then exports this advertisement to each adjacent peer along an outgoing edge and adds the community value for the current state $q_m$.%
+
+%%We assume a particular router $l$ appears at most once in any abgp specification.
+%We build configs using set-builder notation.  For instance,
+%$\{l \rightarrow rc ~\vert~ l \in V \wedge p(l,rc)\}$ denotes the abgp policy
+%%
+%\[ \begin{array}{c}
+%  l_1 \rightarrow rc_{1},... \\
+%  ...           \\
+%  l_k \rightarrow rc_{k},... \\
+%\end{array} \]
 
 
-where $l_1, ..., l_k$ are the nodes in the topology
-and each $rc_{i}$ satisfies $p(l_i,rc_{i})$. We also use the $\bigcup$ operator to denote sequence concatenation.
+%where $l_1, ..., l_k$ are the nodes in the topology
+%and each $rc_{i}$ satisfies $p(l_i,rc_{i})$. We also use the $\bigcup$ operator to denote sequence concatenation.%
 
-\para{Concretization}
+%\para{Concretization}%
 
-Concretization for a \sysname policy takes as input, the policy and a context
-$\Gamma : Var \rightarrow 2^{Prefix \times V}$,
-which maps from a template prefix to a set of pairs of a concrete prefix and a concrete location that "owns" the prefix.
-%
-For each regular expression $r$, we replace each abstract location with the sum over its corresponding concrete locations under the inverse homomorphism $f^{-1}$. For each template variable, we replace it with a new entry for each of its corresponding concrete prefixes under the supplied mapping $\Gamma$. We also intersect the resulting concretized regular expression with $\text{end}(l)$ to capture the fact that this traffic is owned by the concrete location $l$.
+%Concretization for a \sysname policy takes as input, the policy and a context
+%$\Gamma : Var \rightarrow 2^{Prefix \times V}$,
+%which maps from a template prefix to a set of pairs of a concrete prefix and a concrete location that "owns" the prefix.
+%%
+%For each regular expression $r$, we replace each abstract location with the sum over its corresponding concrete locations under the inverse homomorphism $f^{-1}$. For each template variable, we replace it with a new entry for each of its corresponding concrete prefixes under the supplied mapping $\Gamma$. We also intersect the resulting concretized regular expression with $\text{end}(l)$ to capture the fact that this traffic is owned by the concrete location $l$.%
 
-We also define concretization over the ABGP policy in a similar manner. We replace each abstract router configuration $l \rightarrow rc$ a new entry for each concrete location $\ell \in f^{-1}(l)$. The concrete location $\ell$ is passed as a parameter to $con$ to remember the current router.
-%
-To concretize a prefix policy with a template ($\$x \rightarrow pc$) we replace it with a sequence of policies, one for each prefix in context ($(pfx,l) \in \Gamma(x)$). Match action statements where the set of import neighbors is the singleton set containing the product graph start node $\{ start \}$ and we are not currently at looking at the router configuration for the location specified in the context $l$, then we drop the match action. This is denoted with the $\bullet$ symbol. Finally, to concretize a set of neighbors, we again use $f^{-1}$ to find the set of concrete neighbors under the inverse homomorphism, but then restrict it to those that are actually connected in the underlying concrete topology with $G.E$.
+%We also define concretization over the ABGP policy in a similar manner. We replace each abstract router configuration $l \rightarrow rc$ a new entry for each concrete location $\ell \in f^{-1}(l)$. The concrete location $\ell$ is passed as a parameter to $con$ to remember the current router.
+%%
+%To concretize a prefix policy with a template ($\$x \rightarrow pc$) we replace it with a sequence of policies, one for each prefix in context ($(pfx,l) \in \Gamma(x)$). Match action statements where the set of import neighbors is the singleton set containing the product graph start node $\{ start \}$ and we are not currently at looking at the router configuration for the location specified in the context $l$, then we drop the match action. This is denoted with the $\bullet$ symbol. Finally, to concretize a set of neighbors, we again use $f^{-1}$ to find the set of concrete neighbors under the inverse homomorphism, but then restrict it to those that are actually connected in the underlying concrete topology with $G.E$.
 
 
 \begin{thm}
