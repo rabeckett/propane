@@ -1241,6 +1241,7 @@ There is also additional policy for the Product Graphs from constraints for the 
 %=====================================================
 
 \newcommand{\Con}{\text{con}}
+\newcommand{\Pfx}{\mathit{pfx}}
 
 \vspace{2em}
 \begin{figure*}[t!]\small
@@ -1253,14 +1254,15 @@ There is also additional policy for the Product Graphs from constraints for the 
   \vspace*{-1\baselineskip}
   %
   \[ \begin{array}{rclr}
-     abgp &::=& l_1 \rightarrow {rc}_1, ~\dots,~ l_k \rightarrow {rc}_k & \textit{abgp policy} \\
-     rc   &::=& t_1 \rightarrow {pc}_1, ~\dots,~ t_k \rightarrow {pc}_k & \textit{router config} \\
-     pc   &::=& ma_1, \dots, ma_k & \textit{prefix config} \\
-     ma   &::=& lp : ({ns}_1, c_1) \rightarrow ({ns}_2, c_2) & \textit{match action} \\
-     ns   &::=& \{ l_1, ~\dots,~ l_k \} & \textit{peers} \\
+     d    &   & & \textit{integer} \\
+     c    &   & & \textit{community} \\
      t    &::=& \$x \BNFALT d.d.d.d/[d..d] & \textit{predicate} \\
-     c    &   & & \textit{community value} \\
-     lp   &   & & \textit{local preference} \\
+     ns   &::=& \{ l_1, ~\dots,~ l_k \} & \textit{peers} \\
+     ma   &::=& d : ({ns}_1, c_1) \rightarrow ({ns}_2, c_2) & \textit{match action} \\
+     pc   &::=& ma_1, \dots, ma_k & \textit{prefix config} \\
+     rc   &::=& t_1 \rightarrow {pc}_1, ~\dots,~ t_k \rightarrow {pc}_k & \textit{router config} \\
+     abgp &::=& l_1 \rightarrow {rc}_1, ~\dots,~ l_k \rightarrow {rc}_k & \textit{abgp policy} \\
+
   \end{array} \]%
 
   \end{minipage}
@@ -1272,16 +1274,18 @@ There is also additional policy for the Product Graphs from constraints for the 
   %
   \[ \begin{array}{l}
      \text{compile}_\text{ABGP}( (t_1,PG_1,ord_1), \dots, (t_k,PG_k,ord_k), G ) = \\
-     ~~~~~ \{ l \rightarrow rc ~\vert~ \\
+     ~~~~~ [~ l \rightarrow rc ~\vert~ \\
      ~~~~~~~~~ l \in internal(G.V), \\
-     ~~~~~~~~~ rc = \bigcup_i~ \{ t_i \rightarrow ma_1, \dots, ma_k ~\vert~ \\
+     ~~~~~~~~~ rc = \mathit{append}_i~  \\
+     ~~~~~~~~~~~~~~~ [~ t_i \rightarrow ma_1, \dots, ma_k ~\vert~ \\
      ~~~~~~~~~~~~~~~~~~~~~ m = (l,q_m) \in PG_i, \\
-     ~~~~~~~~~~~~~~~~~~~~~ in = \{ b ~\vert~ (b,q_n) \in \text{adjIn}(PG_i,m) \} \\
+     ~~~~~~~~~~~~~~~~~~~~~ pin = \text{adjIn}(PG_i,m), \\
+     ~~~~~~~~~~~~~~~~~~~~~ (in,q_n) = \{ (bs,q_n) ~\vert~ (\_,q_n) \in pin, bs=\{b ~\vert~ (b,q_n) \in pin \} \} \\
      ~~~~~~~~~~~~~~~~~~~~~ out = \{ c ~\vert~ (c,\_) \in \text{adjOut}(PG_i,m) \} \\
-     ~~~~~~~~~~~~~~~~~~~~~ ma_j = ord_i(m) : (in,q_n) \rightarrow (out,q_m) \} \} \\
+     ~~~~~~~~~~~~~~~~~~~~~ ma_j = ord_i(m) : (in,q_n) \rightarrow (out,q_m) ~] ~] \\
      \\
      \text{compile}( p_1, \dots, p_k, G) = \\
-     ~~~~~~ \text{compile}_\text{ABGP}(\text{compile}_\text{PG}(p_1,G), \dots, \text{compile}_\text{PG}(p_k,G)) \\
+     ~~~~~~ \text{compile}_\text{ABGP}(\text{compile}_\text{PG}(p_1,G), \dots, \text{compile}_\text{PG}(p_k,G), G) \\
   \end{array} \]%
   \end{minipage}
 
@@ -1296,19 +1300,19 @@ There is also additional policy for the Product Graphs from constraints for the 
   \[ \begin{array}{lcl}
      \\
      \Con(\emptyset, \Gamma, f)      &=& \emptyset \\
-     \Con(l, \Gamma, f)              &=& \Sigma ~ f^{-1}(l) \\
+     \Con(l, \Gamma, f)              &=& \Sigma_i ~ f_i^{-1}(l) \\
      \Con(r_1 \cup r_2, \Gamma, f)   &=& \Con(r_1,\Gamma,f) \cup \Con(r_2,\Gamma,f) \\
      \Con(r_1 \cap r_2, \Gamma, f)   &=& \Con(r_1,\Gamma,f) \cap \Con(r_2,\Gamma,f) \\
      \Con(!r, \Gamma, f)             &=& !\Con(r,\Gamma,f) \\
      \Con(r^*, \Gamma, f)            &=& \Con(r,\Gamma,f)^* \\
 
-     \Con(pfx ~\Path~ r_1, ~\dots~, r_k, \Gamma, f) &=&
-          pfx ~\Path~ \Con(r_1,\Gamma,f), ~\dots~, \Con(r_k,\Gamma,f)  \\
+     \Con(\Pfx ~\Path~ r_1, ~\dots~, r_k, \Gamma, f) &=&
+          \Pfx ~\Path~ \Con(r_1,\Gamma,f), ~\dots~, \Con(r_k,\Gamma,f)  \\
 
      \Con(\$x ~\Path~ r_1, ~\dots~, r_k, \Gamma, f) &=&
 
-         \{ pfx ~\Path~ \Con(r_1,\Gamma,f) \cap \text{end}(l), ~\dots~,
-           \Con(r_k,\Gamma,f) \cap \text{end}(l) ~\vert~ (pfx,l) \in \Gamma(x) \}  \\
+         \{ \Pfx ~\Path~ \Con(r_1,\Gamma,f) \cap \text{end}(l), ~\dots~,
+           \Con(r_k,\Gamma,f) \cap \text{end}(l) ~\vert~ (\Pfx,l) \in \Gamma(x) \}  \\
 
      \Con(p_1, \dots, p_n, \Gamma,f) &=& \Con(p_1, \Gamma,f), \dots, \Con(p_n, \Gamma,f) \\
 
@@ -1326,19 +1330,19 @@ There is also additional policy for the Product Graphs from constraints for the 
      \\
      \Con(l_1 \rightarrow {rc}_1, ~\dots,~ l_k \rightarrow {rc}_k,\Gamma,f,G)
         & = &
-        \bigcup_i~ \{ \ell \rightarrow con(rc_i,\ell,\Gamma,f,G)  ~\vert~ \ell \in f^{-1}(l_i) \}
+        \mathit{append}_i~ [~ \ell \rightarrow con(rc_i,\ell,\Gamma,f,G)  ~\vert~ \ell \in f^{-1}(l_i) ~]
         \\
      \Con(t_1 \rightarrow {pc}_1, ~\dots,~ t_k \rightarrow {pc}_k,\ell,\Gamma,f,G)
         & = &
         \Con(t_1 \rightarrow {pc}_1,\ell,\Gamma,f,G), \dots, \Con(t_k \rightarrow {pc}_k,\ell,\Gamma,f,G)
         \\
-     \Con(pfx \rightarrow {pc},\ell,\Gamma,f,G)
+     \Con(\Pfx \rightarrow {pc},\ell,\Gamma,f,G)
         & = &
-        pfx \rightarrow \Con(pc,\text{true},\ell,\Gamma,f,G)
+        \Pfx \rightarrow \Con(pc,\text{true},\ell,\Gamma,f,G)
         \\
      \Con(\$x \rightarrow {pc},\ell,\Gamma,f,G)
         & = &
-        \{ pfx \rightarrow \Con(pc, l=\ell, \ell,\Gamma,f,G) ~\vert~ (pfx, l) \in \Gamma(x) \}
+        [~ \Pfx \rightarrow \Con(pc, l=\ell, \ell,\Gamma,f,G) ~\vert~ (\Pfx, l) \in \Gamma(x) ~]
         \\
      \Con(ma_1, \dots, ma_k,o,\ell,\Gamma,f,G)
         & = &
