@@ -1555,7 +1555,7 @@ Figure~\ref{fig:compilation-times} shows compilation time for the same policies 
 
 For both the datacenter and backbone networks, the abstract compilation starts off slightly slower than concrete compilation for small topologies due to the overhead of the abstract k-disjoint path analysis for aggregation black-hole safety. However, as the size of the topology increases, abstract compilation becomes orders of magnitude faster than concrete compilation. In all cases for both networks, abstract compilation takes less than 10 seconds to complete.
 
-Figure~\ref{fig:abstract-breakdown} shows the relative time taken by each phase of abstract compilation. Notably, the abstract analysis takes the majority of the time, however the analysis does not depend on the number of concrete nodes in the network, and thus is largely a fixed cost. In particular, the number of calls to Z3 remains constant the across topology size. The seesaw behavior for the data center networks results from differences in time taken by Z3 to minimize the same constraints with different parameters.
+Figure~\ref{fig:abstract-breakdown} shows the relative time taken by each phase of abstract compilation. Notably, the abstract analysis takes the majority of the time, however the analysis does not depend on the number of concrete nodes in the network, and thus is largely a fixed cost. In particular, the number of calls to $\nu$Z remains constant the across topology size. The seesaw behavior for the data center networks results from differences in time taken by $\nu$Z to minimize the same constraints with different parameters.
 
 
 

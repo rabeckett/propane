@@ -703,14 +703,18 @@ By induction on the structure of $r$
     For each $M$ there exists at least one $m$ such that $f_{pg}(m) = M$. Note that $f_{pg}$ overapproximates the connectivity of the product graph, by virtue of being a graph homomorphism. For each concrete node $n$ such that $n = (b,q_n) \in adjIn(PG,m)$ we know that if $f_{pg}(n) = N$ where $N = (f(b),q_N)$, then $N \in adjIn(PG^A,M)$ and $q_n = q_N$ from the homomorphism. Thus by taking $\bigcup f^{-1}(f(b))$, for each such $f(b)$ for node $N$ that shares the same state $q_N$, we get a superset of the locations from the concrete graph. However, by restricting those locations to only those that appear in the topology $(b,\ell)$, we get exactly the set that appears in the concrete product graph. This is because we know $q_n \rightarrow q_m$ from the abstract product graph is a valid transition and the topology edge exists.
   \end{proof}
 
+\ryan{Update me}
+
 \end{lem}
 
 
 \vspace{2em}
 \begin{thm}
-  For any $\Gamma$, $f$, $G$ such that $\Gamma$ is well-formed with respect to $G$,
-  $$con(compile(pol),\Gamma,f,G) = compile(con(pol,\Gamma,f))$$
+  For any context $\Gamma$, concrete topology $G$, abstract topology $G^A$, homomorphism $f : G \rightarrow G^A$:
 
+  $$con(compile(pol,G^A),\Gamma,f,G) = compile(con(pol,\Gamma,f),G)$$
+
+  \vspace{1em}
   \begin{proof} \text{ }
 
     Suppose that $pol = p_1, \dots, p_n$. Each $p_i$ has the form $(t_i ~\Path~ r_{i1} ~\Prefer~,\dots, ~\Prefer~ r_{ik})$. Then by evaulating:
@@ -741,19 +745,19 @@ By induction on the structure of $r$
             &   & \text{for each } (pfx_{ij}, l_{ij}) \in \Gamma(x) \\
     \end{array} \]
 
-    Next we compute $compile(con(pol,\Gamma,f))$:
+    Next we compute $compile(con(pol,\Gamma,f), G)$:
 
     \[ \begin{array}{ll}
-        & compile(con(pol,\Gamma,f))  \\
+        & compile(con(pol,\Gamma,f), G)  \\
                           & \\
                          =& compile_{ABGP}( \\
-                          &  ~~~~ compile_{PG}(pfx_{11} ~\Path~ r'_{111} ~\Prefer~,\dots, ~\Prefer~ r'_{11k} ), \\
+                          &  ~~~~ compile_{PG}(pfx_{11} ~\Path~ r'_{111} ~\Prefer~,\dots, ~\Prefer~ r'_{11k},G ), \\
                           &  ~~~~ \dots, \\
-                          &  ~~~~ compile_{PG}(pfx_{1j} ~\Path~ r'_{1j1} ~\Prefer~,\dots, ~\Prefer~ r'_{1jk} ), \\
+                          &  ~~~~ compile_{PG}(pfx_{1j} ~\Path~ r'_{1j1} ~\Prefer~,\dots, ~\Prefer~ r'_{1jk},G ), \\
                           &  ~~~~ \dots, \\
-                          &  ~~~~ compile_{PG}(pfx_{i1} ~\Path~ r'_{i11} ~\Prefer~,\dots, ~\Prefer~ r'_{i1k} ), \\
+                          &  ~~~~ compile_{PG}(pfx_{i1} ~\Path~ r'_{i11} ~\Prefer~,\dots, ~\Prefer~ r'_{i1k},G ), \\
                           &  ~~~~ \dots, \\
-                          &  ~~~~ compile_{PG}(pfx_{ij} ~\Path~ r'_{ij1} ~\Prefer~,\dots, ~\Prefer~ r'_{ijk} ) \\
+                          &  ~~~~ compile_{PG}(pfx_{ij} ~\Path~ r'_{ij1} ~\Prefer~,\dots, ~\Prefer~ r'_{ijk},G ) \\
                           &  ) \\
     \end{array} \]
  
@@ -761,15 +765,15 @@ By induction on the structure of $r$
     This results in a series of prefixes, product graphs, and orderings of the form: $(pfx_{ij}, PG_{ij}, ord_{ij})$.
 
     \vspace{1em}
-    Similarly, we can compute $compile(pol)$:
+    Similarly, we can compute $compile(pol, G^A)$:
 
     \[ \begin{array}{ll}
-        & compile(pol)  \\
+        & compile(pol,G^A)  \\
                       & \\
                      =& compile_{ABGP}( \\
-                      & ~~~~ compile_{PG}(t_1 ~\Path~ r_{11} ~\Prefer~,\dots, ~\Prefer~ r_{1k} ), \\
+                      & ~~~~ compile_{PG}(t_1 ~\Path~ r_{11} ~\Prefer~,\dots, ~\Prefer~ r_{1k}, G^A ), \\
                       & ~~~~ \dots, \\
-                      & ~~~~ compile_{PG}(t_i ~\Path~ r_{i1} ~\Prefer~,\dots, ~\Prefer~ r'_{ik} ), \\
+                      & ~~~~ compile_{PG}(t_i ~\Path~ r_{i1} ~\Prefer~,\dots, ~\Prefer~ r'_{ik}, G^A ), \\
                       & ) \\
     \end{array} \]
 
@@ -778,238 +782,274 @@ By induction on the structure of $r$
     We know the follwing:
 
     \begin{itemize}
-      \item each $PG^A_i$ and $PG_ij$ are related by $f_{pg}$
+      \item each $PG^A_i$ and $PG_{ij}$ are related by $f_{pg}$
+      \vspace{-.2em}
       \item each $ord^A_i$ and $ord_{ij}$ have the property that $ord^A(f_{pg}(m)) = ord_{ij}(m)$
     \end{itemize}
     
 
 
   \[ \begin{array}{l}
-     con(\textbf{compile}( (t_1,PG^A_1,ord^A_1), \dots, (t^A_i,PG^A_i,ord^A_i) ), \Gamma,f,G) \\
+     con(\textbf{compile}_\textbf{ABGP}( (t_1,PG^A_1,ord^A_1), \dots, (t^A_i,PG^A_i,ord^A_i) ), \Gamma,f,G) \\
   \end{array} \]%
 
-Unfold definition of compile
+Unfold definition of $\text{compile}_\text{ABGP}$
 
   \[ \begin{array}{l}
-     ~~~~~ con(\{ l \rightarrow rc ~\vert~ \\
-     ~~~~~~~~~ l \in internal(V^A), \\
-     ~~~~~~~~~ rc = \bigcup_i~ \{ t_i \rightarrow ma_1, \dots, ma_k ~\vert~ \\
+     ~~~~~ con([~ l \rightarrow rc ~\vert~ \\
+     ~~~~~~~~~ l \in internal(G^A.V), \\
+     ~~~~~~~~~ rc = \mathit{append}_i~  \\
+     ~~~~~~~~~~~~~~~ [~ t_i \rightarrow ma_1, \dots, ma_k ~\vert~ \\
      ~~~~~~~~~~~~~~~~~~~~~ M = (l,q_M) \in PG^A_i, \\
-     ~~~~~~~~~~~~~~~~~~~~~ in = \{ B ~\vert~ (B,q_N) \in \text{adjIn}(PG^A_i,M) \} \\
+     ~~~~~~~~~~~~~~~~~~~~~ pin = \text{adjIn}(PG^A_i,M), \\
+     ~~~~~~~~~~~~~~~~~~~~~ (in,q_n) = \{ (BS,q_N) ~\vert~ (\_,q_N) \in pin, BS=\{B ~\vert~ (B,q_N) \in pin \} \} \\
      ~~~~~~~~~~~~~~~~~~~~~ out = \{ C ~\vert~ (C,\_) \in \text{adjOut}(PG^A_i,M) \} \\
-     ~~~~~~~~~~~~~~~~~~~~~ ma_h = ord^A_i(M) : (in,q_n) \rightarrow (out,q_M) \} \}, \Gamma,f,G) \\
+     ~~~~~~~~~~~~~~~~~~~~~ ma_{q_N} = ord^A_i(M) : (in,q_N) \rightarrow (out,q_M) ~] ~], \Gamma,f,G) \\
   \end{array} \]%
 
   Apply the definition of $con$
 
   \[ \begin{array}{l}
-     ~~~~~ \{ \ell \rightarrow con(rc,\ell,\Gamma,f,G)) ~\vert~ \\
+     ~~~~~ [~ \ell \rightarrow con(rc,\ell,\Gamma,f,G) ~\vert~ \\
      ~~~~~~~~~ \ell \in f^{-1}(l), \\
-     ~~~~~~~~~ l \in internal(V^A), \\
-     ~~~~~~~~~ rc = \bigcup_i~ \{ t_i \rightarrow ma_1, \dots, ma_k ~\vert~ \\
+     ~~~~~~~~~ l \in internal(G^A.V), \\
+     ~~~~~~~~~ rc = \mathit{append}_i~  \\
+     ~~~~~~~~~~~~~~~ [~ t_i \rightarrow ma_1, \dots, ma_k ~\vert~ \\
      ~~~~~~~~~~~~~~~~~~~~~ M = (l,q_M) \in PG^A_i, \\
-     ~~~~~~~~~~~~~~~~~~~~~ in = \{ B ~\vert~ (B,q_n) \in \text{adjIn}(PG^A_i,M) \} \\
-     ~~~~~~~~~~~~~~~~~~~~~ out = \{ C ~\vert~ (C,\_) \in \text{adjOut}(PG^A_i,M) \} \\
-     ~~~~~~~~~~~~~~~~~~~~~ ma_h = ord^A_i(M) : (in,q_N) \rightarrow (out,q_M) \} \} \\
+     ~~~~~~~~~~~~~~~~~~~~~ pin = \text{adjIn}(PG^A_i,M), \\
+     ~~~~~~~~~~~~~~~~~~~~~ (in,q_N) = \{ (bs,q_N) ~\vert~ (\_,q_N) \in pin, BS=\{B ~\vert~ (B,q_n) \in pin \} \} \\
+     ~~~~~~~~~~~~~~~~~~~~~ out = \{ C ~\vert~ (C,\_) \in \text{adjOut}(PG_i,M) \} \\
+     ~~~~~~~~~~~~~~~~~~~~~ ma_{q_N} = ord^A_i(M) : (in,q_N) \rightarrow (out,q_M) ~] ~] \\
   \end{array} \]%
 
   Rewrite $con$ on $rc$
 
   \[ \begin{array}{l}
-     ~~~~~ \{ \ell \rightarrow rc ~\vert~ \\
+     ~~~~~ [~ \ell \rightarrow con(rc,\ell,\Gamma,f,G) ~\vert~ \\
      ~~~~~~~~~ \ell \in f^{-1}(l), \\
-     ~~~~~~~~~ l \in internal(V^A), \\
-     ~~~~~~~~~ rc = con(\bigcup_i~ \{ t_i \rightarrow ma_1, \dots, ma_k ~\vert~ \\
+     ~~~~~~~~~ l \in internal(G^A.V), \\
+     ~~~~~~~~~ rc = con(\mathit{append}_i~  \\
+     ~~~~~~~~~~~~~~~ [~ t_i \rightarrow ma_1, \dots, ma_k ~\vert~ \\
      ~~~~~~~~~~~~~~~~~~~~~ M = (l,q_M) \in PG^A_i, \\
-     ~~~~~~~~~~~~~~~~~~~~~ in = \{ B ~\vert~ (B,q_N) \in \text{adjIn}(PG^A_i,M) \} \\
-     ~~~~~~~~~~~~~~~~~~~~~ out = \{ C ~\vert~ (C,\_) \in \text{adjOut}(PG^A_i,M) \} \\
-     ~~~~~~~~~~~~~~~~~~~~~ ma_h = ord^A_i(M) : (in,q_N) \rightarrow (out,q_M) \}, \ell,\Gamma,f,G) \} \\
+     ~~~~~~~~~~~~~~~~~~~~~ pin = \text{adjIn}(PG^A_i,M), \\
+     ~~~~~~~~~~~~~~~~~~~~~ (in,q_N) = \{ (BS,q_N) ~\vert~ (\_,q_N) \in pin, BS=\{B ~\vert~ (B,q_N) \in pin \} \} \\
+     ~~~~~~~~~~~~~~~~~~~~~ out = \{ C ~\vert~ (C,\_) \in \text{adjOut}(PG_i,M) \} \\
+     ~~~~~~~~~~~~~~~~~~~~~ ma_j = ord^A_i(m) : (in,q_N) \rightarrow (out,q_M) ~],\ell,\Gamma,f,G) ~] \\
   \end{array} \]%
 
   Apply definition of $con$
 
   \[ \begin{array}{l}
-     ~~~~~ \{ \ell \rightarrow rc ~\vert~ \\
+     ~~~~~ [~ \ell \rightarrow con(rc,\ell,\Gamma,f,G) ~\vert~ \\
      ~~~~~~~~~ \ell \in f^{-1}(l), \\
-     ~~~~~~~~~ l \in internal(V^A), \\
-     ~~~~~~~~~ rc = \bigcup_i~ con(\{ t_i \rightarrow ma_1, \dots, ma_k ~\vert~ \\
+     ~~~~~~~~~ l \in internal(G^A.V), \\
+     ~~~~~~~~~ rc = \mathit{append}_i~  \\
+     ~~~~~~~~~~~~~~~ con([~ t_i \rightarrow ma_1, \dots, ma_k ~\vert~ \\
      ~~~~~~~~~~~~~~~~~~~~~ M = (l,q_M) \in PG^A_i, \\
-     ~~~~~~~~~~~~~~~~~~~~~ in = \{ B ~\vert~ (B,q_N) \in \text{adjIn}(PG^A_i,M) \} \\
+     ~~~~~~~~~~~~~~~~~~~~~ pin = \text{adjIn}(PG^A_i,M), \\
+     ~~~~~~~~~~~~~~~~~~~~~ (in,q_N) = \{ (BS,q_N) ~\vert~ (\_,q_N) \in pin, BS=\{B ~\vert~ (B,q_N) \in pin \} \} \\
      ~~~~~~~~~~~~~~~~~~~~~ out = \{ C ~\vert~ (C,\_) \in \text{adjOut}(PG^A_i,M) \} \\
-     ~~~~~~~~~~~~~~~~~~~~~ ma_h = ord^A_i(M) : (in,q_N) \rightarrow (out,q_M) \}, \ell,\Gamma,f,G) \} \\
+     ~~~~~~~~~~~~~~~~~~~~~ ma_j = ord^A_i(m) : (in,q_N) \rightarrow (out,q_M) ~],\ell,\Gamma,f,G) ~] \\
   \end{array} \]%
 
   \vspace{1em}
-  \textbf{Case 1}: Assume $t_i = pfx$. Look at:
+  \textbf{Case 1}: Assume $t_i = pfx_{i1}$. Look at:
 
   \[ \begin{array}{l}
-     ~~~~~~~~~ con(\{ pfx \rightarrow ma_1, \dots, ma_k ~\vert~ \\
+     ~~~~~~~~~ con([~ \Pfx_{i1} \rightarrow ma_1, \dots, ma_k ~\vert~ \\
      ~~~~~~~~~~~~~~~~~~ M = (l,q_M) \in PG^A_i, \\
-     ~~~~~~~~~~~~~~~~~~ in = \{ B ~\vert~ (B,q_N) \in \text{adjIn}(PG^A_i,M) \} \\
+     ~~~~~~~~~~~~~~~~~~ pin = \text{adjIn}(PG^A_i,M), \\
+     ~~~~~~~~~~~~~~~~~~ (in,q_N) = \{ (BS,q_N) ~\vert~ (\_,q_N) \in pin, BS=\{B ~\vert~ (B,q_N) \in pin \} \} \\
      ~~~~~~~~~~~~~~~~~~ out = \{ C ~\vert~ (C,\_) \in \text{adjOut}(PG^A_i,M) \} \\
-     ~~~~~~~~~~~~~~~~~~ ma_h = ord^A_i(M) : (in,q_N) \rightarrow (out,q_M) \},\ell,\Gamma,f,G) \\
+     ~~~~~~~~~~~~~~~~~~ ma_{q_N} = ord^A_i(M) : (in,q_N) \rightarrow (out,q_M) ~],\ell,\Gamma,f,G) \\
   \end{array} \]%
 
   Apply definition of $con$
 
   \[ \begin{array}{l}
-     ~~~~~~~~~ \{ pfx \rightarrow con(ma_1, \dots, ma_k,\text{true},\ell,\Gamma,f,G) ~\vert~ \\
+     ~~~~~~~~~ [~ \Pfx_{i1} \rightarrow con(ma_1, \dots, ma_k,\text{true},\ell,\Gamma,f,G) ~\vert~ \\
      ~~~~~~~~~~~~~~~~~~ M = (l,q_M) \in PG^A_i, \\
-     ~~~~~~~~~~~~~~~~~~ in = \{ B ~\vert~ (B,q_N) \in \text{adjIn}(PG^A_i,M) \} \\
+     ~~~~~~~~~~~~~~~~~~ pin = \text{adjIn}(PG^A_i,M), \\
+     ~~~~~~~~~~~~~~~~~~ (in,q_N) = \{ (BS,q_N) ~\vert~ (\_,q_N) \in pin, BS=\{B ~\vert~ (B,q_N) \in pin \} \} \\
      ~~~~~~~~~~~~~~~~~~ out = \{ C ~\vert~ (C,\_) \in \text{adjOut}(PG^A_i,M) \} \\
-     ~~~~~~~~~~~~~~~~~~ ma_h = ord^A_i(M) : (in,q_N) \rightarrow (out,q_M) \} \\
+     ~~~~~~~~~~~~~~~~~~ ma_{q_N} = ord^A_i(M) : (in,q_N) \rightarrow (out,q_M) ~] \\
   \end{array} \]%
 
   Apply definition of $con$
 
   \[ \begin{array}{l}
-     ~~~~~~~~~ \{ pfx \rightarrow con(ma_1,\text{true},\ell,\Gamma,f,G), \dots, con(ma_k,\text{true},\ell,\Gamma,f,G) ~\vert~ \\
+     ~~~~~~~~~ [~ \Pfx_{i1} \rightarrow con(ma_1,\text{true},\ell,\Gamma,f,G), \dots, con(ma_k,\text{true},\ell,\Gamma,f,G) ~\vert~ \\
      ~~~~~~~~~~~~~~~~~~ M = (l,q_M) \in PG^A_i, \\
-     ~~~~~~~~~~~~~~~~~~ in = \{ B ~\vert~ (B,q_N) \in \text{adjIn}(PG^A_i,M) \} \\
+     ~~~~~~~~~~~~~~~~~~ pin = \text{adjIn}(PG^A_i,M), \\
+     ~~~~~~~~~~~~~~~~~~ (in,q_N) = \{ (BS,q_N) ~\vert~ (\_,q_N) \in pin, BS=\{B ~\vert~ (B,q_N) \in pin \} \} \\
      ~~~~~~~~~~~~~~~~~~ out = \{ C ~\vert~ (C,\_) \in \text{adjOut}(PG^A_i,M) \} \\
-     ~~~~~~~~~~~~~~~~~~ ma_h = ord^A_i(M) : (in,q_N) \rightarrow (out,q_M) \}) \\
+     ~~~~~~~~~~~~~~~~~~ ma_{q_N} = ord^A_i(M) : (in,q_N) \rightarrow (out,q_M) ~] \\
   \end{array} \]%
 
   Apply definition of $con$
 
   \[ \begin{array}{l}
-     ~~~~~~~~~ \{ pfx \rightarrow ma_1, \dots, ma_k ~\vert~ \\
+     ~~~~~~~~~ [~ \Pfx_{i1} \rightarrow ma_1, \dots, ma_k ~\vert~ \\
      ~~~~~~~~~~~~~~~~~~ M = (l,q_M) \in PG^A_i, \\
-     ~~~~~~~~~~~~~~~~~~ in = \{ B ~\vert~ (B,q_N) \in \text{adjIn}(PG^A_i,M) \} \\
+     ~~~~~~~~~~~~~~~~~~ pin = \text{adjIn}(PG^A_i,M), \\
+     ~~~~~~~~~~~~~~~~~~ (in,q_N) = \{ (BS,q_N) ~\vert~ (\_,q_N) \in pin, BS=\{B ~\vert~ (B,q_N) \in pin \} \} \\
      ~~~~~~~~~~~~~~~~~~ out = \{ C ~\vert~ (C,\_) \in \text{adjOut}(PG^A_i,M) \} \\
-     ~~~~~~~~~~~~~~~~~~ ma_h = con(ord^A_i(M) : (in,q_N) \rightarrow (out,q_M), \text{true},\ell,\Gamma,f,G) \}) \\
+     ~~~~~~~~~~~~~~~~~~ ma_{q_N} = con(ord^A_i(M) : (in,q_N) \rightarrow (out,q_M),\text{true},\ell,\Gamma,f,G) ~] \\
   \end{array} \]%
 
   Apply definition of $con$
 
   \[ \begin{array}{l}
-     ~~~~~~~~~ \{ pfx \rightarrow ma_1, \dots, ma_k ~\vert~ \\
+     ~~~~~~~~~ [~ \Pfx_{i1} \rightarrow ma_1, \dots, ma_k ~\vert~ \\
      ~~~~~~~~~~~~~~~~~~ M = (l,q_M) \in PG^A_i, \\
-     ~~~~~~~~~~~~~~~~~~ in = \{ B ~\vert~ (B,q_N) \in \text{adjIn}(PG^A_i,M) \} \\
+     ~~~~~~~~~~~~~~~~~~ pin = \text{adjIn}(PG^A_i,M), \\
+     ~~~~~~~~~~~~~~~~~~ (in,q_N) = \{ (BS,q_N) ~\vert~ (\_,q_N) \in pin, BS=\{B ~\vert~ (B,q_N) \in pin \} \} \\
      ~~~~~~~~~~~~~~~~~~ out = \{ C ~\vert~ (C,\_) \in \text{adjOut}(PG^A_i,M) \} \\
-     ~~~~~~~~~~~~~~~~~~ ma_h = ord^A_i(M) : (con(in,\ell,\Gamma,f,G),q_N) \rightarrow (con(out,\ell,\Gamma,f,G),q_M) \} \\
+     ~~~~~~~~~~~~~~~~~~ ma_{q_N} = ord^A_i(M) : (con(in,\ell,\Gamma,f,G),q_N) \rightarrow (con(out,\ell,\Gamma,f,G),q_M),\ell,\Gamma,f,G) ~] \\
   \end{array} \]%
 
   Rewrite on $in$ and $out$
 
   \[ \begin{array}{l}
-     ~~~~~~~~~ \{ pfx \rightarrow ma_1, \dots, ma_k ~\vert~ \\
+     ~~~~~~~~~ [~ \Pfx_{i1} \rightarrow ma_1, \dots, ma_k ~\vert~ \\
      ~~~~~~~~~~~~~~~~~~ M = (l,q_M) \in PG^A_i, \\
-     ~~~~~~~~~~~~~~~~~~ in = con(\{ B ~\vert~ (B,q_N) \in \text{adjIn}(PG^A_i,M) \},\ell,\Gamma,f,G) \\
-     ~~~~~~~~~~~~~~~~~~ out = con(\{ C ~\vert~ (C,\_) \in \text{adjOut}(PG^A_i,M) \},\ell,\Gamma,f,G) \\
-     ~~~~~~~~~~~~~~~~~~ ma_h = ord^A_i(M) : (in,q_N) \rightarrow (out,q_M) \} \\
+     ~~~~~~~~~~~~~~~~~~ pin = \text{adjIn}(PG^A_i,M), \\
+     ~~~~~~~~~~~~~~~~~~ (con(in,\ell,\Gamma,f,G),q_N) = \{ (BS,q_N) ~\vert~ (\_,q_N) \in pin, BS=\{B ~\vert~ (B,q_N) \in pin \} \} \\
+     ~~~~~~~~~~~~~~~~~~ out = con(\{ C ~\vert~ (C,\_) \in \text{adjOut}(PG^A_i,M) \},\ell,\Gamma,f,G)) \\
+     ~~~~~~~~~~~~~~~~~~ ma_{q_N} = ord^A_i(M) : (in,q_N) \rightarrow (out,q_M),\ell,\Gamma,f,G) ~] \\
+  \end{array} \]%
+
+  Rewrite $con$ on $in$
+
+  \[ \begin{array}{l}
+     ~~~~~~~~~ [~ \Pfx_{i1} \rightarrow ma_1, \dots, ma_k ~\vert~ \\
+     ~~~~~~~~~~~~~~~~~~ M = (l,q_M) \in PG^A_i, \\
+     ~~~~~~~~~~~~~~~~~~ pin = \text{adjIn}(PG^A_i,M), \\
+     ~~~~~~~~~~~~~~~~~~ (in,q_N) = \{ (BS,q_N) ~\vert~ (\_,q_N) \in pin, BS=con(\{B ~\vert~ (B,q_N) \in pin \},\ell,\Gamma,f,G) \} \\
+     ~~~~~~~~~~~~~~~~~~ out = con(\{ C ~\vert~ (C,\_) \in \text{adjOut}(PG^A_i,M) \},\ell,\Gamma,f,G)) \\
+     ~~~~~~~~~~~~~~~~~~ ma_{q_N} = ord^A_i(M) : (in,q_N) \rightarrow (out,q_M),\ell,\Gamma,f,G) ~] \\
   \end{array} \]%
 
   Apply definition of $con$
 
   \[ \begin{array}{l}
-     ~~~~~~~~~ \{ pfx \rightarrow ma_1, \dots, ma_k ~\vert~ \\
+     ~~~~~~~~~ [~ \Pfx_{i1} \rightarrow ma_1, \dots, ma_k ~\vert~ \\
      ~~~~~~~~~~~~~~~~~~ M = (l,q_M) \in PG^A_i, \\
-     ~~~~~~~~~~~~~~~~~~ in = \bigcup_B~ \{ b \in f^{-1}(B), (b,\ell) \in G.E, (B,q_N) \in \text{adjIn}(PG^A_i,M) \}) \\
-     ~~~~~~~~~~~~~~~~~~ out = \bigcup_C~ \{ c \in f^{-1}(C), (c,\ell) \in G.E, (C,\_) \in \text{adjOut}(PG^A_i,M) \} \\
-     ~~~~~~~~~~~~~~~~~~ ma_h = ord^A_i(M) : (in,q_N) \rightarrow (out,q_M) \} \\
+     ~~~~~~~~~~~~~~~~~~ pin = \text{adjIn}(PG^A_i,M), \\
+     ~~~~~~~~~~~~~~~~~~ (in,q_N) = \{ (BS,q_N) ~\vert~ (\_,q_N) \in pin, BS=\{b ~\vert~ b \in f^{-1}(B),~ (b,\ell) \in G.E,~ (B,q_N) \in pin \} \} \\
+     ~~~~~~~~~~~~~~~~~~ out = \{c~\vert~ c \in f^{-1}(C),~ (c,\ell) \in G.E,~ (C,\_) \in \text{adjOut}(PG^A_i,M) \},\ell,\Gamma,f,G)) \\
+     ~~~~~~~~~~~~~~~~~~ ma_{q_N} = ord^A_i(M) : (in,q_N) \rightarrow (out,q_M),\ell,\Gamma,f,G) ~] \\
   \end{array} \]%
 
   From the relation between concrete ($PG$) and abstract ($PG^A$) product graphs given by the previous lemma
 
   \[ \begin{array}{l}
-     ~~~~~~~~~ \{ pfx \rightarrow ma_1, \dots, ma_k ~\vert~ \\
+     ~~~~~~~~~ [~ \Pfx_{i1} \rightarrow ma_1, \dots, ma_k ~\vert~ \\
      ~~~~~~~~~~~~~~~~~~ m = (l,q_M) \in PG_{i1}, \\
-     ~~~~~~~~~~~~~~~~~~ in = \{ b ~\vert~ (b,q_N) \in \text{adjIn}(PG_{i1},m) \}) \\
+     ~~~~~~~~~~~~~~~~~~ pin = \text{adjIn}(PG_{i1},m), \\
+     ~~~~~~~~~~~~~~~~~~ (in,q_N) = \{ (bs,q_N) ~\vert~ (\_,q_N) \in pin, bs=\{ b ~\vert~ (b,q_N) \in ping \} \}) \\
      ~~~~~~~~~~~~~~~~~~ out = \{ c ~\vert~ (c,\_) \in \text{adjOut}(PG_{i1},m) \} \\
-     ~~~~~~~~~~~~~~~~~~ ma_h = ord^A_i(f_{pg}(m)) : (in,q_N) \rightarrow (out,q_M) \} \\
+     ~~~~~~~~~~~~~~~~~~ ma_{q_N} = ord^A_i(f_{pg}(m)) : (in,q_N) \rightarrow (out,q_M) ~] \\
   \end{array} \]%
 
   Since $ord^A_i(f_{pg}(m)) = ord_{i1}(m)$
 
   \[ \begin{array}{l}
-     ~~~~~~~~~ \{ pfx \rightarrow ma_1, \dots, ma_k ~\vert~ \\
+     ~~~~~~~~~ [~ \Pfx_{i1} \rightarrow ma_1, \dots, ma_k ~\vert~ \\
      ~~~~~~~~~~~~~~~~~~ m = (l,q_M) \in PG_{i1}, \\
-     ~~~~~~~~~~~~~~~~~~ in = \{ b ~\vert~ (b,q_N) \in \text{adjIn}(PG_{i1},m) \}) \\
+     ~~~~~~~~~~~~~~~~~~ pin = \text{adjIn}(PG_{i1},m), \\
+     ~~~~~~~~~~~~~~~~~~ (in,q_N) = \{ (bs,q_N) ~\vert~ (\_,q_N) \in pin, bs=\{ b ~\vert~ (b,q_N) \in ping \} \}) \\
      ~~~~~~~~~~~~~~~~~~ out = \{ c ~\vert~ (c,\_) \in \text{adjOut}(PG_{i1},m) \} \\
-     ~~~~~~~~~~~~~~~~~~ ma_h = ord_{i1}(m) : (in,q_N) \rightarrow (out,q_M) \} \\
+     ~~~~~~~~~~~~~~~~~~ ma_{q_N} = ord_{i1}(m) : (in,q_N) \rightarrow (out,q_M) ~] \\
   \end{array} \]%
 
   Since product graphs have equivalent states
 
   \[ \begin{array}{l}
-     ~~~~~~~~~ \{ pfx \rightarrow ma_1, \dots, ma_k ~\vert~ \\
+     ~~~~~~~~~ [~ \Pfx_{i1} \rightarrow ma_1, \dots, ma_k ~\vert~ \\
      ~~~~~~~~~~~~~~~~~~ m = (l,q_m) \in PG_{i1}, \\
-     ~~~~~~~~~~~~~~~~~~ in = \{ b ~\vert~ (b,q_n) \in \text{adjIn}(PG_{i1},m) \}) \\
+     ~~~~~~~~~~~~~~~~~~ pin = \text{adjIn}(PG_{i1},m), \\
+     ~~~~~~~~~~~~~~~~~~ (in,q_n) = \{ (bs,q_n) ~\vert~ (\_,q_n) \in pin, bs=\{ b ~\vert~ (b,q_n) \in ping \} \}) \\
      ~~~~~~~~~~~~~~~~~~ out = \{ c ~\vert~ (c,\_) \in \text{adjOut}(PG_{i1},m) \} \\
-     ~~~~~~~~~~~~~~~~~~ ma_h = ord_{i1}(m) : (in,q_n) \rightarrow (out,q_m) \} \\
+     ~~~~~~~~~~~~~~~~~~ ma_{q_n} = ord_{i1}(m) : (in,q_n) \rightarrow (out,q_m) ~] \\
   \end{array} \]%
 
   \vspace{1em}
   \textbf{Case 2}: Assume $t_i = \$x$
 
   \[ \begin{array}{l}
-     ~~~~~~~~~ con(\{ \$x \rightarrow ma_1, \dots, ma_k ~\vert~ \\
+     ~~~~~~~~~ con([~ \$x \rightarrow ma_1, \dots, ma_k ~\vert~ \\
      ~~~~~~~~~~~~~~~~~~ M = (l,q_M) \in PG^A_i, \\
-     ~~~~~~~~~~~~~~~~~~ in = \{ B ~\vert~ (B,q_N) \in \text{adjIn}(PG^A_i,M) \} \\
+     ~~~~~~~~~~~~~~~~~~ pin = \text{adjIn}(PG^A_i,M), \\
+     ~~~~~~~~~~~~~~~~~~ (in,q_N) = \{ (BS,q_N) ~\vert~ (\_,q_N) \in pin, BS=\{B ~\vert~ (B,q_N) \in pin \} \} \\
      ~~~~~~~~~~~~~~~~~~ out = \{ C ~\vert~ (C,\_) \in \text{adjOut}(PG^A_i,M) \} \\
-     ~~~~~~~~~~~~~~~~~~ ma_h = ord^A_i(M) : (in,q_N) \rightarrow (out,q_M) \},\ell,\Gamma,f,G) \\
+     ~~~~~~~~~~~~~~~~~~ ma_{q_N} = ord^A_i(M) : (in,q_N) \rightarrow (out,q_M) ~],\ell,\Gamma,f,G) \\
   \end{array} \]%
 
   Apply the definition of $con$
 
   \[ \begin{array}{l}
-     ~~~~~~~~~ \{ pfx_{ij} \rightarrow con(ma_1, \dots, ma_k,l_{ij} = \ell,\ell,\Gamma,f,G) ~\vert~ \\
-     ~~~~~~~~~~~~~~~~~~ (pfx_{ij}, l_{ij}) \in \Gamma(x), \\
+     ~~~~~~~~~ [~ \Pfx_{ij} \rightarrow con(ma_1, \dots, ma_k,\ell,\Gamma,f,G) ~\vert~ \\
+     ~~~~~~~~~~~~~~~~~~ (\Pfx_{ij},l_{ij}) \in \Gamma(x), \\
      ~~~~~~~~~~~~~~~~~~ M = (l,q_M) \in PG^A_i, \\
-     ~~~~~~~~~~~~~~~~~~ in = \{ B ~\vert~ (B,q_N) \in \text{adjIn}(PG^A_i,M) \} \\
+     ~~~~~~~~~~~~~~~~~~ pin = \text{adjIn}(PG^A_i,M), \\
+     ~~~~~~~~~~~~~~~~~~ (in,q_N) = \{ (BS,q_N) ~\vert~ (\_,q_N) \in pin, BS=\{B ~\vert~ (B,q_N) \in pin \} \} \\
      ~~~~~~~~~~~~~~~~~~ out = \{ C ~\vert~ (C,\_) \in \text{adjOut}(PG^A_i,M) \} \\
-     ~~~~~~~~~~~~~~~~~~ ma_h = ord^A_i(M) : (in,q_N) \rightarrow (out,q_M) \} \\
+     ~~~~~~~~~~~~~~~~~~ ma_{q_N} = ord^A_i(M) : (in,q_N) \rightarrow (out,q_M) ~] \\
   \end{array} \]%
 
   Apply definition $con$
 
   \[ \begin{array}{l}
-     ~~~~~~~~~ \{ pfx_{ij} \rightarrow con(ma_1,l_{ij} = \ell,\ell,\Gamma,f,G), \dots, \\ 
-     ~~~~~~~~~~~~~~~~~~~~~~~~~~~ con(ma_k,l_{ij} = \ell,\ell,\Gamma,f,G) ~\vert~ \\
-     ~~~~~~~~~~~~~~~~~~ (pfx_{ij}, l_{ij}) \in \Gamma(x), \\
+     ~~~~~~~~~ [~ \Pfx_{ij} \rightarrow con(ma_1,\ell,\Gamma,f,G), \dots, \\ 
+     ~~~~~~~~~~~~~~~~~~~~~~~~~~ con(ma_k,\ell,\Gamma,f,G) ~\vert~ \\
+     ~~~~~~~~~~~~~~~~~~ (\Pfx_{ij},l_{ij}) \in \Gamma(x), \\
      ~~~~~~~~~~~~~~~~~~ M = (l,q_M) \in PG^A_i, \\
-     ~~~~~~~~~~~~~~~~~~ in = \{ B ~\vert~ (B,q_N) \in \text{adjIn}(PG^A_i,M) \} \\
+     ~~~~~~~~~~~~~~~~~~ pin = \text{adjIn}(PG^A_i,M), \\
+     ~~~~~~~~~~~~~~~~~~ (in,q_N) = \{ (BS,q_N) ~\vert~ (\_,q_N) \in pin, BS=\{B ~\vert~ (B,q_N) \in pin \} \} \\
      ~~~~~~~~~~~~~~~~~~ out = \{ C ~\vert~ (C,\_) \in \text{adjOut}(PG^A_i,M) \} \\
-     ~~~~~~~~~~~~~~~~~~ ma_h = ord^A_i(M) : (in,q_N) \rightarrow (out,q_M) \} \\
+     ~~~~~~~~~~~~~~~~~~ ma_{q_N} = ord^A_i(M) : (in,q_N) \rightarrow (out,q_M) ~] \\
   \end{array} \]%
 
   Rewrite $con$ on $ma_h$.
 
   \[ \begin{array}{l}
-     ~~~~~~~~~ \{ pfx_{ij} \rightarrow ma_1, \dots, ma_k ~\vert~ \\
-     ~~~~~~~~~~~~~~~~~~ (pfx_{ij}, l_{ij}) \in \Gamma(x), \\
+     ~~~~~~~~~ [~ \Pfx_{ij} \rightarrow ma_1, \dots, ma_k ~\vert~ \\ 
+     ~~~~~~~~~~~~~~~~~~ (\Pfx_{ij},l_{ij}) \in \Gamma(x), \\
      ~~~~~~~~~~~~~~~~~~ M = (l,q_M) \in PG^A_i, \\
-     ~~~~~~~~~~~~~~~~~~ in = \{ B ~\vert~ (B,q_N) \in \text{adjIn}(PG^A_i,M) \} \\
+     ~~~~~~~~~~~~~~~~~~ pin = \text{adjIn}(PG^A_i,M), \\
+     ~~~~~~~~~~~~~~~~~~ (in,q_N) = \{ (BS,q_N) ~\vert~ (\_,q_N) \in pin, BS=\{B ~\vert~ (B,q_N) \in pin \} \} \\
      ~~~~~~~~~~~~~~~~~~ out = \{ C ~\vert~ (C,\_) \in \text{adjOut}(PG^A_i,M) \} \\
-     ~~~~~~~~~~~~~~~~~~ ma_h = con(ord^A_i(M) : (in,q_N) \rightarrow (out,q_M),l_{ij} = \ell,\ell,\Gamma,f,G) \} \\
+     ~~~~~~~~~~~~~~~~~~ ma_{q_N} = con(ord^A_i(M) : (in,q_N) \rightarrow (out,q_M),l_{ij},\ell,\Gamma,f,G) ~] \\
   \end{array} \]%
 
   Apply definition of $con$
 
   \[ \begin{array}{l}
-     ~~~~~~~~~ \{ pfx_{ij} \rightarrow ma_1, \dots, ma_k ~\vert~ \\
-     ~~~~~~~~~~~~~~~~~~ (pfx_{ij}, l_{ij}) \in \Gamma(x), \\
+     ~~~~~~~~~ [~ \Pfx_{ij} \rightarrow ma_1, \dots, ma_k ~\vert~ \\ 
+     ~~~~~~~~~~~~~~~~~~ (\Pfx_{ij},l_{ij}) \in \Gamma(x), \\
      ~~~~~~~~~~~~~~~~~~ M = (l,q_M) \in PG^A_i, \\
-     ~~~~~~~~~~~~~~~~~~ in = \{ B ~\vert~ (B,q_N) \in \text{adjIn}(PG^A_i,M) \} \\
+     ~~~~~~~~~~~~~~~~~~ pin = \text{adjIn}(PG^A_i,M), \\
+     ~~~~~~~~~~~~~~~~~~ (in,q_N) = \{ (BS,q_N) ~\vert~ (\_,q_N) \in pin, BS=\{B ~\vert~ (B,q_N) \in pin \} \} \\
      ~~~~~~~~~~~~~~~~~~ out = \{ C ~\vert~ (C,\_) \in \text{adjOut}(PG^A_i,M) \} \\
-     ~~~~~~~~~~~~~~~~~~ ma_h = \textbf{if}~ in=\{ G.s \} \text{ and } l_{ij} \neq \ell ~\textbf{then}~ \bullet \\ 
+     ~~~~~~~~~~~~~~~~~~ ma_{q_N} = \textbf{if}~ in=\{ G.s \} \text{ and } l_{ij} \neq \ell ~\textbf{then}~ \bullet \\ 
      ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ \textbf{else}~ ord^A_i(M) : (con(in,\ell,\Gamma,f,G),q_N) \rightarrow (con(out,\ell,\Gamma,f,G),q_M) \} \\
   \end{array} \]%
 
   \textbf{Observation}: 
-  By filtering the cases where $in = \{ G.s \}$ and $l_{ij} \neq \ell$ we get the same thing as before after applying the definition of $con$, however for each $(pfx_{ij}, l_{ij}) \in \Gamma(x)$.
+  By filtering the cases where $in = \{ \mathit{start} \}$ and $l_{ij} \neq \ell$ we get the same thing as before after applying the definition of $con$ for each $(pfx_{ij}, l_{ij}) \in \Gamma(x)$.
 
  \[ \begin{array}{l}
-     ~~~~~~~~~ \{ pfx_{ij} \rightarrow ma_1, \dots, ma_k ~\vert~ \\
+     ~~~~~~~~~ [~ \Pfx_{ij} \rightarrow ma_1, \dots, ma_k ~\vert~ \\
      ~~~~~~~~~~~~~~~~~~ (pfx_{ij}, l_{ij}) \in \Gamma(x), \\
      ~~~~~~~~~~~~~~~~~~ m = (l,q_m) \in PG_{ij}, \\
-     ~~~~~~~~~~~~~~~~~~ in = \{ b ~\vert~ (b,q_n) \in \text{adjIn}(PG_{ij},m) \}) \\
+     ~~~~~~~~~~~~~~~~~~ pin = \text{adjIn}(PG_{ij},m), \\
+     ~~~~~~~~~~~~~~~~~~ (in,q_n) = \{ (bs,q_n) ~\vert~ (\_,q_n) \in pin, bs=\{ b ~\vert~ (b,q_n) \in ping \} \}) \\
      ~~~~~~~~~~~~~~~~~~ out = \{ c ~\vert~ (c,\_) \in \text{adjOut}(PG_{ij},m) \} \\
-     ~~~~~~~~~~~~~~~~~~ ma_h = ord_{ij}(m) : (in,q_n) \rightarrow (out,q_m) \} \\
+     ~~~~~~~~~~~~~~~~~~ ma_{q_n} = ord_{i1}(m) : (in,q_n) \rightarrow (out,q_m) ~] \\
   \end{array} \]%
 
-  This works because each $PG_{ij}$ was constructed from $con(r_{ijk}) \cap end(l_{ij})$. This means that the only state in $PG_{ij}$ connected to the start node $G.s$ is a node for $l_{ij}$. This was ensured by the fact that the transition function for each regular expression $\sigma_{ijk}(q_0,l) = q$ is defined only for locations $l \in L$ where $L = \{ l_{ij} \}$ from the construction of the automata.
+  This works because each $PG_{ij}$ was constructed from $con(r_{ijk}) \cap end(l_{ij})$. This means that the only state in $PG_{ij}$ connected to the start node ($\mathit{start}$) is a node for $l_{ij}$. This was ensured by the fact that the transition function for each regular expression $\sigma_{ijk}(q_0,l) = q$ is defined only for locations $l \in L$ where $L = \{ l_{ij} \}$ from the construction of the automata.
 
   \vspace{1em}
   \textbf{Merging Cases}:
@@ -1017,54 +1057,60 @@ Unfold definition of compile
   In the first case, we got a result of the form:
 
   \[ \begin{array}{l}
-     ~~~~~~~~~ \{ pfx \rightarrow ma_1, \dots, ma_k ~\vert~ \\
+     ~~~~~~~~~ [~ \Pfx_{i1} \rightarrow ma_1, \dots, ma_k ~\vert~ \\
      ~~~~~~~~~~~~~~~~~~ m = (l,q_m) \in PG_{i1}, \\
-     ~~~~~~~~~~~~~~~~~~ in = \{ b ~\vert~ (b,q_n) \in \text{adjIn}(PG_{i1},m) \}) \\
+     ~~~~~~~~~~~~~~~~~~ pin = \text{adjIn}(PG_{i1},m), \\
+     ~~~~~~~~~~~~~~~~~~ (in,q_n) = \{ (bs,q_n) ~\vert~ (\_,q_n) \in pin, bs=\{ b ~\vert~ (b,q_n) \in ping \} \}) \\
      ~~~~~~~~~~~~~~~~~~ out = \{ c ~\vert~ (c,\_) \in \text{adjOut}(PG_{i1},m) \} \\
-     ~~~~~~~~~~~~~~~~~~ ma_h = ord_{i1}(m) : (in,q_n) \rightarrow (out,q_m) \} \\
+     ~~~~~~~~~~~~~~~~~~ ma_{q_n} = ord_{i1}(m) : (in,q_n) \rightarrow (out,q_m) ~] \\
   \end{array} \]%
 
   In the second case, we got a result of the form:
 
  \[ \begin{array}{l}
-     ~~~~~~~~~ \{ pfx_{ij} \rightarrow ma_1, \dots, ma_k ~\vert~ \\
+     ~~~~~~~~~ [~ \Pfx_{ij} \rightarrow ma_1, \dots, ma_k ~\vert~ \\
      ~~~~~~~~~~~~~~~~~~ (pfx_{ij}, l_{ij}) \in \Gamma(x), \\
      ~~~~~~~~~~~~~~~~~~ m = (l,q_m) \in PG_{ij}, \\
-     ~~~~~~~~~~~~~~~~~~ in = \{ b ~\vert~ (b,q_n) \in \text{adjIn}(PG_{ij},m) \}) \\
+     ~~~~~~~~~~~~~~~~~~ pin = \text{adjIn}(PG_{ij},m), \\
+     ~~~~~~~~~~~~~~~~~~ (in,q_n) = \{ (bs,q_n) ~\vert~ (\_,q_n) \in pin, bs=\{ b ~\vert~ (b,q_n) \in ping \} \}) \\
      ~~~~~~~~~~~~~~~~~~ out = \{ c ~\vert~ (c,\_) \in \text{adjOut}(PG_{ij},m) \} \\
-     ~~~~~~~~~~~~~~~~~~ ma_h = ord_{ij}(m) : (in,q_n) \rightarrow (out,q_m) \} \\
+     ~~~~~~~~~~~~~~~~~~ ma_{q_n} = ord_{ij}(m) : (in,q_n) \rightarrow (out,q_m) ~] \\
   \end{array} \]%
 
   Putting these together, we get the following:
 
   \[ \begin{array}{l}
-     ~~~~~ \{ \ell \rightarrow rc ~\vert~ \\
+     ~~~~~ [~ \ell \rightarrow rc ~\vert~ \\
      ~~~~~~~~~ \ell \in f^{-1}(l), \\
-     ~~~~~~~~~ l \in internal(V^A), \\
-     ~~~~~~~~~ rc = \bigcup_{ij}~ \{ pfx_{ij} \rightarrow ma_1, \dots, ma_k ~\vert~ \\
+     ~~~~~~~~~ l \in internal(G^A.V), \\
+     ~~~~~~~~~ rc = \mathit{append}_{ij}~  \\
+     ~~~~~~~~~~~~~~~ [~ \Pfx_{ij} \rightarrow ma_1, \dots, ma_k ~\vert~ \\
      ~~~~~~~~~~~~~~~~~~~~~ m = (l,q_m) \in PG_{ij}, \\
-     ~~~~~~~~~~~~~~~~~~~~~ in = \{ b ~\vert~ (b,q_n) \in \text{adjIn}(PG_{ij},m) \}) \\
+     ~~~~~~~~~~~~~~~~~~~~~ pin = \text{adjIn}(PG_{ij},m), \\
+     ~~~~~~~~~~~~~~~~~~~~~ (in,q_n) = \{ (bs,q_n) ~\vert~ (\_,q_n) \in pin, bs=\{b ~\vert~ (b,q_n) \in pin \} \} \\
      ~~~~~~~~~~~~~~~~~~~~~ out = \{ c ~\vert~ (c,\_) \in \text{adjOut}(PG_{ij},m) \} \\
-     ~~~~~~~~~~~~~~~~~~~~~ ma_h = ord_{ij}(m) : (in,q_n) \rightarrow (out,q_m) \} \\
+     ~~~~~~~~~~~~~~~~~~~~~ ma_{q_n} = ord_{ij}(m) : (in,q_n) \rightarrow (out,q_m) ~] ~] \\
   \end{array} \]%
 
 
   Finally, we observe that this is equivalent to the following:
 
   \[ \begin{array}{l}
-     ~~~~~ \{ l \rightarrow rc ~\vert~ \\
-     ~~~~~~~~~ l \in internal(V), \\
-     ~~~~~~~~~ rc = \bigcup_{ij}~ con(\{ pfx_{ij} \rightarrow ma_1, \dots, ma_k ~\vert~ \\
+     ~~~~~ [~ l \rightarrow rc ~\vert~ \\
+     ~~~~~~~~~ l \in internal(G.V), \\
+     ~~~~~~~~~ rc = \mathit{append}_{ij}~  \\
+     ~~~~~~~~~~~~~~~ [~ \Pfx_{ij} \rightarrow ma_1, \dots, ma_k ~\vert~ \\
      ~~~~~~~~~~~~~~~~~~~~~ m = (l,q_m) \in PG_{ij}, \\
-     ~~~~~~~~~~~~~~~~~~~~~ in = \{ b ~\vert~ (b,q_n) \in \text{adjIn}(PG_{ij},m) \}) \\
+     ~~~~~~~~~~~~~~~~~~~~~ pin = \text{adjIn}(PG_{ij},m), \\
+     ~~~~~~~~~~~~~~~~~~~~~ (in,q_n) = \{ (bs,q_n) ~\vert~ (\_,q_n) \in pin, bs=\{b ~\vert~ (b,q_n) \in pin \} \} \\
      ~~~~~~~~~~~~~~~~~~~~~ out = \{ c ~\vert~ (c,\_) \in \text{adjOut}(PG_{ij},m) \} \\
-     ~~~~~~~~~~~~~~~~~~~~~ ma_h = ord_{ij}(m) : (in,q_n) \rightarrow (out,q_m) \} \\
+     ~~~~~~~~~~~~~~~~~~~~~ ma_{q_n} = ord_{ij}(m) : (in,q_n) \rightarrow (out,q_m) ~] ~] \\
   \end{array} \]%
 
   This is exactly the definition of compilation for the concretized policy
 
   \[ \begin{array}{l}
-     = \textbf{compile}( (pfx_{11},PG_{11},ord_{11}), \dots, (pfx_{ij},PG_{ij},ord_{ij}) ) \\
+     = \textbf{compile}_\textbf{ABGP}( (pfx_{11},PG_{11},ord_{11}), \dots, (pfx_{ij},PG_{ij},ord_{ij}) ) \\
   \end{array} \]%
 
 
