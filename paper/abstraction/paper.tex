@@ -934,9 +934,9 @@ In this section we present an analysis that operates over the network abstractio
     \node at (#1 + .11, 1.5) {$e_2$};
     \node at (#1 + 2 + .11, .6) {$e_3$};
     \node at (#1 + .11 + .8, 1.5) {$e_4$};
-    \node at (#1 - 1, -.8) {L$(j,k)$};
-    \node at (#1 +. 5, 2.9) {S$(min(j*k,g),1)$};
-    \node at (#1 + 2, -.8) {S$\big( min(j, g *\frac{e_4}{e_3}),1\big)$};
+    \node at (#1 - 1, -.8) {L$_m(j,k)$};
+    \node at (#1 +. 5, 2.9) {S$_n(min(j*k,g),1)$};
+    \node at (#1 + 2, -.8) {S$_o\big( min(j, g *\frac{e_4}{e_3}),1\big)$};
     \node at (#1, 3.3) {};
     \draw [] (#1 + .5, 2.01) circle [radius=0.4] node {$n$};
     \draw [] (#1 - 1, 0) circle [radius=0.4] node {$m$};
@@ -964,10 +964,10 @@ In this section we present an analysis that operates over the network abstractio
 \begin{figure*}[t!]
   \begin{minipage}[t]{\linewidth}%
   \begin{tikzpicture}
-    \inference{0}{L$(j,k)$}{$e_1 > 0$}{S$(min(j*k,e_1),1)$}{I-out1}{$e_1$}{$e_2$}
-    \inference{4.5}{A$(j,k)$}{$e_2 > 0$}{A$(1,min(j,e2))$}{I-out2}{$e_1$}{$e_2$}
-    \inference{9}{L$(j,k)$}{$e_1=n$}{A$(min(j*k,n),1)$}{I-mesh1}{$e_1$}{$e_2$}
-    \inference{13.5}{L$(j,k)$}{$e_1=n$}{A$(1,j)$}{I-mesh2}{$e_1$}{$e_2$}
+    \inference{0}{L$_m(j,k)$}{$e_1 > 0$}{S$_n(min(j*k,e_1),1)$}{I-out1}{$e_1$}{$e_2$}
+    \inference{4.5}{A$_m(j,k)$}{$e_2 > 0$}{A$_n(1,min(j,e2))$}{I-out2}{$e_1$}{$e_2$}
+    \inference{9}{L$_m(j,k)$}{$e_1=n$}{A$_n(min(j*k,n),1)$}{I-mesh1}{$e_1$}{$e_2$}
+    \inference{13.5}{L$_m(j,k)$}{$e_1=n$}{A$_n(1,j)$}{I-mesh2}{$e_1$}{$e_2$}
   \end{tikzpicture}
   \end{minipage}
 
@@ -1052,7 +1052,7 @@ Finally, the \infrule{I-local} and \infrule{I-global} rules allow us to lift eac
 
 \subsection{An inference algorithm}
 
-The abstract disjoint path analysis starts from a fixed source location $src$ and repeatedly applies the inference rules from Figure~\ref{fig:inference-rules} until it reaches a fixed point. Inference rule conditions are checked for validity over all concrete topologies using the Z3 \ryan{cite} SMT solver. In order to ensure termination, we make the observation that, for any fact learned of the form $L(j,k)$, it is sound to instead infer $L(j',k')$ if $j' \leq j$ and $k' \leq k$. Therefore, for each inference rule that learns a fact of the form $L(j,k)$ we minimize the symbolic expressions for $j$ and $k$ subject to the topology constraints using the optimization framework Z3Opt.
+The abstract disjoint path analysis starts from a fixed source location $src$ and repeatedly applies the inference rules from Figure~\ref{fig:inference-rules} until it reaches a fixed point. Inference rule conditions can be checked for validity over all concrete topologies using an SMT solver. In order to ensure termination, we make the observation that, for any fact learned of the form $L(j,k)$, it is sound to instead infer $L(j',k')$ if $j' \leq j$ and $k' \leq k$. Therefore, for each inference rule that learns a fact of the form $L(j,k)$ we minimize the symbolic expressions for $j$ and $k$ subject to the topology constraints using the optimization framework $\nu$Z~\cite{z3opt}.
 
 \begin{figure}
   \begin{center}
@@ -1072,7 +1072,7 @@ Consider again the datacenter example from \S\ref{sec:overview}. Suppose now we 
 %
 Figure~\ref{fig:example-inference} shows the abstract product graph representation for this routing policy. The inference algorithm starts from the node $(TG,0,0)$ with the initial fact $S_P S_{TG}(1,\infty)$ (\IE, no restriction on the number of disjoint paths initially).
 %
-The first step applies the rule \infrule{I-mesh1} together with \infrule{I-local} to reason about connectivity within a single pod for the TG and AG roles. This invokes a call to Z3Opt to minimize the expression $min(\infty, AG)$, which results in 2. Therefore, the algorithm learns a new invariant of the form $S_P A_{AG} (2,1)$ for node $(AG, 0)$ to indicate that in some pod P, any group of 2 nodes is reachable.
+The first step applies the rule \infrule{I-mesh1} together with \infrule{I-local} to reason about connectivity within a single pod for the TG and AG roles. This invokes a call to $\nu$Z to minimize the expression $min(\infty, AG)$, which results in 2. Therefore, the algorithm learns a new invariant of the form $S_P A_{AG} (2,1)$ for node $(AG, 0)$ to indicate that in some pod P, any group of 2 nodes is reachable.
 %
 The next step uses the inference rule \infrule{I-out2} to learn that any single spine node is reachable. It also can apply rule \infrule{I-striping} to determine that there is some group of at least 2 spine routers reachable at node $(S,0)$ and also that there is some group of at least 2 nodes reachable in the AL role in state $(AL,0)$.
 
@@ -1200,35 +1200,6 @@ Figure~\ref{fig:bgp-configs} shows part of the final configuration for spine rou
 For prefix $0.0.0.0/[0..32]$, the spine routers will match advertisements from peer $P1$ and $P2$. The match for $P1$ is preferred since it has a higher BGP local-preference attribute (110). If an advertisement from $P1$ is available the spine uses this and attaches the community tag $(1,0)$ and advertises the route to all its peers. If only an advertisement from the backup $P2$ is available, then it attaches the tag $(0,1)$ and advertises this to all peers instead.
 %
 There is also additional policy for the Product Graphs from constraints for the local and global prefixes. In the template configuration, it matches any global prefix from any internal peer and re-advertise the route to all of its peers. For any local prefix it will allow an advertisement from any internal peer, and re-advertise the route to only other internal peers (thus implementing the Locality constraint). The concrete configurations have a similar configuration for each local and global prefix.
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 
@@ -1434,7 +1405,7 @@ The key insight is that the template variables tell us exactly where change can 
 \section{Implementation}
 \label{sec:implementation}
 
-The \sysname compiler is implemented in approximately 9500 lines of F\# code. The compiler accepts both concrete and abstract topologies and will generate router configurations for open-source Quagga routers. Operators can specify their required fault tolerance level for aggregation safety. The abstract safety analysis uses Z3Opt \ryan{reference} to minimize variables subject to the annotated constraints. Since the analysis typically calls Z3 with many times with relatively simple optimization problems, we use a timeout of 200ms.
+The \sysname compiler is implemented in approximately 9500 lines of F\# code. The compiler accepts both concrete and abstract topologies and will generate router configurations for open-source Quagga routers. Operators can specify their required fault tolerance level for aggregation safety. The abstract safety analysis uses $\nu$Z~\cite{z3opt} test validity and to minimize variables subject to the annotated constraints. Since the analysis typically calls the SMT solver with many times with relatively simple optimization problems, we use a timeout of 200ms.
 
 The compiler performs the following to improve its performance.
 
@@ -1468,16 +1439,16 @@ We apply \sysname on policies for backbone and datacenter networks. We aim to ev
       \begin{tabular}{| l | c | c | c |}
       \hline
       \textbf{Topology} & \textbf{Fixed} & \textbf{Reachable} & \textbf{K-paths} \\ \hline
-      Google Fattree & & \cmark & \cmark  \\ \hline
-      Facebook Fattree & & \cmark & \cmark \\ \hline
-      Microsoft Fattree & & & \\ \hline
-      F10 Fattree & & \cmark & \cmark \\ \hline
-      BCube & $k$ & \cmark & \xmark \\ \hline
-      DCell & $k$ & \cmark & \xmark \\ \hline
+      Fattree~\cite{fattree} & & \cmark & \cmark  \\ \hline
+      Facebook Fattree~\cite{facebook-fattree} & & \cmark & \cmark \\ \hline
+      F10 Fattree~\cite{f10-fattree} & & \cmark & \cmark \\ \hline
+      VL2 Fattree~\cite{vl2-fattree} & & & \\ \hline
+      BCube~\cite{bcube} & $k$ & \cmark & \xmark \\ \hline
+      DCell~\cite{dcell} & $k$ & \cmark & \xmark \\ \hline
          %& HCN & $h$ & \cmark & \xmark \\
-      Butterfly & $n$ & \cmark & \cmark \\ \hline
+      Butterfly~\cite{butterfly} & $n$ & \cmark & \cmark \\ \hline
       Hypercube & $N$ & \cmark & \cmark \\ \hline
-      HyperX & $L$ & \cmark & \cmark \\ \hline
+      HyperX~\cite{hyperx} & $L$ & \cmark & \cmark \\ \hline
       \end{tabular}
   \end{center}
   \caption{Abstract Analysis Precision.}
@@ -1514,15 +1485,15 @@ We evaluate the expressiveness and precision of our abstract analysis on a range
 
 \para{Fat Tree Topologies}
 
-The Fat Tree topology is one of the most widely used datacenter topologies. We look at the precision of our analysis on three variants of the Fat Tree~\cite{foo} topology used in practice: the Google Fat Tree, the Facebook Fat Tree, and the F10 fault tolerant Fat Tree. For each Fat Tree variant, we use a tiered abstraction similar to that in our previous example \ryan{Reference}. Each Fat Tree topology is parameterized over the number of pods $k$, which can be scaled up in the abstraction to allow for expansion. For all Fat Tree variants, the analysis is precise enough to determine the exact number of disjoint paths between all pairs of concrete routers.
+The Fat Tree topology is one of the most widely used datacenter topologies. We look at the precision of our analysis on four variants of the Fat Tree topology used in practice: a Standard Fat Tree~\cite{fattree}, the Facebook Fat Tree~\cite{facebook-fattree}, the F10 fault tolerant Fat Tree~\cite{f10-fattree}, and the VL2 topology~\cite{vl2-fattree}. For each Fat Tree variant, we use a tiered abstraction similar to that in our previous example. Each Fat Tree topology is parameterized over the number of pods $k$, which can be scaled up in the abstraction to allow for expansion. For all Fat Tree variants, the analysis is precise enough to determine the exact number of disjoint paths between all pairs of concrete routers.
 
 \para{Recursive Topologies}
 
-We also model several recursive topologies using our abstractions. These include the BCube and DCell topologies. Each topology includes a recursion depth parameter ($k$), which we must fix. For a recursive topology with depth $d$, we model it as an abstract topology consisting of abstract nodes for each of the depth $d-1$ subcomponents. This allows for safe expansion within a subcomponent, but not from increasing the recursion depth. The analysis is able to accurately determine reachability (i.e., at least 1 disjoint path) for each recursive topology, but is overly conservative in determining k-disjoint paths. For the BCube topology, it is able to to determine the correct number of disjoint paths between some pairs of nodes, but not all.
+We also model several recursive topologies using our abstractions. These include the BCube~\cite{bcube} and Dcell~\cite{dcell} topologies. Each topology includes a recursion depth parameter ($k$), which we must fix. For a recursive topology with depth $d$, we model it as an abstract topology consisting of abstract nodes for each of the depth $d-1$ subcomponents. This allows for safe expansion within a subcomponent, but not from increasing the recursion depth. The analysis is able to accurately determine reachability (i.e., at least 1 disjoint path) for each recursive topology, but is overly conservative in determining k-disjoint paths. For the BCube topology, it is able to to determine the correct number of disjoint paths between some pairs of nodes, but not all.
 
 \para{Hypercube Topologies}
 
-Hypercube variants can be used as an alternative to Clos-style topologies for networks with high-radix (port density) routers. The HyperX topology can be viewed as a generalization of the hypercube, which includes parameters $L$ for the lattice dimension of the network, $S_i$ for the node multiplicity of each dimension $i$, $K_i$ for the bandwidth of links for each dimension, and $T$ for the number of terminal nodes (servers) connected to each router. For a fixed number of dimensions $L$, we abstract each full mesh of $S_L$ nodes into its own abstract node. The $S_{x-1}$ groups of abstract nodes can be captured using pods of the abstract $S_x$ nodes.
+Hypercube variants can be used as an alternative to Clos-style topologies for networks with high-radix (port density) routers. The HyperX~\cite{hyperx} topology can be viewed as a generalization of the hypercube and butterfly topologies, which includes parameters $L$ for the lattice dimension of the network, $S_i$ for the node multiplicity of each dimension $i$, $K_i$ for the bandwidth of links for each dimension, and $T$ for the number of terminal nodes (servers) connected to each router. For a fixed number of dimensions $L$, we abstract each full mesh of $S_L$ nodes into its own abstract node. The $S_{x-1}$ groups of abstract nodes can be captured using pods of the abstract $S_x$ nodes.
 
 %\para{Random Network Topologies}
 %
