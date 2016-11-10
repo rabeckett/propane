@@ -1,4 +1,4 @@
-\documentclass{sig-alternate-10pt}
+\documentclass[numbers, 10pt, preprint]{sigplanconf}
 %\documentclass[10pt]{sigalternate052015}
 
 \usepackage{amsmath}
@@ -103,38 +103,51 @@
 \setlength{\pdfpageheight}{\paperheight}
 \setlength{\pdfpagewidth}{\paperwidth}
 
+\conferenceinfo{CONF 'yy}{Month d--d, 20yy, City, ST, Country}
+\copyrightyear{20yy}
+\copyrightdata{978-1-nnnn-nnnn-n/yy/mm}
+\copyrightdoi{nnnnnnn.nnnnnnn}
+
+\titlebanner{DRAFT -- do not distribute}        % These are ignored unless
+\preprintfooter{submission for PLDI 2017}   % 'preprint' option specified.
+
 \title{Network Configuration Synthesis with Abstract Topologies}
 
 %\author{Paper \#324, 14 pages}
 
+%\authorinfo{Ryan Beckett \and David Walker}{Princeton}{}
+%\authorinfo{Ratul Mahajan \and Jitendra Padhye}{Microsoft}{}
+%\authorinfo{Todd Millstein}{UCLA}{}
 
-\author{%
-Ryan Beckett\\
-  \affaddr{Princeton}
-  %\\
-  %\email{rbeckett@princeton.edu}
-\and
-Ratul Mahajan\\
-  \affaddr{Microsoft}
-  %\\
-  %\email{ratul@microsoft.com}
-\and
-Todd Millstein\\
-  \affaddr{UCLA}
-  %\affaddr{University of California, Los Angeles}
-  %\\
-  %\email{todd@cs.ucla.edu}
-\and
-Jitendra Padhye\\
-  \affaddr{Microsoft}
-  %\\
-  %\email{padhye@microsoft.com}
-\and
-David Walker\\
-  \affaddr{Princeton}
-  %\\
-  %\email{dpw@princeton.edu}
-}
+\authorinfo{}{}{}
+
+%\author{%
+%Ryan Beckett\\
+%  \affaddr{Princeton}
+%  %\\
+%  %\email{rbeckett@princeton.edu}
+%\and
+%Ratul Mahajan\\
+%  \affaddr{Microsoft}
+%  %\\
+%  %\email{ratul@microsoft.com}
+%\and
+%Todd Millstein\\
+%  \affaddr{UCLA}
+%  %\affaddr{University of California, Los Angeles}
+%  %\\
+%  %\email{todd@cs.ucla.edu}
+%\and
+%Jitendra Padhye\\
+%  \affaddr{Microsoft}
+%  %\\
+%  %\email{padhye@microsoft.com}
+%\and
+%David Walker\\
+%  \affaddr{Princeton}
+%  %\\
+%  %\email{dpw@princeton.edu}
+%}
 
 \maketitle
 
@@ -1243,9 +1256,11 @@ There is also additional policy for the Product Graphs from constraints for the 
      abgp &::=& l_1 \rightarrow {rc}_1, ~\dots,~ l_k \rightarrow {rc}_k & \textit{abgp policy} \\
      rc   &::=& t_1 \rightarrow {pc}_1, ~\dots,~ t_k \rightarrow {pc}_k & \textit{router config} \\
      pc   &::=& ma_1, \dots, ma_k & \textit{prefix config} \\
-     ma   &::=& d_1 : ({ns}_1, d_2) \rightarrow ({ns}_2, d_3) & \textit{match action} \\
+     ma   &::=& lp : ({ns}_1, c_1) \rightarrow ({ns}_2, c_2) & \textit{match action} \\
      ns   &::=& \{ l_1, ~\dots,~ l_k \} & \textit{peers} \\
      t    &::=& \$x \BNFALT d.d.d.d/[d..d] & \textit{predicate} \\
+     c    &   & & \textit{community value} \\
+     lp   &   & & \textit{local preference} \\
   \end{array} \]%
 
   \end{minipage}
@@ -1412,41 +1427,20 @@ The key insight is that the template variables tell us exactly where change can 
 %=====================================================
 %
 %
-%  **Implementation**
+%  **Implementation and Evaluation**
 %
 %
 %=====================================================
 
 
-\section{Implementation}
-\label{sec:implementation}
+\section{Implementation and Evaluation}
+\label{sec:evaluation}
 
 The \sysname compiler is implemented in approximately 9500 lines of F\# code. The compiler accepts both concrete and abstract topologies and will generate router configurations for open-source Quagga routers. Operators can specify their required fault tolerance level for aggregation safety. The abstract safety analysis uses $\nu$Z~\cite{z3opt} test validity and to minimize variables subject to the annotated constraints. Since the analysis typically calls the SMT solver with many times with relatively simple optimization problems, we use a timeout of 200ms.
 
-%The compiler performs the following to improve its performance.
-%
-%\para{Z3 memoization}
-
 Although the disjoint path analysis takes place over the Product Graph, each application of the inference rules from figure~\ref{fig:inference-rules} depends only on the topology. Therefore, we lazily apply the rules and cache the satisfiability and minimization calls to $\nu$Z after their first use. Furthermore, the cached results are shared across different prefixes, each of which may have a unique Product graph representation.
 
-%\para{Fast Substitution}
-%
-%Substitution after compiling a policy abstractly can be expensive since each router must substitute all template variables for each of its connected peers. In practice, because many routers often share the same concrete peers, memoizing the substitution function greatly improves performance.
-
-
-%=====================================================
-%
-%
-%  **Evaluation**
-%
-%
-%=====================================================
-
-
-\section{Evaluation}
-\label{sec:evaluation}
-
-We apply \sysname on policies for backbone and datacenter networks. We aim to evaluate the expressiveness of our abstract multiplicity annotations, the precision of the abstract disjoint-path analysis, and the compilation time of \sysname both with abstraction and without.
+To evaluate \sysname, we apply it on policies for backbone and datacenter networks. We aim to evaluate the expressiveness of our abstract multiplicity annotations, the precision of the abstract disjoint-path analysis, and the compilation time of \sysname both with abstraction and without.
 
 \subsection{Analysis precision}
 
@@ -1650,7 +1644,8 @@ Figure~\ref{fig:abstract-breakdown} shows the relative time taken by each phase 
 
 \balance
 
-\bibliographystyle{abbrv}
+
+\bibliographystyle{abbrvnat}
 \bibliography{references}
 
 
