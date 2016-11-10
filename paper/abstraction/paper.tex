@@ -836,6 +836,7 @@ If we have a graph homomorphism $f : G \rightarrow G^A$, concrete product graph 
 \begin{figure*}[t!]
   \begin{minipage}[t]{.4\linewidth}
   \hdr{Policy Automata}{}
+  \vspace{1em}
     \begin{tikzpicture}[>=stealth',shorten >=1pt,auto,node distance=2cm,minimum size=.5cm]
       \state{0}{$0$}{              }{}
       \state{1}{$1$}{right of=0}{accepting}
@@ -859,11 +860,13 @@ If we have a graph homomorphism $f : G \rightarrow G^A$, concrete product graph 
   %
   \begin{minipage}[t]{.3\linewidth}
     \hdr{Concrete Topology}{}
+    \vspace{1em}
     \includegraphics[width=.7\columnwidth]{figures/topology-con}
   \end{minipage}%
   %
   \begin{minipage}[t]{.3\linewidth}
     \hdr{Abstract Topology}{}
+    \vspace{1em}
     \includegraphics[width=.57\columnwidth]{figures/topology-abs}
   \end{minipage}%
 
@@ -874,7 +877,7 @@ If we have a graph homomorphism $f : G \rightarrow G^A$, concrete product graph 
   \end{minipage}%
   \begin{minipage}[t]{.4\linewidth}
   \hdr{Abstract Product Graph}{}
-    \includegraphics[width=.9\columnwidth]{figures/pg-abs}
+    \includegraphics[width=.88\columnwidth]{figures/pg-abs}
 
   \end{minipage}%
 
@@ -1407,15 +1410,15 @@ The key insight is that the template variables tell us exactly where change can 
 
 The \sysname compiler is implemented in approximately 9500 lines of F\# code. The compiler accepts both concrete and abstract topologies and will generate router configurations for open-source Quagga routers. Operators can specify their required fault tolerance level for aggregation safety. The abstract safety analysis uses $\nu$Z~\cite{z3opt} test validity and to minimize variables subject to the annotated constraints. Since the analysis typically calls the SMT solver with many times with relatively simple optimization problems, we use a timeout of 200ms.
 
-The compiler performs the following to improve its performance.
+%The compiler performs the following to improve its performance.
+%
+%\para{Z3 memoization}
 
-\para{Z3 memoization}
+Although the disjoint path analysis takes place over the Product Graph, each application of the inference rules from figure~\ref{fig:inference-rules} depends only on the topology. Therefore, we lazily apply the rules and cache the satisfiability and minimization calls to $\nu$Z after their first use. Furthermore, the cached results are shared across different prefixes, each of which may have a unique Product graph representation. 
 
-Although the k-disjoint path analysis takes place over the Product Graph representation, which may differ from the topology (e.g., for non-shortest paths routing), each application of the inference rules from figure~\ref{fig:abstract-analysis} depends only on the topology. Therefore, we lazily apply the rules and cache the satisfiability and minimization calls to Z3 after their first use. Doing this significantly speeds up the failure safety analysis. Furthermore, the cached results can be shared across different prefixes, each of which may have a unique Product graph representation. In practice, this means that after performing the abstract analysis for one prefix, the analysis becomes essentially "free" for any subsequent prefixes.
-
-\para{Fast Substitution}
-
-Substitution after compiling a policy abstractly can be expensive since each router must substitute all template variables for each of its connected peers. In practice, because many routers often share the same concrete peers, memoizing the substitution function greatly improves performance.
+%\para{Fast Substitution}
+%
+%Substitution after compiling a policy abstractly can be expensive since each router must substitute all template variables for each of its connected peers. In practice, because many routers often share the same concrete peers, memoizing the substitution function greatly improves performance.
 
 
 %=====================================================
@@ -1440,9 +1443,9 @@ We apply \sysname on policies for backbone and datacenter networks. We aim to ev
       \hline
       \textbf{Topology} & \textbf{Fixed} & \textbf{Reachable} & \textbf{K-paths} \\ \hline
       Fattree~\cite{fattree} & & \cmark & \cmark  \\ \hline
-      Facebook Fattree~\cite{facebook-fattree} & & \cmark & \cmark \\ \hline
-      F10 Fattree~\cite{f10-fattree} & & \cmark & \cmark \\ \hline
-      VL2 Fattree~\cite{vl2-fattree} & & & \\ \hline
+      Facebook~\cite{facebook-fattree} & & \cmark & \cmark \\ \hline
+      F10~\cite{f10-fattree} & & \cmark & \cmark \\ \hline
+      VL2~\cite{vl2-fattree} & & & \\ \hline
       BCube~\cite{bcube} & $k$ & \cmark & \xmark \\ \hline
       DCell~\cite{dcell} & $k$ & \cmark & \xmark \\ \hline
          %& HCN & $h$ & \cmark & \xmark \\
