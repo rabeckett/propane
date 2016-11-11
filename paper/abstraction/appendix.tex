@@ -224,7 +224,7 @@ The full \sysname syntax as well as expansions from constraints into regular exp
      ~~~~~~~~~~~~~~~~~~~~~ pin \leftarrow \text{adjIn}(PG_i,m), \\
      ~~~~~~~~~~~~~~~~~~~~~ (in,q_n) \leftarrow \{ (bs,q_n) ~\vert~ (\_,q_n) \in pin, bs=\{b ~\vert~ (b,q_n) \in pin \} \}, \\
      ~~~~~~~~~~~~~~~~~~~~~ out \leftarrow \{ c ~\vert~ (c,\_) \in \text{adjOut}(PG_i,m) \}, \\
-     ~~~~~~~~~~~~~~~~~~~~~ out \neq \emptyset, \\
+     ~~~~~~~~~~~~~~~~~~~~~ in \neq \emptyset, \\
      ~~~~~~~~~~~~~~~~~~~~~ ma_h = ord_i(m) : (in,q_n) \rightarrow (out,q_m) ~] ~] \\
      \\
      \text{compile}( p_1, \dots, p_k, G) = \\
@@ -682,22 +682,24 @@ By induction on the structure of $r$
 
   \[ \begin{array}{l}
      ~~~~~~~~~ [~ pfx \rightarrow ma_1, \dots, ma_k ~\vert~ \\
-     ~~~~~~~~~~~~~~~~~~ M = (l,q_M) \in PG^A, \\
-     ~~~~~~~~~~~~~~~~~~ I = \mathit{adjIn}(PG^A,M), \\
-     ~~~~~~~~~~~~~~~~~~ (in,q_N) \in \{(BS,q_N) ~\vert~ (\_,q_N) \in I, BS=\{b ~\vert~ b \in f^{-1}(B),~ (b,\ell) \in G.E,~ (B,q_N) \in I \} \}) \\
-     ~~~~~~~~~~~~~~~~~~ out = \{ c ~\vert~ c \in f^{-1}(C), (c,\ell) \in G.E, (C,\_) \in \mathit{adjOut}(PG^A,M) \} \\
-     ~~~~~~~~~~~~~~~~~~ ma_{q_N} = ord^A(M) : (in,q_N) \rightarrow (out,q_M) ~] \\
+     ~~~~~~~~~~~~~~~~~~ M \leftarrow (l,q_M) \in PG^A, \\
+     ~~~~~~~~~~~~~~~~~~ pin = \mathit{adjIn}(PG^A,M), \\
+     ~~~~~~~~~~~~~~~~~~ (in,q_N) \in \{(BS,q_N) ~\vert~ (\_,q_N) \in pin, BS=\{b ~\vert~ b \in f^{-1}(B),~ (b,\ell) \in G.E,~ (B,q_N) \in pin \} \}), \\
+     ~~~~~~~~~~~~~~~~~~ out \leftarrow \{ c ~\vert~ c \in f^{-1}(C), (c,\ell) \in G.E, (C,\_) \in \mathit{adjOut}(PG^A,M) \}, \\
+     ~~~~~~~~~~~~~~~~~~ in \neq \emptyset, \\
+     ~~~~~~~~~~~~~~~~~~ ma_h = ord^A(M) : (in,q_N) \rightarrow (out,q_M) ~] \\
   \end{array} \]%
 
   Is equivalent to
 
   \[ \begin{array}{l}
      ~~~~~~~~~ [~ pfx \rightarrow ma_1, \dots, ma_k ~\vert~ \\
-     ~~~~~~~~~~~~~~~~~~ m = (l,q_M) \in PG, \\
-     ~~~~~~~~~~~~~~~~~~ I = \text{adjIn}(PG,m), \\
-     ~~~~~~~~~~~~~~~~~~ (in,q_N) = \{ (bs,q_N) ~\vert~ (\_,q_N) \in I, bs=\{ b ~\vert~ (b,q_N) \in I\} \}) \\
-     ~~~~~~~~~~~~~~~~~~ out = \{ c ~\vert~ (c,\_) \in \mathit{adjOut}(PG,m) \} \\
-     ~~~~~~~~~~~~~~~~~~ ma_{q_N} = ord^A(f_{pg}(m)) : (in,q_N) \rightarrow (out,q_M) ~] \\
+     ~~~~~~~~~~~~~~~~~~ m \leftarrow (l,q_M) \in PG, \\
+     ~~~~~~~~~~~~~~~~~~ pin \leftarrow \text{adjIn}(PG,m), \\
+     ~~~~~~~~~~~~~~~~~~ (in,q_N) \leftarrow \{ (bs,q_N) ~\vert~ (\_,q_N) \in I, bs=\{ b ~\vert~ (b,q_N) \in pin\} \}), \\
+     ~~~~~~~~~~~~~~~~~~ out \leftarrow \{ c ~\vert~ (c,\_) \in \mathit{adjOut}(PG,m) \}, \\
+     ~~~~~~~~~~~~~~~~~~ in \neq \emptyset, \\
+     ~~~~~~~~~~~~~~~~~~ ma_h = ord^A(f_{pg}(m)) : (in,q_N) \rightarrow (out,q_M) ~] \\
   \end{array} \]%
 
   \begin{proof}
@@ -706,22 +708,19 @@ By induction on the structure of $r$
     $$\{b ~\vert~ b \in f^{-1}(B),~ (b,\ell) \in G.E,~ (B,q_N) \in \text{adjIn}(PG^A,f_{pg}(m)) \}$$
     is equivalent to
     $$\{ b ~\vert~ (b,q_N) \in \text{adjIn}(PG,m)\}$$
-    This also holds for the case with adjOut. Further, note that because we are looking at a particular location $l$, there can only be at most one such $m = (l,q_N)$ such that $f_{pg}(m) = M = (f(l), q_N)$. If there is no such $m$ where $f_{pg}(m) = M$, then the above expression will produce the empty set after filtering with the topology. Going over each $M$ then is equivalent to going over each $m$ so long as we throw away imports $\mathit{out}$ that are empty.
+    This also holds for the case with adjOut. Further, note that because we are looking at a particular location $l$, there can only be at most one such $m = (l,q_N)$ such that $f_{pg}(m) = M = (f(l), q_N)$. If there is no such $m$ where $f_{pg}(m) = M$, then the above expression will produce the empty set after filtering with the topology. Going over each $M$ then is equivalent to going over each $m$ so long as we throw away imports $\mathit{in}$ that are empty.
 
   \end{proof}
 
-\ryan{Update me}
 
 \end{lem}
 
 
-\vspace{2em}
 \begin{thm}
   For any context $\Gamma$, concrete topology $G$, abstract topology $G^A$, homomorphism $f : G \rightarrow G^A$:
 
   $$con(compile(pol,G^A),\Gamma,f,G) = compile(con(pol,\Gamma,f),G)$$
 
-  \vspace{1em}
   \begin{proof} \text{ }
 
     Suppose that $pol = p_1, \dots, p_n$. Each $p_i$ has the form $(t_i ~\Path~ r_{i1} ~\Prefer~,\dots, ~\Prefer~ r_{ik})$. Then by evaulating:
@@ -811,7 +810,7 @@ Unfold definition of $\text{compile}_\text{ABGP}$
      ~~~~~~~~~~~~~~~~~~~~~ pin \leftarrow \text{adjIn}(PG^A_i,M), \\
      ~~~~~~~~~~~~~~~~~~~~~ (in,q_n) \leftarrow \{ (BS,q_N) ~\vert~ (\_,q_N) \in pin, BS=\{B ~\vert~ (B,q_N) \in pin \} \}, \\
      ~~~~~~~~~~~~~~~~~~~~~ out \leftarrow \{ C ~\vert~ (C,\_) \in \text{adjOut}(PG^A_i,M) \}, \\
-     ~~~~~~~~~~~~~~~~~~~~~ out \neq \emptyset, \\
+     ~~~~~~~~~~~~~~~~~~~~~ in \neq \emptyset, \\
      ~~~~~~~~~~~~~~~~~~~~~ ma_h = ord^A_i(M) : (in,q_N) \rightarrow (out,q_M) ~] ~], \Gamma,f,G) \\
   \end{array} \]%
 
@@ -827,7 +826,7 @@ Unfold definition of $\text{compile}_\text{ABGP}$
      ~~~~~~~~~~~~~~~~~~~~~ pin \leftarrow \text{adjIn}(PG^A_i,M), \\
      ~~~~~~~~~~~~~~~~~~~~~ (in,q_N) \leftarrow \{ (bs,q_N) ~\vert~ (\_,q_N) \in pin, BS=\{B ~\vert~ (B,q_n) \in pin \} \}, \\
      ~~~~~~~~~~~~~~~~~~~~~ out \leftarrow \{ C ~\vert~ (C,\_) \in \text{adjOut}(PG_i,M) \}, \\
-     ~~~~~~~~~~~~~~~~~~~~~ out \neq \emptyset, \\
+     ~~~~~~~~~~~~~~~~~~~~~ in \neq \emptyset, \\
      ~~~~~~~~~~~~~~~~~~~~~ ma_h = ord^A_i(M) : (in,q_N) \rightarrow (out,q_M) ~] ~] \\
   \end{array} \]%
 
@@ -843,7 +842,7 @@ Unfold definition of $\text{compile}_\text{ABGP}$
      ~~~~~~~~~~~~~~~~~~~~~ pin \leftarrow \text{adjIn}(PG^A_i,M), \\
      ~~~~~~~~~~~~~~~~~~~~~ (in,q_N) \leftarrow \{ (BS,q_N) ~\vert~ (\_,q_N) \in pin, BS=\{B ~\vert~ (B,q_N) \in pin \} \}, \\
      ~~~~~~~~~~~~~~~~~~~~~ out \leftarrow \{ C ~\vert~ (C,\_) \in \text{adjOut}(PG_i,M) \}, \\
-     ~~~~~~~~~~~~~~~~~~~~~ out \neq \emptyset, \\
+     ~~~~~~~~~~~~~~~~~~~~~ in \neq \emptyset, \\
      ~~~~~~~~~~~~~~~~~~~~~ ma_h = ord^A_i(m) : (in,q_N) \rightarrow (out,q_M) ~],\ell,\Gamma,f,G) ~] \\
   \end{array} \]%
 
@@ -859,7 +858,7 @@ Unfold definition of $\text{compile}_\text{ABGP}$
      ~~~~~~~~~~~~~~~~~~~~~ pin \leftarrow \text{adjIn}(PG^A_i,M), \\
      ~~~~~~~~~~~~~~~~~~~~~ (in,q_N) \leftarrow \{ (BS,q_N) ~\vert~ (\_,q_N) \in pin, BS=\{B ~\vert~ (B,q_N) \in pin \} \}, \\
      ~~~~~~~~~~~~~~~~~~~~~ out \leftarrow \{ C ~\vert~ (C,\_) \in \text{adjOut}(PG^A_i,M) \}, \\
-     ~~~~~~~~~~~~~~~~~~~~~ out \neq \emptyset, \\
+     ~~~~~~~~~~~~~~~~~~~~~ in \neq \emptyset, \\
      ~~~~~~~~~~~~~~~~~~~~~ ma_h = ord^A_i(m) : (in,q_N) \rightarrow (out,q_M) ~],\ell,\Gamma,f,G) ~] \\
   \end{array} \]%
 
@@ -872,7 +871,7 @@ Unfold definition of $\text{compile}_\text{ABGP}$
      ~~~~~~~~~~~~~~~~~~ pin \leftarrow \text{adjIn}(PG^A_i,M), \\
      ~~~~~~~~~~~~~~~~~~ (in,q_N) \leftarrow \{ (BS,q_N) ~\vert~ (\_,q_N) \in pin, BS=\{B ~\vert~ (B,q_N) \in pin \} \}, \\
      ~~~~~~~~~~~~~~~~~~ out \leftarrow \{ C ~\vert~ (C,\_) \in \text{adjOut}(PG^A_i,M) \}, \\
-     ~~~~~~~~~~~~~~~~~~ out \neq \emptyset, \\
+     ~~~~~~~~~~~~~~~~~~ in \neq \emptyset, \\
      ~~~~~~~~~~~~~~~~~~ ma_h = ord^A_i(M) : (in,q_N) \rightarrow (out,q_M) ~],\ell,\Gamma,f,G) \\
   \end{array} \]%
 
@@ -884,7 +883,7 @@ Unfold definition of $\text{compile}_\text{ABGP}$
      ~~~~~~~~~~~~~~~~~~ pin \leftarrow \text{adjIn}(PG^A_i,M), \\
      ~~~~~~~~~~~~~~~~~~ (in,q_N) \leftarrow \{ (BS,q_N) ~\vert~ (\_,q_N) \in pin, BS=\{B ~\vert~ (B,q_N) \in pin \} \}, \\
      ~~~~~~~~~~~~~~~~~~ out \leftarrow \{ C ~\vert~ (C,\_) \in \text{adjOut}(PG^A_i,M) \}, \\
-     ~~~~~~~~~~~~~~~~~~ out \neq \emptyset, \\
+     ~~~~~~~~~~~~~~~~~~ in \neq \emptyset, \\
      ~~~~~~~~~~~~~~~~~~ ma_h = ord^A_i(M) : (in,q_N) \rightarrow (out,q_M) ~] \\
   \end{array} \]%
 
@@ -896,7 +895,7 @@ Unfold definition of $\text{compile}_\text{ABGP}$
      ~~~~~~~~~~~~~~~~~~ pin \leftarrow \text{adjIn}(PG^A_i,M), \\
      ~~~~~~~~~~~~~~~~~~ (in,q_N) \leftarrow \{ (BS,q_N) ~\vert~ (\_,q_N) \in pin, BS=\{B ~\vert~ (B,q_N) \in pin \} \}, \\
      ~~~~~~~~~~~~~~~~~~ out \leftarrow \{ C ~\vert~ (C,\_) \in \text{adjOut}(PG^A_i,M) \}, \\
-     ~~~~~~~~~~~~~~~~~~ out \neq \emptyset, \\
+     ~~~~~~~~~~~~~~~~~~ in \neq \emptyset, \\
      ~~~~~~~~~~~~~~~~~~ ma_h = ord^A_i(M) : (in,q_N) \rightarrow (out,q_M) ~] \\
   \end{array} \]%
 
@@ -908,7 +907,7 @@ Unfold definition of $\text{compile}_\text{ABGP}$
      ~~~~~~~~~~~~~~~~~~ pin \leftarrow \text{adjIn}(PG^A_i,M), \\
      ~~~~~~~~~~~~~~~~~~ (in,q_N) \leftarrow \{ (BS,q_N) ~\vert~ (\_,q_N) \in pin, BS=\{B ~\vert~ (B,q_N) \in pin \} \}, \\
      ~~~~~~~~~~~~~~~~~~ out \leftarrow \{ C ~\vert~ (C,\_) \in \text{adjOut}(PG^A_i,M) \}, \\
-     ~~~~~~~~~~~~~~~~~~ out \neq \emptyset, \\
+     ~~~~~~~~~~~~~~~~~~ in \neq \emptyset, \\
      ~~~~~~~~~~~~~~~~~~ ma_h = con(ord^A_i(M) : (in,q_N) \rightarrow (out,q_M),\text{true},\ell,\Gamma,f,G) ~] \\
   \end{array} \]%
 
@@ -920,7 +919,7 @@ Unfold definition of $\text{compile}_\text{ABGP}$
      ~~~~~~~~~~~~~~~~~~ pin \leftarrow \text{adjIn}(PG^A_i,M), \\
      ~~~~~~~~~~~~~~~~~~ (in,q_N) \leftarrow \{ (BS,q_N) ~\vert~ (\_,q_N) \in pin, BS=\{B ~\vert~ (B,q_N) \in pin \} \}, \\
      ~~~~~~~~~~~~~~~~~~ out \leftarrow \{ C ~\vert~ (C,\_) \in \text{adjOut}(PG^A_i,M) \}, \\
-     ~~~~~~~~~~~~~~~~~~ out \neq \emptyset, \\
+     ~~~~~~~~~~~~~~~~~~ in \neq \emptyset, \\
      ~~~~~~~~~~~~~~~~~~ ma_h = ord^A_i(M) : (con(in,\ell,\Gamma,f,G),q_N) \rightarrow (con(out,\ell,\Gamma,f,G),q_M),\ell,\Gamma,f,G) ~] \\
   \end{array} \]%
 
@@ -932,7 +931,7 @@ Unfold definition of $\text{compile}_\text{ABGP}$
      ~~~~~~~~~~~~~~~~~~ pin \leftarrow \text{adjIn}(PG^A_i,M), \\
      ~~~~~~~~~~~~~~~~~~ (con(in,\ell,\Gamma,f,G),q_N) \leftarrow \{ (BS,q_N) ~\vert~ (\_,q_N) \in pin, BS=\{B ~\vert~ (B,q_N) \in pin \} \}, \\
      ~~~~~~~~~~~~~~~~~~ out \leftarrow con(\{ C ~\vert~ (C,\_) \in \text{adjOut}(PG^A_i,M) \},\ell,\Gamma,f,G)), \\
-     ~~~~~~~~~~~~~~~~~~ out \neq \emptyset, \\
+     ~~~~~~~~~~~~~~~~~~ in \neq \emptyset, \\
      ~~~~~~~~~~~~~~~~~~ ma_h = ord^A_i(M) : (in,q_N) \rightarrow (out,q_M),\ell,\Gamma,f,G) ~] \\
   \end{array} \]%
 
@@ -944,7 +943,7 @@ Unfold definition of $\text{compile}_\text{ABGP}$
      ~~~~~~~~~~~~~~~~~~ pin \leftarrow \text{adjIn}(PG^A_i,M), \\
      ~~~~~~~~~~~~~~~~~~ (in,q_N) \leftarrow \{ (BS,q_N) ~\vert~ (\_,q_N) \in pin, BS=con(\{B ~\vert~ (B,q_N) \in pin \},\ell,\Gamma,f,G) \}, \\
      ~~~~~~~~~~~~~~~~~~ out \leftarrow con(\{ C ~\vert~ (C,\_) \in \text{adjOut}(PG^A_i,M) \},\ell,\Gamma,f,G)), \\
-     ~~~~~~~~~~~~~~~~~~ out \neq \emptyset,
+     ~~~~~~~~~~~~~~~~~~ in \neq \emptyset, \\
      ~~~~~~~~~~~~~~~~~~ ma_h = ord^A_i(M) : (in,q_N) \rightarrow (out,q_M),\ell,\Gamma,f,G) ~] \\
   \end{array} \]%
 
@@ -956,7 +955,7 @@ Unfold definition of $\text{compile}_\text{ABGP}$
      ~~~~~~~~~~~~~~~~~~ pin \leftarrow \text{adjIn}(PG^A_i,M), \\
      ~~~~~~~~~~~~~~~~~~ (in,q_N) \leftarrow \{ (BS,q_N) ~\vert~ (\_,q_N) \in pin, BS=\{b ~\vert~ b \in f^{-1}(B),~ (b,\ell) \in G.E,~ (B,q_N) \in pin \} \}, \\
      ~~~~~~~~~~~~~~~~~~ out \leftarrow \{c~\vert~ c \in f^{-1}(C),~ (c,\ell) \in G.E,~ (C,\_) \in \text{adjOut}(PG^A_i,M) \},\ell,\Gamma,f,G)), \\
-     ~~~~~~~~~~~~~~~~~~ out \neq \emptyset, \\
+     ~~~~~~~~~~~~~~~~~~ in \neq \emptyset, \\
      ~~~~~~~~~~~~~~~~~~ ma_h = ord^A_i(M) : (in,q_N) \rightarrow (out,q_M),\ell,\Gamma,f,G) ~] \\
   \end{array} \]%
 
@@ -968,7 +967,7 @@ Unfold definition of $\text{compile}_\text{ABGP}$
      ~~~~~~~~~~~~~~~~~~ pin \leftarrow \text{adjIn}(PG_{i1},m), \\
      ~~~~~~~~~~~~~~~~~~ (in,q_N) \leftarrow \{ (bs,q_N) ~\vert~ (\_,q_N) \in pin, bs=\{ b ~\vert~ (b,q_N) \in ping \} \}), \\
      ~~~~~~~~~~~~~~~~~~ out \leftarrow \{ c ~\vert~ (c,\_) \in \text{adjOut}(PG_{i1},m) \}, \\
-     ~~~~~~~~~~~~~~~~~~ out \neq \emptyset, \\
+     ~~~~~~~~~~~~~~~~~~ in \neq \emptyset, \\
      ~~~~~~~~~~~~~~~~~~ ma_h = ord^A_i(f_{pg}(m)) : (in,q_N) \rightarrow (out,q_M) ~] \\
   \end{array} \]%
 
@@ -980,7 +979,7 @@ Unfold definition of $\text{compile}_\text{ABGP}$
      ~~~~~~~~~~~~~~~~~~ pin \leftarrow \text{adjIn}(PG_{i1},m), \\
      ~~~~~~~~~~~~~~~~~~ (in,q_N) \leftarrow \{ (bs,q_N) ~\vert~ (\_,q_N) \in pin, bs=\{ b ~\vert~ (b,q_N) \in ping \} \}), \\
      ~~~~~~~~~~~~~~~~~~ out \leftarrow \{ c ~\vert~ (c,\_) \in \text{adjOut}(PG_{i1},m) \}, \\
-     ~~~~~~~~~~~~~~~~~~ out \neq \emptyset, \\
+     ~~~~~~~~~~~~~~~~~~ in \neq \emptyset, \\
      ~~~~~~~~~~~~~~~~~~ ma_h = ord_{i1}(m) : (in,q_N) \rightarrow (out,q_M) ~] \\
   \end{array} \]%
 
@@ -992,7 +991,7 @@ Unfold definition of $\text{compile}_\text{ABGP}$
      ~~~~~~~~~~~~~~~~~~ pin \leftarrow \text{adjIn}(PG_{i1},m), \\
      ~~~~~~~~~~~~~~~~~~ (in,q_n) \leftarrow \{ (bs,q_n) ~\vert~ (\_,q_n) \in pin, bs=\{ b ~\vert~ (b,q_n) \in ping \} \}), \\
      ~~~~~~~~~~~~~~~~~~ out \leftarrow \{ c ~\vert~ (c,\_) \in \text{adjOut}(PG_{i1},m) \}, \\
-     ~~~~~~~~~~~~~~~~~~ out \neq \emptyset, \\
+     ~~~~~~~~~~~~~~~~~~ in \neq \emptyset, \\
      ~~~~~~~~~~~~~~~~~~ ma_h = ord_{i1}(m) : (in,q_n) \rightarrow (out,q_m) ~] \\
   \end{array} \]%
 
@@ -1005,7 +1004,7 @@ Unfold definition of $\text{compile}_\text{ABGP}$
      ~~~~~~~~~~~~~~~~~~ pin \leftarrow \text{adjIn}(PG^A_i,M), \\
      ~~~~~~~~~~~~~~~~~~ (in,q_N) \leftarrow \{ (BS,q_N) ~\vert~ (\_,q_N) \in pin, BS=\{B ~\vert~ (B,q_N) \in pin \} \}, \\
      ~~~~~~~~~~~~~~~~~~ out \leftarrow \{ C ~\vert~ (C,\_) \in \text{adjOut}(PG^A_i,M) \}, \\
-     ~~~~~~~~~~~~~~~~~~ out \neq \emptyset, \\
+     ~~~~~~~~~~~~~~~~~~ in \neq \emptyset, \\
      ~~~~~~~~~~~~~~~~~~ ma_h = ord^A_i(M) : (in,q_N) \rightarrow (out,q_M) ~],\ell,\Gamma,f,G) \\
   \end{array} \]% 
 
@@ -1018,7 +1017,7 @@ Unfold definition of $\text{compile}_\text{ABGP}$
      ~~~~~~~~~~~~~~~~~~ pin \leftarrow \text{adjIn}(PG^A_i,M), \\
      ~~~~~~~~~~~~~~~~~~ (in,q_N) \leftarrow \{ (BS,q_N) ~\vert~ (\_,q_N) \in pin, BS=\{B ~\vert~ (B,q_N) \in pin \} \}, \\
      ~~~~~~~~~~~~~~~~~~ out \leftarrow \{ C ~\vert~ (C,\_) \in \text{adjOut}(PG^A_i,M) \}, \\
-     ~~~~~~~~~~~~~~~~~~ out \neq \emptyset, \\
+     ~~~~~~~~~~~~~~~~~~ in \neq \emptyset, \\
      ~~~~~~~~~~~~~~~~~~ ma_h = ord^A_i(M) : (in,q_N) \rightarrow (out,q_M) ~] \\
   \end{array} \]%
 
@@ -1032,7 +1031,7 @@ Unfold definition of $\text{compile}_\text{ABGP}$
      ~~~~~~~~~~~~~~~~~~ pin \leftarrow \text{adjIn}(PG^A_i,M), \\
      ~~~~~~~~~~~~~~~~~~ (in,q_N) \leftarrow \{ (BS,q_N) ~\vert~ (\_,q_N) \in pin, BS=\{B ~\vert~ (B,q_N) \in pin \} \}, \\
      ~~~~~~~~~~~~~~~~~~ out \leftarrow \{ C ~\vert~ (C,\_) \in \text{adjOut}(PG^A_i,M) \}, \\
-     ~~~~~~~~~~~~~~~~~~ out \neq \emptyset, \\
+     ~~~~~~~~~~~~~~~~~~ in \neq \emptyset, \\
      ~~~~~~~~~~~~~~~~~~ ma_h = ord^A_i(M) : (in,q_N) \rightarrow (out,q_M) ~] \\
   \end{array} \]%
 
@@ -1045,7 +1044,7 @@ Unfold definition of $\text{compile}_\text{ABGP}$
      ~~~~~~~~~~~~~~~~~~ pin \leftarrow \text{adjIn}(PG^A_i,M), \\
      ~~~~~~~~~~~~~~~~~~ (in,q_N) \leftarrow \{ (BS,q_N) ~\vert~ (\_,q_N) \in pin, BS=\{B ~\vert~ (B,q_N) \in pin \} \}, \\
      ~~~~~~~~~~~~~~~~~~ out \leftarrow \{ C ~\vert~ (C,\_) \in \text{adjOut}(PG^A_i,M) \}, \\
-     ~~~~~~~~~~~~~~~~~~ out \neq \emptyset, \\
+     ~~~~~~~~~~~~~~~~~~ in \neq \emptyset, \\
      ~~~~~~~~~~~~~~~~~~ ma_h = con(ord^A_i(M) : (in,q_N) \rightarrow (out,q_M),l_{ij},\ell,\Gamma,f,G) ~] \\
   \end{array} \]%
 
@@ -1058,7 +1057,7 @@ Unfold definition of $\text{compile}_\text{ABGP}$
      ~~~~~~~~~~~~~~~~~~ pin \leftarrow \text{adjIn}(PG^A_i,M), \\
      ~~~~~~~~~~~~~~~~~~ (in,q_N) \leftarrow \{ (BS,q_N) ~\vert~ (\_,q_N) \in pin, BS=\{B ~\vert~ (B,q_N) \in pin \} \}, \\
      ~~~~~~~~~~~~~~~~~~ out \leftarrow \{ C ~\vert~ (C,\_) \in \text{adjOut}(PG^A_i,M) \}, \\
-     ~~~~~~~~~~~~~~~~~~ out \neq \emptyset, \\
+     ~~~~~~~~~~~~~~~~~~ in \neq \emptyset, \\
      ~~~~~~~~~~~~~~~~~~ ma_h = \textbf{if}~ in=\{ G.s \} \text{ and } l_{ij} \neq \ell ~\textbf{then}~ \bullet \\ 
      ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ \textbf{else}~ ord^A_i(M) : (con(in,\ell,\Gamma,f,G),q_N) \rightarrow (con(out,\ell,\Gamma,f,G),q_M) \} \\
   \end{array} \]%
@@ -1073,7 +1072,7 @@ Unfold definition of $\text{compile}_\text{ABGP}$
      ~~~~~~~~~~~~~~~~~~ pin \leftarrow \text{adjIn}(PG_{ij},m), \\
      ~~~~~~~~~~~~~~~~~~ (in,q_n) \leftarrow \{ (bs,q_n) ~\vert~ (\_,q_n) \in pin, bs=\{ b ~\vert~ (b,q_n) \in ping \} \}), \\
      ~~~~~~~~~~~~~~~~~~ out \leftarrow \{ c ~\vert~ (c,\_) \in \text{adjOut}(PG_{ij},m) \}, \\
-     ~~~~~~~~~~~~~~~~~~ out \neq \emptyset, \\
+     ~~~~~~~~~~~~~~~~~~ in \neq \emptyset, \\
      ~~~~~~~~~~~~~~~~~~ ma_h = ord_{i1}(m) : (in,q_n) \rightarrow (out,q_m) ~] \\
   \end{array} \]%
 
@@ -1090,7 +1089,7 @@ Unfold definition of $\text{compile}_\text{ABGP}$
      ~~~~~~~~~~~~~~~~~~ pin \leftarrow \text{adjIn}(PG_{i1},m), \\
      ~~~~~~~~~~~~~~~~~~ (in,q_n) \leftarrow \{ (bs,q_n) ~\vert~ (\_,q_n) \in pin, bs=\{ b ~\vert~ (b,q_n) \in ping \} \}), \\
      ~~~~~~~~~~~~~~~~~~ out \leftarrow \{ c ~\vert~ (c,\_) \in \text{adjOut}(PG_{i1},m) \}, \\
-     ~~~~~~~~~~~~~~~~~~ out \neq \emptyset, \\
+     ~~~~~~~~~~~~~~~~~~ in \neq \emptyset, \\
      ~~~~~~~~~~~~~~~~~~ ma_h = ord_{i1}(m) : (in,q_n) \rightarrow (out,q_m) ~] \\
   \end{array} \]%
 
@@ -1103,7 +1102,7 @@ Unfold definition of $\text{compile}_\text{ABGP}$
      ~~~~~~~~~~~~~~~~~~ pin \leftarrow \text{adjIn}(PG_{ij},m), \\
      ~~~~~~~~~~~~~~~~~~ (in,q_n) \leftarrow \{ (bs,q_n) ~\vert~ (\_,q_n) \in pin, bs=\{ b ~\vert~ (b,q_n) \in ping \} \}), \\
      ~~~~~~~~~~~~~~~~~~ out \leftarrow \{ c ~\vert~ (c,\_) \in \text{adjOut}(PG_{ij},m) \}, \\
-     ~~~~~~~~~~~~~~~~~~ out \neq \emptyset, \\
+     ~~~~~~~~~~~~~~~~~~ in \neq \emptyset, \\
      ~~~~~~~~~~~~~~~~~~ ma_h = ord_{ij}(m) : (in,q_n) \rightarrow (out,q_m) ~] \\
   \end{array} \]%
 
@@ -1119,7 +1118,7 @@ Unfold definition of $\text{compile}_\text{ABGP}$
      ~~~~~~~~~~~~~~~~~~~~~ pin \leftarrow \text{adjIn}(PG_{ij},m), \\
      ~~~~~~~~~~~~~~~~~~~~~ (in,q_n) \leftarrow \{ (bs,q_n) ~\vert~ (\_,q_n) \in pin, bs=\{b ~\vert~ (b,q_n) \in pin \} \}, \\
      ~~~~~~~~~~~~~~~~~~~~~ out \leftarrow \{ c ~\vert~ (c,\_) \in \text{adjOut}(PG_{ij},m) \}, \\
-     ~~~~~~~~~~~~~~~~~~~~~ out \neq \emptyset, \\
+     ~~~~~~~~~~~~~~~~~~~~~ in \neq \emptyset, \\
      ~~~~~~~~~~~~~~~~~~~~~ ma_h = ord_{ij}(m) : (in,q_n) \rightarrow (out,q_m) ~] ~] \\
   \end{array} \]%
 
@@ -1135,7 +1134,7 @@ Unfold definition of $\text{compile}_\text{ABGP}$
      ~~~~~~~~~~~~~~~~~~~~~ pin \leftarrow \text{adjIn}(PG_{ij},m), \\
      ~~~~~~~~~~~~~~~~~~~~~ (in,q_n) \leftarrow \{ (bs,q_n) ~\vert~ (\_,q_n) \in pin, bs=\{b ~\vert~ (b,q_n) \in pin \} \}, \\
      ~~~~~~~~~~~~~~~~~~~~~ out \leftarrow \{ c ~\vert~ (c,\_) \in \text{adjOut}(PG_{ij},m) \}, \\
-     ~~~~~~~~~~~~~~~~~~~~~ out \neq \emptyset, \\
+     ~~~~~~~~~~~~~~~~~~~~~ in \neq \emptyset, \\
      ~~~~~~~~~~~~~~~~~~~~~ ma_h = ord_{ij}(m) : (in,q_n) \rightarrow (out,q_m) ~] ~] \\
   \end{array} \]%
 
