@@ -20,6 +20,7 @@
 \usepackage{balance}
 \usepackage[ampersand]{easylist}
 \usepackage{textcomp}
+\usepackage{enumitem}
 \usepackage{pifont}
 \newcommand{\cmark}{\ding{51}}
 \newcommand{\xmark}{\ding{55}}
@@ -272,9 +273,11 @@ network grows, the number of distinct roles will often stay constant.
 Consequently, the \sysname compiler may be two orders of magnitude
 faster than \propane for large structured networks.
 
-To summarize, the central contributions of this paper are:
-
-\begin{enumerate}
+\vspace{1em}
+\noindent
+\textbf{Contributions}: To summarize, the contributions are:
+%
+\begin{itemize}[noitemsep,nolistsep,label={\large\textbullet}]
 \item Design of new topology abstractions for network programming
 based on graph homomorphisms and connectivity invariants.
 \item Design of two new algorithms for analyzing routing policy over
@@ -287,7 +290,7 @@ evolution.
 \item Implementation and evaluation of a \sysname compiler that generates
 configuration templates and is up to two orders of magnitude faster
 than its closest competitor on large networks.
-\end{enumerate}
+\end{itemize}
 
 
 %% Indeed, over the last several years, many researchers have begun to
@@ -524,89 +527,6 @@ It guarantees that:
 with the abstract topology, only configurations of adjacent devices ever need to be updated.
 
 This section introduces \sysname using the examples in \S\ref{sec:motivation}, and the following sections detail template generation and formally define the correctness guarantees.
-
-%As we have seen, writing correct network configurations is challenging task. Operators must manually decompose network-wide policies into distributed device configurations, reason about all combinations of network failures, and parameterize configurations to allow for change, ideally in a way that is amenable to incremental change. In this section, we give an overview of the \sysname system, which gives operators a principled way to accomplish all of these tasks.
-
-%\subsection{Concrete Methane}%
-
-%Consider again the datacenter from figure~\ref{fig:example}. To configure the datacenter routing
-%policy, we would start by writing the following definition in \sysname:
-%%
-%\begin{code}
-%\Define Routing =
-%    \{P1 \Path \End(T1)
-%     P2 \Path \End(T2)
-%     P3 \Path \End(T3)
-%     P4 \Path \End(T4)
-%     P5 \Path \End(T5)
-%     P6 \Path \End(T6)
-%     P7 \Path \End(T7)
-%     P8 \Path \End(T8)
-%     \True \Path \Exit(Peer1 \Prefer Peer2) \}
-%\end{code}
-%\noindent%%
-
-%This defines a group of constraints for basic routing behavior. The first line states
-%that traffic destined for prefix $P1$ must follow a path that ends up at destination router $T1$.
-%A similar constraint is added for each of the prefixes P[2-8]. The final rule matches all other
-%prefix destinations and allows traffic to follow a path that leaves the datacenter through either
-%of its peers (Peer1 or Peer2) with a preference for leaving through Peer1. The \Prefer symbol indicates
-%that traffic should satisfy the constraint on the left whenever possible, and only resort to the backup (right)
-%when this is not possible due to failures.%
-
-%Next we can add the locality constraint for prefixes P[5-8]. We do this by adding another group of constraints:
-%%
-%\begin{code}
-%\Define Locality =
-%    \{P5 | P6 | P7 | P8 \Path \Always(\In)\}
-%\end{code}
-%\noindent%%
-
-%The Locality constraint applies to any traffic destined for a local prefix and adds
-%the constraint that the traffic must follow a path that matches an internal location
-%(\IE, a router inside the datacenter) at each hop of the path. This prevents traffic
-%from ever entering from or leaving through an external peer.%
-
-%Finally, for all traffic in the datacenter, we will disallow valley routing. This constraint
-%can be captured with the following additions to the policy:
-%%
-%\begin{code}
-%\Define Tor = \{T1,T2,T3,T4,T5,T6,T7,T8\}
-%\Define Agg = \{A1,A2,A3,A4,A5,A6,A7,A8\}
-%\Define Spn = \{S1,S2\}
-%\Define ValleyFree =
-%    \{\True \Path \Novalley(Tor,Agg,Spn)\}
-%\end{code}
-%\noindent%%
-
-%The first three lines define groups of routers. The top of rack (Tor) routers T[1-8], the
-%aggregation routers (Agg) A[1-8], and the spine routers (Spn) S[1-2]. The next line
-%adds a new constraint that applies to all traffic and ensures that traffic never follows a
-%path that forms a valley between any of these three groups (\EG, going from Spn to Agg to Spn again).
-%As we will see in section \ryan{reference}, each of these constraints such as the valley free constraint
-%are really just syntactic sugar for regular expressions over topology locations.%
-
-%The final policy is declared to as the conjunction of each of these constraints:
-%%
-%\begin{code}
-%\Define Main =
-%    Routing &
-%    Locality &
-%    ValleyFree &
-%    \Agg(PG, \In -> \Out)
-%\end{code}
-%\noindent%
-%The last part of the policy declares that we want to perform aggregation for global prefixes
-%by summarizing them into the more general prefix PG at the border of the datacenter
-%(\IE along any edge starting inside our datacenter and ending outside).%
-
-%From this policy, \sysname can synthesize device-level BGP configurations for every router in
-%the network that guarantee correct forwarding behavior under all possible failure combinations.
-%Synthesizing configurations for each device from a network-wide specification both simplifies
-%network configuration by writing policy in one place rather than dozens and simultaneously prevents
-%a large class of errors associated with manual configuration by construction. For example,
-%the compiler ensures configurations are always in sync and prevents the operator from having
-%to manually consider failure scenarios.
 
 
 \subsection{Inputs}
