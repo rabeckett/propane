@@ -534,15 +534,15 @@ When \sysname compiles a policy, it guarantees that the forwarding behavior of t
 
 \subsection{Inputs}
 
-\sysname takes as input the network's abstract topology and its policy. The policy has two components: the routing policy describes how traffic should flow, and the fault-tolerance policy describes how many simultaneous failures the network can withstand without loosing connectivity. 
- 
+\sysname takes as input the network's abstract topology and its policy. The policy has two components: the routing policy describes how traffic should flow, and the fault-tolerance policy describes how many simultaneous failures the network can withstand without loosing connectivity.
+
 \para{Abstract topology}
-Abstract topologies in \sysname capture connectivity invariants of the network that hold both when network is first instantiated and as it evolves. These invariantes are encoded in the form of a graph homomorphism annotated with logical constraints about node and edge multiplicities. 
+Abstract topologies in \sysname capture connectivity invariants of the network that hold both when network is first instantiated and as it evolves. These invariantes are encoded in the form of a graph homomorphism annotated with logical constraints about node and edge multiplicities.
 %
 We designed these abstractions to be able to precisely capture most real network topologies, while being amenable to the fault tolerance analysis and configuration synthesis that is done by our compiler.
 
 %Ideally, we would like to find a suitable topology abstraction that can describe both of the datacenters from figures~\ref{fig:example} and~\ref{fig:example2} as well as any reasonable generalization of these datacenters. \sysname provides several abstraction mechanisms to achieve this goal.
- 
+
 We introduce our topology abstractions using the networks from \S\ref{sec:motivation}. Topology abstractions consist of several components.
 The first is a role-based abstraction that allows an operator to map routers in the concrete network to roles in the abstract network. Figure~\ref{fig:example3} shows an example of an abstraction for both datacenter networks from \S\ref{sec:motivation}. In particular the concrete networks are abstracted into a new topology with 5 different roles: local ToR (TL), global ToR (TG), local aggregator (AL), global aggregator (AG), and spine (S).
 
@@ -558,7 +558,7 @@ More specifically, a network topology is a graph $G$ = ($V, E$), which consists 
 \end{figure}
 
 The role-based abstraction therefore overapproximates the connectivity of the underlying concrete graphs. On its own, this abstraction loses a lot of information about the underlying structure of the concrete network, making it difficult to reason precisely about fault-tolerance.
-%which would hinder a useful analysis of its fault-tolerance. 
+%which would hinder a useful analysis of its fault-tolerance.
 For example, with this abstraction any spine router in a concrete network may or may not be connected to any aggregator router.
 %
 In order to refine the abstraction to capture more precisely the kinds of concrete networks of interest,
@@ -615,7 +615,7 @@ This is written as the following \sysname constraint:
 \end{code}
 \noindent%
 %
-The Local constraint applies to any traffic destined for a local prefix described by the \$LP prefix template variable and adds the constraint that the traffic must follow a path that matches an internal location (\IE, a router inside the datacenter) at each hop of the path. This prevents traffic from ever entering from or leaving through an external peer. 
+The Local constraint applies to any traffic destined for a local prefix described by the \$LP prefix template variable and adds the constraint that the traffic must follow a path that matches an internal location (\IE, a router inside the datacenter) at each hop of the path. This prevents traffic from ever entering from or leaving through an external peer.
 
 It is also common practice to prevent peers (\EG, $\CD{P1}$ and $\CD{P2}$) from communicating by sending data through the datacenter. Such a constraint can be added to \sysname in the following way:
 %
@@ -642,12 +642,12 @@ This tells \sysname to find BGP router configurations that satisfy the conjuncti
 
 %\sysname builds on the Propane network configuration tool, by supporting both synthesis for and reasoning over parameterized classes of topologies and their interactions with user-specified routing policy.
 
-%Although \sysname can ensure correct forwarding behavior independent of the exact concrete topology or failure scenario, it is often useful to be able to ask "what if" questions about other network properties. For example, an operator may require a certain level fault tolerance between between different collections of routers. Such analysis depends, not only on the network topology, but also on the underlying routing policy, both of which \sysname has access to. 
-The \sysname compiler generates templates from the inputs above in three phases. First, it combines the abstract topology and routing policy into a {\em product graph} that compactly captures the flow of routing information over the topology in a policy-compliant manner. The algorithm for this phase builds on the Propane compiler, which was designed for concrete topologies and policy; we show that it can be extended to abstract inputs and that the extensions are correct. 
+%Although \sysname can ensure correct forwarding behavior independent of the exact concrete topology or failure scenario, it is often useful to be able to ask "what if" questions about other network properties. For example, an operator may require a certain level fault tolerance between between different collections of routers. Such analysis depends, not only on the network topology, but also on the underlying routing policy, both of which \sysname has access to.
+The \sysname compiler generates templates from the inputs above in three phases. First, it combines the abstract topology and routing policy into a {\em product graph} that compactly captures the flow of routing information over the topology in a policy-compliant manner. The algorithm for this phase builds on the Propane compiler, which was designed for concrete topologies and policy; we show that it can be extended to abstract inputs and that the extensions are correct.
 
-Second, \sysname evaluates if the fault-tolerance policy can be met, considering the joint impact of the abstract topology and routing policy. Joint analysis is needed, and topology alone is not enough, because connectivity for traffic will suffer even when functional paths exists in the topology if those paths are not allowed by routing policy. It implies that we cannot use standard graph theoretic algorithms here. 
+Second, \sysname evaluates if the fault-tolerance policy can be met, considering the joint impact of the abstract topology and routing policy. Joint analysis is needed, and topology alone is not enough, because connectivity for traffic will suffer even when functional paths exists in the topology if those paths are not allowed by routing policy. It implies that we cannot use standard graph theoretic algorithms here.
 
-Instead, we develop a sound analysis that is based on computing the minimum number of disjoint policy-compliant paths between pairs of nodes over abstract topologies. If this number for a pair of nodes is less than the desired fault-tolerance level, we declare that the policy cannot be met. 
+Instead, we develop a sound analysis that is based on computing the minimum number of disjoint policy-compliant paths between pairs of nodes over abstract topologies. If this number for a pair of nodes is less than the desired fault-tolerance level, we declare that the policy cannot be met.
 
 Suppose we want to compute the number of of disjoint paths between any global ToR and spine router in Figure~\ref{fig:example3} for any concrete topology after applying the routing policy.
 %This can be used as a lightweight verification tool to detect certain classes of configuration bugs. For example, since the network is performing prefix summarization at the border of the datacenter, we might introduce a black hole after enough failures occur to disconnect a tor from a spine router.
@@ -655,7 +655,7 @@ We proceed as follows. For each abstract role in the network, we learn invariant
 %
 If we run the abstract analysis over the abstract network from Figure~\ref{fig:example3} the analysis will learn a fact of the form $A_{S}(1,2)$, which means that any single spine node is reachable via 2 disjoint paths from any initial global tor node \ryan{it will actually be 1, we need to add a constraint on e1}.
 
-Suppose now that the routing policy disallowed paths with valleys (\IE, paths that go down and then up at some point). 
+Suppose now that the routing policy disallowed paths with valleys (\IE, paths that go down and then up at some point).
 %Such a constraint can be added to the routing policy in \sysname:
 %\begin{code}
 %\Define ValleyFree =
@@ -663,7 +663,7 @@ Suppose now that the routing policy disallowed paths with valleys (\IE, paths th
 %\end{code}
 %\noindent%
 %This adds a constraint that applies to all traffic and prevents valleys by defining each level in the datacenter.
-Because our analysis is policy sensitive, if we were to run it again with the same abstract topology but the new routing policy, it would only be able to infer that there is a single disjoint path to any given spine router in the worst case. 
+Because our analysis is policy sensitive, if we were to run it again with the same abstract topology but the new routing policy, it would only be able to infer that there is a single disjoint path to any given spine router in the worst case.
 In fact this is exactly the case for the concrete network from Figure~\ref{fig:example2}.
 
 Finally, if \sysname deems that the fault-tolerance policy can be met, it generates templates for the abstract topology, which can be instantiated into BGP configurations based on the concrete topology. During concretization, we confirm that the concrete topology adheres to the original abstract topology.
@@ -1504,33 +1504,20 @@ Figure~\ref{fig:abstract-breakdown} shows the relative time taken by each phase 
 \section{Related Work}
 \label{sec:related}
 
-\begin{easylist}[itemize]
-& Topologies: DCell, BCube, Fattree, ...
-& Topology Abstraction: Condor
-& Memory Shape Analysis: Sagiv, others
-& Configuration automation
-& Configuration analysis
-& Configuration synthesis
-\end{easylist}
+Our work is related to four threads of prior work.
 
-%Our work draws on four threads of prior work.%
+\para{Network synthesis} Many recent systems focus on allowing operators to specify  their policies at a high level. These can be classified into two classes. The first class targets networks based on SDN (software-defined networking) and directly generates the forwarding rules that tell the switches how to forward packets~\cite{x,y,z}. The second class, and to which our work belongs, targets conventional networks and generates switch configuration, based on which the switches interact and compute forwarding rules~\cite{propane,narain:lisa05,narain+:configassure}. Almost all large networks (old or new) use the conventional paradigm because that scales better~\cite{bgp-in-dc}.
 
-%\para{Topology abstraction}%
+While we borrow much from existing configuration synthesis work, especially Propane~\cite{propane}, our goal is to generate role templates from abstract topologies, rather than switch configurations from concrete topologies. This goal aligns better with operators' mental models and tools and permits network evolution with minimal disruption to existing switches. In the process, develop new abstractions for network topologies, fault-tolerance analysis algorithms for abstract topologies, and assign formal semantics to templates.
 
-%\para{Topology design}%
+\para{Topology design} Network topology design, especially for data centers, is another active research area, with researchers exploring designs with different properties~\cite{x,y,z}.  We do not develop new designs but develop abstractions that can capture these designs (and their evolution) and algorithms that can analyze the fault tolerance of abstract topologies. 
 
-%\para{Configuration automation}
-%Many practitioners use configuration templates~\cite{hatch,thwack}, to ensure certain kinds of consistency across similar devices. In addition, configuration languages such as RPSL~\cite{RFC2622}, Yang~\cite{RFC6020}, and Netconf~\cite{RFC6241} allow operators to express routing policy in a vendor-neutral way.
-%However, all of these solutions remain low-level, for example, requiring operators to specify exact local preferences. Unlike \sysname, there is no guarantee that these low-level configurations satisfy the original, high-level intent.%
+While not the focus of this paper, our tools can enable operators to pick the right design for their networks, more quickly and with stronger guarantees. Today, when picking the design, operators analyze its multiple concrete instantiations because available analysis tools only work with concrete topologies~\cite{condor}. This process is time-consuming and not fool-proof; analyzing large, concrete topologies (with potentially thousands of nodes) takes a lot of time and the analysis does not cover the entire space of topologies that may arise.
 
-%\para{Configuration analysis}
-%The notion that configuring network devices is difficult and error-prone is not new.
-%In the past, researchers have tried to tackle this problem by analyzing existing
-%router configurations~\cite{feamster+:rcc,ipassure,batfish,bagpipe,arc} and reporting errors or inconsistencies when they are detected.
-%Our research is complementary to these analysis
-%efforts.  We hope to eliminate bugs by using higher-level
-%languages and a ``correct-by-construction''
-%methodology. Writing configurations at a high level of abstraction simplifies policy implementation and prevents a whole host of low-level errors.%
+\para{Network verification}
+A complementary approach to reducing configuration errors is by analyzing the forwarding rules or configuration of the network to ensure the absence of (a class of) bugs~\cite{anteater,hsa,feamster+:rcc,ipassure,batfish,bagpipe,arc,era,symmetries}. Our focus, in contrast, is on a correct-by-construction approach. It has the downside that operators must learn to express policies in a new language, but it saves them from the challenging and time-consuming task of configuration generation and provides stronger guarantees on correctness.
+
+\para{Memory shape analysis} \todo{Sagiv, others}
 
 %\para{Configuration synthesis}
 %ConfigAssure~\cite{narain:lisa05,narain+:configassure}
