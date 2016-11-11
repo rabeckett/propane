@@ -239,7 +239,7 @@ costly at best and dangerous at worst.  Keeping these complex systems up and run
 %
 While hardware faults, rodents, power failures and natural disasters all pose problems, studies have consistently shown that human error in network configuration is one of the most error-prone task and the leading cause of network outages~\cite{juniper-study,xx}.
 
-To manage and configure large networks today, instead of considering individual devices, operators classify devices devices into {\em roles}. A role refers to specific functionality and is played by one or more devices. For instance, in a data center, roles may correspond to "top-of-rack," "aggregation," and "spine" switches; and in a backbone network, they may correspond to "core" and "border" routers. While the network may have hundreds or thousands of devices---a scale that is impossible for humans to handle---there tend to be a handful of roles.
+To manage and configure large networks today, instead of considering individual devices, operators classify devices devices into {\em roles}. A role refers to specific functionality and is played by one or more devices. For instance, in a data center, roles may correspond to "top-of-rack," "aggregation," and "spine" routers; and in a backbone network, they may correspond to "core" and "border" routers. While the network may have hundreds or thousands of devices---a scale that is impossible for humans to handle---there tend to be a handful of roles.
 %
 Operators author a configuration {\em template} for each role. Templates are macros that can be instantiated with different concrete values, based on the network topology, to generate a configuration for each device.
 
@@ -257,7 +257,7 @@ there is no guarantee that the systems will generate (syntactically) similar con
 hundreds of device configurations instead of a handful of role configurations. These systems become even more brittle when the network evolves. Any change in network topology requires re-execution of the engine, from scratch, on the changed topology.  The result may be
 a completely different set of configurations.
 
-We present \sysname, a system to generate provably-correct role templates. It allows operators to input \emph{abstract network topologies} in terms of roles and their connectivity. For instance, they may specify roles for ``top-of-rack'' and ``aggregation" switches and specify that every top-of-rack switch connects to at least two aggregation switches (to tolerate the failure of a link to an aggregation switch). Other inputs to \sysname include the routing policy of the network and its fault-tolerance requirements (e.g., the number of link failures to tolerate). For routing policy, we borrow notation from Propane~\cite{propane},  which specifies traffic paths at a high-level of abstraction. But while Propane policies
+We present \sysname, a system to generate provably-correct role templates. It allows operators to input \emph{abstract network topologies} in terms of roles and their connectivity. For instance, they may specify roles for ``top-of-rack'' and ``aggregation" routers and specify that every top-of-rack router connects to at least two aggregation routers (to tolerate the failure of a link to an aggregation router). Other inputs to \sysname include the routing policy of the network and its fault-tolerance requirements (e.g., the number of link failures to tolerate). For routing policy, we borrow notation from Propane~\cite{propane},  which specifies traffic paths at a high-level of abstraction. But while Propane policies
 refer concrete devices, \sysname policies refer to abstract roles.
 
 Based on these inputs, the \sysname compiler generates one template per role. It guarantees that, when the templates are instantiated to configurations for {\em any} concrete topology that complies with the abstract topology, the result network will correctly implement the routing policy and meet the fault-tolerance requirements. We show how fault-tolerance analysis can be done over abstract topology itself using \todo{say something cool about about the inference rules and such}.
@@ -1506,9 +1506,9 @@ Figure~\ref{fig:abstract-breakdown} shows the relative time taken by each phase 
 
 Our work is related to four threads of prior work.
 
-\para{Network synthesis} Many recent systems focus on allowing operators to specify  their policies at a high level. These can be classified into two classes. The first class targets networks based on SDN (software-defined networking) and directly generates the forwarding rules that tell the switches how to forward packets~\cite{x,y,z}. The second class, and to which our work belongs, targets conventional networks and generates switch configuration, based on which the switches interact and compute forwarding rules~\cite{propane,narain:lisa05,narain+:configassure}. Almost all large networks (old or new) use the conventional paradigm because that scales better~\cite{bgp-in-dc}.
+\para{Network synthesis} Many recent systems focus on allowing operators to specify  their policies at a high level. These can be classified into two classes. The first class targets networks based on SDN (software-defined networking) and directly generates the forwarding rules that tell routers how to forward packets~\cite{x,y,z}. The second class, and to which our work belongs, targets conventional networks and generates router configuration, based on which the routers interact and compute forwarding rules~\cite{propane,narain:lisa05,narain+:configassure}. Almost all large networks (old or new) use the conventional paradigm because that scales better~\cite{bgp-in-dc}.
 
-While we borrow much from existing configuration synthesis work, especially Propane~\cite{propane}, our goal is to generate role templates from abstract topologies, rather than switch configurations from concrete topologies. This goal aligns better with operators' mental models and tools and permits network evolution with minimal disruption to existing switches. In the process, develop new abstractions for network topologies, fault-tolerance analysis algorithms for abstract topologies, and assign formal semantics to templates.
+While we borrow much from existing configuration synthesis work, especially Propane~\cite{propane}, our goal is to generate role templates from abstract topologies, rather than router configurations from concrete topologies. This goal aligns better with operators' mental models and tools and permits network evolution with minimal disruption to existing routers. In the process, develop new abstractions for network topologies, fault-tolerance analysis algorithms for abstract topologies, and assign formal semantics to templates.
 
 \para{Topology design} Network topology design, especially for data centers, is another active research area, with researchers exploring designs with different properties~\cite{x,y,z}.  We do not develop new designs but develop abstractions that can capture these designs (and their evolution) and algorithms that can analyze the fault tolerance of abstract topologies. 
 
@@ -1552,11 +1552,7 @@ A complementary approach to reducing configuration errors is by analyzing the fo
 \section{Conclusions}
 \label{sec:conclusions}
 
-
-
-\para{Acknowledgments}
-
-
+To help configure large networks correctly, we develop \sysname, the first system that can generate role templates from high-level specifications of network topology and policy. \sysname is based on new abstractions for capturing network topologies, and their evolution, and algorithms to analyze the combined impact of topology and routing policy on the network's fault tolerance. Our analysis operates entirely in the abstract domain and guarantees correctness for all concrete instantiations of the topology. Experiments with many types of real-world topologies and policies show that our abstractions and analysis are precise and that, for large networks, configuration synthesis is two orders of magnitude faster than systems that operate over concrete topologies.
 
 
 %=====================================================
