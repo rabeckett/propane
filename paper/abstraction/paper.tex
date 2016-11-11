@@ -766,22 +766,23 @@ In this section, we formalize the \sysname language and describe how \sysname tr
   \vspace*{-1\baselineskip}
   %
   \[ \begin{array}{rclr}
-     pol     &::=& p_1, \dots, p_n & \textit{policies} \\
-     p       &::=& t \hspace{.3em} \Path \hspace{.3em} r_1 \Prefer \dots \Prefer r_m & \textit{constraints} \\
-     t       &::=& \$x \BNFALT d.d.d.d/[d..d] \hspace{1.5em} & \textit{template variable} \\
-     r       &::=& l & \textit{location} \\
-         &\BNFALT& \emptyset & \textit{empty set} \\
-         &\BNFALT& \In & \textit{internal loc} \\
-         &\BNFALT& \Out & \textit{external loc} \\
-         &\BNFALT& r_1 \cup r_2 & \textit{union} \\
-         &\BNFALT& r_1 \cap r_2 & \textit{intersection} \\
-         &\BNFALT& r_1 \cdot r_2 & \textit{concatenation} \\
-         &\BNFALT& \NOT r & \textit{path negation} \\
-         &\BNFALT& r^* & \textit{iteration} \\
+     pol     &::=& p_1, \dots, p_n & \textit{policy} \\
+     p       &::=& t \hspace{.3em} \Path \hspace{.3em} r_1 \Prefer \dots \Prefer r_m & \textit{path preferences} \\
+     t       &::=& \$x \BNFALT d.d.d.d/[d..d] \hspace{1.5em} & \textit{predicate} \\
+     r       &::=& l \BNFALT \emptyset \BNFALT \In \BNFALT \Out \BNFALT r_1 \cup r_2 \BNFALT & \textit{regular path} \\
+             &   & r_1 \cap r_2 \BNFALT r_1 \cdot r_2 \BNFALT \NOT r \BNFALT r^* \\
+%         &\BNFALT& \emptyset & \textit{empty set} \\
+%         &\BNFALT& \In & \textit{internal loc} \\
+%         &\BNFALT& \Out & \textit{external loc} \\
+%         &\BNFALT& r_1 \cup r_2 & \textit{union} \\
+%         &\BNFALT& r_1 \cap r_2 & \textit{intersection} \\
+%         &\BNFALT& r_1 \cdot r_2 & \textit{concatenation} \\
+%         &\BNFALT& \NOT r & \textit{path negation} \\
+%         &\BNFALT& r^* & \textit{iteration} \\
   \end{array} \]%
 
   \end{minipage}
-  \vspace{1em}
+  \vspace{-.3em}
   \caption{Simplified \sysname syntax.}
   \label{fig:syntax}
   %\vspace{-1em}
@@ -1095,7 +1096,7 @@ The abstract disjoint path analysis starts from a fixed source location $src$ an
 Consider again the datacenter example from \S\ref{sec:overview}. Suppose now we add the valleyfree constraint that traffic never takes a path with a down-up in it for the routing policy for global prefixes:
 %
 \begin{code}
-\$GP  \Path \End(TG) \ensuremath{\cap} \Novalley(\{TG,TL\},\{AG,AL\},\{S\})
+\$GP \Path \End(TG) \ensuremath{\cap} \Novalley(\{TG,TL\},\{AG,AL\},\{S\})
 \end{code}
 \noindent
 %
