@@ -1066,14 +1066,14 @@ The rule \infrule{I-out2} follows a similar line of reasoning. It says that if a
 The two rules \infrule{I-mesh1} and \infrule{I-mesh2} handle the case where there is a full mesh between the two roles. This happens when the number of outgoing edges from the bottom $e_1$ is equal to the number of nodes on the top $n$. The first case for \infrule{I-mesh1} says that we can find disjoint paths to each node in the top role restricted to the number of disjoint paths we started with. The second case for \infrule{I-mesh2} uses the fact that each node in the top role is connected to each node in the bottom role to infer that there can be $j$ disjoint paths to any single node in the top role.
 
 The rule \infrule{I-striping} is the most complicated case.
-It starts with the fact L$(j,k)$ at role $m$ and can be applied if each edge multiplicity $e_i > 0$ is valid given the constraints. The first inference for role $n$ tries to find the largest reachable group with disjoint paths to each. The idea is similar to the rule \infrule{I-out1}, but is able to use the fact that $e_2 > 0$ to learn more about the structure of the concrete topology. In particular it uses the following inequality, where $g$ represents the size of the group for the role $n$:
+It starts with the fact L$_m(j,k)$ at role $m$ and can be applied if each edge multiplicity $e_i > 0$ is valid given the constraints. The first inference for role $n$ tries to find the largest reachable group with disjoint paths to each. The idea is similar to the rule \infrule{I-out1}, but is able to use the fact that $e_2 > 0$ to learn more about the structure of the concrete topology. In particular it uses the following inequality, where $g$ represents the size of the group for the role $n$:
 %
 \[ \begin{array}{c}
   (m-j)*e_1 \geq (n-g)*e_2
 \end{array} \]
 \noindent
 %
-This captures the fact that the remaining nodes ($m-j$) that are not part of the group in the bottom role, each have $e_1$ outgoing edges and must be able to at least "fill" the incoming edges for the remaining nodes not in the reachable group at the top ($n-g$) with $e_2$ incoming edges each. Solving the inequality gives the lower bound for $g$ used in Figure~\ref{fig:inference-rules}.
+The remaining nodes ($m-j$) that are not part of the reachable group in the bottom role, each have $e_1$ outgoing edges and must be able to at least "fill" the incoming edges for the remaining nodes not in the reachable group at the top ($n-g$) with $e_2$ incoming edges each. Solving the inequality gives the lower bound for $g$ used in Figure~\ref{fig:inference-rules}.
 
 The second part of the rule allows uses a similar idea to reason about the overlap between roles $m$ and $o$ with respect to role $n$. This rule is useful particularly useful for datacenter topologies where routers in one tier of the datacenter often have a particular striping pattern with another tier.
 
@@ -1083,7 +1083,7 @@ Finally, the \infrule{I-local} and \infrule{I-global} rules allow us to lift eac
 
 \subsection{An inference algorithm}
 
-The abstract disjoint path analysis starts from a fixed source location $src$ and repeatedly applies the inference rules from Figure~\ref{fig:inference-rules} until it reaches a fixed point. Inference rule conditions can be checked for validity over all concrete topologies using an SMT solver. In order to ensure termination, we make the observation that, for any fact learned of the form $L(j,k)$, it is sound to instead infer $L(j',k')$ if $j' \leq j$ and $k' \leq k$. Therefore, for each inference rule that learns a fact of the form $L(j,k)$ we minimize the symbolic expressions for $j$ and $k$ subject to the topology constraints using the optimization framework $\nu$Z~\cite{z3opt}.
+The abstract disjoint path analysis starts from a fixed source location $src$ and repeatedly applies the inference rules from Figure~\ref{fig:inference-rules} until it reaches a fixed point. Inference rule conditions are checked for validity over all concrete topologies using an SMT solver. In order to ensure termination, we make the observation that, for any fact learned of the form $L(j,k)$, it is sound to instead infer $L(j',k')$ if $j' \leq j$ and $k' \leq k$. Therefore, for each inference rule that learns a fact of the form $L(j,k)$ we minimize the symbolic expressions for $j$ and $k$ subject to the topology constraints using the optimizing constraint solver $\nu$Z~\cite{z3opt}.
 
 \begin{figure}
   \begin{center}
@@ -1094,24 +1094,26 @@ The abstract disjoint path analysis starts from a fixed source location $src$ an
   \vspace{-1em}
 \end{figure}
 
-Consider again the datacenter example from \S\ref{sec:overview}. Suppose now we add the valleyfree constraint that traffic never takes a path with a down-up in it for the routing policy for global prefixes:
+Recall the policy for global prefixes in the datacenter. 
 %
 \begin{code}
-\$GP \Path \End(TG) \ensuremath{\cap} \Novalley(\{TG,TL\},\{AG,AL\},\{S\})
+\$GP \Path \End(TG) \ensuremath{\cap} 
+       \Novalley(\{TG,TL\},\{AG,AL\},\{S\}) \ensuremath{\cap} 
+       !(\Enter(Peer) & \Exit(Peer))
 \end{code}
 \noindent
 %
-Figure~\ref{fig:example-inference} shows the abstract product graph representation for this routing policy. The inference algorithm starts from the node $(TG,0,0)$ with the initial fact $S_P S_{TG}(1,\infty)$ (\IE, no restriction on the number of disjoint paths initially).
+Figure~\ref{fig:example-inference} shows part of the abstract Product Graph representation for this routing policy. The inference algorithm starts from the node $(TG,0,0)$ with the initial fact $S_P S_{TG}(1,\infty)$ (\IE, no restriction on the number of disjoint paths initially).
 %
 The first step applies the rule \infrule{I-mesh1} together with \infrule{I-local} to reason about connectivity within a single pod for the TG and AG roles. This invokes a call to $\nu$Z to minimize the expression $min(\infty, AG)$, which results in 2. Therefore, the algorithm learns a new invariant of the form $S_P A_{AG} (2,1)$ for node $(AG, 0)$ to indicate that in some pod P, any group of 2 nodes is reachable.
 %
 The next step uses the inference rule \infrule{I-out2} to learn that any single spine node is reachable. It also can apply rule \infrule{I-striping} to determine that there is some group of at least 2 spine routers reachable at node $(S,0)$ and also that there is some group of at least 2 nodes reachable in the AL role in state $(AL,0)$.
 
-Note that, because each inference rule only applies to directed edges in the product graph, the algorithm can not make any inferences about connectivity from the AL role to the S role since there is no directed edge between them. It is this restriction that ensures that the analysis is both topology and policy dependent.
+Note that, because each inference rule only applies to directed edges in the Product Graph, the algorithm can not make any inferences about connectivity from the AL role to the S role since there is no directed edge between them. This restriction ensures that the analysis is policy-sensitive.
 
-The next step is to use \infrule{I-mesh2} together with \infrule{I-local} to infer than any single node in the TL role for any pod P is reachable via at least 2 disjoint paths. This process will continue until a fixed point is reached.
+The next step is to use \infrule{I-mesh2} together with \infrule{I-local} to infer than any single node in the TL role for any pod Q is reachable via at least 2 disjoint paths. This process will continue until a fixed point is reached.
 
-In this case, the algorithm was able to infer that, with the valleyfree routing policy, any node in the spine role has at least 1 disjoint path and any node in the TL node has at least 2 disjoint paths to a router in role TG. Note that, in this case, the analysis is precise. There exists a concrete network, namely the datacenter from Figure~\ref{fig:example2}, where a single failure can disconnect a global tor from a spine router due to the valleyfree constraint. In this case, a bound on the fault tolerance between a tor and spine router can be used to ensure that an aggregation-induced black hole will not occur at the border of the datacenter until a certain number of failures occur.
+In this case, the algorithm was able to infer that any node in the spine role has at least 1 disjoint path and any node in the TL node has at least 2 disjoint paths to a router in role TG. Note that, in this case, the analysis is precise. There exists a concrete network, namely the datacenter from Figure~\ref{fig:example2}, where a single failure can disconnect a global tor from a spine router due to the valleyfree constraint. In this case in particular, the bound on the fault tolerance between a tor and spine router can be used to determine that an aggregation-induced black hole may arise at the border of the datacenter after a single failures in some topologies.
 
 
 %=====================================================
