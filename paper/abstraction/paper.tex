@@ -975,7 +975,7 @@ If we have a graph homomorphism $f : G \rightarrow G^A$, concrete product graph 
 %=====================================================
 
 
-\section{Abstract Analysis}
+\section{Fault-tolerance Analysis}
 \label{sec:analysis}
 
 %In practice, operators would often like to reason about a variety of properties for, not only their current network topology, but also future versions of it.
@@ -1471,7 +1471,7 @@ Full definitions of compilation and concretization, as well as the proof of Theo
 
 Suppose that an operator want to expand the concrete datacenter by adding an additional ToR router to the TG role. Per the network routing policy, the new ToR router will advertise any owned prefixes provided by looking up {\small \$GP} in $\Gamma$. Because the new topology matches the abstraction, the compiled templates will remain the same. However, in the spine router configurations, the match on the global prefix template variable {\small \$GP} must be expanded when concretizing the template to include the new prefixes added by the ToR. Unfortunately, this small change to the topology results in a change to every single spine router configuration.
 
-However, template variables tell us exactly where this kind of change can happen. The only way in which the spine routers depend on anything non-local is in the match on prefix template variables. Instead, we can associate a new unique community tag for template variable {\small \$GP} and then replace each match on {\small \$GP} with a test on the new community tag. The new ToR must now simply attach the new community tag to advertisements for its prefixes so downstream routers can just match the community tag.
+However, template variables tell us exactly where this kind of change can happen. The only way in which the spine routers depend on anything non-local is in the match on prefix template variables. Instead, we can associate a new unique community tag for template variable {\small \$GP} and then replace each match on {\small \$GP} with a test on the new community tag. The new ToR must now simply attach the new community tag to advertisements for its prefixes so downstream routers can just match the community tag. Figure~\ref{fig:bgp-configs} (right) shows the templates after the transformation.
 
 
 
@@ -1487,7 +1487,7 @@ However, template variables tell us exactly where this kind of change can happen
 \section{Implementation}
 \label{sec:implementation}
 
-The \sysname compiler is implemented in approximately 9500 lines of F\# code. The compiler accepts both concrete and abstract topologies and will generate configurations for open-source Quagga routers by default. The abstract analysis uses $\nu$Z~\cite{z3opt} to test validity and to minimize variables subject to the annotated constraints. Since the analysis typically calls the SMT solver many times with relatively simple optimization problems, we use a short timeout of 200ms.
+The \sysname compiler is implemented in approximately 9500 lines of F\# code. The compiler accepts both concrete and abstract topologies and will generate configurations for open-source Quagga routers by default. The fault-tolerance analysis uses $\nu$Z~\cite{z3opt} to test validity and to minimize variables subject to the annotated constraints. Since the analysis typically calls the SMT solver many times with relatively simple optimization problems, we use a short timeout of 200ms.
 
 Although the disjoint path analysis takes place over the Product Graph, each application of the inference rules from figure~\ref{fig:inference-rules} depends only on the topology. Therefore, we lazily apply the rules and cache the satisfiability and minimization calls to $\nu$Z after their first use. Furthermore, the cached results are shared across different prefixes, each of which may have a unique Product graph representation.
 
@@ -1515,7 +1515,7 @@ To evaluate \sysname, we apply it on policies for backbone and datacenter networ
       HyperX~\cite{hyperx} & $L$ & \cmark & \cmark \\ \hline
       \end{tabular}
   \end{center}
-  \caption{Abstract Analysis Precision.}
+  \caption{Fault-tolerance analysis precision.}
   \label{fig:analysis-precision}
 \end{figure}
 
@@ -1545,7 +1545,7 @@ To evaluate \sysname, we apply it on policies for backbone and datacenter networ
 %  \label{fig:analysis-precision}
 %\end{figure}
 
-We evaluate the expressiveness and precision of our abstract analysis on a range of different network topologies found in network literature and in production networks. The analysis is precise if it finds a tight lower-bound on the fault-tolerance (\IE, there is actually a concrete network with that fault tolerance).
+We evaluate the expressiveness and precision of our fault-tolerance analysis on a range of different network topologies found in network literature and in production networks. The analysis is precise if it finds a tight lower-bound on the fault-tolerance (\IE, there is actually a concrete network with that fault tolerance).
 For each topology in Figure~\ref{fig:analysis-precision} we define a suitable abstraction. Since many topologies have tunable parameters (\EG, the recursion depth $k$ for the Dcell topology), we list all such parameters that are fixed for the abstraction. We implement a shortest path routing policy over the topology and record the precision of the analysis in terms of whether or not it is able to accurately prove reachability and/or the correct number of disjoint paths between all pairs of nodes.
 
 \para{Fat Tree Topologies}
@@ -1561,7 +1561,7 @@ We also model several recursive topologies. These include the BCube~\cite{bcube}
 Hypercube variants can be used as an alternative to Clos-style topologies for networks with high-radix (port density) routers. The HyperX~\cite{hyperx} topology can be viewed as a generalization of the hypercube and butterfly topologies, which includes parameters $L$ for the lattice dimension of the network, and $S_i$ for the node multiplicity of each dimension $i$.
 %$K_i$ for the bandwidth of links for each dimension, 
 %and $T$ for the number of terminal nodes (servers) connected to each router. 
-For a fixed number of dimensions $L$, we abstract each full mesh of $S_L$ nodes into its own abstract node. The $S_{x-1}$ groups of abstract nodes can be captured using pods of the abstract $S_x$ nodes. For all hypercube variants, the abstract analysis is precise.
+For a fixed number of dimensions $L$, we abstract each full mesh of $S_L$ nodes into its own abstract node. The $S_{x-1}$ groups of abstract nodes can be captured using pods of the abstract $S_x$ nodes. For all hypercube variants, the fault-tolerance analysis is precise.
 
 %\para{Random Network Topologies}
 %
@@ -1610,9 +1610,9 @@ For the backbone networks, we split the network into two parts: a collection of 
 
 Figure~\ref{fig:compilation-times} shows compilation time for the same policies for both the abstract and concrete versions of the policies described above. All experiments are run on an 8 core, 2.4 GHz Intel i7 processor Mac with 8GB of Ram, and the time taken is the average of 3 runs.
 
-For both the networks, the abstract compilation starts off slightly slower than concrete compilation for small topologies due to the overhead of the abstract analysis for fault-tolerance. However, as the size of the topology increases, abstract compilation becomes orders of magnitude faster than concrete compilation. In all cases for both networks, abstract compilation takes less than 10 seconds to complete.
+For both the networks, the abstract compilation starts off slightly slower than concrete compilation for small topologies due to the overhead of the fault-tolerance analysis. However, as the size of the topology increases, abstract compilation becomes orders of magnitude faster than concrete compilation. In all cases for both networks, abstract compilation takes less than 10 seconds to complete.
 
-Figure~\ref{fig:abstract-breakdown} shows the relative time taken by each phase of abstract compilation. Notably, the abstract analysis takes the majority of the time, however the analysis does not depend on the number of concrete nodes in the network, and thus is largely a fixed cost. In particular, the number of calls to $\nu$Z remains constant the across topology size. The seesaw behavior for the data center networks results from differences in time taken by $\nu$Z to minimize similar constraints with different values.
+Figure~\ref{fig:abstract-breakdown} shows the relative time taken by each phase of abstract compilation. Notably, the fault-tolerance analysis takes the majority of the time, however the analysis does not depend on the number of concrete nodes in the network, and thus is largely a fixed cost. In particular, the number of calls to $\nu$Z remains constant the across topology size. The seesaw behavior for the data center networks results from differences in time taken by $\nu$Z to minimize similar constraints with different values.
 
 
 
