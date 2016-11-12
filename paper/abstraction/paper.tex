@@ -323,9 +323,8 @@ Based on these inputs, the \sysname compiler generates one template per role. It
 guarantees that, when the templates are instantiated to configurations for {\em
 any} concrete topology that complies with the abstract topology, the result
 network will correctly implement the routing policy and meet the fault-tolerance
-requirements. We show how fault-tolerance analysis can be done over abstract
-topology itself using \todo{say something cool about about the inference rules
-and such}.
+requirements. We show how fault-tolerance analysis can be done over the abstract
+topology itself by inferring the worst-case number of edge-disjoint paths in some concrete topology using an optimizing SMT solver.
 
 \sysname templates are also evolution-friendly. When the network migrates from
 one concrete topology to another, both of which comply with the abstract
@@ -355,7 +354,7 @@ abstract networks: one which
 guarantees correct compilation and one which determines fault tolerance
 properties of network policy.  Both algorithms provide guarantees for any
 concrete network satisfying the abstract connectivity invariants.
-\item Design of template generation strategies that support network
+\item Design of a template generation strategy that supports network
 evolution.
 \item Implementation and evaluation of a \sysname compiler that generates
 configuration templates and is up to two orders of magnitude faster
@@ -635,6 +634,7 @@ More specifically, a network topology is a graph $G$ = ($V, E$), which consists 
 \begin{figure}[t!]
   \centering
   \includegraphics[width=\columnwidth]{figures/example3}
+  \vspace{-2em}
   \caption{An abstraction for the datacenters in Figure~\ref{fig:example}.}
   \label{fig:example3}
   \vspace{-1em}
@@ -645,7 +645,7 @@ The role-based abstraction therefore overapproximates the connectivity of the un
 For example, with this abstraction any spine router in a concrete network may or may not be connected to any aggregator router.
 %
 In order to refine the abstraction to capture more precisely the kinds of concrete networks of interest,
-we introduce several additional concepts. The first is the idea of a topology hierarchy captured by P and Q, which say that nodes in the ToR and aggregator roles are grouped into a number of smaller pods.
+we introduce several additional concepts. The first is the idea of a topology hierarchy captured by P and Q, which indicate that nodes in the ToR and aggregator roles are grouped into a number of smaller pods.
 The second is a notion of node and edge \emph{multiplicities}. Each edge (and node) is labelled
 with a symbolic variable (\EG, $e1, e2, \ldots$) that denotes a constraint on the number of edges (and nodes) that may appear in any given concrete network. Operators can capture concrete network invariants by adding constraints on the symbolic variables using logical formula.
 
@@ -697,9 +697,9 @@ Next we can capture constraint (4) that traffic for local prefixes must stay loc
 \end{code}
 \noindent%
 %
-The Local constraint applies to any traffic destined for a local prefix described by the $\CD{\$LP}$ prefix template variable and adds the constraint that the traffic must follow a path that matches an internal location (\IE, a router inside the datacenter) at each hop of the path.
+The Local constraint applies to any traffic destined for a local prefix described by the $\CD{\$LP}$ prefix template variable and adds the constraint that the traffic must follow a path that matches an internal location (\IE, in the datacenter) at each hop of the path.
 %
-The constraint to prevent "valleys" (5) is implemented as:
+The constraint to prevent "valleys" (5) is written:
 %
 \begin{code}
 \Define NoValley =
@@ -896,7 +896,7 @@ Paths through the PG represent paths through the topology that protocol messages
 One interesting observation is that the PG for both the concrete and abstract networks share a similar structure. This leads us to the following observation:
 
 \begin{defn}
-If we have a graph homomorphism $f : G \rightarrow G^A$, concrete $PG = (G',\mathit{start},P)$ and abstract $PG^A = (G'^A, \mathit{start}^A, P^A)$, then we can construct a new homomorphism $f_{pg} : G' \rightarrow G'^A$:
+If we have a graph homomorphism $f : G \rightarrow G^A$, concrete $PG = (G',\mathit{start},P)$ and abstract $PG^A = (G'^A, \mathit{start}^A, P^A)$, then we can construct a new homomorphism $f_{pg} : G' \rightarrow G'^A$ as follows:
 \[ \begin{array}{rcl}
   f_{pg}( \mathit{start} ) & = & \mathit{start}^A  \\
   f_{pg}( (l,q_1,\ldots,q_n) ) & = & (f(l),q_1,\ldots,q_n) \\
@@ -1259,14 +1259,14 @@ If we determine that each router has a total order with respect to the simulatio
 %
 For example, in the concrete PG the inequality $(S1,0,1) \leq (S1,1,0)$ holds since nodes on the left side of the PG can always match transitions made on the right hand side with respect to the $\geq_{rank}$ relation. This relation does not hold the other way around since $(S1,0,1) \ngeq_{rank} (S1,1,0)$. Therefore, advertisements received at $S1$ in state $(1,0)$ must be preferred to those received at $S1$ in state $(0,1)$.
 %
-Notice that in the abstract PG $(S,0,1) \leq (S,1,0)$ also holds. This leads us the the following observation:
+Notice that in the abstract PG $(S,0,1) \leq (S,1,0)$ also holds.
 
 \begin{lem}
 \label{lem:preference}
 $m \leq m'$ in the concrete PG iff $f_{pg}(m) \leq f_{pg}(m')$ in the abstract PG.
 \end{lem}
 
-This gives us reason to believe that we can perform compilation over the abstract PG directly and ensure that the inferred device-level preferences will be correct when instantiating the template with a concrete network.
+Lemma~\ref{lem:preference} gives us reason to believe that we can perform compilation over the abstract PG directly and ensure that the inferred device-level preferences will be correct when instantiating the template with a concrete network.
 
 
 
@@ -1484,7 +1484,7 @@ However, template variables tell us exactly where this kind of change can happen
 \section{Implementation}
 \label{sec:implementation}
 
-The \sysname compiler is implemented in approximately 9500 lines of F\# code. The compiler accepts both concrete and abstract topologies and will generate configurations for open-source Quagga routers by default. The fault-tolerance analysis uses $\nu$Z~\cite{z3opt} to test validity and to minimize variables subject to the annotated constraints. Since the analysis typically calls the SMT solver many times with relatively simple optimization problems, we use a short timeout of 200ms.
+The \sysname compiler is implemented in around 9500 lines of F\# code. The compiler accepts both concrete and abstract topologies and will generate configurations for open-source Quagga~\cite{quagga} routers by default. The fault-tolerance analysis uses $\nu$Z~\cite{z3opt} to test validity and minimize variables subject to the topology constraints. Since the analysis typically calls the SMT solver many times with relatively small optimization problems, we use a timeout of 200ms.
 
 Although the disjoint path analysis takes place over the PG, each application of the inference rules from figure~\ref{fig:inference-rules} depends only on the topology. Therefore, we lazily apply the rules and cache the satisfiability and minimization calls to $\nu$Z after their first use. Furthermore, the cached results are shared across different prefixes, each of which may have a unique PG representation.
 
