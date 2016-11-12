@@ -743,14 +743,6 @@ The \sysname compiler generates templates from the inputs above in three phases.
 
 Second, \sysname checks if the fault-tolerance policy can be met by considering the joint impact of the abstract topology and routing policy. Joint analysis is needed, because connectivity depends on both: traffic will not flow along
 valid topological paths if the routing policy disallows it. 
-\dpw{I deleted this:  ``It implies that we cannot use standard graph theoretic algorithms.''  I don't know of any ``standard'' graph-theoretic algorithm
-we could use but I can't completely rule it out either because I don't
-know all graph theoretic algorithms and it wouldn't completely shock 
-me if somewhere there were algorithms for analyzing graphs modulo
-isomorphisms that might be related tangentially.  Basically, I think
-it brings up the possibility that we should compare with graph-theoretic
-algorithms but then we don't do so in any detail
-so I thought it was better to drop it.}
 
 Instead, we develop a sound analysis based on computing the minimum
 number of edge-disjoint policy-compliant paths between pairs of nodes
