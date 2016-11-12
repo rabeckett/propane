@@ -42,6 +42,7 @@
 \newcommand{\sysname}{{\small \sf Methane}\xspace}
 \newcommand{\sysnamesec}{{\sf Methane}\xspace}
 \newcommand{\propane}{{\small \sf Propane}\xspace}
+\newcommand{\mbgp}{{\small \sf mBGP}\xspace}
 
 \newcommand{\para}[1]{\paragraph*{\textbf{#1}}}
 
@@ -1375,10 +1376,11 @@ The template configuration matches any global prefix $\CD{\$GP}$ from any intern
 
 
 
+\section{Properties}
 
-\section{Concretization}
+\para{Concretization}
 
-One interesting observation is that the spine template configuration and concrete spine configurations are structured similarly. In this section, we formalize this observation. We introduce a simple language for BGP configurations called ABGP and define compilation policies over both concrete and abstract topologies to ABGP. In addition we define a concretization function for that translates an abstract \sysname policy or ABGP configuration to a concrete \sysname policy or ABGP configuration respectively. The main result is that the compilation and concretization functions commute. This means performing compilation over the abstract representation first allows us to generate templates, and only concretize these templates when we need to instantiate the network.
+One observation is that the spine template configuration and concrete spine configurations are structured similarly. We formalize this idea by defining a simple, vendor-neutral language for BGP configurations called \mbgp and formally define compilation for policies over both concrete and abstract topologies to \mbgp. In addition we define a two concretization ($con$) functions that translates an abstract \sysname policy and \mbgp configuration to a concrete \sysname policy and concrete \mbgp configuration respectively. Concretization takes a context $\Gamma : \mathit{Var} \rightarrow 2^{\mathit{Prefix} \times V}$ that maps each template variable to a set of pairs of a concrete prefix and topology location where the prefix is owned. The main theoretical result is that the compilation and concretization functions commute. More specifically:
 
 %\para{ABGP language}%
 
@@ -1420,14 +1422,21 @@ One interesting observation is that the spine template configuration and concret
 
 \begin{thm}
   For any context $\Gamma$, topology $G$, abstract topology $G^A$, homomorphism $f : G \rightarrow G^A$, and policy $pol$,
-  $$\Con(\text{compile}(pol,G^A), \Gamma,f,G) = \text{compile}(\Con(pol,\Gamma,f),G)$$
+
+  \noindent
+  $\Con(\text{compile}(pol,G^A), \Gamma,f,G) = \text{compile}(\Con(pol,\Gamma,f),G)$
+  \label{thm:concretization}
 \end{thm}
+%
+\vspace{-1em}
+Full definitions of compilation and concretization, as well as the proof of Theorem~\ref{thm:concretization} are included in the appendix.
 
-\subsection{Incrementality}
 
-Suppose that we want to expand our example concrete datacenter by adding an additional tor router in the TG role. Per the network routing policy, this new tor router will advertise its new owned prefix. Because the new topology matches the abstraction, the compiled templates will remain the same. However, in the spine router configurations, the match on the global prefix template variable \$GP will be expanded to include the new prefix owned by the added tor. In other words, the concrete configurations obtained after substitution will include an additional match on the new prefix. Unfortunately, this means that a small change to the topology can result in many configurations far from the change needing to change too.
+\para{Incrementality}
 
-The key insight is that the template variables tell us exactly where change can happen. For example, the only way in which the spine routers depend on anything non-local is in the match on prefix template variables. Instead, we can associate a new unique community tag for each template variable like \$GP. We can replace each match on \$GP with a test on the new community tag. The new added tor will now simply attach the new community tag to advertisements for its prefix so downstream routers can just match the community tag. This ensures that each router has a template that has no dependency on any other non-adjacent router. If we make a change to the concrete network that matches the abstraction, then the templates do not change, and thus only configurations adjacent to the changes must also change.
+Suppose that an operator want to expand the concrete datacenter by adding an additional ToR router to the TG role. Per the network routing policy, the new ToR router will advertise any owned prefixes provided by looking up {\small \$GP} in $\Gamma$. Because the new topology matches the abstraction, the compiled templates will remain the same. However, in the spine router configurations, the match on the global prefix template variable {\small \$GP} must be expanded when concretizing the template to include the new prefixes added by the ToR. Unfortunately, this small change to the topology results in a change to every single spine router configuration.
+
+However, template variables tell us exactly where this kind of change can happen. The only way in which the spine routers depend on anything non-local is in the match on prefix template variables. Instead, we can associate a new unique community tag for template variable {\small \$GP} and then replace each match on {\small \$GP} with a test on the new community tag. The new ToR must now simply attach the new community tag to advertisements for its prefixes so downstream routers can just match the community tag.
 
 
 
