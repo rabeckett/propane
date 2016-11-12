@@ -1226,10 +1226,10 @@ In this case, the algorithm was able to infer that any node in the spine role ha
 %    \end{code}
 
   \begin{center}
-  \includegraphics[width=.8\columnwidth]{figures/configs}  
+  \includegraphics[width=\columnwidth]{figures/configs}  
   \end{center}
   \vspace{-1em}
-  \caption{Spine template and concrete configurations.}
+  \caption{Spine template and concrete configurations (left), and evolution friendly templates (right).}
   \label{fig:bgp-configs}
 \end{figure}
 
@@ -1420,6 +1420,14 @@ The template configuration matches any global prefix $\CD{\$GP}$ from any intern
 %  \label{fig:concretization}
 %\end{figure*}%
 
+\para{Incrementality}
+
+Suppose that an operator want to expand the concrete datacenter by adding an additional ToR router to the TG role. Per the network routing policy, the new ToR router will advertise any owned prefixes provided by looking up {\small \$GP} in $\Gamma$. Because the new topology matches the abstraction, the compiled templates will remain the same. However, in the spine router configurations, the match on the global prefix template variable {\small \$GP} must be expanded when concretizing the template to include the new prefixes added by the ToR. Unfortunately, this small change to the topology results in a change to every single spine router configuration.
+
+However, template variables tell us exactly where this kind of change can happen. The only way in which the spine routers depend on anything non-local is in the match on prefix template variables. Instead, we can associate a new unique community tag for template variable {\small \$GP} and then replace each match on {\small \$GP} with a test on the new community tag. The new ToR must now simply attach the new community tag to advertisements for its prefixes so downstream routers can just match the community tag.
+
+
+
 
 \para{Concretization}
 
@@ -1473,14 +1481,6 @@ One observation is that the spine template configuration and concrete spine conf
 %
 \vspace{-1em}
 Full definitions of compilation and concretization, as well as the proof of Theorem~\ref{thm:concretization} are included in the appendix.
-
-
-\para{Incrementality}
-
-Suppose that an operator want to expand the concrete datacenter by adding an additional ToR router to the TG role. Per the network routing policy, the new ToR router will advertise any owned prefixes provided by looking up {\small \$GP} in $\Gamma$. Because the new topology matches the abstraction, the compiled templates will remain the same. However, in the spine router configurations, the match on the global prefix template variable {\small \$GP} must be expanded when concretizing the template to include the new prefixes added by the ToR. Unfortunately, this small change to the topology results in a change to every single spine router configuration.
-
-However, template variables tell us exactly where this kind of change can happen. The only way in which the spine routers depend on anything non-local is in the match on prefix template variables. Instead, we can associate a new unique community tag for template variable {\small \$GP} and then replace each match on {\small \$GP} with a test on the new community tag. The new ToR must now simply attach the new community tag to advertisements for its prefixes so downstream routers can just match the community tag.
-
 
 
 
