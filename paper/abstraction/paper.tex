@@ -939,8 +939,8 @@ If we have a graph homomorphism $f : G \rightarrow G^A$, concrete product graph 
 \section{Abstract Analysis}
 \label{sec:analysis}
 
-In practice, operators would often like to reason about a variety of properties for, not only their current network topology, but also future versions of it.
-In this section we present an analysis that operates over the network abstraction to find a lower bound on the number of disjoint paths between pairs of concrete nodes. Answering questions about the number of disjoint paths between nodes allows operators to reason about many useful network properties such as reachability (\IE, is there at least one path) and fault tolerance (\EG, how many failures will disconnect certain routers). Because the analysis takes place over the product graph rather than the topology, it is able to take into account the constraints imposed by the routing policy.
+%In practice, operators would often like to reason about a variety of properties for, not only their current network topology, but also future versions of it.
+The Product Graph provides a convenient representation to capture the joint impact of both topology and routing policy. In this section we present an analysis that operates over the abstract Product Graph to find a lower bound on the number of disjoint paths between pairs of concrete nodes. Answering questions about the number of disjoint paths between nodes allows operators to reason about many useful network properties such as reachability (\IE, is there at least one path) and fault tolerance (\EG, how many failures will disconnect certain routers).
 
 
 \newcommand{\inference}[7]{
@@ -1036,18 +1036,18 @@ In this section we present an analysis that operates over the network abstractio
 \subsection{Abstract k-disjoint paths}
 \label{sec:property-checking}
 
-In order to infer bounds on the number of disjoint paths between concrete nodes we use information about the structure of the underlying concrete topologies encoded in the abstraction constraints.
+To infer bounds on the number of disjoint paths between concrete nodes we use information about the structure of the underlying concrete topologies encoded in abstraction constraints.
 %
-The idea is to maintain, for each node in the abstract product graph, quantified facts learned about the number of disjoint paths from a source node to some number of concrete routers in that role. More specifically, we maintain facts of the form:
+The idea is to maintain, for each node in the abstract Product Graph, facts learned about the number of disjoint paths to some number of concrete routers in the node's role. More specifically, we maintain facts of the form:
 %
 \[ \begin{array}{c}
   L_{X_1}, \ldots, L_{X_n}(j,k)
 \end{array} \]
 \noindent
 %
-Each label $L \in \{S,A\}$ is either $S$, which stands for ``some" or is $A$, which stands for ``all". There is one label in for each pod label in the abstraction pod hierarchy. For a given node, $L_{X_1}$ would correspond to the outermost pod, $L_{X_{n-1}}$ would correspond to the innermost pod, and $L_{X_n}$ to the the node itself.
+Each label $L \in \{S,A\}$ is either $S$, which stands for "some" or is $A$, which stands for "all". There is one label for each pod in the abstraction pod hierarchy. For a given node, $L_{X_1}$ corresponds to the outermost pod, $L_{X_{n-1}}$ corresponds to the innermost pod, and $L_{X_n}$ to the the node itself.
 
-Semantically, $L_{X_1}, \ldots, L_{X_n}(j,k)$ means that starting from some concrete router in the abstract source role, for ``some"/``all" pods $X_1$, $L_{X_2}, \ldots, L_{X_n}(j,k)$ holds. The base case $L_{X_n}(j,k)$ means that for ``some"/``all" groups of size $j$ concrete routers, there are $k$ disjoint paths to each such that all $j*k$ paths are disjoint
+Semantically, $L_{X_1}, \ldots, L_{X_n}(j,k)$ means that starting from some concrete source node, for "some"/``all" pods $X_1$, $L_{X_2}, \ldots, L_{X_n}(j,k)$ holds. The base case $L_{X_n}(j,k)$ means that for "some"/``all" groups of size $j$ concrete routers, there are $k$ disjoint paths to each such that all $j*k$ paths are disjoint.
 %
 For example, a fact of the form: $A_P, S_{TL}(2,4)$ means that for all pods P, there is some group of 2 concrete routers in role TL such that they each have 4 disjoint paths to them from the source and all 8 paths are disjoint.
 
@@ -1055,11 +1055,11 @@ For example, a fact of the form: $A_P, S_{TL}(2,4)$ means that for all pods P, t
 
 \newcommand{\infrule}[1]{{\small \sf #1}\xspace}
 
-In order to learn information about disjoint paths between routers, we develop a series of sound inference rules for facts of this form. Figure~\ref{fig:inference-rules} shows each of the inference rules. The rules are read from bottom to top. The label on the bottom left corresponds to a known fact of the form described above. We use $L$ to represent a rule that is parametric over the particular label ($S$ or $A$). The labels on other nodes correspond to learned facts from applying the inference rule. Conditions that must be \emph{valid} for the rule to apply are shown in a box next to the rule.
+In order to learn information about disjoint paths, we develop a collection of sound inference rules for facts of this form. Figure~\ref{fig:inference-rules} shows each of the inference rules. The rules are read from bottom to top. The label on the bottom left represents a known fact of the form described above. We use $L$ to represent a rule that is parametric over the label ($S$ or $A$). The labels on other nodes correspond to facts learned after applying the inference rule. Conditions that must be \emph{valid} for the rule to apply are shown in a box next to the rule.
 
-In general, the inference rules try to learn information about both the largest number of disjoint paths to any single node in an abstract role and the largest reachable group in a particular role with at least one disjoint path to each.
+In general, the inference rules try to learn information about both the largest number of disjoint paths to any single node in an abstract role as well as the largest reachable group in a particular role with at least one disjoint path to each.
 
-The first rule, \infrule{I-out1} applies to a learned fact of the form L$(j,k)$ where the number of outgoing edges from any concrete node in the $m$ role is greater than 0. In the worst case, the largest group of concrete nodes we could hope to reach at the $n$ role would be $e_1$ since all j nodes at the bottom may have the same outgoing edges to the concrete nodes at the top. Furthermore, the total number of disjoint paths to the $j$ nodes at the bottom is equal to $j*k$. Since adding edges between the nodes keeps the existing paths disjoint, and since we can not exceed the current number of disjoint paths to the concrete nodes in role $m$ on the bottom, the largest reachable group for the top node will be $min(j*k,e_1)$. However, since we do not know for certain that all $j$ nodes have outgoing edges to the same nodes at the top, we conservatively use $1$ for the number of disjoint paths to each node on top.
+The first rule, \infrule{I-out1} applies to a learned fact of the form L$(j,k)$ where the number of outgoing edges from any concrete node in the $m$ role is greater than 0. In the worst case, the largest group of concrete nodes we could hope to reach at the $n$ role would be $e_1$ since all j nodes at the bottom may have the same outgoing edges to the concrete nodes at the top. Furthermore, the total number of disjoint paths to the $j$ nodes at the bottom is equal to $j*k$. Since adding edges between the nodes keeps the existing paths disjoint, and since we can not exceed the current number of disjoint paths to the concrete nodes in role $m$ on the bottom, the largest reachable group for the top node will be $min(j*k,e_1)$. Since we do not know for certain that all $j$ nodes have outgoing edges to the same nodes at the top, we conservatively use $1$ for the number of disjoint paths to each node on top.
 
 The rule \infrule{I-out2} follows a similar line of reasoning. It says that if any group of size $j$ with $k$ disjoint paths to each is reachable in the bottom role, and there is at least one incoming edge for each concrete node in the top role, then there are $min(j,e_2)$ disjoint paths to any single concrete node in the top role. This is because we can choose the $j$ nodes on the bottom for which we want to find disjoint paths, and then use each of the $e_2$ disjoint incoming edges for the particular node at the top connecting it to the bottom.
 
@@ -1073,16 +1073,11 @@ It starts with the fact L$(j,k)$ at role $m$ and can be applied if each edge mul
 \end{array} \]
 \noindent
 %
-This captures the fact that the remaining nodes ($m-j$) that are not part of the group in the bottom role, each have $e_1$ outgoing edges and must be able to at least "fill" the incoming edges for the remaining nodes not in the reachable group at the top ($n-g$) with $e_2$ incoming edges each. Solving the inequality yields:
-%
-\[ \begin{array}{c}
-  g \geq n - \dfrac{(m-j)*e_1}{e_2}
-\end{array} \]
-\noindent
-%
+This captures the fact that the remaining nodes ($m-j$) that are not part of the group in the bottom role, each have $e_1$ outgoing edges and must be able to at least "fill" the incoming edges for the remaining nodes not in the reachable group at the top ($n-g$) with $e_2$ incoming edges each. Solving the inequality gives the lower bound for $g$ used in Figure~\ref{fig:inference-rules}.
+
 The second part of the rule allows uses a similar idea to reason about the overlap between roles $m$ and $o$ with respect to role $n$. This rule is useful particularly useful for datacenter topologies where routers in one tier of the datacenter often have a particular striping pattern with another tier.
 
-The rule \infrule{I-mincut} can be thought of as an assertion about the fault tolerance between two roles. The rule applies to an edge that has been annotated with a $mincut(X)$ statement, which means that there are at least $X$ disjoint paths between any node in role $m$ and any node in role $n$. 
+The rule \infrule{I-mincut} can be thought of as an assertion about the fault tolerance between nodes in two roles. The rule applies to an edge that has been annotated with a $mincut(X)$ statement, which means that there are at least $X$ disjoint paths between any node in role $m$ and any node in role $n$. 
 
 Finally, the \infrule{I-local} and \infrule{I-global} rules allow us to lift each of the other rules to reason across pod hierarchies. The first rule, \infrule{I-local}, says that if you have an inference from L$_m(j,k)$ to L$_n(j',k')$ on the left, then if both nodes are in the same local pod P, you can leave all labels up to P unchanged. The global rule \infrule{I-global} says the same thing except when the edge goes between pods, you can infer the fact for all pods Q since the multiplicities apply equally to each pod.
 
