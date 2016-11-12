@@ -1143,39 +1143,42 @@ In this case, the algorithm was able to infer that any node in the spine role ha
 \newcommand{\Arrow}{\ensuremath{\leftarrow}}
 
 \begin{figure}[t!]
-  \begin{code}
-    \Template{S}
-      Match[100] \PREFIX=\$GP, \PEER=\{AG, AL\}
-        \PEER \Arrow *
-      Match[100] \PREFIX=\$LP, \PEER=\{AG, AL\}
-        \PEER \Arrow \{AG, AL\}
-      Match[110] \PREFIX=true \PEER=\{P1\},
-        \PEER \Arrow *, \COMM \Arrow (1,0)
-      Match[100] \PREFIX=true \PEER=\{P2\},
-        \PEER \Arrow *, \COMM \Arrow (0,1)
-      ...
-  \end{code}
+%  \begin{code}
+%    \Template{S}
+%      Match[100] \PREFIX=\$GP, \PEER=\{AG, AL\}
+%        \PEER \Arrow *
+%      Match[100] \PREFIX=\$LP, \PEER=\{AG, AL\}
+%        \PEER \Arrow \{AG, AL\}
+%      Match[110] \PREFIX=true \PEER=\{P1\},
+%        \PEER \Arrow *, \COMM \Arrow (1,0)
+%      Match[100] \PREFIX=true \PEER=\{P2\},
+%        \PEER \Arrow *, \COMM \Arrow (0,1)
+%      ...
+%  \end{code}%
 
-  \vspace{-2em}
-  \begin{code}
-    \Router{S1, S2}
-      Match[100] \PREFIX=GP1, \PEER=\{AG1, AL1, ...\}
-        \PEER \Arrow *
-      Match[100] \PREFIX=GP2, \PEER=\{AG1, AL1, ...\}
-        \PEER \Arrow *
-      ...
-      Match[100] \PREFIX=LP1, \PEER=\{AG1, AL1, ...\}
-        \PEER \Arrow \{AG1, AL1, ...\}
-      Match[100] \PREFIX=LP2, \PEER=\{AG1, AL1, ...\}
-        \PEER \Arrow \{AG1, AL1, ...\}
-      ...
-      Match[110] \PREFIX=true, \PEER=\{P1\},
-        \PEER \Arrow *, \COMM \Arrow (1,0)
-      Match[100] \PREFIX=true, \PEER=\{P2\},
-        \PEER \Arrow *, \COMM \Arrow (0,1)
-      ...
-    \end{code}
+%  \vspace{-2em}
+%  \begin{code}
+%    \Router{S1, S2}
+%      Match[100] \PREFIX=GP1, \PEER=\{AG1, AL1, ...\}
+%        \PEER \Arrow *
+%      Match[100] \PREFIX=GP2, \PEER=\{AG1, AL1, ...\}
+%        \PEER \Arrow *
+%      ...
+%      Match[100] \PREFIX=LP1, \PEER=\{AG1, AL1, ...\}
+%        \PEER \Arrow \{AG1, AL1, ...\}
+%      Match[100] \PREFIX=LP2, \PEER=\{AG1, AL1, ...\}
+%        \PEER \Arrow \{AG1, AL1, ...\}
+%      ...
+%      Match[110] \PREFIX=true, \PEER=\{P1\},
+%        \PEER \Arrow *, \COMM \Arrow (1,0)
+%      Match[100] \PREFIX=true, \PEER=\{P2\},
+%        \PEER \Arrow *, \COMM \Arrow (0,1)
+%      ...
+%    \end{code}
 
+  \begin{center}
+  \includegraphics[width=.8\columnwidth]{figures/configs}  
+  \end{center}
   \vspace{-1em}
   \caption{Spine template and concrete configurations.}
   \label{fig:bgp-configs}
