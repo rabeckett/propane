@@ -177,19 +177,14 @@
 %
 % (4) lets us scale synthesis to large-scale topologies
 
-
 \textbf{Abstract---}
 We develop techniques for automated reasoning about end-to-end properties of abstract network topologies. We develop a network synthesis tool, \sysname, to allow network operators to write a high-level routing policy over an abstraction of their network topology. From such a specification, \sysname synthesizes a collection of router configurations running the distributed Border Gateway Protocol (BGP) that are guaranteed to implement the centralized routing policy for any concrete instantiation of the abstract topology, and for any combination of network failures in the resulting concrete topology.
 %
 Additionally, properties proven by \sysname over the abstract topology, such as reachability between a source and destination under k-failures, are also guaranteed to hold under any concrete instantiation of the abstract topology.
 %
-Something something, expandable/incremental networks. Something something scales compilation to large networks. Something something, templates easier to understand.
 %These strong guarantees allow operators to reason about the routing behavior of their network at a high-level abstraction, while also generating an efficient low-level implementation.
 %
 %In addition, operators are able to safely change or expand their network in any way, so long as the new resulting topology also respects the abstraction.
-%
-We test \sysname out on ... blah blah blah
-
 
 
 %=====================================================
@@ -257,21 +252,22 @@ there is no guarantee that the systems will generate (syntactically) similar con
 hundreds of device configurations instead of a handful of role configurations. These systems become even more brittle when the network evolves. Any change in network topology requires re-execution of the engine, from scratch, on the changed topology.  The result may be
 a completely different set of configurations.
 
-We present \sysname, a system to generate provably-correct role templates. It allows operators to input \emph{abstract network topologies} in terms of roles and their connectivity. For instance, they may specify roles for ``top-of-rack'' and ``aggregation" routers and specify that every top-of-rack router connects to at least two aggregation routers (to tolerate the failure of a link to an aggregation router). Other inputs to \sysname include the routing policy of the network and its fault-tolerance requirements (e.g., the number of link failures to tolerate). For routing policy, we borrow notation from Propane~\cite{propane},  which specifies traffic paths at a high-level of abstraction. But while Propane policies
+We present \sysname, a system to generate provably-correct configuration templates. It allows operators to input \emph{abstract network topologies} in terms of roles and their connectivity. For instance, they may specify roles for ``top-of-rack'' and ``aggregation" routers and specify that every top-of-rack router connects to at least two aggregation routers (to tolerate the failure of a link to an aggregation router). Other inputs to \sysname include the routing policy of the network and its fault-tolerance requirements (e.g., the number of link failures to tolerate). For routing policy, we borrow notation from Propane~\cite{propane}, a language for specifying traffic paths at a high-level of abstraction. But while Propane policies
 refer concrete devices, \sysname policies refer to abstract roles.
 
-Based on these inputs, the \sysname compiler generates one template per role. It guarantees that, when the templates are instantiated to configurations for {\em any} concrete topology that complies with the abstract topology, the result network will correctly implement the routing policy and meet the fault-tolerance requirements. We show how fault-tolerance analysis can be done over abstract topology itself using \todo{say something cool about about the inference rules and such}.
+Based on these inputs, the \sysname compiler generates one template per role. It guarantees that, when the templates are instantiated to configurations for {\em any} concrete topology that respects the abstraction, the resulting network will correctly implement the routing policy and meet the fault-tolerance requirements. To check fault-tolerance properties, we develop a new analysis over the abstraction based on a collection of inference rules about the number of disjoint paths between devices in different roles.
 
-\sysname templates are also evolution-friendly. When the network migrates from one concrete topology to another, both of which comply with the abstract topology, it is guaranteed that only the configurations of devices that acquire or lose a neighboring device needs to change (e.g., to activate a port on which the new device is connected).  No other device in the network is impacted.
+\sysname templates are also evolution-friendly. When the network migrates from one concrete topology to another, both of which comply with the abstract topology, it is guaranteed that only the configurations of devices that acquire a new neighboring device need to change (e.g., to activate a port on which the new device is connected).  No other device in the network is impacted.
 
-\todo{Talk about evaluation result here ... roll the point about faster compilation there.}
-As an aside, a pleasant side effect of this new compiler
-infrastructure, designed to make life easier on network operators, is
-that for structured networks, it scales substantially better than its
-competitor \propane does: as the number of individual devices in a
+In addition to creating reusable templates, 
+%synthesizing configurations by working directly with an abstract topology means that 
+\sysname can scale substantially better than its nearest competitor \propane does: as the number of individual devices in a
 network grows, the number of distinct roles will often stay constant.
-Consequently, the \sysname compiler may be two orders of magnitude
-faster than \propane for large structured networks.
+Consequently, the \sysname compiler can be two orders of magnitude
+faster than \propane, taking less than 10 seconds to synthesize templates for large structured networks.
+
+%\todo{Talk about evaluation result here ... roll the point about faster compilation there.}
+
 
 \vspace{1em}
 \noindent
@@ -285,7 +281,7 @@ abstract networks: one which
 guarantees correct compilation and one which determines fault tolerance
 properties of network policy.  Both algorithms provide guarantees for any
 concrete network satisfying the abstract connectivity invariants.
-\item Design of template generation algorithms that support network
+\item Design of template generation strategies that support network
 evolution.
 \item Implementation and evaluation of a \sysname compiler that generates
 configuration templates and is up to two orders of magnitude faster
@@ -324,9 +320,11 @@ In this work, we focus on synthesizing configurations for a network that runs th
 The interactions among BGP routers determines how the network forwards traffic. To invite traffic from a neighbor to a destination, routers announce the destination's address {\em prefix} (e.g., 10.1.1.0/24\footnote{An IP(v4) address
 such as 10.1.1.0 is 32 bits, with each of the four values representing 8 bits. A prefix such as 10.1.1.0/24 denotes the set of addresses that share the first 24 bits with 10.1.1.0, \IE, all addresses that begin with 10.1.1.}) to the neighbor. In this way, traffic flows in the opposite direction to such {\em route announcements.}
 
-Route announcements contain additional attributes. A common one is {\em AS path}, which denotes the sequence of Autonomous Systems that will be traversed to reach the destination. When BGP is used inside a datacenter, each router tends to be its own AS. Optional attributes include one or more {\em communities}, which are arbitrary strings. Operators agree on what each community value means out of band.
+Route announcements contain additional attributes. A common one is {\em AS path}, which denotes the sequence of Autonomous Systems that will be traversed to reach the destination. 
+%When BGP is used inside a datacenter, each router tends to be its own AS. 
+Optional attributes include one or more {\em communities}, which are arbitrary strings. Operators agree on what each community value means out of band.
 
-A BGP router may receive one or more announcements from different neighbors for the same prefix. It selects the best one(s) based on its {\em import policy}. These policies are a function of the AS path, community values, or the neighbor that sent the announcement, and may even filter some announcements altogether (i.e., not use them even if no other announcements to the destination are available). Then, based on the {\em export policy}, the router announces the selected route to one or more neighbors, after adding itself to the AS path and, optionally, modifying the set of community values.
+A BGP router may receive one or more announcements from different neighbors for the same prefix. It selects the best one based on its local {\em import policy}. These policies are a function of the AS path, communities, or the neighbor that sent the announcement, and may even filter some announcements altogether (i.e., not use them even if no other announcements to the destination are available). Then, based on the local {\em export policy}, the router announces the selected route to one or more neighbors, after adding itself to the AS path and, optionally, modifying the set of communities.
 
 %When this occurs,
 %it processes the messages as follows:
@@ -392,7 +390,7 @@ Configuring a BGP network requires configuring, among other things, the import a
 \end{figure}
 
 We demonstrate the difficulty of configuring networks using the example data center network in Figure~\ref{fig:example}. The boxes denote routers. Using terminology for fat tree networks~\cite{fattree}, S[1--2] denote spine routers, A[1--8] denote aggregation routers, and T[1--8] denote top-of-rack (ToR) routers. The spine routers are connected to the
-rest of the Internet through Peer[1--2]. The aggregation routers
+rest of the Internet through neighbors N[1--2]. The aggregation routers
 bridge the spine to the ToR routers. The ToR routers attach to a set of servers (``a rack'') that host services with address prefixes P[1--8].
 
 %% We assume that each router is running an instance of the \emph{Border Gateway Protocol} (BGP),
@@ -406,13 +404,14 @@ bridge the spine to the ToR routers. The ToR routers attach to a set of servers 
 %Assume that all nodes are running the border gateway protocol (BGP), as is common in large data centers~\cite{x}. \todo{more detail on BGP?}
 
 The intended policy for this network is:
-$p1)$ complete internal connectivity, \IE, all routers should be able to talk to each other;
-$p2)$ services in Pods[1--2] should be globally accessible;
-$p3)$ prefixes for global service should be aggregated into a covering prefix PG when announced outside;
-$p4)$ services in Pods[3--4] should not be externally accessible;
-$p5)$ prefer Peer 1 over Peer 2, \IE, when both peers announce a prefix, send traffic through peer 1;
-$p6)$ datacenter routers should not transit traffic between peers 1 and 2; and
-$p7)$ no loss in connectivity after any single-link failure.
+$(1)$ complete internal connectivity, \IE, all routers should be able to talk to each other;
+$(2)$ services in Pods[1--2] should be globally accessible;
+$(3)$ prefixes for global service should be aggregated into a covering prefix PG when announced outside;
+$(4)$ services in Pods[3--4] should not be externally accessible;
+$(5)$ paths should be valley-free, \IE, never go down then back up.
+$(6)$ prefer neighbor N1 over N2, \IE, when both neighbors announce a prefix, send traffic through N1;
+$(7)$ datacenter routers should not transit traffic between N1 and N2; and
+$(8)$ no loss in connectivity after any single-link failure.
 
 To correctly configure this policy, network operators must generate configurations for each router. This implies ensuring, for instance, that all router interfaces are assigned correct addresses; all routing adjacencies are correctly configured (\EG, T1's configuration includes A1 as neighbor and vice-versa); all routers announce their own addresses (so that they can be reached from other routers) and the ToRs announce the correct prefixes for their services; all routers  forward the prefix announcements that they should to each neighbor and not forward those that they should not (\EG, the spines should forward prefixes for local services to internal neighbors but not external neighbors); and the spines announce externally only the aggregate global prefix. Such configuration tasks are highly complex~\cite{juniper-study,bgpmon,batfish,propane}.
 
@@ -420,15 +419,15 @@ To simplify network configuration, the operations community is adopting a templa
 %
 A {\em role} refers to specific functionality and is played by one or more routers.\footnote{If a role is played by devices from multiple vendors, there is one template per role-vendor combination because templates use vendor-specific configuration languages.}
 %
-The network in Figure~\ref{fig:example} has five roles: spine, global aggregator, global ToR, local aggregator, and local ToR.
+The network in Figure~\ref{fig:example} might have five roles: spine, global aggregator, global ToR, local aggregator, and local ToR.
 %
 Templates have parameters for various aspects of the configuration (\EG, interface addresses, neighbor list) and are compiled to device configurations by instantiating the parameters using a database of network information.
 
 %Templates provide two key advantages. First, they help eliminate a class of configuration errors that stem from typos and inconsistencies, e.g., using the wrong address for a router, having inconsistent addresses for the two ends of a link, and failing to configure one side of a routing adjacency.  Second, templates have the potential for re-use when the topology changes while maintaining its basic structure (e.g., adding a new pod to the data center) or multiple networks with similar structures need to be instantiated (e.g., in an organization that runs multiple data centers).
 
-\para{Templates today} While templates help avoid a class of configuration errors (e.g., inconsistent routing adjacencies), they are difficult to author. Operators must manually decompose complex, network-wide routing policy into role templates such that the collective behavior of the configurations generated from them will correctly implement the policy, under failures and as the network evolves.
+While templates help avoid a class of configuration errors (e.g., inconsistent routing adjacencies), they are difficult to author. Operators must manually decompose complex, network-wide routing policy into role templates such that the collective behavior of the configurations generated from them will correctly implement the policy, under failures and as the network evolves.
 
-This task is error-prone, and no tools exist today for template verification; in fact, such tools would be difficult to build as templates have no semantics, of policies or topologies they were intended to work for, independent of the configurations they produce. Today, operators test (not verify) templates by simulating their generated configurations over the current or known future topologies.
+%This task is error-prone, and no tools exist today for template verification; in fact, such tools would be difficult to build as templates have no semantics, of policies or topologies they were intended to work for, independent of the configurations they produce. Today, operators test (not verify) templates by simulating their generated configurations over the current or known future topologies.
 
 %As a result, the types of configuration design errors pointed in prior work~\cite{propane} can occur in template design as well. For instance, to keep local prefixes internal the engineer may implement announcement forwarding on spines based on the identity of the neighbor, \IE, do not announce externally anything heard from local aggregators. This implementation is appealing because it does not require changes to spine configurations when ToR prefixes change. But it works correctly only when there are no failures; local prefixes can leak externally when failures disconnect a spine from both aggregators in a local pod. Specifically, when S1 is disconnected from A5 and A6, it may hear about P5 and P6 from A3 and A4 (via A[5--6]->S2->A[3--4]), and it will then announce those prefixes outside (since they no not come from a local aggregator), leading to a policy violation. A possible correct implementation here would be for each spine to block messages headed to external peers from local aggregators {\em and} to reject announcements that have traversed the other spine (\IE, to disallow "valleys," or up-down-up paths).
 
@@ -437,17 +436,19 @@ This task is error-prone, and no tools exist today for template verification; in
 %The second limitation of today's template systems is that, like concrete synthesis tools, they do not support network evolution. One might hope that important network properties such as connectivity and fault tolerance persist when networks evolve in ways consistent with existing roles and templates.  However, existing template systems provide no guarantees that seemingly-minor variations of a given topology have similar properties.
 %In theory, templates do not have to be redesigned when the network evolves while keeping its basic structure of roles and their inter-connectivity. In practice, however, it is not guaranteed that templates that work for a given topology also work for seemingly-minor variations of the topology.
 
-Such simulations provide some assurance that the templates work correctly for the simulated topologies but little assurance for other topologies that may arise after the network evolves. Templates that work for one topology may not work for seemingly-inconsequential variations.  Unfotunately, currently,
-there is no way to predict which variations will behave correctly for a given set of templates.
-Worse, when operators discover their old templates no longer work, a change to a template will
-cause a change to all devices that use that template---an unacceptable disruption in many cases.  When that happens, network operators may abandon templates entirely and revert to hand-crafting configurations, using local patches to accommodate the topological change.
+%Such simulations provide some assurance that the templates work correctly for the simulated topologies but little assurance for other topologies that may arise after the network evolves. 
+
+Templates that work for one topology may not work for seemingly-inconsequential variations.  
+%Unfotunately, currently, there is no way to predict which variations will behave correctly for a given set of templates.
+Worse, when operators discover their old templates no longer work, changing a template will
+cause a change to all devices that use that template---an unacceptable disruption in many cases.  When that happens, operators may abandon templates entirely and revert to hand-crafting configurations, using local patches to accommodate the change.
 Such patches reintroduce the complexity and errors that templates were meant to prevent.
 
 %% For some changes, they may discover that their old templates will not work anymore. ~\dpw{Note: This is going to be true for Methane too.} ~\ratul{Not really; our abstract topologies encode all possible future topologies} ~\dpw{Our abstract topologies precisely define a set of topologies for which our
 %% This discovery is highly problematic because changing a template may cause a configuration change of all the devices that use that template---an unacceptable disruption in many cases.  When that happens, network operators may abandon templates entirely and revert to hand-crafting configurations, using local patches to accommodate the topological change.
 %% Such patches reintroduce the complexity and errors that templates were meant to prevent.
 
-Consider the network in Figure~\ref{fig:example2}, which is similar to Figure~\ref{fig:example}; it has the same five roles, connected in a similar hierarchy. One might think that the same templates (with different database entries) can be used for both topologies, but that is not true. For instance, consider templates that disallow ``valley" paths, which go up, down, and then up again; it is a common to disallow valley paths in a data center because they are longer than shortest paths. These templates will work perfectly for Figure~\ref{fig:example} but silently violate the fault tolerance requirement ($p7$) when used for Figure~\ref{fig:example2}.  Specifically, in Figure~\ref{fig:example2}, an aggregation-induced blackhole (\S\ref{sec:motivation}) will occur when the link S1--A1 fails; after this failure, S1 has no valley-free path to P[1--2] even though it will continue to get traffic for these prefixes as it announces  the covering prefix PG (because it gets routes for P[3--4]). In contrast, in Figure~\ref{fig:example}, no such blackhole will occur after a single link failure because spine routers have two links to each pod.
+Consider the network in Figure~\ref{fig:example2}, which is similar to Figure~\ref{fig:example}; it has the same five roles, connected in a similar hierarchy. One might think that the same templates (with different database entries) can be used for both topologies. However, because the templates are configured to disallow ``valley" paths, which go down, and then up, these templates will work perfectly for Figure~\ref{fig:example} but silently violate the fault tolerance requirement ($(8)$) when used for Figure~\ref{fig:example2}.  Specifically, in Figure~\ref{fig:example2}, an aggregation-induced blackhole (\S\ref{sec:background}) will occur when the link S1--A1 fails; after this failure, S1 has no valley-free path to P[1--2] even though it will continue to get traffic for these prefixes as it announces the covering prefix PG (because it gets routes for P[3--4]). In contrast, in Figure~\ref{fig:example}, no such blackhole will occur after a single link failure because spine routers have two links to each pod.
 
 %% Thus, today, operators test templates for each topology change. For some changes, they may discover that their old templates will not work anymore. ~\dpw{Note: This is going to be true for Methane too.} ~\ratul{Not really; our abstract topologies encode all possible future topologies} ~\dpw{Our abstract topologies precisely define a set of topologies for which our
 %% This discovery is highly problematic because changing a template may cause a configuration change of all the devices that use that template---an unacceptable disruption in many cases.  When that happens, network operators may abandon templates entirely and revert to hand-crafting configurations, using local patches to accommodate the topological change.
