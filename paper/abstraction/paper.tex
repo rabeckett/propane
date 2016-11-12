@@ -644,7 +644,7 @@ The role-based abstraction therefore overapproximates the connectivity of the un
 For example, with this abstraction any spine router in a concrete network may or may not be connected to any aggregator router.
 %
 In order to refine the abstraction to capture more precisely the kinds of concrete networks of interest,
-we introduce several additional concepts. The first is the idea of a topology hierarchy captured by P and Q, which say that nodes in the tor and aggregator roles are grouped into a number of smaller pods.
+we introduce several additional concepts. The first is the idea of a topology hierarchy captured by P and Q, which say that nodes in the ToR and aggregator roles are grouped into a number of smaller pods.
 The second is a notion of node and edge \emph{multiplicities}. Each edge (and node) is labelled
 with a symbolic variable (\EG, $e1, e2, \ldots$) that denotes a constraint on the number of edges (and nodes) that may appear in any given concrete network. Operators can capture concrete network invariants by adding constraints on the symbolic variables using logical formula.
 
@@ -1037,6 +1037,8 @@ The Product Graph provides a convenient representation to capture the joint impa
 \subsection{Abstract k-disjoint paths}
 \label{sec:property-checking}
 
+\dpw{we could flip the order of this description:  give simple concrete $S_A(j,k)$ first and
+then go to the general.}
 To infer bounds on the number of disjoint paths between concrete nodes we use information about the structure of the underlying concrete topologies encoded in abstraction constraints.
 %
 The idea is to maintain, for each node in the abstract Product Graph, facts learned about the number of disjoint paths to some number of concrete routers in the node's role. More specifically, we maintain facts of the form:
@@ -1048,7 +1050,7 @@ The idea is to maintain, for each node in the abstract Product Graph, facts lear
 %
 Each label $L \in \{S,A\}$ is either $S$, which stands for "some" or is $A$, which stands for "all". There is one label for each pod in the abstraction pod hierarchy. For a given node, $L_{X_1}$ corresponds to the outermost pod, $L_{X_{n-1}}$ corresponds to the innermost pod, and $L_{X_n}$ to the the node itself.
 
-Semantically, $L_{X_1}, \ldots, L_{X_n}(j,k)$ means that starting from some concrete source node, for "some"/``all" pods $X_1$, $L_{X_2}, \ldots, L_{X_n}(j,k)$ holds. The base case $L_{X_n}(j,k)$ means that for "some"/``all" groups of size $j$ concrete routers, there are $k$ disjoint paths to each such that all $j*k$ paths are disjoint.
+Semantically, $L_{X_1}, \ldots, L_{X_n}(j,k)$ means that starting from some concrete source node, for "some"/``all" pods $X_1$, $L_{X_2}, \ldots, L_{X_n}(j,k)$ holds. The base case $L_{X_n}(j,k)$ means that for "some"/``all" groups of size $j$ concrete routers, there are $k$ edge-disjoint paths to each such that all $j*k$ paths are disjoint.
 %
 For example, a fact of the form: $A_P, S_{TL}(2,4)$ means that for all pods P, there is some group of 2 concrete routers in role TL such that they each have 4 disjoint paths to them from the source and all 8 paths are disjoint.
 
