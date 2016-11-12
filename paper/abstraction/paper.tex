@@ -1234,9 +1234,9 @@ In this case, the algorithm was able to infer that any node in the spine role ha
 \end{figure}
 
 
-\section{Compilation}
+\section{Template Generation}
 
-The translation from the Product Graph to per-device configurations that run the distributed BGP protocol involves several ideas.
+The translation from the Product Graph to per-device templates that run the distributed BGP protocol involves several ideas.
 
 \para{Route filtering}
 
@@ -1289,16 +1289,6 @@ Figure~\ref{fig:bgp-configs} shows part of the final configuration for spine rou
 For prefix $\True$ ($0.0.0.0/[0..32]$), the spine routers will match advertisements from peer N1 and N2. The match for N1 is preferred since it has a higher BGP local-preference attribute (110). If an advertisement from N1 is available the spine uses this and attaches the community tag $(1,0)$ before sending the route to all its peers ($*$). If an advertisement is only available from the backup N2, then it attaches the tag $(0,1)$ instead.
 %
 The template configuration matches any global prefix $\CD{\$GP}$ from any internal peer and re-advertises the route to all of its peers. For any local prefix it will allow an advertisement from any internal peer, and re-advertise the route to only other internal peers. The concrete configurations have a similar configuration for each local and global prefix.
-
-
-
-%=====================================================
-%
-%
-%  **Concretization**
-%
-%
-%=====================================================
 
 \newcommand{\Con}{\text{con}}
 \newcommand{\Pfx}{\mathit{pfx}}%
@@ -1430,9 +1420,6 @@ The template configuration matches any global prefix $\CD{\$GP}$ from any intern
 %  \label{fig:concretization}
 %\end{figure*}%
 
-
-
-\section{Properties}
 
 \para{Concretization}
 
