@@ -179,14 +179,29 @@
 
 
 \textbf{Abstract---}
-We develop techniques for automated reasoning about end-to-end properties of abstract network topologies. We develop a network synthesis tool, \sysname, to allow network operators to write a high-level routing policy over an abstraction of their network topology. From such a specification, \sysname synthesizes a collection of router configurations running the distributed Border Gateway Protocol (BGP) that are guaranteed to implement the centralized routing policy for any concrete instantiation of the abstract topology, and for any combination of network failures in the resulting concrete topology.
+We develop techniques for automated reasoning about end-to-end properties of
+abstract network topologies, and embody them in a network synthesis tool called
+\sysname. \sysname allows network operators to write a high-level routing policy
+over an abstraction of their network topology. From such a specification,
+\sysname synthesizes a collection of router configurations running the
+distributed Border Gateway Protocol (BGP) that are guaranteed to implement the
+centralized routing policy for any concrete instantiation of the abstract
+topology, and for any combination of network failures in the resulting concrete
+topology.
 %
-Additionally, properties proven by \sysname over the abstract topology, such as reachability between a source and destination under k-failures, are also guaranteed to hold under any concrete instantiation of the abstract topology.
+Additionally, properties proven by \sysname over the abstract topology, such as
+reachability between a source and destination under k-failures, are also
+guaranteed to hold under any concrete instantiation of the abstract topology.
 %
-Something something, expandable/incremental networks. Something something scales compilation to large networks. Something something, templates easier to understand.
-%These strong guarantees allow operators to reason about the routing behavior of their network at a high-level abstraction, while also generating an efficient low-level implementation.
+Something something, expandable/incremental networks. Something something scales
+compilation to large networks. Something something, templates easier to
+understand.
+%These strong guarantees allow operators to reason about the routing behavior of
+%their network at a high-level abstraction, while also generating an efficient
+%low-level implementation.
 %
-%In addition, operators are able to safely change or expand their network in any way, so long as the new resulting topology also respects the abstraction.
+%In addition, operators are able to safely change or expand their network in any
+%way, so long as the new resulting topology also respects the abstraction.
 %
 We test \sysname out on ... blah blah blah
 
@@ -200,16 +215,13 @@ We test \sysname out on ... blah blah blah
 %
 %=====================================================
 
-%\vspace{0.1in}
-%\noindent
-%\textbf{CCS Concepts}\\
-%$\bullet$ Networks $\rightarrow$ {\em Network control algorithms; Network reliability; Network management;}
-%$\bullet$ Software and its engineering $\rightarrow$ {\em Automated static analysis; Domain specific languages}
+%\vspace{0.1in} \noindent \textbf{CCS Concepts}\\ $\bullet$ Networks
+%$\rightarrow$ {\em Network control algorithms; Network reliability; Network
+%management;} $\bullet$ Software and its engineering $\rightarrow$ {\em
+%Automated static analysis; Domain specific languages}
 
-%\vspace{0.1in}
-%\noindent
-%\textbf{Keywords}\\
-%Propane; Domain-specific Language; BGP; Synthesis; Compilation; Fault Tolerance; Distributed Systems
+%\vspace{0.1in} \noindent \textbf{Keywords}\\ Propane; Domain-specific Language;
+%BGP; Synthesis; Compilation; Fault Tolerance; Distributed Systems
 
 
 %=====================================================
@@ -220,49 +232,105 @@ We test \sysname out on ... blah blah blah
 %
 %=====================================================
 
-\section{Introduction}
-\label{sec:introduction}
+\section{Introduction} \label{sec:introduction}
 
 
-% Hence, one approach to improving network
-% reliability is to develop better languages for network configuration.
-% Such languages should be defined at a higher level of abstraction than
-% existing configuration languages and provide support built-in support for
-% verification of important properties, thereby avoiding entire classes
-% of configuration errors automatically.
+% Hence, one approach to improving network reliability is to develop better
+% languages for network configuration.  Such languages should be defined at a
+% higher level of abstraction than existing configuration languages and provide
+% support built-in support for verification of important properties, thereby
+% avoiding entire classes of configuration errors automatically.
 
 %An important class of networks are the large \emph{structured networks}
 %commonly deployed in industrial data centers.
 
 Computer networks run many critical services, and every second of downtime is
-costly at best and dangerous at worst.  Keeping these complex systems up and running 24/7 is an enormous challenge~\cite{mahajan+:bgp-misconfiguration,feamster+:rcc,batfish,dc-failure-study}.
+costly at best and dangerous at worst.  Keeping these complex systems up and
+running 24/7 is an enormous
+challenge~\cite{mahajan+:bgp-misconfiguration,feamster+:rcc,batfish,dc-failure-study}.
 %
-While hardware faults, rodents, power failures and natural disasters all pose problems, studies have consistently shown that human error in network configuration is one of the most error-prone task and the leading cause of network outages~\cite{juniper-study,xx}.
+While hardware faults, backhoes, power failures and natural disasters all pose
+problems, studies have consistently shown that human error in network
+configuration is one of the leading cause of network
+outages~\cite{juniper-study,xx}.
 
-To manage and configure large networks today, instead of considering individual devices, operators classify devices devices into {\em roles}. A role refers to specific functionality and is played by one or more devices. For instance, in a data center, roles may correspond to "top-of-rack," "aggregation," and "spine" routers; and in a backbone network, they may correspond to "core" and "border" routers. While the network may have hundreds or thousands of devices---a scale that is impossible for humans to handle---there tend to be a handful of roles.
+To manage and configure large networks today, instead of considering individual
+devices, operators classify devices devices into {\em roles}. A role refers to
+specific functionality and is played by one or more devices. For instance, in a
+data center, roles may correspond to "top-of-rack," "aggregation," and "spine"
+routers; and in a backbone network, they may correspond to "core" and "border"
+routers. While the network may have hundreds or thousands of devices---a scale
+that is impossible for humans to handle---there tend to be a handful of roles.
 %
-Operators author a configuration {\em template} for each role. Templates are macros that can be instantiated with different concrete values, based on the network topology, to generate a configuration for each device.
+Operators author a configuration {\em template} for each role. Templates are
+macros that can be instantiated with different concrete values, based on the
+network topology, to generate a configuration for each device.
 
-Unfortunately, template construction is a low-level, manual process. Operators manually decompose network-wide routing and fault-tolerance policies (e.g., prefer one end-to-end path over another or no loss in connectivity after any one-link failure) across roles and encode them using assembly-language-like configuration primitives (e.g., role A should not transmit routing information from B to C). Such decomposition tasks are highly complex~\cite{propane}.
+Unfortunately, template construction is a low-level, manual process. Operators
+manually decompose network-wide routing and fault-tolerance policies (e.g.,
+prefer one end-to-end path over another or no loss in connectivity after any
+one-link failure) across roles and encode them using assembly-language-like
+configuration primitives (e.g., role A should not transmit routing information
+from B to C). Such decomposition tasks are highly complex~\cite{propane}.
 
-Worse, operators can never be sure that the generated templates correctly implement the policy,  beyond testing some concrete instantiations using simulation or verification tools~\cite{x,y}. Testing based on concrete instantiations is insufficient because large networks evolve continuously, as devices and links are added or taken offline for maintenance. Templates that work for the current network topology, may or may not work for future topologies. Updating the templates, if found to not work for a future topology, may cause trickle-down, network-wide configuration changes, which is highly disruptive. Building sophisticated tools for validating templates is difficult because the templates today have no particular semantics---which policies they implement and for which topologies---other than the semantics of the configurations that one obtains from instantiating them.
+Worse, operators can never be sure that the generated templates correctly
+implement the policy,  beyond testing some concrete instantiations using
+simulation or verification tools~\cite{x,y}. Testing based on concrete
+instantiations is insufficient because large networks evolve continuously, as
+devices and links are added or taken offline for maintenance. Templates that
+work for the current network topology, may or may not work for future
+topologies. Updating the templates, if found to not work for a future topology,
+may cause trickle-down, network-wide configuration changes, which is highly
+disruptive. Building sophisticated tools for validating templates is difficult
+because the templates today have no particular semantics---which policies they
+implement and for which topologies---other than the semantics of the
+configurations that one obtains from instantiating them.
 
 %It is no wonder that a major
 %network outage, such as the one that grounded all United Air flights
 %in July 2015~\cite{x}, makes international news every few months.
 
-Given the challenges of generating and validating network configurations, one might think that operators will be receptive to systems that can generate provably-correct configurations from high-level policy specifications~\cite{x,y,z,configassure,propane}. However, our conversations with two major cloud providers reveal that operators of large networks are reluctant to use such systems. While they think of their network abstractly, in terms of roles, these systems require concrete topologies, with no understanding of roles as a first-order abstraction.
-Even if two devices play the same role,
-there is no guarantee that the systems will generate (syntactically) similar configurations; if the operators want to debug or analyze system output, they will have to consider
-hundreds of device configurations instead of a handful of role configurations. These systems become even more brittle when the network evolves. Any change in network topology requires re-execution of the engine, from scratch, on the changed topology.  The result may be
-a completely different set of configurations.
+Given the challenges of generating and validating network configurations, one
+might think that operators will be receptive to systems that can generate
+provably-correct configurations from high-level policy
+specifications~\cite{x,y,z,configassure,propane}. However, our conversations
+with two major cloud providers reveal that operators of large networks are
+reluctant to use such systems. While they think of their network abstractly, in
+terms of roles, these systems require concrete topologies, with no understanding
+of roles as a first-order abstraction.  Even if two devices play the same role,
+there is no guarantee that the systems will generate (syntactically) similar
+configurations; if the operators want to debug or analyze system output, they
+will have to consider hundreds of device configurations instead of a handful of
+role configurations. These systems become even more brittle when the network
+evolves. Any change in network topology requires re-execution of the engine,
+from scratch, on the changed topology.  The result may be a completely different
+set of configurations.
 
-We present \sysname, a system to generate provably-correct role templates. It allows operators to input \emph{abstract network topologies} in terms of roles and their connectivity. For instance, they may specify roles for ``top-of-rack'' and ``aggregation" routers and specify that every top-of-rack router connects to at least two aggregation routers (to tolerate the failure of a link to an aggregation router). Other inputs to \sysname include the routing policy of the network and its fault-tolerance requirements (e.g., the number of link failures to tolerate). For routing policy, we borrow notation from Propane~\cite{propane},  which specifies traffic paths at a high-level of abstraction. But while Propane policies
-refer concrete devices, \sysname policies refer to abstract roles.
+We present \sysname, a system to generate provably-correct role templates. It
+allows operators to input \emph{abstract network topologies} in terms of roles
+and their connectivity. For instance, they may specify roles for ``top-of-rack''
+and ``aggregation" routers and specify that every top-of-rack router connects to
+at least two aggregation routers (to tolerate the failure of a link to an
+aggregation router). Other inputs to \sysname include the routing policy of the
+network and its fault-tolerance requirements (e.g., the number of link failures
+to tolerate). For routing policy, we borrow notation from
+Propane~\cite{propane},  which specifies traffic paths at a high-level of
+abstraction. But while Propane policies refer to concrete devices, \sysname
+policies refer to abstract roles.
 
-Based on these inputs, the \sysname compiler generates one template per role. It guarantees that, when the templates are instantiated to configurations for {\em any} concrete topology that complies with the abstract topology, the result network will correctly implement the routing policy and meet the fault-tolerance requirements. We show how fault-tolerance analysis can be done over abstract topology itself using \todo{say something cool about about the inference rules and such}.
+Based on these inputs, the \sysname compiler generates one template per role. It
+guarantees that, when the templates are instantiated to configurations for {\em
+any} concrete topology that complies with the abstract topology, the result
+network will correctly implement the routing policy and meet the fault-tolerance
+requirements. We show how fault-tolerance analysis can be done over abstract
+topology itself using \todo{say something cool about about the inference rules
+and such}.
 
-\sysname templates are also evolution-friendly. When the network migrates from one concrete topology to another, both of which comply with the abstract topology, it is guaranteed that only the configurations of devices that acquire or lose a neighboring device needs to change (e.g., to activate a port on which the new device is connected).  No other device in the network is impacted.
+\sysname templates are also evolution-friendly. When the network migrates from
+one concrete topology to another, both of which comply with the abstract
+topology, it is guaranteed that only the configurations of devices that acquire
+or lose a neighboring device needs to change (e.g., to activate a port on which
+the new device is connected).  No other device in the network is impacted.
 
 \todo{Talk about evaluation result here ... roll the point about faster compilation there.}
 As an aside, a pleasant side effect of this new compiler
