@@ -730,6 +730,7 @@ This instructs \sysname to find BGP router configurations that satisfy the conju
 \para{Fault-tolerance policy} This policy specifies how many link failures the network should be able to withstand before connectivity loss for traffic occurs. Operators can  specify different tolerance levels for different pairs of abstract nodes. For instance, they may say that ToR to spine connectivity should be robust to 2 failures, \IE, no ToR-spine pair should lose connectivity as long as the number of simultaneous link failures is 2 or fewer; and ToR-to-ToR connectivity should be be robust to 1 failure.
 
 \subsection{Compilation}
+\label{subsec:compilation}
 
 %\sysname builds on the Propane network configuration tool, by supporting both synthesis for and reasoning over parameterized classes of topologies and their interactions with user-specified routing policy.
 
@@ -982,7 +983,7 @@ If we have a graph homomorphism $f : G \rightarrow G^A$, concrete product graph 
 \label{sec:analysis}
 
 %In practice, operators would often like to reason about a variety of properties for, not only their current network topology, but also future versions of it.
-The Product Graph provides a convenient representation to capture the joint impact of both topology and routing policy. In this section we present an analysis that operates over the abstract Product Graph to find a lower bound on the number of disjoint paths between pairs of concrete nodes. Answering questions about the number of disjoint paths between nodes allows operators to reason about many useful network properties such as reachability (\IE, is there at least one path) and fault tolerance (\EG, how many failures will disconnect certain routers).
+%% The Product Graph provides a convenient representation to capture the joint impact of both topology and routing policy. In this section we present an analysis that operates over the abstract Product Graph to find a lower bound on the number of disjoint paths between pairs of concrete nodes. Answering questions about the number of disjoint paths between nodes allows operators to reason about many useful network properties such as reachability (\IE, is there at least one path) and fault tolerance (\EG, how many failures will disconnect certain routers).
 
 
 \newcommand{\inference}[7]{
@@ -1075,25 +1076,30 @@ The Product Graph provides a convenient representation to capture the joint impa
 \end{figure*}
 
 
-\subsection{Abstract k-disjoint paths}
-\label{sec:property-checking}
+%\subsection{Abstract k-disjoint paths}
+%\label{sec:property-checking}
 
-\dpw{we could flip the order of this description:  give simple concrete $S_A(j,k)$ first and
-then go to the general.}
+%
 To infer bounds on the number of disjoint paths between concrete nodes we use information about the structure of the underlying concrete topologies encoded in abstraction constraints.
 %
-The idea is to maintain, for each node in the abstract Product Graph, facts learned about the number of disjoint paths to some number of concrete routers in the node's role. More specifically, we maintain facts of the form:
+As discussed informally in~\ref{subsec:compilation},
+for each node in the abstract Product Graph, 
+the idea is to maintain facts learned about the number of disjoint paths 
+to some number of concrete routers in the node's role. 
+More specifically, we maintain facts of the form:
 %
 \[ \begin{array}{c}
   L_{X_1}, \ldots, L_{X_n}(j,k)
 \end{array} \]
 \noindent
 %
-Each label $L \in \{S,A\}$ is either $S$, which stands for "some" or is $A$, which stands for "all". There is one label for each pod in the abstraction pod hierarchy. For a given node, $L_{X_1}$ corresponds to the outermost pod, $L_{X_{n-1}}$ corresponds to the innermost pod, and $L_{X_n}$ to the the node itself.
-
-Semantically, $L_{X_1}, \ldots, L_{X_n}(j,k)$ means that starting from some concrete source node, for "some"/``all" pods $X_1$, $L_{X_2}, \ldots, L_{X_n}(j,k)$ holds. The base case $L_{X_n}(j,k)$ means that for "some"/``all" groups of size $j$ concrete routers, there are $k$ edge-disjoint paths to each such that all $j*k$ paths are disjoint.
+where each label $L \in \{S,A\}$ is either $S$, which stands for "some" or is $A$, which stands for "all". There is one label for each pod in the abstraction pod hierarchy. For a given node, $L_{X_1}$ corresponds to the outermost pod, $L_{X_{n-1}}$ corresponds to the innermost pod, and $L_{X_n}$ to the the node itself.
+Semantically, $L_{X_1}, \ldots, L_{X_n}(j,k)$ means that starting from some concrete source node, for some/all pods $X_1, \ldots, X_{n-1}$
+and for some/all groups of nodes in the role $X_n$ of size $j$,
+%, $L_{X_2}, \ldots, L_{X_n}(j,k)$ holds. The base case $L_{X_n}(j,k)$ means that for "some"/``all" groups of size $j$ concrete routers, 
+there are $k$ paths to each such that all $j*k$ paths are edge-disjoint.
 %
-For example, a fact of the form: $A_P, S_{TL}(2,4)$ means that for all pods P, there is some group of 2 concrete routers in role TL such that they each have 4 disjoint paths to them from the source and all 8 paths are disjoint.
+%For example, a fact of the form: $A_P, S_{TL}(2,4)$ means that for all pods P, there is some group of 2 concrete routers in role TL such that they each have 4 disjoint paths to them from the source and all 8 paths are disjoint.
 
 \subsection{Inference rules}
 
@@ -1103,7 +1109,7 @@ In order to learn information about disjoint paths, we develop a collection of s
 
 In general, the inference rules try to learn information about both the largest number of disjoint paths to any single node in an abstract role as well as the largest reachable group in a particular role with at least one disjoint path to each.
 
-The first rule, \infrule{I-out1} applies to a learned fact of the form L$(j,k)$ where the number of outgoing edges from any concrete node in the $m$ role is greater than 0. In the worst case, the largest group of concrete nodes we could hope to reach at the $n$ role would be $e_1$ since all j nodes at the bottom may have the same outgoing edges to the concrete nodes at the top. Furthermore, the total number of disjoint paths to the $j$ nodes at the bottom is equal to $j*k$. Since adding edges between the nodes keeps the existing paths disjoint, and since we can not exceed the current number of disjoint paths to the concrete nodes in role $m$ on the bottom, the largest reachable group for the top node will be $min(j*k,e_1)$. Since we do not know for certain that all $j$ nodes have outgoing edges to the same nodes at the top, we conservatively use $1$ for the number of disjoint paths to each node on top.
+The first rule, \infrule{I-out1} applies to a learned fact of the form $L_m(j,k)$ where the number of outgoing edges from any concrete node in the $m$ role is greater than 0. In the worst case, the largest group of concrete nodes we could hope to reach at the $n$ role would be $e_1$ since all j nodes at the bottom may have outgoing edges to the same concrete nodes at the top. Furthermore, the total number of disjoint paths to the $j$ nodes at the bottom is equal to $j*k$. Since adding edges between the nodes keeps the existing paths disjoint, and since we can not exceed the current number of disjoint paths to the concrete nodes in role $m$ on the bottom, the largest reachable group for the top node will be $min(j*k,e_1)$. Since we do not know for certain that all $j$ nodes have outgoing edges to the same nodes at the top, we conservatively use $1$ for the number of disjoint paths to each node on top.
 
 The rule \infrule{I-out2} follows a similar line of reasoning. It says that if any group of size $j$ with $k$ disjoint paths to each is reachable in the bottom role, and there is at least one incoming edge for each concrete node in the top role, then there are $min(j,e_2)$ disjoint paths to any single concrete node in the top role. This is because we can choose the $j$ nodes on the bottom for which we want to find disjoint paths, and then use each of the $e_2$ disjoint incoming edges for the particular node at the top connecting it to the bottom.
 
