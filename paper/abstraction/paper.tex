@@ -81,7 +81,7 @@
 \newcommand{\LinkKW}{\KW{link}}
 \newcommand{\PathKW}{\KW{path}}
 \newcommand{\Novalley}{\KW{novalley}}
-
+\newcommand{\Mincut}{\mathit{mincut}}
 \renewcommand{\path}[2]{ #1 \mapsto \ensuremath{#2} }
 
 %% grammar
@@ -650,9 +650,9 @@ with a symbolic variable (\EG, $e1, e2, \ldots$) that denotes a constraint on th
 
 For example, in Figure~\ref{fig:example3}, the first two constraints: $e1 = AG$ and $e2 = TG$ say that, within any pod P, the number of outgoing edges from a node in the $TG$ role to a node in the $AG$ role is equal to the number of nodes in the $AG$ role. Similarly, the number of outgoing edges from a node in the $AG$ role to a node in the $TG$ role is equal to the number of nodes in the $TG$ role. These constraints capture the fact that, within any given pod, the global aggregators and ToRs are in a full mesh. Furthermore, the constraints $AG = AL$ and $AG \leq S$ ensure that, within pods P and Q, the $AG$ and $TG$ roles have the same number of routers, which is less than the number of routers in the spine role $S$.
 %
-The constraint $e3 \geq 2$ says that, in each pod, each aggregator node has at least 2 outgoing edges to nodes in the spine role. Symmetrically, the constraint $e4 \geq 1$ says that, for each pod P, each node in the spine role has at least one outgoing edge to a node in the $AG$ role. Similar constraints appear for the local aggregator role. The constraint $2 \leq S \leq 4$ makes explicit the possibility for growth, for example by growing the network from that of Figure~\ref{fig:example} to that of Figure~\ref{fig:example2}. In general, we need not bound the number of spine routers to admit more concrete topologies, potentially at the expense of analysis precision. Finally, we include the constraints $(S \mod AG) = 0$, and $(S \mod AL) = 0$ simply to show that constraints do not have to be inequalities. In general operators can write constraints using logical formula from any theory supported by modern SMT solvers.
+The constraint $e3 \geq 2$ says that, in each pod, each aggregator node has at least 2 outgoing edges to nodes in the spine role. Symmetrically, the constraint $e4 \geq 1$ says that, for each pod P, each node in the spine role has at least one outgoing edge to a node in the $AG$ role. Similar constraints appear for the local aggregator role. The constraint $2 \leq S \leq 4$ makes explicit the possibility for growth, for example by growing the network from that of Figure~\ref{fig:example} to that of Figure~\ref{fig:example2}. In general, we need not bound the number of spine routers to admit more concrete topologies, potentially at the expense of analysis precision. We include the constraints $(S \mod AG) = 0$, and $(S \mod AL) = 0$ simply to show that constraints do not have to be inequalities. Operators can write constraints using logical formula from any theory supported by modern SMT solvers.
 
-A final type of abstraction is the $mincut(1)$ constraint between the spine role S and N[1--2]. The mincut constraint says that any node in the spine role has at least one path to any node in the neighbor N1 (and N2) role. Annotations of this form are often useful for a "one big switch" \ryan{cite} type of abstraction where part of a complex network is abstracted into a single node. For example, to model an ISP backbone network the operator might abstract the network into separate geographic regions with two abstract roles per region -- one role for the border routers of the network, and another role for the core of the network. Mincut annotations could be used to describe the fault tolerance both within region cores as well as across regions.
+A final type of abstraction is the $\Mincut(1)$ constraint between the spine role S and N[1--2]. The mincut constraint says that any node in the spine role has at least one path to any node in the neighbor N1 (and N2) role. Annotations of this form are often useful for a "one big switch" abstraction \cite{Casado:2010} in which part of a complex network is represented as a single node. For example, to model an ISP backbone network the operator might divide the network into separate geographic regions with two abstract roles per region -- one role for the border routers of the network, and another role for the core of the network. Mincut annotations can be used to describe the degree of fault tolerance both within region cores as well as across regions.
 
 %All the guarantees provided by \sysname hold for any instantiation of the abstract network. This means that operators can safely expand their network in the future so long as the new network also satisfies these logical constraints.
 
@@ -672,9 +672,9 @@ A final type of abstraction is the $mincut(1)$ constraint between the spine role
 %Second, it introduces prefix template variables into the language to allow writing policies that are
 %parameterized over prefix destination.
 
-\para{Routing policy} Routing policies in \sysname consist of an ordered sequence of both a predicate matching a class of traffic and a list of ranked constraints on the paths that the traffic matching the predicate should prefer to take through the network. We borrow syntax from Propane~\cite{propane} but, instead of concrete prefixes and nodes, \sysname specifications can use abstract prefixes and nodes.
+\para{Routing policy} Routing policies in \sysname consist of an ordered sequence of both a predicate matching a class of traffic and a list of ranked constraints on the paths that the traffic matching the predicate should prefer to take through the network. We borrow syntax from Propane~\cite{propane}, but instead of concrete prefixes and nodes, \sysname specifications can use abstract prefixes and nodes.
 
-Let us see how to configure each of the datacenter networks from \S\ref{sec:motivation} by writing a \sysname routing policy over the abstract topology. We can capture the basic routing behavior, constraints (1, 2, 6), for the datacenters with the following policy:
+Let us see how to configure each of the datacenter networks from \S\ref{sec:motivation} by writing a \sysname routing policy over the abstract topology. We can capture the basic routing behavior, constraints (1, 2, 6), for the datacenters as follows:
 %
 \begin{code}
 \Define Routing =
@@ -747,7 +747,9 @@ For each abstract role in the network, we learn invariants about the number of d
 After one more inference the analysis will learn a fact of the form $A_{S}(1,1)$, which means that any single spine node is reachable via a single disjoint path from any initial global ToR node 
 In fact, due the the valley-free routing constraint, a single path is the most information we can infer, since this is exactly the worst-case fault-tolerance for the concrete network from Figure~\ref{fig:example2}.
 
-If \sysname finds that the fault-tolerance policy can be met, it generates templates for the abstract topology, which can be instantiated into BGP configurations based on the concrete topology. During concretization, we confirm that the concrete topology adheres to the abstract topology.
+If \sysname finds that the fault-tolerance policy can be met, it generates templates for the abstract topology.  Per-device BGP configurations can in turn be generated from the templates 
+using information in the concrete topology. To ensure the process is sound, 
+\sysname checks that the given concrete topology is an instance of the abstract topology.
 
 %
 %The constraint prevents traffic from over taking a path that traverses
