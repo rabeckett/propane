@@ -425,7 +425,14 @@ Templates have parameters for various aspects of the configuration (\EG, interfa
 
 %Templates provide two key advantages. First, they help eliminate a class of configuration errors that stem from typos and inconsistencies, e.g., using the wrong address for a router, having inconsistent addresses for the two ends of a link, and failing to configure one side of a routing adjacency.  Second, templates have the potential for re-use when the topology changes while maintaining its basic structure (e.g., adding a new pod to the data center) or multiple networks with similar structures need to be instantiated (e.g., in an organization that runs multiple data centers).
 
-While templates help avoid a class of configuration errors (e.g., inconsistent routing adjacencies), they are difficult to author. Operators must manually decompose complex, network-wide routing policy into role templates such that the collective behavior of the configurations generated from them will correctly implement the policy, both when failures occur and as the network evolves.
+%While templates help avoid a class of configuration errors (e.g., inconsistent routing adjacencies), they provide no guarantees
+Templates that work for one topology may not work for seemingly-inconsequential variations.  
+%Unfotunately, currently, there is no way to predict which variations will behave correctly for a given set of templates.
+Worse, when operators discover their old templates no longer work, changing a template will
+cause a change to all devices that use that template---an unacceptable disruption in many cases.  When that happens, operators may abandon templates entirely and revert to hand-crafting configurations, using local patches to accommodate the change.
+Such patches reintroduce the complexity and errors that templates were meant to prevent.
+
+%they are difficult to author. Operators must manually decompose complex, network-wide routing policy into role templates such that the collective behavior of the configurations generated from them will correctly implement the policy, both when failures occur and as the network evolves.
 
 %This task is error-prone, and no tools exist today for template verification; in fact, such tools would be difficult to build as templates have no semantics, of policies or topologies they were intended to work for, independent of the configurations they produce. Today, operators test (not verify) templates by simulating their generated configurations over the current or known future topologies.
 
@@ -438,11 +445,11 @@ While templates help avoid a class of configuration errors (e.g., inconsistent r
 
 %Such simulations provide some assurance that the templates work correctly for the simulated topologies but little assurance for other topologies that may arise after the network evolves. 
 
-Templates that work for one topology may not work for seemingly-inconsequential variations.  
+%Templates that work for one topology may not work for seemingly-inconsequential variations.  
 %Unfotunately, currently, there is no way to predict which variations will behave correctly for a given set of templates.
-Worse, when operators discover their old templates no longer work, changing a template will
-cause a change to all devices that use that template---an unacceptable disruption in many cases.  When that happens, operators may abandon templates entirely and revert to hand-crafting configurations, using local patches to accommodate the change.
-Such patches reintroduce the complexity and errors that templates were meant to prevent.
+%Worse, when operators discover their old templates no longer work, changing a template will
+%cause a change to all devices that use that template---an unacceptable disruption in many cases.  When that happens, operators may abandon templates entirely and revert to hand-crafting configurations, using local patches to accommodate the change.
+%Such patches reintroduce the complexity and errors that templates were meant to prevent.
 
 %% For some changes, they may discover that their old templates will not work anymore. ~\dpw{Note: This is going to be true for Methane too.} ~\ratul{Not really; our abstract topologies encode all possible future topologies} ~\dpw{Our abstract topologies precisely define a set of topologies for which our
 %% This discovery is highly problematic because changing a template may cause a configuration change of all the devices that use that template---an unacceptable disruption in many cases.  When that happens, network operators may abandon templates entirely and revert to hand-crafting configurations, using local patches to accommodate the topological change.
