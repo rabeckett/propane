@@ -808,7 +808,7 @@ A policy has one or more constraints, each of which is either an aggregation con
 
 Converting from the high-level syntax from \S\ref{sec:overview} to the core syntax is straightforward. The predicate $\True$ becomes the prefix range $0.0.0.0/[0..32]$.
 %
-Each constraint desugars to a regular expression. For example, the constraint $\Always\CD{(\In)}$ becomes $\In^*$ and the constraint $\CD{\End(T0)}$ becomes $\mathtt{\Sigma}^* \cdot \CD{T0}$.
+Each constraint desugars to a regular expression. For example, the constraint $\Always\CD{(\In)}$ becomes $\In^*$ and the constraint $\CD{\End(TG)}$ becomes $\mathtt{\Sigma}^* \cdot \CD{TG}$.
 %
 Preferences are lifted to the top level of the regular expression when their use is unambiguous, and separate sets of constraints are joined prefix-by-prefix by taking the set intersection of their constraints.
 
@@ -879,7 +879,7 @@ If we have a graph homomorphism $f : G \rightarrow G^A$, concrete product graph 
       \state{0}{$0$}{              }{}
       \state{1}{$1$}{right of=0}{accepting}
       \transition{0}{0}{out}{loop above}
-      \transition{0}{1}{Peer1}{}
+      \transition{0}{1}{N1}{}
       \transition{1}{1}{in}{loop above}
       \node at (1,-1){Rank 1 DFA};
     \end{tikzpicture}
@@ -888,7 +888,7 @@ If we have a graph homomorphism $f : G \rightarrow G^A$, concrete product graph 
       \state{0}{$0$}{              }{}
       \state{1}{$1$}{right of=0}{accepting}
       \transition{0}{0}{out}{loop above}
-      \transition{0}{1}{Peer2}{}
+      \transition{0}{1}{N2}{}
       \transition{1}{1}{in}{loop above}
       \node at (1,-1){Rank 2 DFA};
     \end{tikzpicture}%
@@ -922,7 +922,7 @@ If we have a graph homomorphism $f : G \rightarrow G^A$, concrete product graph 
   \hrulefill
   \vspace*{.4em}%
 
-  \caption{Product graph construction for policy $\True ~\Path~ \CD{\Exit(\text{Peer1}} ~\Prefer~ \CD{\text{Peer2})}$.}
+  \caption{Product graph construction for policy $\True ~\Path~ \CD{\Exit(\text{N1}} ~\Prefer~ \CD{\text{N2})}$.}
   \label{fig:example-compilation}
   %\vspace{-1em}
 \end{figure*}
@@ -1510,7 +1510,8 @@ To evaluate \sysname, we apply it on policies for backbone and datacenter networ
 %  \label{fig:analysis-precision}
 %\end{figure}
 
-We evaluate the expressiveness and precision of our abstract analysis on a range of different network topologies found in network literature and in production networks. For each topology in Figure~\ref{fig:analysis-precision} we define a suitable abstraction. Since many topologies have tunable parameters (e.g., the recursion depth $k$ for the Dcell topology), we list all such parameters that are fixed for our abstraction. We implement a shortest path routing policy over the topology and record the precision of the abstract analysis in terms of whether or not it is able to accurately prove reachability and/or the correct number of disjoint paths between all pairs of nodes.
+We evaluate the expressiveness and precision of our abstract analysis on a range of different network topologies found in network literature and in production networks. The analysis is precise if it finds a tight lower-bound on the fault-tolerance (\IE, there is actually a concrete network with that fault tolerance).
+For each topology in Figure~\ref{fig:analysis-precision} we define a suitable abstraction. Since many topologies have tunable parameters (\EG, the recursion depth $k$ for the Dcell topology), we list all such parameters that are fixed for the abstraction. We implement a shortest path routing policy over the topology and record the precision of the analysis in terms of whether or not it is able to accurately prove reachability and/or the correct number of disjoint paths between all pairs of nodes.
 
 \para{Fat Tree Topologies}
 
@@ -1552,19 +1553,23 @@ For a fixed number of dimensions $L$, we abstract each full mesh of $S_L$ nodes 
   \vspace{-1em}
 \end{figure}
 
-Using abstraction allows us to naturally scale network synthesis in \sysname. We evaluate compilation time in \sysname both with and without abstraction using routing policy for backbone and datacenter networks inspired by configurations obtained from a large cloud provider.
+Using abstraction allows us to naturally scale network synthesis in \sysname. We evaluate compilation time in \sysname both with and without abstraction using routing policy for backbone and datacenter networks inspired by configurations obtained from a large cloud provider. For both types networks, we fix routing policy but scale the size of the underlying topology.
 
-\para{Routing Policy}
+
+\para{Datacenter}
 
 Routers in the datacenter network run BGP using private AS numbers and peer with each other and with backbone networks over BGP as well. The routers aggregate some prefix blocks when announcing them to the backbone network, and they keep some prefixes internal. The policy also ensures that private address space from external neighbors is dropped. The data center prefers that traffic leave through certain peers over others and ensures that transit traffic between peers is never allowed in the datacenter.
 
-The backbone network classifies neighbors into several categories based on commercial relationship and prefers paths through them in order. Similar to the datacenter, it prevents private address space from external neighbors, drops transit traffic between certain peers but not through others, and aggregates internal prefixes at the border of the network.
+We use a fat tree topology and scale the size of the topology according the the number of pods $k$, starting with 4 pods and ending with 24 pods. The abstract topology uses one abstract node for each tier of the datacenter with an additional abstract node to separate local and global prefixes. A single abstract node is used for each class of neighbor.
 
-\para{Network Topology}
 
-For both networks, we use the fix routing policy but scale the size of the underlying topology. For the datacenter networks, we use a fat tree topology and scale the size of the topology according the the number of pods $k$, starting with 4 pods and ending with 24 pods. The abstract topology uses one abstract node for each tier of the datacenter with an additional abstract node to separate local and global prefixes. A single abstract node is used for each class of neighbor.
 
-For the backbone networks, we split the network into two parts: a collection of border routers and an internal core. We scale the backbone networks from 10 to 250 routers. The abstract topology uses a single abstract node for the network border routers and another abstract node for the network core. Backbone neighbors are grouped into abstract nodes based on their commercial relationship to the current AS (e.g., customer, provider, peer).
+\para{Backbone}
+
+The backbone policy classifies neighbors into several categories based on commercial relationship and prefers paths through them in order. Similar to the datacenter, it drops private address space from  neighbors, drops transit traffic between certain peers but not others, and aggregates internal prefixes at the border of the network.
+
+For the backbone networks, we split the network into two parts: a collection of border routers and an internal core. We scale the backbone networks from 10 to 250 routers. The abstract topology uses a single abstract node for the network border routers and another abstract node for the network core with mincut annotation both within the core and between the core and border roles. Backbone neighbors are grouped into abstract nodes based on their commercial relationship to the current AS (e.g., customer, provider, peer).
+
 
 \para{Results}
 
@@ -1590,7 +1595,7 @@ Figure~\ref{fig:abstract-breakdown} shows the relative time taken by each phase 
 
 Our work is related to four threads of prior work.
 
-\para{Network synthesis} Many recent systems focus on allowing operators to specify  their policies at a high level. These can be classified into two classes. The first class targets networks based on SDN (software-defined networking) and directly generates the forwarding rules that tell routers how to forward packets~\cite{x,y,z}. The second class, and to which our work belongs, targets conventional networks and generates router configuration, based on which the routers interact and compute forwarding rules~\cite{propane,narain:lisa05,narain+:configassure}. Almost all large networks (old or new) use the conventional paradigm because that scales better~\cite{bgp-in-dc}.
+\para{Network synthesis} Many recent systems focus on allowing operators to specify their policies at a high level. These can be classified into two classes. The first class targets networks based on SDN (software-defined networking) and directly generates the forwarding rules that tell routers how to forward packets~\cite{x,y,z}. The second class, and to which our work belongs, targets conventional networks and generates router configuration, based on which the routers interact and compute forwarding rules~\cite{propane,narain:lisa05,narain+:configassure}. Almost all large networks (old or new) use the conventional paradigm because that scales better~\cite{bgp-in-dc}.
 
 While we borrow much from existing configuration synthesis work, especially Propane~\cite{propane}, our goal is to generate role templates from abstract topologies, rather than router configurations from concrete topologies. This goal aligns better with operators' mental models and tools and permits network evolution with minimal disruption to existing routers. In the process, develop new abstractions for network topologies, fault-tolerance analysis algorithms for abstract topologies, and assign formal semantics to templates.
 
