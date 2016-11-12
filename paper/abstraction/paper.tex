@@ -724,10 +724,9 @@ NoValley & \Agg(PG, \In -> \Out)
 \end{code}
 \noindent%
 
-This instructs \sysname to find BGP router configurations that satisfy the conjunction of the Routing and Local constraints. It also declares an additional constraint that we want to perform prefix summarization (as PG) for global prefixes at the border of the datacenter (\IE, along any edge starting inside our datacenter and ending at a peer outside the datacenter).
+This instructs \sysname to find BGP router configurations that satisfy the conjunction of all the constraints. It also declares an additional constraint that we want to perform prefix summarization (as PG) for global prefixes at the border of the datacenter (\IE, along any edge starting inside our datacenter and ending at a peer outside the datacenter).
 
-\para{Fault-tolerance policy} This policy specifies how many link failures the network should be able to withstand before connectivity loss for traffic occurs. Operators can  specify different tolerance levels for different pairs of abstract nodes. For instance, they may say that ToR to spine connectivity should be robust to 2 failures, \IE, no ToR-spine pair should lose connectivity as long as the number of simultaneous link failures is 2 or fewer (for any combination of links); and ToR-to-ToR connectivity should be be robust to 1 failure.
-\ryan{tor or ToR?}
+\para{Fault-tolerance policy} This policy specifies how many link failures the network should be able to withstand before connectivity loss for traffic occurs. Operators can  specify different tolerance levels for different pairs of abstract nodes. For instance, they may say that ToR to spine connectivity should be robust to 2 failures, \IE, no ToR-spine pair should lose connectivity as long as the number of simultaneous link failures is 2 or fewer; and ToR-to-ToR connectivity should be be robust to 1 failure.
 
 \subsection{Compilation}
 
@@ -736,28 +735,18 @@ This instructs \sysname to find BGP router configurations that satisfy the conju
 %Although \sysname can ensure correct forwarding behavior independent of the exact concrete topology or failure scenario, it is often useful to be able to ask "what if" questions about other network properties. For example, an operator may require a certain level fault tolerance between between different collections of routers. Such analysis depends, not only on the network topology, but also on the underlying routing policy, both of which \sysname has access to.
 The \sysname compiler generates templates from the inputs above in three phases. First, it combines the abstract topology and routing policy into a {\em product graph} that compactly captures the flow of routing information over the topology in a policy-compliant manner. The algorithm for this phase builds on the Propane compiler, which was designed for concrete topologies and policy; we show that it can be extended to abstract inputs and that the extensions are correct.
 
-Second, \sysname evaluates if the fault-tolerance policy can be met, considering the joint impact of the abstract topology and routing policy. Joint analysis is needed, and topology alone is not enough, because connectivity for traffic will suffer even when functional paths exists in the topology if those paths are not allowed by routing policy. It implies that we cannot use standard graph theoretic algorithms here.
+Second, \sysname checks if the fault-tolerance policy can be met by considering the joint impact of the abstract topology and routing policy. Joint analysis is needed, because connectivity for traffic will suffer even when functional paths exists in the topology if those paths are not allowed by routing policy. It implies that we cannot use standard graph theoretic algorithms.
 
-Instead, we develop a sound analysis that is based on computing the minimum number of disjoint policy-compliant paths between pairs of nodes over abstract topologies. If this number for a pair of nodes is less than the desired fault-tolerance level, we declare that the policy cannot be met.
+Instead, we develop a sound analysis based on computing the minimum number of disjoint policy-compliant paths between pairs of nodes over abstract topologies. If this number for a pair of nodes is less than the desired fault-tolerance level, \sysname declares that the policy cannot be met.
 
 Suppose we want to compute the number of of disjoint paths between any global ToR and spine router in Figure~\ref{fig:example3} for any concrete topology after applying the routing policy.
 %This can be used as a lightweight verification tool to detect certain classes of configuration bugs. For example, since the network is performing prefix summarization at the border of the datacenter, we might introduce a black hole after enough failures occur to disconnect a tor from a spine router.
-We proceed as follows. For each abstract role in the network, we learn invariants about the number of disjoint paths to routers in that role. These invariants contain a sequence of labels followed by a pair of numbers $(i,j)$. For example, the analysis would start with a fact of the form: $S_P S_{TG} (1,1)$. This means that, there is some group of nodes of size 1 in the TG role in some pod P such that any initial node in the TG role has 1 disjoint path to it (and all such paths are edge-disjoint). Since we know that the each node in the TG role is in a full mesh with nodes in the AG role within any given pod, we might infer a fact for AG of the form: $S_P A_{AG}(e1,1)$. This says that any group of nodes of size e1 in the AG role is reachable with at least 1 edge-disjoint path to each such node from any initial node in the TG role.
+For each abstract role in the network, we learn invariants about the number of disjoint paths to routers in that role. These invariants contain a sequence of labels followed by a pair of numbers $(i,j)$. For example, the analysis would start with a fact of the form: $S_P S_{TG} (1,1)$. This means that, there is some group of nodes of size 1 in the TG role in some pod P such that any initial node in the TG role has 1 disjoint path to it (and all such paths are edge-disjoint). Since we know that the each node in the TG role is in a full mesh with nodes in the AG role within any given pod, we might infer a fact for AG of the form: $S_P A_{AG}(e1,1)$. This says that any group of nodes of size e1 in the AG role is reachable with at least 1 edge-disjoint path to each such node from any initial node in the TG role.
 %
-If we run the abstract analysis over the abstract network from Figure~\ref{fig:example3} the analysis will learn a fact of the form $A_{S}(1,2)$, which means that any single spine node is reachable via 2 disjoint paths from any initial global tor node \ryan{it will actually be 1, we need to add a constraint on e1}.
+After one more inference the analysis will learn a fact of the form $A_{S}(1,1)$, which means that any single spine node is reachable via a single disjoint path from any initial global ToR node 
+In fact, due the the valley-free routing constraint, a single path is the most information we can infer, since this is exactly the worst-case fault-tolerance for the concrete network from Figure~\ref{fig:example2}.
 
-Suppose now that the routing policy disallowed paths with valleys (\IE, paths that go down and then up at some point).
-%Such a constraint can be added to the routing policy in \sysname:
-%\begin{code}
-%\Define ValleyFree =
-%    \True \Path \Novalley(\{TL,TG\},\{AL,AG\},\{S\})
-%\end{code}
-%\noindent%
-%This adds a constraint that applies to all traffic and prevents valleys by defining each level in the datacenter.
-Because our analysis is policy sensitive, if we were to run it again with the same abstract topology but the new routing policy, it would only be able to infer that there is a single disjoint path to any given spine router in the worst case.
-In fact this is exactly the case for the concrete network from Figure~\ref{fig:example2}.
-
-Finally, if \sysname deems that the fault-tolerance policy can be met, it generates templates for the abstract topology, which can be instantiated into BGP configurations based on the concrete topology. During concretization, we confirm that the concrete topology adheres to the original abstract topology.
+If \sysname finds that the fault-tolerance policy can be met, it generates templates for the abstract topology, which can be instantiated into BGP configurations based on the concrete topology. During concretization, we confirm that the concrete topology adheres to the abstract topology.
 
 %
 %The constraint prevents traffic from over taking a path that traverses
