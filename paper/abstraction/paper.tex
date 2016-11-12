@@ -9,8 +9,6 @@
 \usepackage{xspace}
 \usepackage{listings}
 \usepackage{code}
-\usepackage{algorithm}
-\usepackage[noend]{algpseudocode}
 \usepackage{tikz}
 \usetikzlibrary{arrows,automata,positioning}
 \let\proof\relax
@@ -18,7 +16,6 @@
 \usepackage{amsthm}
 \usepackage{subcaption}
 \usepackage{balance}
-\usepackage[ampersand]{easylist}
 \usepackage{textcomp}
 \usepackage{enumitem}
 \usepackage{pifont}
@@ -739,7 +736,7 @@ This instructs \sysname to find BGP router configurations that satisfy the conju
 %\sysname builds on the Propane network configuration tool, by supporting both synthesis for and reasoning over parameterized classes of topologies and their interactions with user-specified routing policy.
 
 %Although \sysname can ensure correct forwarding behavior independent of the exact concrete topology or failure scenario, it is often useful to be able to ask "what if" questions about other network properties. For example, an operator may require a certain level fault tolerance between between different collections of routers. Such analysis depends, not only on the network topology, but also on the underlying routing policy, both of which \sysname has access to.
-The \sysname compiler generates templates from the inputs above in three phases. First, it combines the abstract topology and routing policy into a {\em product graph} that compactly captures the flow of routing information over the topology in a policy-compliant manner. The algorithm for this phase builds on the Propane compiler, which was designed for concrete topologies and policy; we show that it can be extended to abstract inputs and that the extensions are correct.
+The \sysname compiler generates templates from the inputs above in three phases. First, it combines the abstract topology and routing policy into a {\em product graph} (PG) that compactly captures the flow of routing information over the topology in a policy-compliant manner. The algorithm for this phase builds on the Propane compiler, which was designed for concrete topologies and policy; we show that it can be extended to abstract inputs and that the extensions are correct.
 
 Second, \sysname checks if the fault-tolerance policy can be met by considering the joint impact of the abstract topology and routing policy. Joint analysis is needed, because connectivity depends on both: traffic will not flow along
 valid topological paths if the routing policy disallows it. 
@@ -860,46 +857,46 @@ Preferences are lifted to the top level of the regular expression when their use
 %\noindent%
 %
 
-A key step for \sysname to generate device configurations is to build a data structure amenable to joint analysis of both the topology and routing policy. Intutively, \sysname captures both topology and routing constraints by ``intersecting" the finite automata associated with the policy regular expressions with the graph structure of the topology into a data structure called the Product Graph~\cite{propane}.
+A key step for \sysname to generate device configurations is to build a data structure amenable to joint analysis of both the topology and routing policy. Intutively, \sysname captures both topology and routing constraints by ``intersecting" the finite automata associated with the policy regular expressions with the graph structure of the topology into a data structure called the Product Graph~\cite{propane} (PG).
 
-The Product Graph compactly encodes all paths protocol messages should be passed along through the network in order to guarantee the devices find policy-compliant paths dynamically.
+The PG compactly encodes all paths protocol messages should be passed along through the network in order to guarantee the devices find policy-compliant paths dynamically.
 %
 %Although \sysname policies describe the routes that traffic should take through the network, network protocols (including BGP) typically disseminate router information in the opposite direction. For example, a router Y will tell its neighbor X that it has a route to the destination meaning that X can send traffic through Y. For this reason, we start by compiling
 %
-Because \sysname policies can have a separate routing policy for each predicate matching traffic, we construct one such Product Graph for each predicate.
+Because \sysname policies can have a separate routing policy for each predicate matching traffic, we construct one such PG for each predicate.
 
 
 For each regular path constraint $r_i$ from $r_1 ~\Prefer~ .. ~\Prefer~ r_k$, we construct a DFA for the reverse of $r_i$. A DFA for $r_i$ is defined as a tuple ($\Sigma, Q_i, F_i, q_{0_i}, \sigma_i$). The alphabet $\Sigma$ is the set of topology locations, $Q_i$ is the set of states for automaton i, $F_i$ is the set of final states, $q_{0_i}$ is the initial state, and $\sigma_i \colon Q_i \times \Sigma \rightarrow Q_i$ is the state transition function.
 %
-The Product Graph is a tuple ($G'$, $start$, $P$) where $G' = (V',E')$ is a new graph with
+The PG is a tuple ($G'$, $start$, $P$) where $G' = (V',E')$ is a new graph with
 vertices $V' \colon V \times Q_1 \times \dots \times Q_j$,
 edges $E' \colon V' \times V'$,
 a unique starting vertex $start$,
-and a preference function $P \colon V' \rightarrow 2^{\set{1, \dots, j}}$, mapping nodes in the product graph to a set of path ranks.
+and a preference function $P \colon V' \rightarrow 2^{\set{1, \dots, j}}$, mapping nodes in the PG to a set of path ranks.
 
-The Product Graph is constructed by adding an edge from state $m = (l_m, q_{m_1}, \dots, q_{m_k})$ to $n = (l_n, q_{n_1}, \dots, q_{n_k})$ whenever $\sigma_i(q_{m_i}, l_n) = q_{n_i}$ for each $i$ and $(l_m,l_n) \in E$ is a valid topology link.
+The PG is constructed by adding an edge from state $m = (l_m, q_{m_1}, \dots, q_{m_k})$ to $n = (l_n, q_{n_1}, \dots, q_{n_k})$ whenever $\sigma_i(q_{m_i}, l_n) = q_{n_i}$ for each $i$ and $(l_m,l_n) \in E$ is a valid topology link.
 %
 We add edges from the start node to any $m = (l, q_{m_1}, \dots, q_{m_k})$ when $\sigma_i(q_{0_i}, l) = q_{m_i}$ for each $i$.
 %
-The preference function $P(m)$ denotes the rank of paths through the Product Graph ending at node $m$ and is defined as $P(m) = \set{i~\vert~q_{m_i} \in F_i}$.
+The preference function $P(m)$ denotes the rank of paths through the PG ending at node $m$ and is defined as $P(m) = \set{i~\vert~q_{m_i} \in F_i}$.
 %
-Finally, we write $\tilde{m} = l$ to extract the topology location from a product graph node, when $m = (l, q_{m_1}, \dots, q_{m_k}) \in V'$.
+Finally, we write $\tilde{m} = l$ to extract the topology location from a PG node, when $m = (l, q_{m_1}, \dots, q_{m_k}) \in V'$.
 
-Figure~\ref{fig:example-compilation} shows an example of a Product Graph for the policy that applies to all external traffic from the datacenter example in \S\ref{sec:overview} ($\True ~\Path~ \CD{\Exit(N1 \Prefer~N2)}$).
+Figure~\ref{fig:example-compilation} shows an example of a PG for the policy that applies to all external traffic from the datacenter example in \S\ref{sec:overview} ($\True ~\Path~ \CD{\Exit(N1 \Prefer~N2)}$).
 %
 %\begin{code}
 %\True \Path \Exit(\sf{Peer1}) \Prefer \Exit(\sf{Peer2})
 %\end{code}
 %\noindent%
 %
-The first automaton represents the more preferred constraint $\CD{\Exit(N1)}$ and the second automaton represents the less preferred constraint $\CD{\Exit(N2)}$. The Product Graph is shown for both an instance of a simple concrete network matching the abstraction from \S\ref{sec:overview} as well as for the abstract topology.
+The first automaton represents the more preferred constraint $\CD{\Exit(N1)}$ and the second automaton represents the less preferred constraint $\CD{\Exit(N2)}$. The PG is shown for both an instance of a simple concrete network matching the abstraction from \S\ref{sec:overview} as well as for the abstract topology.
 
-Paths through the Product Graph represent paths through the topology that protocol messages may use to ensure policy-compliant. For example, in the concrete Product Graph, all messages from N1 are not blocked at each spine router. Paths for a destination learned through N1 will end in an accepting state for the first automaton (\EG, node (T1,1,0)). Similarly, paths for a destination learned through N2 will end in an accepting state for the second automaton. 
+Paths through the PG represent paths through the topology that protocol messages may use to ensure policy-compliant. For example, in the concrete PG, all messages from N1 are not blocked at each spine router. Paths for a destination learned through N1 will end in an accepting state for the first automaton (\EG, node (T1,1,0)). Similarly, paths for a destination learned through N2 will end in an accepting state for the second automaton. 
 
-One interesting observation is that the Product Graph for both the concrete and abstract networks share a similar structure. This leads us to the following observation:
+One interesting observation is that the PG for both the concrete and abstract networks share a similar structure. This leads us to the following observation:
 
 \begin{defn}
-If we have a graph homomorphism $f : G \rightarrow G^A$, concrete product graph $PG = (G',\mathit{start},P)$ and abstract product graph $PG^A = (G'^A, \mathit{start}^A, P^A)$, then we can construct a new homomorphism $f_{pg} : G' \rightarrow G'^A$:
+If we have a graph homomorphism $f : G \rightarrow G^A$, concrete $PG = (G',\mathit{start},P)$ and abstract $PG^A = (G'^A, \mathit{start}^A, P^A)$, then we can construct a new homomorphism $f_{pg} : G' \rightarrow G'^A$:
 \[ \begin{array}{rcl}
   f_{pg}( \mathit{start} ) & = & \mathit{start}^A  \\
   f_{pg}( (l,q_1,\ldots,q_n) ) & = & (f(l),q_1,\ldots,q_n) \\
@@ -960,7 +957,7 @@ If we have a graph homomorphism $f : G \rightarrow G^A$, concrete product graph 
   \hrulefill
   \vspace*{.4em}%
 
-  \caption{Product graph construction for policy $\True ~\Path~ \CD{\Exit(\text{N1}} ~\Prefer~ \CD{\text{N2})}$.}
+  \caption{Product Graph construction for policy $\True ~\Path~ \CD{\Exit(\text{N1}} ~\Prefer~ \CD{\text{N2})}$.}
   \label{fig:example-compilation}
   %\vspace{-1em}
 \end{figure*}
@@ -1079,7 +1076,7 @@ If we have a graph homomorphism $f : G \rightarrow G^A$, concrete product graph 
 To infer bounds on the number of disjoint paths between concrete nodes we use information about the structure of the underlying concrete topologies encoded in abstraction constraints.
 %
 As discussed informally in~\ref{subsec:compilation},
-for each node in the abstract Product Graph, 
+for each node in the abstract PG, 
 the idea is to maintain facts learned about the number of disjoint paths 
 to some number of concrete routers in the node's role. 
 More specifically, we maintain facts of the form:
@@ -1149,13 +1146,13 @@ Recall the policy for global prefixes in the datacenter.
 \end{code}
 \noindent
 %
-Figure~\ref{fig:example-inference} shows part of the abstract Product Graph representation for this routing policy. The inference algorithm starts from the node $(TG,0,0)$ with the initial fact $S_P S_{TG}(1,\infty)$ (\IE, no restriction on the number of disjoint paths initially).
+Figure~\ref{fig:example-inference} shows part of the abstract PG representation for this routing policy. The inference algorithm starts from the node $(TG,0,0)$ with the initial fact $S_P S_{TG}(1,\infty)$ (\IE, no restriction on the number of disjoint paths initially).
 %
 The first step applies the rule \infrule{I-mesh1} together with \infrule{I-local} to reason about connectivity within a single pod for the TG and AG roles. This invokes a call to $\nu$Z to minimize the expression $min(\infty, AG)$, which results in 2. Therefore, the algorithm learns a new invariant of the form $S_P A_{AG} (2,1)$ for node $(AG, 0)$ to indicate that in some pod P, any group of 2 nodes is reachable.
 %
 The next step uses the inference rule \infrule{I-out2} to learn that any single spine node is reachable. It also can apply rule \infrule{I-striping} to determine that there is some group of at least 2 spine routers reachable at node $(S,0)$ and also that there is some group of at least 2 nodes reachable in the AL role in state $(AL,0)$.
 
-Note that, because each inference rule only applies to directed edges in the Product Graph, the algorithm can not make any inferences about connectivity from the AL role to the S role since there is no directed edge between them. This restriction ensures that the analysis is policy-sensitive.
+Note that, because each inference rule only applies to directed edges in the PG, the algorithm can not make any inferences about connectivity from the AL role to the S role since there is no directed edge between them. This restriction ensures that the analysis is policy-sensitive.
 
 The next step is to use \infrule{I-mesh2} together with \infrule{I-local} to infer than any single node in the TL role for any pod Q is reachable via at least 2 disjoint paths. This process will continue until a fixed point is reached.
 
@@ -1228,48 +1225,48 @@ In this case, the algorithm was able to infer that any node in the spine role ha
 
 \section{Template Generation}
 
-The translation from the Product Graph to per-device templates that run the distributed BGP protocol involves several ideas.
+The translation from the PG to per-device templates that run the distributed BGP protocol involves several ideas.
 
 \para{Route filtering}
 
-The first idea is to tag every protocol message with a BGP community that encodes the state of each DFA when advertising a route to a neighbor. Routers then allow route advertisements that correspond to an edge in the Product Graph and block those that do not.
-For example, in the concrete Product Graph in figure~\ref{fig:example-compilation}, router S1 will allow an advertisement from its neighbors N1 and N2. If it uses the path advertised by neighbor N1, then it will add the tag $(1,0)$ before sending this to its neighbors. If it uses neighbor N2, then it will add the tag $(0,1)$ instead.
+The first idea is to tag every protocol message with a BGP community that encodes the state of each DFA when advertising a route to a neighbor. Routers then allow route advertisements that correspond to an edge in the PG and block those that do not.
+For example, in the concrete PG in figure~\ref{fig:example-compilation}, router S1 will allow an advertisement from its neighbors N1 and N2. If it uses the path advertised by neighbor N1, then it will add the tag $(1,0)$ before sending this to its neighbors. If it uses neighbor N2, then it will add the tag $(0,1)$ instead.
 
 
 \para{Preference Search}
 The second idea is to have each router totally order advertisements from neighbors. For example, to satisfy the policy that leaving through N1 is preferred to leaving through N2, router S1 should prefer a message it hears from N1 over N2. Similarly, router A1 should prefer routes tagged with $(1,0)$ over those tagged with $(0,1)$.
 %In general, because BGP is distributed, each router does not have a full view of the entire network when choosing which path to use. Because finding a collection of preferences to ensure correct end-to-end behavior for all failures is a hard problem,
-Propane introduced a conservative search strategy for determining route preferences. To make this work for abstract topologies, we modify the search based on the following observation about the structure of the Product Graph:
+Propane introduced a conservative search strategy for determining route preferences. To make this work for abstract topologies, we modify the search based on the following observation about the structure of the PG:
 
 \begin{defn}
-Let $m \geq_{rank} n$ be a relation over Product Graph vertices that holds iff $P(n) = \emptyset$ or $\min P(m) \geq \min P(n)$. Intuitively $m \geq_{rank} n$ means that paths ending at Product Graph node $m$ are no better in terms of preference than paths ending at $n$.
+Let $m \geq_{rank} n$ be a relation over PG vertices that holds iff $P(n) = \emptyset$ or $\min P(m) \geq \min P(n)$. Intuitively $m \geq_{rank} n$ means that paths ending at PG node $m$ are no better in terms of preference than paths ending at $n$.
 %
 \end{defn}
 \noindent
 %
 
 %\begin{defn}
-The product graph can be viewed as a labelled transition system by pushing the location from each directed edge's target node onto the edge. That is, $m\overset{l}{\rightarrow}n$ if edge $(m,n) \in E'$ and $\tilde{n} = l$.
+The PG can be viewed as a labelled transition system by pushing the location from each directed edge's target node onto the edge. That is, $m\overset{l}{\rightarrow}n$ if edge $(m,n) \in E'$ and $\tilde{n} = l$.
 %\end{defn}
 %
-For example, in the concrete product graph we would have the transition $(S1,1,0)\overset{A2}{\rightarrow}(A2,1,0)$.
+For example, in the concrete PG we would have the transition $(S1,1,0)\overset{A2}{\rightarrow}(A2,1,0)$.
 
 \begin{defn}
 We write $m \leq m'$ if the subgraph reachable from $m$ and $m'$ respectively form a simulation relation with respect to the $\geq_{rank}$ relation.
 \end{defn}
 
-If we determine that each router has a total order with respect to the simulation relation ($\leq$) for its corresponding Product Graph nodes, then we can simply sort the nodes and prefer advertisements from peers of node $m$ over those of node $m'$ whenever $m' \leq m$. This condition ensures that BGP devices will converge to the most preferred paths in the network even when failures occur.
+If we determine that each router has a total order with respect to the simulation relation ($\leq$) for its corresponding PG nodes, then we can simply sort the nodes and prefer advertisements from peers of node $m$ over those of node $m'$ whenever $m' \leq m$. This condition ensures that BGP devices will converge to the most preferred paths in the network even when failures occur.
 %
-For example, in the concrete product graph the inequality $(S1,0,1) \leq (S1,1,0)$ holds since nodes on the left side of the product graph can always match transitions made on the right hand side with respect to the $\geq_{rank}$ relation. This relation does not hold the other way around since $(S1,0,1) \ngeq_{rank} (S1,1,0)$. Therefore, advertisements received at $S1$ in state $(1,0)$ must be preferred to those received at $S1$ in state $(0,1)$.
+For example, in the concrete PG the inequality $(S1,0,1) \leq (S1,1,0)$ holds since nodes on the left side of the PG can always match transitions made on the right hand side with respect to the $\geq_{rank}$ relation. This relation does not hold the other way around since $(S1,0,1) \ngeq_{rank} (S1,1,0)$. Therefore, advertisements received at $S1$ in state $(1,0)$ must be preferred to those received at $S1$ in state $(0,1)$.
 %
-Notice that in the abstract product graph $(S,0,1) \leq (S,1,0)$ also holds. This leads us the the following observation:
+Notice that in the abstract PG $(S,0,1) \leq (S,1,0)$ also holds. This leads us the the following observation:
 
 \begin{lem}
 \label{lem:preference}
-$m \leq m'$ in the concrete Product Graph iff $f_{pg}(m) \leq f_{pg}(m')$ in the abstract Product Graph.
+$m \leq m'$ in the concrete PG iff $f_{pg}(m) \leq f_{pg}(m')$ in the abstract PG.
 \end{lem}
 
-This gives us reason to believe that we can perform compilation over the abstract product graph directly and ensure that the inferred device-level preferences will be correct when instantiating the template with a concrete network.
+This gives us reason to believe that we can perform compilation over the abstract PG directly and ensure that the inferred device-level preferences will be correct when instantiating the template with a concrete network.
 
 
 
@@ -1489,7 +1486,7 @@ However, template variables tell us exactly where this kind of change can happen
 
 The \sysname compiler is implemented in approximately 9500 lines of F\# code. The compiler accepts both concrete and abstract topologies and will generate configurations for open-source Quagga routers by default. The fault-tolerance analysis uses $\nu$Z~\cite{z3opt} to test validity and to minimize variables subject to the annotated constraints. Since the analysis typically calls the SMT solver many times with relatively simple optimization problems, we use a short timeout of 200ms.
 
-Although the disjoint path analysis takes place over the Product Graph, each application of the inference rules from figure~\ref{fig:inference-rules} depends only on the topology. Therefore, we lazily apply the rules and cache the satisfiability and minimization calls to $\nu$Z after their first use. Furthermore, the cached results are shared across different prefixes, each of which may have a unique Product graph representation.
+Although the disjoint path analysis takes place over the PG, each application of the inference rules from figure~\ref{fig:inference-rules} depends only on the topology. Therefore, we lazily apply the rules and cache the satisfiability and minimization calls to $\nu$Z after their first use. Furthermore, the cached results are shared across different prefixes, each of which may have a unique PG representation.
 
 \section{Evaluation}
 \label{sec:evaluation}
