@@ -671,9 +671,9 @@ A final type of abstraction is the $mincut(1)$ constraint between the spine role
 %Second, it introduces prefix template variables into the language to allow writing policies that are
 %parameterized over prefix destination.
 
-\para{Routing policy} Routing policies in \sysname consist of an ordered sequence of both a predicate matching various classes of traffic and a list of ranked constraints on the paths that the traffic matching the predicate should prefer to take through the network. We borrow syntax from Propane~\cite{propane} but, instead of concrete prefixes and nodes, \sysname specifications can use abstract prefixes and nodes.
+\para{Routing policy} Routing policies in \sysname consist of an ordered sequence of both a predicate matching a class of traffic and a list of ranked constraints on the paths that the traffic matching the predicate should prefer to take through the network. We borrow syntax from Propane~\cite{propane} but, instead of concrete prefixes and nodes, \sysname specifications can use abstract prefixes and nodes.
 
-Let us see how to configure each of the datacenter networks from \S\ref{sec:motivation} by writing a \sysname routing policy over the abstract topology. We can capture the basic routing behavior for the datacenters with the following policy:
+Let us see how to configure each of the datacenter networks from \S\ref{sec:motivation} by writing a \sysname routing policy over the abstract topology. We can capture the basic routing behavior, constraints (1, 2, 6), for the datacenters with the following policy:
 %
 \begin{code}
 \Define Routing =
@@ -687,8 +687,7 @@ The first line introduces a prefix \emph{template} variable. It says that traffi
 %
 The final rule matches all other IP prefix destinations and allows traffic to follow a path that leaves the datacenter, ending up at some outside location, through either of its peers $\CD{P1}$ or $\CD{P2}$ with a preference for leaving through $\CD{P1}$ over $\CD{P2}$. The $\CD{\Prefer}$~symbol indicates that traffic should satisfy the constraint on the left whenever possible (\IE, a path exists in the network), and only resort to the backup (right) when this is not possible due to network failures.%
 
-Next we can capture the constraint that traffic for local prefixes must stay local to the datacenter.
-This is written as the following \sysname constraint:
+Next we can capture constraint (4) that traffic for local prefixes must stay local to the datacenter:
 %
 \begin{code}
 \Define Local =
@@ -696,13 +695,23 @@ This is written as the following \sysname constraint:
 \end{code}
 \noindent%
 %
-The Local constraint applies to any traffic destined for a local prefix described by the \$LP prefix template variable and adds the constraint that the traffic must follow a path that matches an internal location (\IE, a router inside the datacenter) at each hop of the path. This prevents traffic from ever entering from or leaving through an external peer.
-
-It is also common practice to prevent peers (\EG, $\CD{P1}$ and $\CD{P2}$) from communicating by sending data through the datacenter. Such a constraint can be added to \sysname in the following way:
+The Local constraint applies to any traffic destined for a local prefix described by the $\CD{\$LP}$ prefix template variable and adds the constraint that the traffic must follow a path that matches an internal location (\IE, a router inside the datacenter) at each hop of the path.
+%
+The constraint to prevent "valleys" (5) is implemented as:
+%
+\begin{code}
+\Define NoValley =
+    \True \Path \Novalley(\{TG,TL\},\{AG,AL\},\{S\})
+\end{code}
+\noindent%
+%
+This policy applies to all traffic and prevents valley paths by adding the $\Novalley$ constraint with arguments corresponding to each datacenter level.
+%
+Constraint (7) to prevent transit traffic between neighbors is expressed in \sysname as:
 %
 \begin{code}
 \Define Peer = \{P1,P2\}
-\Define BlockPeers =
+\Define NoTransit =
     \True \Path !(\Enter(Peer) & \Exit(Peer))
 \end{code}
 \noindent%
@@ -710,11 +719,12 @@ It is also common practice to prevent peers (\EG, $\CD{P1}$ and $\CD{P2}$) from 
 We define a $\CD{Peer}$ to be either $\CD{P1}$ or $\CD{P2}$ and disallow paths where traffic both enters the datacenter through a peer and exits through a peer. Finally, we can combine these constraints together as follows:
 
 \begin{code}
-Routing & Local & BlockPeers & \Agg(PG, \In -> \Out)
+Routing & Local & NoTransit & 
+NoValley & \Agg(PG, \In -> \Out)
 \end{code}
 \noindent%
 
-This tells \sysname to find BGP router configurations that satisfy the conjunction of the Routing and Local constraints. It also declares an additional constraint that we want to perform prefix summarization (as PG) for global prefixes at the border of the datacenter (\IE, along any edge starting inside our datacenter and ending at a peer outside the datacenter).
+This instructs \sysname to find BGP router configurations that satisfy the conjunction of the Routing and Local constraints. It also declares an additional constraint that we want to perform prefix summarization (as PG) for global prefixes at the border of the datacenter (\IE, along any edge starting inside our datacenter and ending at a peer outside the datacenter).
 
 \para{Fault-tolerance policy} This policy specifies how many link failures the network should be able to withstand before connectivity loss for traffic occurs. Operators can  specify different tolerance levels for different pairs of abstract nodes. For instance, they may say that ToR to spine connectivity should be robust to 2 failures, \IE, no ToR-spine pair should lose connectivity as long as the number of simultaneous link failures is 2 or fewer (for any combination of links); and ToR-to-ToR connectivity should be be robust to 1 failure.
 \ryan{tor or ToR?}
