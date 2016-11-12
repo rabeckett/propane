@@ -619,9 +619,9 @@ When \sysname generates templates, it guarantees that the forwarding behavior of
 \sysname takes as input the network's abstract topology and its policy. The policy has two components: the routing policy describes how traffic should flow, and the fault-tolerance policy describes how many simultaneous failures the network can withstand without loosing connectivity.
 
 \para{Abstract topology}
-Abstract topologies in \sysname define structural and role-based invariants that capture a collection of concrete networks. These invariants are encoded in the form of a graph homomorphism annotated with logical constraints about node and edge multiplicities and connectivity.
+Abstract topologies in \sysname define structural and role-based invariants that describe a collection of concrete networks. These invariants are encoded in the form of a graph homomorphism annotated with logical constraints about node and edge multiplicities.
 %
-We designed these abstractions to be able to precisely capture most real network topologies, while being amenable to the fault tolerance analysis and configuration synthesis that is done by our compiler.
+We designed these abstractions to be able to precisely capture many real network topologies, while also being amenable to fault-tolerance analysis and configuration synthesis.
 
 %Ideally, we would like to find a suitable topology abstraction that can describe both of the datacenters from figures~\ref{fig:example} and~\ref{fig:example2} as well as any reasonable generalization of these datacenters. \sysname provides several abstraction mechanisms to achieve this goal.
 
@@ -640,7 +640,7 @@ More specifically, a network topology is a graph $G$ = ($V, E$), which consists 
   \vspace{-1em}
 \end{figure}
 
-The role-based abstraction therefore overapproximates the connectivity of the underlying concrete graphs. On its own, this abstraction loses a lot of information about the underlying structure of the concrete network, making it difficult to reason precisely about fault-tolerance.
+The role-based abstraction therefore overapproximates the connectivity of the underlying concrete graphs. On its own, this abstraction loses a lot of information about the structure of concrete networks, making it difficult to reason precisely about fault-tolerance.
 %which would hinder a useful analysis of its fault-tolerance.
 For example, with this abstraction any spine router in a concrete network may or may not be connected to any aggregator router.
 %
@@ -1072,7 +1072,7 @@ Definition~\ref{def:homomorphism} provides some intuition concerning why our str
   \vspace*{1em}
   \caption{Abstract k-disjoint path analysis inference rules.}
   \label{fig:inference-rules}
-  %\vspace{-1em}
+  \vspace{-1.4em}
 \end{figure*}
 
 
@@ -1139,9 +1139,10 @@ The abstract disjoint path analysis starts from a fixed source location $src$ an
   \begin{center}
     \includegraphics[width=\columnwidth]{figures/analysis}
   \end{center}
-  \caption{Abstract disjoint path analysis with valleyfree routing for global prefixes. \label{fig:compilation-times}}
+  \vspace{-1.4em}
+  \caption{Abstract disjoint path analysis for global prefixes. \label{fig:compilation-times}}
   \label{fig:example-inference}
-  \vspace{-1em}
+  \vspace{0em}
 \end{figure}
 
 Recall the policy for global prefixes in the datacenter. 
@@ -1225,7 +1226,7 @@ In this case, the algorithm was able to infer that any node in the spine role ha
   \includegraphics[width=\columnwidth]{figures/configs}  
   \end{center}
   \vspace{-1em}
-  \caption{Spine template and concrete configurations (left), and evolution friendly templates (right).}
+  \caption{Spine template and concrete configurations (left), and evolution-friendly templates (right).}
   \label{fig:bgp-configs}
 \end{figure}
 
@@ -1247,7 +1248,7 @@ The second idea is to have each router totally order advertisements from neighbo
 Propane introduced a conservative search strategy for determining route preferences. To make this work for abstract topologies, we modify the search based on the following observation about the structure of the PG:
 
 \begin{defn}
-Let $m \geq_{rank} n$ be a relation over PG vertices that holds iff $P(n) = \emptyset$ or $\min P(m) \geq \min P(n)$. Intuitively $m \geq_{rank} n$ means that paths ending at PG node $m$ are no better in terms of preference than paths ending at $n$.
+Let $m \geq_{rank} n$ be a relation over PG vertices that holds iff $P(n) = \emptyset$ or $\min P(m) \geq \min P(n)$. Intuitively $m \geq_{rank} n$ means that paths ending at PG node $m$ are no better than paths ending at $n$.
 %
 \end{defn}
 \noindent
@@ -1504,7 +1505,7 @@ To evaluate \sysname, we apply it on policies for backbone and datacenter networ
   \begin{center}
       \begin{tabular}{| l | c | c | c |}
       \hline
-      \textbf{Topology} & \textbf{Fixed} & \textbf{Reachability} & \textbf{K-paths} \\ \hline
+      \textbf{Topology} & \textbf{Fixed} & \textbf{Reachable} & \textbf{K-paths} \\ \hline
       Fattree~\cite{fattree} & & \cmark & \cmark  \\ \hline
       Facebook~\cite{facebook-fattree} & & \cmark & \cmark \\ \hline
       F10~\cite{f10-fattree} & & \cmark & \cmark \\ \hline
@@ -1517,8 +1518,10 @@ To evaluate \sysname, we apply it on policies for backbone and datacenter networ
       HyperX~\cite{hyperx} & $L$ & \cmark & \cmark \\ \hline
       \end{tabular}
   \end{center}
+  \vspace{-.6em}
   \caption{Fault-tolerance analysis precision.}
   \label{fig:analysis-precision}
+  \vspace{-1em}
 \end{figure}
 
 %\begin{figure}[t!]
@@ -1577,6 +1580,7 @@ For a fixed number of dimensions $L$, we abstract each full mesh of $S_L$ nodes 
     {\includegraphics[width=.49\columnwidth]{figures/Fattree-time.png}}
   \subcaptionbox{Backbone}
     {\includegraphics[width=.49\columnwidth]{figures/backbone-time.png}} \\
+  \vspace{-.6em}
   \caption{Concrete vs. Abstract Generation Time. \label{fig:compilation-times}}
   \vspace{-1em}
 \end{figure}
@@ -1586,6 +1590,7 @@ For a fixed number of dimensions $L$, we abstract each full mesh of $S_L$ nodes 
     {\includegraphics[width=.49\columnwidth]{figures/Fattree-analysis-time.png}}
   \subcaptionbox{Backbone}
     {\includegraphics[width=.49\columnwidth]{figures/backbone-analysis-time.png}} \\
+  \vspace{-.6em}
   \caption{Abstract Generation Time by Phase. \label{fig:abstract-breakdown}}
   \vspace{-1em}
 \end{figure}
