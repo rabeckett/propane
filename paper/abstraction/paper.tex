@@ -728,7 +728,7 @@ NoValley & \Agg(PG, \In -> \Out)
 
 This instructs \sysname to find BGP router configurations that satisfy the conjunction of all the constraints. It also declares an additional constraint that we want to perform prefix summarization (as PG) for global prefixes at the border of the datacenter (\IE, along any edge starting inside our datacenter and ending at a peer outside the datacenter).
 
-\para{Fault-tolerance policy} This policy specifies how many link failures the network should be able to withstand before connectivity loss for traffic occurs. Operators can  specify different tolerance levels for different pairs of abstract nodes. For instance, they may say that ToR to spine connectivity should be robust to 2 failures, \IE, no ToR-spine pair should lose connectivity as long as the number of simultaneous link failures is 2 or fewer; and ToR-to-ToR connectivity should be be robust to 1 failure.
+\para{Fault-tolerance policy} This policy specifies how many link failures the network should be able to withstand before traffic experiences connectivity loss. Operators can specify different tolerance levels for different pairs of abstract nodes. For instance, they may say that ToR to spine connectivity should be robust to 2 failures, \IE, no ToR-spine pair should lose connectivity as long as the number of simultaneous link failures is 2 or fewer; and ToR-to-ToR connectivity should be be robust to 1 failure.
 
 \subsection{Template Generation}
 \label{subsec:compilation}
@@ -741,10 +741,10 @@ The \sysname compiler generates templates from the inputs above in three phases.
 Second, \sysname checks if the fault-tolerance policy can be met by considering the joint impact of the abstract topology and routing policy. Joint analysis is needed, because connectivity depends on both: traffic will not flow along
 valid topological paths if the routing policy disallows it. 
 
-Instead, we develop a sound analysis based on computing the minimum
-number of edge-disjoint policy-compliant paths between pairs of nodes
-over abstract topologies. If this number for a pair of nodes is less
-than the desired fault-tolerance level, \sysname declares that the
+We develop a sound analysis based on computing the minimum
+number of edge-disjoint, policy-compliant paths between pairs of nodes
+over abstract topologies. If this number is less
+than the desired fault-tolerance level for a pair of nodes, \sysname declares that the
 policy cannot be met.  More specifically,
 for each abstract role in the network, our analysis will learn facts about the
 number of disjoint paths to routers in that role.  For example,
