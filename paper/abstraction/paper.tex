@@ -383,7 +383,7 @@ than a compiler based on concrete topologies.
 \section{Background}
 \label{sec:background}
 
-In this work, we focus on synthesizing configurations for a network that runs the Border Gateway Protocol (BGP), the standard for routing across independent organizations and inside large datacenters. It scales effectively and allows operators to define flexible policies. 
+In this work, we focus on synthesizing configurations for a network that runs the Border Gateway Protocol (BGP), the standard for routing across independent organizations and inside large datacenters. It scales effectively and allows operators to define flexible policies.
 
 We provide a brief background on BGP focused on aspects relevant to our work. How a BGP-based network carries traffic depends on how the routers exchange and process routing announcements. To invite traffic from a neighbor to a destination, routers announce the destination's address {\em prefix} (e.g., 10.1.1.0/24\footnote{An IP address
 such as 10.1.1.0 is 32 bits, with each of the four values representing 8 bits. The prefix 10.1.1.0/24 denotes the set of addresses that share the first 24 bits with 10.1.1.0, \IE, all addresses that begin with 10.1.1.}) to the neighbor. Traffic flows in the opposite direction to such route announcements.
@@ -437,7 +437,7 @@ When announcing destinations to certain neighbors, a BGP router may perform {\em
 
 %Configuring a BGP network requires configuring, among other things, the import and export policies for individual routers such that traffic flows in a way that is compliant with the network's global policies. Making matters worse, configuring the policies of individual routers requires tweaking low-level primitives for route selection preferences, route modification rules, and filtering and aggregation criteria.
 
-%Configuring a BGP network requires configuring how each router announces various prefixes to different neighbors and how it selects among possibly multiple announcements for a prefix from different neighbors. 
+%Configuring a BGP network requires configuring how each router announces various prefixes to different neighbors and how it selects among possibly multiple announcements for a prefix from different neighbors.
 
 %The operators goal is that the collective impact of these configurations traffic flows in a way that is compliant with the network's global policies.
 
@@ -463,7 +463,7 @@ When announcing destinations to certain neighbors, a BGP router may perform {\em
 \end{figure}
 
 We demonstrate the difficulty of configuring networks today using the data center example in Figure~\ref{fig:example}. The boxes denote routers. Using terminology for fat tree networks~\cite{fattree}, S[1--2] are spine routers, A[1--8] are aggregation routers,\footnote{This term is not related to BGP route aggregation.} and T[1--8] are top-of-rack (ToR) routers. The spine routers connect to the Internet through neighbors N[1--2].
-%The aggregation routers bridge the spine to the ToR routers. 
+%The aggregation routers bridge the spine to the ToR routers.
 The ToR routers attach to a set of servers (``a rack'') that host services with address prefixes P[1--8].
 
 %% We assume that each router is running an instance of the \emph{Border Gateway Protocol} (BGP),
@@ -623,9 +623,9 @@ Such patches reintroduce the complexity and errors that templates were meant to 
 \sysname takes as input the network's abstract topology and its policy. The policy has two components: the routing policy describes how traffic should flow, and the fault-tolerance policy describes how many simultaneous failures the network can withstand without loosing connectivity.
 
 \para{Abstract topology}
-Abstract topologies in \sysname define structural and role-based invariants that describe a collection of concrete networks. These invariants are encoded in the form of a graph homomorphism annotated with logical constraints about node and edge multiplicities.
+Abstract topologies in \sysname define structural and role-based invariants that compactly describe all concrete networks that can emerge as the network evolves. They are encoded in the form of a graph homomorphism annotated with logical constraints about node and edge multiplicities.
 %
-We designed these abstractions to be able to precisely capture many real network topologies, while also being amenable to fault-tolerance analysis and configuration synthesis.
+We designed the abstractions to be able to precisely capture real network topologies, while being amenable to fault-tolerance analysis in the abstract domain.
 
 %Ideally, we would like to find a suitable topology abstraction that can describe both of the datacenters from figures~\ref{fig:example} and~\ref{fig:example2} as well as any reasonable generalization of these datacenters. \sysname provides several abstraction mechanisms to achieve this goal.
 
@@ -648,16 +648,18 @@ The role-based abstraction therefore overapproximates the connectivity of the un
 %which would hinder a useful analysis of its fault-tolerance.
 For example, with this abstraction any spine router in a concrete network may or may not be connected to any aggregator router.
 %
-In order to refine the abstraction to capture more precisely the kinds of concrete networks of interest,
+To capture more precisely the kinds of concrete networks of interest,
 we introduce several additional concepts. The first is the idea of a topology hierarchy captured by P and Q, which indicate that nodes in the ToR and aggregator roles are grouped into a number of smaller pods.
 The second is a notion of node and edge \emph{multiplicities}. Each edge (and node) is labelled
-with a symbolic variable (\EG, $e1, e2, \ldots$) that denotes a constraint on the number of edges (and nodes) that may appear in any given concrete network. Operators can capture concrete network invariants by adding constraints on the symbolic variables using logical formula.
+with a symbolic variable (\EG, $e1$) that denotes a constraint on the number of edges (and nodes) that may appear in any valid concrete network. Operators can capture concrete network invariants by adding constraints on the symbolic variables using logical formulas.
 
 For example, in Figure~\ref{fig:example3}, the first two constraints: $e1 = AG$ and $e2 = TG$ say that, within any pod P, the number of outgoing edges from a node in the $TG$ role to a node in the $AG$ role is equal to the number of nodes in the $AG$ role. Similarly, the number of outgoing edges from a node in the $AG$ role to a node in the $TG$ role is equal to the number of nodes in the $TG$ role. These constraints capture the fact that, within any given pod, the global aggregators and ToRs are in a full mesh. Furthermore, the constraints $AG = AL$ and $AG \leq S$ ensure that, within pods P and Q, the $AG$ and $TG$ roles have the same number of routers, which is less than the number of routers in the spine role $S$.
 %
 The constraint $e3 \geq 2$ says that, in each pod, each aggregator node has at least 2 outgoing edges to nodes in the spine role. Symmetrically, the constraint $e4 \geq 1$ says that, for each pod P, each node in the spine role has at least one outgoing edge to a node in the $AG$ role. Similar constraints appear for the local aggregator role. The constraint $2 \leq S \leq 4$ makes explicit the possibility for growth, for example by growing the network from that of Figure~\ref{fig:example} to that of Figure~\ref{fig:example2}. In general, we need not bound the number of spine routers to admit more concrete topologies, potentially at the expense of analysis precision. We include the constraints $(S \mod AG) = 0$, and $(S \mod AL) = 0$ simply to show that constraints do not have to be inequalities. Operators can write constraints using logical formula from any theory supported by modern SMT solvers.
 
-A final type of abstraction is the $\Mincut(1)$ constraint between the spine role S and N[1--2]. The mincut constraint says that any node in the spine role has at least one path to any node in the neighbor N1 (and N2) role. Annotations of this form are often useful for a "one big switch" abstraction \cite{Casado:2010} in which part of a complex network is represented as a single node. For example, to model an ISP backbone network the operator might divide the network into separate geographic regions with two abstract roles per region -- one role for the border routers of the network, and another role for the core of the network. Mincut annotations can be used to describe the degree of fault tolerance both within region cores as well as across regions.
+A final type of abstraction is the $\Mincut(1)$ constraint between the spine role S and N[1--2]. It says that any node in the spine role has at least one path to any node in the neighbor N1 (and N2) role. Such annotations are useful for a "one big switch" abstraction \cite{Casado:2010} in which part of a complex network is represented as a single node. For example, to model an ISP backbone network the operator might divide the network into separate geographic regions with two roles per region---one for the border routers and another for the core of the network. Mincut annotations can be used to describe the degree of fault tolerance both within region cores as well as across regions.
+
+Our topology abstractions can trivially capture concrete topologies; there will be a one-to-one correspondence between abstract and concrete nodes (and edges). This ability enables operators to define complex networks in which they expect some (e.g., legacy) parts of the network to not evolve and others to evolve. It also means that our compiler subsumes those that operate only over concrete topologies.
 
 %All the guarantees provided by \sysname hold for any instantiation of the abstract network. This means that operators can safely expand their network in the future so long as the new network also satisfies these logical constraints.
 
@@ -748,7 +750,7 @@ We develop a sound analysis based on computing the minimum
 number of edge-disjoint, policy-compliant paths between pairs of nodes
 over abstract topologies. If this number is less
 than the desired fault-tolerance level for a pair of nodes, \sysname declares that the
-policy cannot be met.  
+policy cannot be met.
 \ryan{Possibly cut here}
 More specifically,
 for each abstract role in the network, our analysis will learn facts about the
