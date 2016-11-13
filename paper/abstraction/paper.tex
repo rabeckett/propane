@@ -107,7 +107,7 @@
 \copyrightdata{978-1-nnnn-nnnn-n/yy/mm}
 \copyrightdoi{nnnnnnn.nnnnnnn}
 
-\titlebanner{DRAFT -- do not distribute}        % These are ignored unless
+%\titlebanner{DRAFT -- do not distribute}        % These are ignored unless
 \preprintfooter{submission for PLDI 2017}   % 'preprint' option specified.
 
 \title{Network Configuration Synthesis with Abstract Topologies}
@@ -341,13 +341,14 @@ faster than \propane, taking less than 10 seconds to synthesize templates for la
 \textbf{Contributions}: To summarize, our contributions are:
 %
 \begin{itemize}[noitemsep,nolistsep,label={\large\textbullet}]
-\item Design of new topology abstractions for network programming
-based on graph homomorphisms and connectivity invariants.
-\item Design of two new algorithms for analyzing routing policy over
-abstract networks: one which
-guarantees correct compilation and one which determines fault tolerance
-properties of network policy.  Both algorithms provide guarantees for any
-concrete network satisfying the abstract connectivity invariants.
+\item New topology abstractions for network programming
+based on graph homomorphisms and connectivity rules.
+\item New algorithms for analyzing routing policy and fault tolerance over
+abstract topologies.
+%one which guarantees correct compilation and one which determines fault tolerance
+%properties of network policy.
+%Both algorithms provide guarantees for any
+%concrete network satisfying the abstract connectivity invariants.
 %\item Design of a template generation strategy that supports network
 %evolution.
 \item Implementation and evaluation of the \sysname compiler that generates
@@ -382,16 +383,16 @@ than a compiler based on concrete topologies.
 \section{Background}
 \label{sec:background}
 
-In this work, we focus on synthesizing configurations for a network that runs the Border Gateway Protocol (BGP), which is the standard for routing across independent organizations and inside large datacenters. It scales effectively and allows operators to define flexible policies.
+In this work, we focus on synthesizing configurations for a network that runs the Border Gateway Protocol (BGP), the standard for routing across independent organizations and inside large datacenters. It scales effectively and allows operators to define flexible policies. 
 
-The interactions among BGP routers determines how the network forwards traffic. To invite traffic from a neighbor to a destination, routers announce the destination's address {\em prefix} (e.g., 10.1.1.0/24\footnote{An IP(v4) address
-such as 10.1.1.0 is 32 bits, with each of the four values representing 8 bits. A prefix such as 10.1.1.0/24 denotes the set of addresses that share the first 24 bits with 10.1.1.0, \IE, all addresses that begin with 10.1.1.}) to the neighbor. In this way, traffic flows in the opposite direction to such {\em route announcements.}
+We provide a brief background on BGP focused on aspects relevant to our work. How a BGP-based network carries traffic depends on how the routers exchange and process routing announcements. To invite traffic from a neighbor to a destination, routers announce the destination's address {\em prefix} (e.g., 10.1.1.0/24\footnote{An IP address
+such as 10.1.1.0 is 32 bits, with each of the four values representing 8 bits. The prefix 10.1.1.0/24 denotes the set of addresses that share the first 24 bits with 10.1.1.0, \IE, all addresses that begin with 10.1.1.}) to the neighbor. Traffic flows in the opposite direction to such route announcements.
 
-Route announcements contain additional attributes. A common one is {\em AS path}, which denotes the sequence of Autonomous Systems that will be traversed to reach the destination.
+All route announcements carry {\em AS path}, the sequence of BGP speakers (called Autonomous Systems) that will be traversed to reach the destination.
 %When BGP is used inside a datacenter, each router tends to be its own AS.
-Optional attributes include one or more {\em communities}, which are arbitrary strings. Operators agree on what each community value means out of band.
+Optionally, they may also include one or more {\em communities}, which are arbitrary tags whose semantics are agreed upon out of band.
 
-A BGP router may receive one or more announcements from different neighbors for the same prefix. It selects the best one based on its local {\em import policy}. These policies are a function of the AS path, communities, or the neighbor that sent the announcement, and may even filter some announcements altogether (i.e., not use them even if no other announcements to the destination are available). Then, based on the local {\em export policy}, the router announces the selected route to one or more neighbors, after adding itself to the AS path and, optionally, modifying the set of communities.
+When a BGP router receives one or more announcements for a prefix from different neighbors, it selects which one to use (if any) based on its configuration. This selection can depend on the AS path, communities, or the neighbor that sent the announcement, and it can even discard certain announcements (i.e., never use them for sending traffic). Then, based again on its configuration, the router forwards the selected route to one or more neighbors, after adding itself to the AS path, and optionally, modifying communities.
 
 %When this occurs,
 %it processes the messages as follows:
@@ -418,7 +419,7 @@ A BGP router may receive one or more announcements from different neighbors for 
 %are propagated in one direction (left-to-right), then traffic will wind
 %up flowing in the opposite direction (right-to-left).
 
-A BGP router may also perform {\em route aggregation} when exporting to certain neighbors. That is, instead of announcing multiple prefixes it may announce a single covering prefix (e.g., 10.1.0.0/16 instead of 10.1.[1--255].0/24). The covering prefix is announced as long as the router has a valid route to any of the covered prefixes. Aggregation helps reduce the memory consumption of routers, but it can lead to traffic black holes~\cite{route-aggregation}. A router that announces 10.1.0.0/16, because it has a route to 10.1.1.0/24, may also get traffic for 10.1.2.0/24 to which it has no route.
+When announcing destinations to certain neighbors, a BGP router may perform {\em route aggregation}, \IE, announce a single prefix that covers multiple prefixes (e.g., announce 10.1.0.0/16 instead of 10.1.[1--255].0/24). The covering prefix is announced as long as the router has a valid route for {\em any} of the covered prefixes. Aggregation helps reduce the memory consumption of routers, but it can lead to traffic black holes~\cite{route-aggregation}. A router that announces 10.1.0.0/16, because it has a route to 10.1.1.0/24, may also get traffic for 10.1.2.0/24 to which it has no route.
 
 %Rather than export 2$^n$ addresses in the same range, routers will
 %often perform \emph{route aggregation}, and export a single (32-$n$)-bit
@@ -434,7 +435,12 @@ A BGP router may also perform {\em route aggregation} when exporting to certain 
 %Networks should be configured to be sufficiently fault tolerant to minimize
 %the chances of such black holes.
 
-Configuring a BGP network requires configuring, among other things, the import and export policies for individual routers such that traffic flows in a way that is compliant with the network's global policies. Making matters worse, configuring the policies of individual routers requires tweaking low-level primitives for route selection preferences, route modification rules, and filtering and aggregation criteria.
+%Configuring a BGP network requires configuring, among other things, the import and export policies for individual routers such that traffic flows in a way that is compliant with the network's global policies. Making matters worse, configuring the policies of individual routers requires tweaking low-level primitives for route selection preferences, route modification rules, and filtering and aggregation criteria.
+
+%Configuring a BGP network requires configuring how each router announces various prefixes to different neighbors and how it selects among possibly multiple announcements for a prefix from different neighbors. 
+
+%The operators goal is that the collective impact of these configurations traffic flows in a way that is compliant with the network's global policies.
+
 
 \section{Motivation}
 \label{sec:motivation}
@@ -456,9 +462,9 @@ Configuring a BGP network requires configuring, among other things, the import a
   \vspace{-1em}
 \end{figure}
 
-We demonstrate the difficulty of configuring networks using the example data center network in Figure~\ref{fig:example}. The boxes denote routers. Using terminology for fat tree networks~\cite{fattree}, S[1--2] denote spine routers, A[1--8] denote aggregation routers, and T[1--8] denote top-of-rack (ToR) routers. The spine routers are connected to the
-rest of the Internet through neighbors N[1--2]. The aggregation routers
-bridge the spine to the ToR routers. The ToR routers attach to a set of servers (``a rack'') that host services with address prefixes P[1--8].
+We demonstrate the difficulty of configuring networks today using the data center example in Figure~\ref{fig:example}. The boxes denote routers. Using terminology for fat tree networks~\cite{fattree}, S[1--2] are spine routers, A[1--8] are aggregation routers,\footnote{This term is not related to BGP route aggregation.} and T[1--8] are top-of-rack (ToR) routers. The spine routers connect to the Internet through neighbors N[1--2].
+%The aggregation routers bridge the spine to the ToR routers. 
+The ToR routers attach to a set of servers (``a rack'') that host services with address prefixes P[1--8].
 
 %% We assume that each router is running an instance of the \emph{Border Gateway Protocol} (BGP),
 %% as is common in large data centers. In this protocol, adjacent routers use BGP to exchange messages
@@ -471,33 +477,38 @@ bridge the spine to the ToR routers. The ToR routers attach to a set of servers 
 %Assume that all nodes are running the border gateway protocol (BGP), as is common in large data centers~\cite{x}. \todo{more detail on BGP?}
 
 The intended policy for this network is:
-$(1)$ complete internal connectivity, \IE, all routers should be able to talk to each other;
-$(2)$ services in Pods[1--2] should be globally accessible;
+$(1)$ complete internal connectivity, \IE, all routers should be able to reach each other;
+$(2)$ services in Pods[1--2] should be accessible from outside;
 $(3)$ prefixes for global service should be aggregated into a covering prefix PG when announced outside;
 $(4)$ services in Pods[3--4] should not be externally accessible;
-$(5)$ paths should be valley-free, \IE, never go down then back up.
+$(5)$ traffic paths should be valley-free, \IE, not go down then back up.
 $(6)$ prefer neighbor N1 over N2, \IE, when both neighbors announce a prefix, send traffic through N1;
-$(7)$ datacenter routers should not transit traffic between N1 and N2; and
+$(7)$ routers should not transit traffic between N1 and N2; and
 $(8)$ no loss in connectivity after any single-link failure.
 
-To correctly configure this policy, network operators must generate configurations for each router. This implies ensuring, for instance, that all router interfaces are assigned correct addresses; all routing adjacencies are correctly configured (\EG, T1's configuration includes A1 as neighbor and vice-versa); all routers announce their own addresses (so that they can be reached from other routers) and the ToRs announce the correct prefixes for their services; all routers  forward the prefix announcements that they should to each neighbor and not forward those that they should not (\EG, the spines should forward prefixes for local services to internal neighbors but not external neighbors); and the spines announce externally only the aggregate global prefix. Such configuration tasks are highly complex~\cite{juniper-study,bgpmon,batfish,propane}.
+To correctly configure this policy, operators must generate configurations for each router, which implies ensuring, for instance, that all routing adjacencies are correctly configured (\EG, T1's configuration includes A1 as neighbor and vice-versa); the ToRs announce the correct prefixes for their services; all routers  forward the prefix announcements that they should to each neighbor and not forward others (\EG, the spines should forward prefixes for local services to internal neighbors but not to external neighbors); and the spines announce externally only the covering global prefix. Such configuration tasks are highly complex~\cite{juniper-study,bgpmon,batfish,propane}.
 
-To simplify network configuration, the operations community is adopting a template-based approach~\cite{hatch,thwack}. Instead of authoring a configuration file per router, operators author one configuration template per role.
+To simplify network configuration, operators are adopting a template-based approach~\cite{hatch,thwack}. Instead of authoring a configuration per router, operators author a template per role.
 %
-A {\em role} refers to specific functionality and is played by one or more routers.\footnote{If a role is played by devices from multiple vendors, there is one template per role-vendor combination because templates use vendor-specific configuration languages.}
+A {\em role} is a specific function that is served by one or more routers.
+%\footnote{If a role is played by devices from multiple vendors, there is one template per role-vendor combination because templates use vendor configuration languages.}
 %
 The network in Figure~\ref{fig:example} might have five roles: spine, global aggregator, global ToR, local aggregator, and local ToR.
 %
-Templates have parameters for various aspects of the configuration (\EG, interface addresses, neighbor list) and are compiled to device configurations by instantiating the parameters using a database of network information.
+Templates have parameters for various aspects of the configuration (\EG, neighbor list) and are compiled to device configurations by instantiating the parameters using the network topology and a database of network information.
 
 %Templates provide two key advantages. First, they help eliminate a class of configuration errors that stem from typos and inconsistencies, e.g., using the wrong address for a router, having inconsistent addresses for the two ends of a link, and failing to configure one side of a routing adjacency.  Second, templates have the potential for re-use when the topology changes while maintaining its basic structure (e.g., adding a new pod to the data center) or multiple networks with similar structures need to be instantiated (e.g., in an organization that runs multiple data centers).
 
 %While templates help avoid a class of configuration errors (e.g., inconsistent routing adjacencies), they provide no guarantees
-Templates that work for one topology may not work for seemingly-inconsequential variations.
+As described earlier (\S\ref{sec:introduction}), templates are hard to author and hard to validate. At the same time, templates that work for one topology may not work for seemingly-inconsequential variations (which may arise after the network evolves).
+Consider the network in Figure~\ref{fig:example2}, which is similar to Figure~\ref{fig:example}: it has the same five roles, connected in a similar hierarchy. One might think that the same templates (with different database entries) can be used for both cases. However, if the templates are configured to disallow ``valley" paths (per policy (5) above), they will work for Figure~\ref{fig:example} but silently violate the fault tolerance policy ($(8)$) when used for Figure~\ref{fig:example2}.  Specifically, in Figure~\ref{fig:example2}, an aggregation-based blackhole (\S\ref{sec:background}) will occur when the link S1--A1 fails; after this failure, S1 has no valley-free path to P[1--2] even though it will continue to get traffic for these prefixes as it announces the covering prefix PG (because it gets routes for P[3--4]). No such blackhole will occur in Figure~\ref{fig:example} after a single link failure because spine routers have two links to each pod.
+
 %Unfotunately, currently, there is no way to predict which variations will behave correctly for a given set of templates.
-Worse, when operators discover their old templates no longer work, changing a template will
-cause a change to all devices that use that template---an unacceptable disruption in many cases.  When that happens, operators may abandon templates entirely and revert to hand-crafting configurations, using local patches to accommodate the change.
+
+Today, if operators discover their old templates no longer work, changing a template will
+cause a change to all devices that use it---an unacceptable disruption in many cases.  When that happens, operators may abandon templates entirely and revert to hand-crafting configurations, using local patches to accommodate the change.
 Such patches reintroduce the complexity and errors that templates were meant to prevent.
+
 
 %they are difficult to author. Operators must manually decompose complex, network-wide routing policy into role templates such that the collective behavior of the configurations generated from them will correctly implement the policy, both when failures occur and as the network evolves.
 
@@ -522,7 +533,6 @@ Such patches reintroduce the complexity and errors that templates were meant to 
 %% This discovery is highly problematic because changing a template may cause a configuration change of all the devices that use that template---an unacceptable disruption in many cases.  When that happens, network operators may abandon templates entirely and revert to hand-crafting configurations, using local patches to accommodate the topological change.
 %% Such patches reintroduce the complexity and errors that templates were meant to prevent.
 
-Consider the network in Figure~\ref{fig:example2}, which is similar to Figure~\ref{fig:example}; it has the same five roles, connected in a similar hierarchy. One might think that the same templates (with different database entries) can be used for both topologies. However, because the templates are configured to disallow ``valley" paths, which go down, and then up, these templates will work perfectly for Figure~\ref{fig:example} but silently violate the fault tolerance requirement ($(8)$) when used for Figure~\ref{fig:example2}.  Specifically, in Figure~\ref{fig:example2}, an aggregation-induced blackhole (\S\ref{sec:background}) will occur when the link S1--A1 fails; after this failure, S1 has no valley-free path to P[1--2] even though it will continue to get traffic for these prefixes as it announces the covering prefix PG (because it gets routes for P[3--4]). In contrast, in Figure~\ref{fig:example}, no such blackhole will occur after a single link failure because spine routers have two links to each pod.
 
 %% Thus, today, operators test templates for each topology change. For some changes, they may discover that their old templates will not work anymore. ~\dpw{Note: This is going to be true for Methane too.} ~\ratul{Not really; our abstract topologies encode all possible future topologies} ~\dpw{Our abstract topologies precisely define a set of topologies for which our
 %% This discovery is highly problematic because changing a template may cause a configuration change of all the devices that use that template---an unacceptable disruption in many cases.  When that happens, network operators may abandon templates entirely and revert to hand-crafting configurations, using local patches to accommodate the topological change.

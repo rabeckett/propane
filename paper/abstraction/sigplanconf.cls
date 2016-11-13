@@ -22,7 +22,7 @@
 %   http://creativecommons.org/licenses/by/3.0/
 % or send a letter to Creative Commons, 171 2nd Street, Suite 300,
 % San Francisco, California, 94105, U.S.A.
-% 
+%
 % Program Chairs may be tempted to make changes to the SIGPLAN LaTeX style
 % sigplanconf.cls. Please don't do this! The style is carefully considered,
 % and the result of over a decade's discussion and development. If you have a
@@ -211,7 +211,7 @@
 
 \@setflag \@authoryear = \@true
 \@setflag \@blockstyle = \@false
-\@setflag \@copyrightwanted = \@true
+\@setflag \@copyrightwanted = \@false
 \@setflag \@explicitsize = \@false
 \@setflag \@legacycopyright = \@false
 \@setflag \@mathtime = \@false
@@ -696,7 +696,7 @@
   \else
     \noindent DOI: http://dx.doi.org/10.1145/\@copyrightdoi\par
   \fi}
-  
+
 
 % Legacy commands.
 
@@ -1136,15 +1136,16 @@
 \def \@maketitle {%
   \begin{center}
   \@settitlebanner
+  \vskip -2pt
   \let \thanks = \titlenote
   {\leftskip = 0pt plus 0.25\linewidth
    \rightskip = 0pt plus 0.25 \linewidth
    \parfillskip = 0pt
-   \spaceskip = .7em
+   \spaceskip = 0em
    \noindent \LARGE \bfseries \@titletext \par}
-  \vskip 6pt
-  \noindent \Large \@subtitletext \par
-  \vskip 12pt
+  \vskip -2pt
+  %\noindent \Large \@subtitletext \par
+  %\vskip 0pt
   \ifcase \@authorcount
     \@latex@error{No authors were specified for this paper}{}\or
     \@titleauthors{i}{}{}\or
@@ -1168,7 +1169,7 @@
   \else
     \@latex@error{Cannot handle more than 12 authors}{}%
   \fi
-  \vspace{1.75pc}
+  \vspace{0pc}
   \end{center}}
 
 \def \@settitlebanner {%
@@ -1243,7 +1244,7 @@
     \noindent
     \@authori = 4
     {\let \\ = ,%
-     \loop 
+     \loop
        \textbf{\@name{\@authorname\romannumeral\@authori}},
        \@name{\@authoraffil\romannumeral\@authori},
        email: \@name{\@authoremail\romannumeral\@authori}.%
@@ -1388,7 +1389,7 @@
 %                               environment. Also add to template so it will
 %                               happen with natbib.
 
-%  2009.09.30   PCA     2.3     Remove \softraggedright from thebibliography.  
+%  2009.09.30   PCA     2.3     Remove \softraggedright from thebibliography.
 %                               Just include in the template.
 
 %  2010.05.24   PCA     2.4     Obfuscate class author's email address.
