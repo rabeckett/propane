@@ -1139,16 +1139,6 @@ Finally, the \infrule{I-local} and \infrule{I-global} rules allow us to lift eac
 
 The abstract disjoint path analysis starts from a fixed source location $src$ and repeatedly applies the inference rules from Figure~\ref{fig:inference-rules} until it reaches a fixed point. Inference rule conditions are checked for validity over all concrete topologies using an SMT solver. In order to ensure termination, we make the observation that, for any fact learned of the form $L(j,k)$, it is sound to instead infer $L(j',k')$ if $j' \leq j$ and $k' \leq k$. Therefore, for each inference rule that learns a fact of the form $L(j,k)$ we minimize the symbolic expressions for $j$ and $k$ subject to the topology constraints using the optimizing constraint solver $\nu$Z~\cite{z3opt}.
 
-\begin{figure}
-  \begin{center}
-    \includegraphics[width=\columnwidth]{figures/analysis}
-  \end{center}
-  \vspace{-1.4em}
-  \caption{Abstract disjoint path analysis for global prefixes. \label{fig:compilation-times}}
-  \label{fig:example-inference}
-  \vspace{0em}
-\end{figure}
-
 Recall the policy for global prefixes in the datacenter.
 %
 \begin{code}
@@ -1169,6 +1159,16 @@ Note that, because each inference rule only applies to directed edges in the PG,
 The next step is to use \infrule{I-mesh2} together with \infrule{I-local} to infer than any single node in the TL role for any pod Q is reachable via at least 2 disjoint paths. This process will continue until a fixed point is reached.
 
 In this case, the algorithm was able to infer that any node in the spine role has at least 1 disjoint path and any node in the TL node has at least 2 disjoint paths to a router in role TG. Note that, in this case, the analysis is precise. There exists a concrete network, namely the datacenter from Figure~\ref{fig:example2}, where a single failure can disconnect a global tor from a spine router due to the valleyfree constraint. In this case in particular, the bound on the fault tolerance between a tor and spine router can be used to determine that an aggregation-induced black hole may arise at the border of the datacenter after a single failures in some topologies.
+
+\begin{figure}
+  \begin{center}
+    \includegraphics[width=\columnwidth]{figures/analysis}
+  \end{center}
+  \vspace{-1.4em}
+  \caption{Abstract disjoint path analysis for global prefixes. \label{fig:compilation-times}}
+  \label{fig:example-inference}
+  \vspace{0em}
+\end{figure}
 
 
 %=====================================================
@@ -1191,49 +1191,6 @@ In this case, the algorithm was able to infer that any node in the spine role ha
 \newcommand{\COMM}{\texttt{comm}}
 \newcommand{\MED}{\texttt{MED}}
 \newcommand{\Arrow}{\ensuremath{\leftarrow}}
-
-\begin{figure}[t!]
-%  \begin{code}
-%    \Template{S}
-%      Match[100] \PREFIX=\$GP, \PEER=\{AG, AL\}
-%        \PEER \Arrow *
-%      Match[100] \PREFIX=\$LP, \PEER=\{AG, AL\}
-%        \PEER \Arrow \{AG, AL\}
-%      Match[110] \PREFIX=true \PEER=\{P1\},
-%        \PEER \Arrow *, \COMM \Arrow (1,0)
-%      Match[100] \PREFIX=true \PEER=\{P2\},
-%        \PEER \Arrow *, \COMM \Arrow (0,1)
-%      ...
-%  \end{code}%
-
-%  \vspace{-2em}
-%  \begin{code}
-%    \Router{S1, S2}
-%      Match[100] \PREFIX=GP1, \PEER=\{AG1, AL1, ...\}
-%        \PEER \Arrow *
-%      Match[100] \PREFIX=GP2, \PEER=\{AG1, AL1, ...\}
-%        \PEER \Arrow *
-%      ...
-%      Match[100] \PREFIX=LP1, \PEER=\{AG1, AL1, ...\}
-%        \PEER \Arrow \{AG1, AL1, ...\}
-%      Match[100] \PREFIX=LP2, \PEER=\{AG1, AL1, ...\}
-%        \PEER \Arrow \{AG1, AL1, ...\}
-%      ...
-%      Match[110] \PREFIX=true, \PEER=\{P1\},
-%        \PEER \Arrow *, \COMM \Arrow (1,0)
-%      Match[100] \PREFIX=true, \PEER=\{P2\},
-%        \PEER \Arrow *, \COMM \Arrow (0,1)
-%      ...
-%    \end{code}
-
-  \begin{center}
-  \includegraphics[width=\columnwidth]{figures/configs}
-  \end{center}
-  \vspace{-1em}
-  \caption{Spine template and concrete configurations (left), and evolution-friendly templates (right).}
-  \label{fig:bgp-configs}
-\end{figure}
-
 
 \section{Template Generation}
 \label{sec:generation}
@@ -1280,6 +1237,15 @@ $m \leq m'$ in the concrete PG iff $f_{pg}(m) \leq f_{pg}(m')$ in the abstract P
 \end{lem}
 
 Lemma~\ref{lem:preference} tells us that inferring preferences over the abstract PG before concrete expansion is equivalent to inferring preferences over an already-expanded concrete PG.
+
+\begin{figure}[t!]
+  \begin{center}
+    \includegraphics[width=\columnwidth]{figures/configs}
+  \end{center}
+  \vspace{-1em}
+  \caption{Spine template and concrete configurations (left), and evolution-friendly templates (right).}
+  \label{fig:bgp-configs}
+\end{figure}
 
 
 \para{BGP configurations}
@@ -1466,11 +1432,14 @@ The main theoretical result is that the compilation and concretization functions
 
 \begin{thm}
   For any context $\Gamma$, topologies $G$ and $G^A$, homomorphism $f : G \rightarrow G^A$, and policy $pol$,
-  $$\Con(\text{compile}(pol,G^A), \Gamma,f,G) = \text{compile}(\Con(pol,\Gamma,f),G)$$
+
+  \vspace{1em}
+  \noindent
+  $\Con(\text{compile}(pol,G^A), \Gamma,f,G) = \text{compile}(\Con(pol,\Gamma,f),G)$
   \label{thm:concretization}
 \end{thm}
 %
-\vspace{-1em}
+\vspace{-.8em}
 Full definitions of compilation and concretization, as well as the proof of Theorem~\ref{thm:concretization} are included in the appendix.
 
 
@@ -1507,14 +1476,14 @@ To evaluate \sysname, we apply it on policies for backbone and datacenter networ
 \begin{figure}[t!]
   \begin{minipage}[t]{\linewidth}
     \hdr{HyperX}{}
-    \vspace{1em}
+    \vspace{.6em}
     \includegraphics[width=\linewidth]{figures/hyperx}
   \end{minipage}%
 
-  \vspace{2em}
+  \vspace{1.4em}
   \begin{minipage}[t]{\linewidth}
     \hdr{BCube}{}
-    \vspace{1em}
+    \vspace{.3em}
     \includegraphics[width=\linewidth]{figures/bcube}
   \end{minipage}%
 
@@ -1560,14 +1529,17 @@ The fat tree topology is a widely used datacenter topology. We look at the preci
 
 \para{Recursive Topologies}
 
-We also model several recursive topologies. These include the BCube~\cite{bcube} and Dcell~\cite{dcell} topologies. Each topology includes a recursion depth parameter ($k$), which we must fix. For a recursive topology with depth $d$, we model it as an abstract topology consisting of an abstract node for each of the depth $d-1$ subcomponents. This allows for safe expansion within a subcomponent, but not from increasing the recursion depth. The analysis is able to accurately determine reachability (i.e., at least 1 disjoint path) for each recursive topology, but is overly conservative in determining k-disjoint paths. For the BCube topology, it is able to to determine the correct number of disjoint paths between some pairs of nodes, but not all.
+We also model several recursive topologies. These include the BCube~\cite{bcube} and Dcell~\cite{dcell} topologies. Each topology includes a recursion depth parameter ($k$), which we fix. For a recursive topology with depth $k$, we model it as an abstract topology consisting of a pod to represent all depth $k-1$ subcomponents. This allows for safe expansion within a subcomponent, but not from increasing the recursion depth.
+For BCube, we model each tier of the datacenter as a separate role. Figure~\ref{fig:example-abstractions} shows an example of a BCube abstraction for $k=1$.
+The analysis is able to accurately determine reachability (i.e., at least 1 disjoint path) for each recursive topology, but is overly conservative in determining k-disjoint paths. For the BCube topology, it is able to to determine the correct number of disjoint paths between some pairs of nodes, but not all.
 
 \para{Hypercube Topologies}
 
-Hypercube variants can be used as an alternative to Clos-style topologies for networks with high-radix (port density) routers. The HyperX~\cite{hyperx} topology can be viewed as a generalization of the hypercube and butterfly topologies, which includes parameters $L$ for the lattice dimension of the network, and $S_i$ for the node multiplicity of each dimension $i$.
+Hypercube variants can be used as an alternative to Clos-style topologies for networks with port density routers. The HyperX~\cite{hyperx} topology is a generalization of the hypercube and butterfly topologies, which includes parameters $L$ for the lattice dimension of the network, and $S_i$ for the node multiplicity of each dimension $i$.
 %$K_i$ for the bandwidth of links for each dimension,
 %and $T$ for the number of terminal nodes (servers) connected to each router.
-For a fixed number of dimensions $L$, we abstract each full mesh of $S_L$ nodes into its own abstract node. The $S_{x-1}$ groups of abstract nodes can be captured using pods of the abstract $S_x$ nodes. For all hypercube variants, the fault-tolerance analysis is precise.
+For a fixed number of dimensions $L$, we abstract each full mesh of $S_L$ nodes into its own abstract node. Nodes in dimension $S_{x-1}$ are abstracted using pods of abstract nodes from dimension $S_x$. Figure~\ref{fig:example-abstractions} shows an example for $L=2$.
+For all hypercube variants, the fault-tolerance analysis is precise.
 
 %\para{Random Network Topologies}
 %
