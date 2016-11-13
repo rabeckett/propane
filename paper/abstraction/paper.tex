@@ -841,77 +841,7 @@ using information in the concrete topology. To ensure the process is sound,
   %\vspace{-1em}
 \end{figure}%
 
-The syntax introduced in \S\ref{sec:overview} is just syntactic sugar for a core language based on regular expressions. Figure~\ref{fig:syntax} shows the core \sysname syntax.
-%
-A policy has one or more constraints, each of which is either an aggregation constraint or a path constraint. Path constraints consists of a test on a prefix destination and a list of regular expressions describing preferred network paths. Regular paths are defined over network locations, where each location is either a router inside the operator's network, or an external neighbor connected to the operator's network. Values \In~ and \Out, will match any internal and external location respectively. There are two types of predicates: a test for a concrete prefix $d.d.d.d/[d..d]$ matches a range of IP prefixes (\EG, 10.0.1.0/[24..32]) where metavariable $d$ represents an integer.
 
-Converting from the high-level syntax from \S\ref{sec:overview} to the core syntax is straightforward. The predicate $\True$ becomes the prefix range $0.0.0.0/[0..32]$.
-%
-Each constraint desugars to a regular expression. For example, the constraint $\Always\CD{(\In)}$ becomes $\In^*$ and the constraint $\CD{\End(TG)}$ becomes $\mathtt{\Sigma}^* \cdot \CD{TG}$.
-%
-Preferences are lifted to the top level of the regular expression when their use is unambiguous, and separate sets of constraints are joined prefix-by-prefix by taking the set intersection of their constraints.
-
-%For example, the combining the Routing and Local constraints in the data center policy from \S\ref{sec:overview} would result in the following \sysname policy:
-%
-%\begin{code}
-%\$PG  \Path \End(TG),
-%\$PL  \Path \End(TL) \ensuremath{\cap} \Always(\In),
-%\True \Path \Exit(Peer1) \Prefer \Exit(Peer2)
-%\end{code}
-%\noindent%
-%
-
-A key step for \sysname to generate device configurations is to build a data structure amenable to joint analysis of both the topology and routing policy. Intutively, \sysname captures both topology and routing constraints by ``intersecting" the finite automata associated with the policy regular expressions with the graph structure of the topology into a data structure called the Product Graph~\cite{propane} (PG).
-
-The PG compactly encodes all paths that protocol messages should be passed along through the network in order to guarantee that the devices find policy-compliant paths dynamically.
-%
-%Although \sysname policies describe the routes that traffic should take through the network, network protocols (including BGP) typically disseminate router information in the opposite direction. For example, a router Y will tell its neighbor X that it has a route to the destination meaning that X can send traffic through Y. For this reason, we start by compiling
-%
-Because \sysname policies can have a separate routing policy for each predicate matching traffic, we construct one such PG for each predicate.
-
-
-For each regular path constraint $r_i$ from $r_1 ~\Prefer~ .. ~\Prefer~ r_k$, we construct a DFA for the reverse of $r_i$. A DFA for $r_i$ is defined as a tuple ($\Sigma, Q_i, F_i, q_{0_i}, \sigma_i$). The alphabet $\Sigma$ is the set of topology locations, $Q_i$ is the set of states for automaton i, $F_i$ is the set of final states, $q_{0_i}$ is the initial state, and $\sigma_i \colon Q_i \times \Sigma \rightarrow Q_i$ is the state transition function.
-%
-The PG is a tuple ($G'$, $start$, $P$) where $G' = (V',E')$ is a new graph with
-vertices $V' \colon V \times Q_1 \times \dots \times Q_j$,
-edges $E' \colon V' \times V'$,
-a unique starting vertex $start$,
-and a preference function $P \colon V' \rightarrow 2^{\set{1, \dots, j}}$, mapping nodes in the PG to a set of path ranks.
-
-The PG is constructed by adding an edge from state $m = (l_m, q_{m_1}, \dots, q_{m_k})$ to $n = (l_n, q_{n_1}, \dots, q_{n_k})$ whenever $\sigma_i(q_{m_i}, l_n) = q_{n_i}$ for each $i$ and $(l_m,l_n) \in E$.
-%
-We add edges from the $\mathit{start}$ node to any $m = (l, q_{m_1}, \dots, q_{m_k})$ when $\sigma_i(q_{0_i}, l) = q_{m_i}$ for each $i$.
-%
-The preference function $P(m)$ denotes the rank of paths through the PG ending at node $m$ and is defined as $P(m) = \set{i~\vert~q_{m_i} \in F_i}$.
-%
-Finally, we write $\tilde{m} = l$ to extract the topology location from a PG node, when $m = (l, q_{m_1}, \dots, q_{m_k}) \in V'$.
-
-Figure~\ref{fig:example-compilation} shows an example of a PG for the policy that applies to all external traffic from the datacenter example in \S\ref{sec:overview}.
-%
-%\begin{code}
-%\True \Path \Exit(\sf{Peer1}) \Prefer \Exit(\sf{Peer2})
-%\end{code}
-%\noindent%
-%
-The first automaton represents the more preferred constraint $\CD{\Exit(N1)}$ and the second automaton represents the less preferred constraint $\CD{\Exit(N2)}$. The PG is shown for both an instance of a simple concrete network matching the abstraction from \S\ref{sec:overview} as well as for the abstract topology.
-
-Paths through the PG represent paths through the topology that protocol messages may use to ensure policy-compliant. For example, in the concrete PG, all messages from N1 are not blocked at each spine router. Paths for a destination learned through N1 will end in an accepting state for the first automaton (\EG, node (T1,1,0)). Similarly, paths for a destination learned through N2 will end in an accepting state for the second automaton.
-
-One interesting observation is that the PG for both the concrete and abstract networks share a similar structure. This leads us to the following observation:
-
-\begin{defn}
-\label{def:homomorphism}
-If we have a graph homomorphism $f : G \rightarrow G^A$, concrete $PG = (G',\mathit{start},P)$ and abstract $PG^A = (G'^A, \mathit{start}^A, P^A)$, then we can construct a new homomorphism $f_{pg} : G' \rightarrow G'^A$ as follows:
-\[ \begin{array}{rcl}
-  f_{pg}( \mathit{start} ) & = & \mathit{start}^A  \\
-  f_{pg}( (l,q_1,\ldots,q_n) ) & = & (f(l),q_1,\ldots,q_n) \\
-\end{array} \]
-\end{defn}
-
-As we will see in \S\ref{sec:generation}, we have proven that our generation strategy commutes with concrete expansion, meaning that we obtain the same results if we expand the abstraction early, or if we defer the expansion until after template generation.
-%
-Definition~\ref{def:homomorphism} provides some intuition concerning why our strategy for generating templates is correct.
-%Abstract product graphs are related to concrete product graphs via a graph homomorphism, just as abstract topologies are related to concrete topologies via a graph homomorphism.
 
 
 \newcommand{\state}[4]{\node[state,#3](#1)[#4]{#2};}
@@ -972,6 +902,86 @@ Definition~\ref{def:homomorphism} provides some intuition concerning why our str
   \label{fig:example-compilation}
   %\vspace{-1em}
 \end{figure*}
+
+
+
+
+
+
+
+
+The syntax introduced in \S\ref{sec:overview} is just syntactic sugar for a core language based on regular expressions. Figure~\ref{fig:syntax} shows the core \sysname syntax.
+%
+A policy has one or more constraints, each of which is either an aggregation constraint or a path constraint. Path constraints consists of a test on a prefix destination and a list of regular expressions describing preferred network paths. Regular paths are defined over network locations, where each location is either a router inside the operator's network, or an external neighbor connected to the operator's network. Values \In~ and \Out, will match any internal and external location respectively. There are two types of predicates: a test for a concrete prefix $d.d.d.d/[d..d]$ matches a range of IP prefixes (\EG, 10.0.1.0/[24..32]) where metavariable $d$ represents an integer.
+
+Converting from the high-level syntax from \S\ref{sec:overview} to the core syntax is straightforward. The predicate $\True$ becomes the prefix range $0.0.0.0/[0..32]$.
+%
+Each constraint desugars to a regular expression. For example, the constraint $\Always\CD{(\In)}$ becomes $\In^*$ and the constraint $\CD{\End(TG)}$ becomes $\mathtt{\Sigma}^* \cdot \CD{TG}$.
+%
+Preferences are lifted to the top level of the regular expression when their use is unambiguous, and separate sets of constraints are joined prefix-by-prefix by taking the set intersection of their constraints.
+
+%For example, the combining the Routing and Local constraints in the data center policy from \S\ref{sec:overview} would result in the following \sysname policy:
+%
+%\begin{code}
+%\$PG  \Path \End(TG),
+%\$PL  \Path \End(TL) \ensuremath{\cap} \Always(\In),
+%\True \Path \Exit(Peer1) \Prefer \Exit(Peer2)
+%\end{code}
+%\noindent%
+%
+
+A key step for \sysname to generate device configurations is to build a data structure amenable to joint analysis of both the topology and routing policy. Intutively, \sysname captures both topology and routing constraints by ``intersecting" the finite automata associated with the policy regular expressions with the graph structure of the topology into a data structure called the Product Graph~\cite{propane} (PG).
+
+The PG compactly encodes all paths that protocol messages should be passed along through the network in order to guarantee that the devices find policy-compliant paths dynamically.
+%
+%Although \sysname policies describe the routes that traffic should take through the network, network protocols (including BGP) typically disseminate router information in the opposite direction. For example, a router Y will tell its neighbor X that it has a route to the destination meaning that X can send traffic through Y. For this reason, we start by compiling
+%
+Because \sysname policies can have a separate routing policy for each predicate matching traffic, we construct one such PG for each predicate.
+
+
+For each regular path constraint $r_i$ from $r_1 ~\Prefer~ .. ~\Prefer~ r_k$, we construct a DFA for the reverse of $r_i$. A DFA for $r_i$ is defined as a tuple ($\Sigma, Q_i, F_i, q_{0_i}, \sigma_i$). The alphabet $\Sigma$ is the set of topology locations, $Q_i$ is the set of states for automaton i, $F_i$ is the set of final states, $q_{0_i}$ is the initial state, and $\sigma_i \colon Q_i \times \Sigma \rightarrow Q_i$ is the state transition function.
+%
+The PG is a tuple ($G'$, $start$, $P$) where $G' = (V',E')$ is has
+vertices $V' \colon V \times Q_1 \times \dots \times Q_j$,
+edges $E' \colon V' \times V'$,
+a unique starting vertex $start$,
+and a preference function $P \colon V' \rightarrow 2^{\set{1, \dots, j}}$, mapping nodes in the PG to a set of path ranks.
+
+The PG is constructed by adding an edge from state $m = (l_m, q_{m_1}, \dots, q_{m_k})$ to $n = (l_n, q_{n_1}, \dots, q_{n_k})$ whenever $\sigma_i(q_{m_i}, l_n) = q_{n_i}$ for each $i$ and $(l_m,l_n) \in E$.
+%
+We add edges from the $\mathit{start}$ node to any $m = (l, q_{m_1}, \dots, q_{m_k})$ when $\sigma_i(q_{0_i}, l) = q_{m_i}$ for each $i$.
+%
+The preference function $P(m)$ denotes the rank of paths through the PG ending at node $m$ and is defined as $P(m) = \set{i~\vert~q_{m_i} \in F_i}$.
+%
+Finally, we write $\tilde{m} = l$ to extract the topology location from a PG node, when $m = (l, q_{m_1}, \dots, q_{m_k}) \in V'$.
+
+Figure~\ref{fig:example-compilation} shows an example of a PG for the policy that applies to all external traffic from the datacenter example in \S\ref{sec:overview}.
+%
+%\begin{code}
+%\True \Path \Exit(\sf{Peer1}) \Prefer \Exit(\sf{Peer2})
+%\end{code}
+%\noindent%
+%
+The first automaton represents the more preferred constraint $\CD{\Exit(N1)}$ and the second automaton represents the less preferred constraint $\CD{\Exit(N2)}$. The PG is shown for both an instance of a simple concrete network matching the abstraction from \S\ref{sec:overview} as well as for the abstract topology.
+
+Paths through the PG represent paths through the topology that protocol messages may use to ensure policy-compliant. For example, in the concrete PG, all messages from N1 are not blocked at each spine router. Paths for a destination learned through N1 will end in an accepting state for the first automaton (\EG, node (T1,1,0)). Similarly, paths for a destination learned through N2 will end in an accepting state for the second automaton.
+
+One interesting observation is that the PG for both the concrete and abstract networks share a similar structure. This leads us to the following observation:
+
+\begin{defn}
+\label{def:homomorphism}
+If we have a graph homomorphism $f : G \rightarrow G^A$, concrete $PG = (G',\mathit{start},P)$ and abstract $PG^A = (G'^A, \mathit{start}^A, P^A)$, then we can construct a new homomorphism $f_{pg} : G' \rightarrow G'^A$ as follows:
+\[ \begin{array}{rcl}
+  f_{pg}( \mathit{start} ) & = & \mathit{start}^A  \\
+  f_{pg}( (l,q_1,\ldots,q_n) ) & = & (f(l),q_1,\ldots,q_n) \\
+\end{array} \]
+\end{defn}
+
+As we will see in \S\ref{sec:generation}, we have proven that our generation strategy commutes with concrete expansion, meaning that we obtain the same results if we expand the abstraction early, or if we defer the expansion until after template generation.
+%
+Definition~\ref{def:homomorphism} provides some intuition concerning why our strategy for generating templates is correct.
+%Abstract product graphs are related to concrete product graphs via a graph homomorphism, just as abstract topologies are related to concrete topologies via a graph homomorphism.
+
 
 
 %=====================================================
