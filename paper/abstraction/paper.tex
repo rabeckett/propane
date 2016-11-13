@@ -176,8 +176,10 @@
 % (4) lets us scale synthesis to large-scale topologies
 
 \textbf{Abstract---}
-\ryan{Copied from conclusion for reference}
-We develop \sysname, the first system that can generate device configuration templates for large networks from high-level specifications of network topology and policy. \sysname is based on new abstractions for capturing parameterized network topologies, and their evolution, and algorithms to analyze the combined impact of topology and routing policy on the network's fault tolerance. Our analysis operates entirely in the abstract domain and guarantees correctness for all concrete instantiations of the topology. Experiments with many types of real-world topologies and policies show that our abstractions and analysis are precise and that, for large networks, configuration synthesis is two orders of magnitude faster than systems that operate over concrete topologies.
+We develop \sysname, a system to generate provably-correct configurations for large, evolving networks from high-level specifications of their topology, routing policy, and fault-tolerance requirements. It is based on new abstractions for capturing parameterized network topologies, and their evolution, and algorithms to analyze the combined impact of topology and routing policy on the network's fault tolerance. Our analysis operates entirely on abstract topologies and guarantees correctness for all concrete instantiations of the topology. Its output is also guaranteed to require minimal changes to the configurations of existing devices when the topology evolves to include new devices or links. Our experiments with many types of real-world topologies and policies show that our abstractions and fault-tolerance analysis are precise. They also show that, for large networks, our configuration synthesis is two orders of magnitude faster than systems that operate over concrete topologies.
+
+%\ryan{Copied from conclusion for reference}
+%We develop \sysname, the first system that can generate device configuration templates for large networks from high-level specifications of network topology and policy. \sysname is based on new abstractions for capturing parameterized network topologies, and their evolution, and algorithms to analyze the combined impact of topology and routing policy on the network's fault tolerance. Our analysis operates entirely in the abstract domain and guarantees correctness for all concrete instantiations of the topology. Experiments with many types of real-world topologies and policies show that our abstractions and analysis are precise and that, for large networks, configuration synthesis is two orders of magnitude faster than systems that operate over concrete topologies.
 
 
 %We develop techniques for automated reasoning about end-to-end properties of
@@ -252,7 +254,7 @@ challenge~\cite{mahajan+:bgp-misconfiguration,feamster+:rcc,batfish,dc-failure-s
 %
 While hardware faults, backhoes, power failures and natural disasters all pose
 problems, studies have consistently shown that human errors in network
-configuration is one of the leading cause of 
+configuration is one of the leading cause of
 outages~\cite{juniper-study,xx}.
 
 To configure large networks, instead of considering individual
@@ -273,7 +275,7 @@ configuration primitives (e.g., role A should not transmit routing information
 from B to C). Such decomposition and encoding is highly complex~\cite{propane}.
 
 Worse, operators can never be sure that their templates correctly implement the policy. %
-Formally verifying them is difficult; today's hand-generated templates have no particular semantics---which policies they implement and for which topologies---other than those of the configurations obtained from instantiating them. 
+Formally verifying them is difficult; today's hand-generated templates have no particular semantics---which policies they implement and for which topologies---other than those of the configurations obtained from instantiating them.
 %
 Thus, operators validate templates by testing some concrete instantiations using
 simulation or verification tools~\cite{x,y}. This testing is insufficient because large networks evolve continuously, as
@@ -281,7 +283,7 @@ devices and links are added or taken offline for maintenance. Templates that
 work for the current network topology, may or may not work for future
 topologies, and it is intractable to test all possible future topologies. Updating the templates, if found to not work for a future topology,
 may cause trickle-down, network-wide configuration changes, which is highly
-disruptive. 
+disruptive.
 %Building sophisticated tools for validating templates is difficult
 
 %It is no wonder that a major
@@ -318,12 +320,12 @@ Based on these inputs, the \sysname compiler generates one template per role. It
 guarantees that, when the templates are instantiated to configurations for {\em
 any} concrete topology that complies with the abstract topology, the result
 network will correctly implement the routing policy and meet the fault-tolerance
-requirements. We show how precise fault-tolerance analysis can be done in the abstract domain by using a set of sound inference rules to infer the lower bound on the number of edge-disjoint paths in any concrete topology. 
+requirements. We show how precise fault-tolerance analysis can be done in the abstract domain by using a set of sound inference rules to infer the lower bound on the number of edge-disjoint paths in any concrete topology.
 %Our analysis uses a set of sound inference rules and  using an optimizing SMT solver.
 
 \sysname's abstract reasoning provides two other benefits. First, its templates are evolution friendly. When the network migrates from
 one concrete topology to another, both of which comply with the abstract
-topology, only the configurations of devices that acquire or lose a neighbor need to change. This guarantee is the best that any system can give as neighbor relationships are explicitly configured in devices. 
+topology, only the configurations of devices that acquire or lose a neighbor need to change. This guarantee is the best that any system can give as neighbor relationships are explicitly configured in devices.
 %No other device in the network is impacted.
 
 Second, \sysname can scale substantially better than its nearest competitor \propane that operates over concrete topologies. As the number of devices in a
@@ -899,7 +901,7 @@ If we have a graph homomorphism $f : G \rightarrow G^A$, concrete $PG = (G',\mat
 As we will see in \S\ref{sec:generation}, we have proven that our generation strategy commutes with concrete expansion, meaning that we obtain the same results if we expand the abstraction early, or if we defer the expansion until after template generation.
 %
 Definition~\ref{def:homomorphism} provides some intuition concerning why our strategy for generating templates is correct.
-%Abstract product graphs are related to concrete product graphs via a graph homomorphism, just as abstract topologies are related to concrete topologies via a graph homomorphism.  
+%Abstract product graphs are related to concrete product graphs via a graph homomorphism, just as abstract topologies are related to concrete topologies via a graph homomorphism.
 
 
 \newcommand{\state}[4]{\node[state,#3](#1)[#4]{#2};}
