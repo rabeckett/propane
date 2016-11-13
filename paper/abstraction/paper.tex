@@ -1503,6 +1503,28 @@ Although the disjoint path analysis takes place over the PG, each application of
 
 To evaluate \sysname, we apply it on policies for backbone and datacenter networks. We aim to evaluate the expressiveness of our abstracttions, the precision of the abstract disjoint-path analysis, and the generation time of \sysname both with abstraction and without.
 
+
+\begin{figure}[t!]
+  \begin{minipage}[t]{\linewidth}
+    \hdr{HyperX}{}
+    \vspace{1em}
+    \includegraphics[width=\linewidth]{figures/hyperx}
+  \end{minipage}%
+
+  \vspace{2em}
+  \begin{minipage}[t]{\linewidth}
+    \hdr{BCube}{}
+    \vspace{1em}
+    \includegraphics[width=\linewidth]{figures/bcube}
+  \end{minipage}%
+
+
+  \caption{Example abstractions for HyperX and BCube.}
+  \vspace*{-1em}%
+  \label{fig:example-abstractions}
+\end{figure}
+
+
 \subsection{Analysis precision}
 
 \begin{figure}[t!]
@@ -1528,31 +1550,6 @@ To evaluate \sysname, we apply it on policies for backbone and datacenter networ
   \vspace{-1em}
 \end{figure}
 
-%\begin{figure}[t!]
-%  \begin{center}
-%      \begin{tabular}{| l l | c | c | c |}
-%      \hline
-%      \textbf{Topology} & \textbf{Variant} & \textbf{Fixed} & \textbf{Reachable} & \textbf{K-paths} \\ \hline
-%      Fattree
-%         & Google &  & \cmark & \cmark  \\
-%         & Facebook &  & \cmark & \cmark \\
-%         & F10 &  & \cmark & \cmark \\ \hline
-%      Recursive
-%         & BCube & $k$ & \cmark & \xmark \\
-%         & DCell & $k$ & \cmark & \xmark \\ \hline
-%         %& HCN & $h$ & \cmark & \xmark \\
-%      Hypercube
-%         & Standard & $N$ & \cmark & \cmark \\
-%         & HyperX & $L$ & \cmark & \cmark \\ \hline
-%      Random \footnote{foo}
-%         & Scafida &  & ??? & ??? \\
-%         & JellyFish &  & ??? & ??? \\
-%      \hline
-%      \end{tabular}
-%  \end{center}
-%  \caption{Abstract Analysis Precision.}
-%  \label{fig:analysis-precision}
-%\end{figure}
 
 We evaluate the expressiveness and precision of our fault-tolerance analysis on a range of different network topologies found in network literature and in production networks. The analysis is precise if it finds a tight lower-bound on the fault-tolerance (\IE, there is actually a concrete network with that fault tolerance).
 For each topology in Figure~\ref{fig:analysis-precision} we define a suitable abstraction. Since many topologies have tunable parameters (\EG, the recursion depth $k$ for the Dcell topology), we list all such parameters that are fixed for the abstraction. We implement a shortest path routing policy over the topology and record the precision of the analysis in terms of whether or not it is able to accurately prove reachability and/or the correct number of disjoint paths between all pairs of nodes.
