@@ -1512,25 +1512,47 @@ To evaluate \sysname, we apply it on policies for backbone and datacenter networ
 
 \begin{figure}[t!]
   \begin{center}
-      \begin{tabular}{| l | c | c | c |}
+      \begin{tabular}{| l | c | c | c | c | c | }
       \hline
-      \textbf{Topology} & \textbf{Fixed} & \textbf{Reachable} & \textbf{K-paths} \\ \hline
-      Fattree~\cite{fattree} & & \cmark & \cmark  \\ \hline
-      Facebook~\cite{facebook-fattree} & & \cmark & \cmark \\ \hline
-      F10~\cite{f10-fattree} & & \cmark & \cmark \\ \hline
-      VL2~\cite{vl2-fattree} & & & \\ \hline
-      BCube~\cite{bcube} & $k$ & \cmark & \xmark \\ \hline
-      Dcell~\cite{dcell} & $k$ & \cmark & \xmark \\ \hline
+      \textbf{Topology} & \textbf{Fixed} & \multicolumn{2}{|c|}{\textbf{Reachability}} & \multicolumn{2}{|c|}{\textbf{K-paths}} \\ \hline
+      & & Some & All & Some & All \\ 
+      & & Pairs & Pairs & Pairs & Pairs \\ \hline
+ 
+      Fattree~\cite{fattree} & -- & \cmark & \cmark & \cmark & \xmark  \\ \hline
+      Facebook~\cite{facebook-fattree} & -- & \cmark & \cmark & \cmark & \cmark \\ \hline
+      F10~\cite{f10-fattree} & -- & \cmark & \cmark & \cmark & \xmark \\ \hline
+      VL2~\cite{vl2-fattree} & -- & \cmark & \cmark & \cmark & \xmark \\ \hline
+      BCube~\cite{bcube} & $k$ & \cmark & \cmark & \xmark & \xmark \\ \hline
+      Dcell~\cite{dcell} & $k$ & \cmark & \cmark & \xmark & \xmark \\ \hline
          %& HCN & $h$ & \cmark & \xmark \\
-      Butterfly~\cite{butterfly} & $n$ & \cmark & \cmark \\ \hline
-      Hypercube & $N$ & \cmark & \cmark \\ \hline
-      HyperX~\cite{hyperx} & $L$ & \cmark & \cmark \\ \hline
+      Butterfly~\cite{butterfly} & $n$ & \cmark & \cmark & \cmark & \cmark \\ \hline
+      Hypercube & $N$ & \cmark & \cmark & \cmark & \cmark \\ \hline
+      HyperX~\cite{hyperx} & $L$ & \cmark & \cmark & \cmark & \cmark \\ \hline
       \end{tabular}
   \end{center}
   \vspace{-.6em}
-  \caption{Fault-tolerance analysis precision.}
+  \caption{Fault-tolerance analysis precision for various topologies with shortest path routing.}
   \label{fig:analysis-precision}
   \vspace{-1em}
+\end{figure}
+
+\begin{figure}[t!]
+  \begin{center}
+      \begin{tabular}{| l | c | c | c | c | }
+      \hline
+      \textbf{Clos Variant} & \multicolumn{2}{|c|}{\textbf{Reachability}} & \multicolumn{2}{|c|}{\textbf{K-paths}} \\ \hline
+      & Some & All & Some & All \\ 
+      & Pairs & Pairs & Pairs & Pairs \\ \hline
+ 
+      Fattree & \cmark & \cmark & \cmark & \cmark  \\ \hline
+      Facebook & \cmark & \cmark & \cmark & \cmark \\ \hline
+      F10 & \cmark & \cmark & \cmark & \cmark \\ \hline
+      VL2 & \cmark & \cmark & \cmark & \cmark \\ \hline
+      \end{tabular}
+  \end{center}
+  \vspace{-.6em}
+  \caption{Fault-tolerance analysis precision for fat tree topologies with valley-free routing.}
+  \label{fig:analysis-precision}
 \end{figure}
 
 

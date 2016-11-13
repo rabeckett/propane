@@ -856,6 +856,7 @@ module Consistency =
       | _ -> false
    
    let protect (idx : int) (doms : Domination.DominationTree) cg n1 n2 : ProtectResult = 
+      let settings = Args.getSettings()
       assert (loc n1 = loc n2)
       let q = Queue()
       let seen = HashSet()
@@ -884,16 +885,18 @@ module Consistency =
             for y' in nsy do
                match Map.tryFind (loc y') nsxMap with
                | None -> 
-                  let inline relevantDom x' = loc x' = loc y' && cg.Graph.ContainsVertex x'
-                  match doms.TryIsDominatedBy(x, relevantDom) with
-                  | Some x' -> add x' y' (x, y)
-                  | None -> 
-                     (* if isOutside y' then 
-                        match Seq.tryFind (coveringExternal y') nsx with
-                        | None -> counterEx := Some(x, y, y')
-                        | Some x' -> add x' y' (x, y)
-                     else*)
-                     counterEx := Some(x, y, y')
+                  if not settings.IsAbstract then 
+                     let inline relevantDom x' = loc x' = loc y' && cg.Graph.ContainsVertex x'
+                     match doms.TryIsDominatedBy(x, relevantDom) with
+                     | Some x' -> add x' y' (x, y)
+                     | None -> 
+                        (* if isOutside y' then 
+                           match Seq.tryFind (coveringExternal y') nsx with
+                           | None -> counterEx := Some(x, y, y')
+                           | Some x' -> add x' y' (x, y)
+                        else*)
+                        counterEx := Some(x, y, y')
+                  else counterEx := Some(x, y, y')
                | Some x' -> add x' y' (x, y)
       match !counterEx with
       | None -> Yes seen
@@ -1064,7 +1067,8 @@ module Consistency =
                let a = isPreferred idx cg cache doms (x, y)
                let b = isPreferred idx cg cache doms (y, x)
                match a, b with
-               | Unsafe _, _ | _, Safe -> raise (SimplePathException(x, y))
+               | Unsafe _, _ | _, Safe -> // TODO: this is strictly required just make sure the preference is set right
+                  raise (SimplePathException(x, y))
                | _, _ -> ()
    
    let findPrefAssignment idx cache doms cg mustPrefer nodes = 
