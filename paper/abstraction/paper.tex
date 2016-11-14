@@ -239,7 +239,7 @@ challenge~\cite{mahajan+:bgp-misconfiguration,feamster+:rcc,batfish,dc-failure-s
 While hardware faults, backhoes, power failures and natural disasters all pose
 problems, studies have shown that human error in network
 configuration is one of the leading causes of
-outages~\cite{juniper-study,xx}.
+outages~\cite{juniper-study,yankee-study}.
 
 To configure large networks, instead of considering individual
 devices, operators classify devices into {\em roles}. A role refers to
@@ -262,9 +262,9 @@ Worse, operators can never be sure that their templates correctly implement the 
 Formally verifying them is difficult; today's hand-generated templates have no particular semantics---which policies they implement and for which topologies---other than those of the configurations obtained from instantiating them.
 %
 Thus, operators validate templates by testing some concrete instantiations using
-simulation or verification tools~\cite{x,y}. This testing is insufficient because large networks evolve continuously, as
+simulation or verification tools~\cite{feamster+:rcc, batfish, era, arc, bagpipe}. This testing is insufficient because large networks evolve continuously as
 devices and links are added or taken offline for maintenance. Templates that
-work for the current network topology, may or may not work for future
+work for the current topology, may or may not work for future
 topologies, and it is intractable to test all possible future topologies. Updating the templates, if found to not work for a future topology,
 may cause trickle-down, network-wide configuration changes, which is highly
 disruptive.
@@ -277,7 +277,7 @@ disruptive.
 Given the challenges of generating and validating network configurations, one
 might think that operators will be receptive to systems that can generate
 provably-correct configurations from high-level policy
-specifications~\cite{x,y,z,configassure,propane}. However, our conversations
+specifications~\cite{narain+:configassure,propane}. However, our conversations
 with two major cloud providers reveal that operators of large networks are
 reluctant to use such systems. While they think of their network abstractly, in
 terms of roles, these systems only understand concrete topologies, with no understanding of roles.  Even if two devices play the same role,
@@ -313,7 +313,7 @@ topology, only the configurations of devices that acquire or lose a neighbor nee
 %No other device in the network is impacted.
 
 Second, \sysname can scale substantially better than its nearest competitor \propane that operates over concrete topologies. As the number of devices in a
-network grows, the number of distinct roles will often stay constant~\cite{surgeries-popl16}.
+network grows, the number of distinct roles will often stay constant~\cite{surgery}.
 Consequently, the \sysname compiler can be two orders of magnitude
 faster than \propane, taking less than 10 seconds to synthesize templates for large structured networks.
 
@@ -1476,7 +1476,7 @@ To evaluate \sysname, we apply it on policies for backbone and datacenter networ
       F10~\cite{f10-fattree} & -- & \cmark & \cmark & \cmark & \xmark \\ \hline
       VL2~\cite{vl2-fattree} & -- & \cmark & \cmark & \cmark & \xmark \\ \hline
       BCube~\cite{bcube} & $k$ & \cmark & \cmark & \xmark & \xmark \\ \hline
-      Dcell~\cite{dcell} & $k$ & \cmark & \cmark & \xmark & \xmark \\ \hline
+      DCell~\cite{dcell} & $k$ & \cmark & \cmark & \xmark & \xmark \\ \hline
          %& HCN & $h$ & \cmark & \xmark \\
       Butterfly~\cite{butterfly} & $n$ & \cmark & \cmark & \cmark & \cmark \\ \hline
       Hypercube & $N$ & \cmark & \cmark & \cmark & \cmark \\ \hline
@@ -1510,7 +1510,7 @@ To evaluate \sysname, we apply it on policies for backbone and datacenter networ
 
 
 We evaluate the expressiveness of \sysname's abstractions and the precision of the fault-tolerance analysis on a range of different network topologies found both in the network literature and in production networks. The analysis is precise if it finds a tight lower-bound on the fault-tolerance (\IE, there is actually a concrete network with that fault tolerance).
-For each topology in Figure~\ref{fig:analysis-precision} we define a suitable abstraction. Since many topologies have tunable parameters (\EG, the recursion depth $k$ for the Dcell topology), we list all such parameters that are fixed for the abstraction. For all topologies (Figure~\ref{fig:analysis-precision}), we implement a shortest path routing policy. Additionally, for clos-style topologies, we implement a valley-free routing policy (Figure~\ref{fig:analysis-precision2}) for comparison. In each case, we record the precision of the analysis in terms of whether or not it is able to accurately prove reachability and/or the correct number of disjoint paths between some or all pairs of nodes from a fixed source.
+For each topology in Figure~\ref{fig:analysis-precision} we define a suitable abstraction. Since many topologies have tunable parameters (\EG, the recursion depth $k$ for the DCell topology), we list all such parameters that are fixed for the abstraction. For all topologies (Figure~\ref{fig:analysis-precision}), we implement a shortest path routing policy. Additionally, for clos-style topologies, we implement a valley-free routing policy (Figure~\ref{fig:analysis-precision2}) for comparison. In each case, we record the precision of the analysis in terms of whether or not it is able to accurately prove reachability and/or the correct number of disjoint paths between some or all pairs of nodes from a fixed source.
 
 \para{Fat Tree Topologies}
 
@@ -1518,7 +1518,7 @@ The fat tree topology is a widely used datacenter topology. We look at the preci
 
 \para{Recursive Topologies}
 
-We also model several recursive topologies. These include the BCube~\cite{bcube} and Dcell~\cite{dcell} topologies. Each topology includes a recursion depth parameter ($k$), which we fix. For a recursive topology with depth $k$, we model it as an abstract topology consisting of a pod to represent all depth $k-1$ subcomponents. This allows for safe expansion within a subcomponent, but not from increasing the recursion depth.
+We also model several recursive topologies. These include the BCube~\cite{bcube} and DCell~\cite{dcell} topologies. Each topology includes a recursion depth parameter ($k$), which we fix. For a recursive topology with depth $k$, we model it as an abstract topology consisting of a pod to represent all depth $k-1$ subcomponents. This allows for safe expansion within a subcomponent, but not from increasing the recursion depth.
 For BCube, we model each tier of the datacenter as a separate role. Figure~\ref{fig:example-abstractions} shows an example of a BCube abstraction for $k=1$.
 The analysis is able to accurately determine reachability (i.e., at least 1 disjoint path) for each recursive topology, but is overly conservative in determining k-disjoint paths. For the BCube topology, it is able to to determine the correct number of disjoint paths between some pairs of nodes, but not all.
 
@@ -1599,18 +1599,18 @@ Figure~\ref{fig:abstract-breakdown} shows the relative time taken by each phase 
 
 Our work is related to four threads of prior work.
 
-\para{Network synthesis} Many recent systems focus on allowing operators to specify their policies at a high level. These can be classified into two classes. The first class targets networks based on SDN (software-defined networking) and directly generates the forwarding rules that tell routers how to forward packets~\cite{x,y,z}. The second class, and to which our work belongs, targets conventional networks and generates router configuration, based on which the routers interact and compute forwarding rules~\cite{propane,narain:lisa05,narain+:configassure}.
+\para{Network synthesis} Many recent systems focus on allowing operators to specify their policies at a high level. These can be classified into two classes. The first class targets networks based on SDN (software-defined networking) and directly generates the forwarding rules that tell routers how to forward packets~\cite{foster:merlin,fattire,netgen}. The second class, and to which our work belongs, targets conventional networks and generates router configuration, based on which the routers interact and compute forwarding rules~\cite{propane,narain:lisa05,narain+:configassure}. 
 Almost all large networks (old or new) use the conventional paradigm because that scales better~\cite{bgp-in-dc}.
 
 While we borrow much from existing configuration synthesis work, especially Propane~\cite{propane}, our goal is to generate role templates from abstract topologies, rather than router configurations from concrete topologies.
 This goal aligns better with operators' mental models and tools and permits network evolution with minimal disruption to existing routers. In the process, develop new abstractions for network topologies, fault-tolerance analysis algorithms for abstract topologies, and assign formal semantics to templates.
 
-\para{Topology design} Network topology design, especially for data centers, is another active research area, with researchers exploring designs with different properties~\cite{fattree,facebook-fattree,f10-fattree,vl2,bcube,dcell,hyperx,butterfly}.  We do not develop new designs but develop abstractions that can capture these designs (and their evolution). %and algorithms that can analyze the fault tolerance of abstract topologies.
+\para{Topology design} Network topology design, especially for data centers, is another active research area, with researchers exploring designs with different properties~\cite{fattree,facebook-fattree,f10-fattree,vl2-fattree,bcube,dcell,hyperx,butterfly}.  We do not develop new designs but develop abstractions that can capture these designs (and their evolution).
 
-While not the focus of this paper, our tools can enable operators to pick the right design for their networks, more quickly and with stronger guarantees. Today, when picking the design, operators analyze its multiple concrete instantiations because available analysis tools only work with concrete topologies~\cite{condor}. This process is time-consuming and not fool-proof; analyzing large, concrete topologies (with potentially thousands of nodes) takes a lot of time and the analysis does not cover the entire space of topologies that may arise.
+While not the focus of this paper, \sysname can enable operators to pick the right design for their networks, more quickly and with stronger guarantees. Today, when picking a design, operators analyze its multiple concrete instantiations because available analysis tools work with concrete topologies~\cite{condor}. This process is time-consuming and not fool-proof; analyzing large, concrete topologies (with potentially thousands of nodes) takes a lot of time and the analysis does not cover the entire space of topologies that may arise.
 
 \para{Network verification}
-A complementary approach to reducing configuration errors is by analyzing the forwarding rules or configuration of the network to ensure the absence of (a class of) bugs~\cite{anteater,hsa,feamster+:rcc,ipassure,batfish,bagpipe,arc,era,symmetries}. Our focus, in contrast, is on a correct-by-construction approach. It has the downside that operators must learn to express policies in a new language, but it saves them from the challenging and time-consuming task of configuration generation and provides stronger guarantees on correctness.
+A complementary approach to reducing configuration errors is by analyzing the forwarding rules or configuration of the network to ensure the absence of (a class of) bugs~\cite{anteater,hsa,veriflow,feamster+:rcc,ipassure,batfish,bagpipe,arc,era,surgery}. Our focus, in contrast, is on a correct-by-construction approach. It has the downside that operators must learn to express policies in a new language, but it saves them from the challenging and time-consuming task of manual configuration generation and correct-by-construction guarantees.
 
 
 %\para{Configuration synthesis}
