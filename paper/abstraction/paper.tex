@@ -160,7 +160,7 @@
 %=====================================================
 
 \textbf{Abstract---}
-We develop \sysname, a system to generate provably-correct configurations for large, evolving networks from high-level specifications of their topology, routing policy, and fault-tolerance requirements. It is based on new abstractions for capturing parameterized network topologies, and their evolution, and algorithms to analyze the combined impact of topology and routing policy on the network's fault tolerance. Our analysis operates entirely on abstract topologies and guarantees correctness for all concrete instantiations of the topology. Its output is also guaranteed to require minimal changes to the configurations of existing devices when the topology evolves to include new devices or links. Our experiments with many types of real-world topologies and policies show that our abstractions and fault-tolerance analysis are precise. They also show that, for large networks, our configuration synthesis is two orders of magnitude faster than systems that operate over concrete topologies.
+We develop \sysname, a system to generate provably-correct configurations for large, evolving networks from high-level specifications of their topology, routing policy, and fault-tolerance requirements. It is based on new abstractions for capturing parameterized network topologies and their evolution, and algorithms to analyze the combined impact of topology and routing policy on the network's fault tolerance. Our analysis operates entirely on abstract topologies and guarantees correctness for all concrete instantiations of the topology. Its output is also guaranteed to require minimal changes to the configurations of existing devices when the topology evolves to include new devices or links. Our experiments with many real-world topologies and policies show that our abstractions and fault-tolerance analysis are effective and that, for large networks, configuration synthesis with \sysname is two orders of magnitude faster than similar systems that operate over concrete topologies.
 
 %\ryan{Copied from conclusion for reference}
 %We develop \sysname, the first system that can generate device configuration templates for large networks from high-level specifications of network topology and policy. \sysname is based on new abstractions for capturing parameterized network topologies, and their evolution, and algorithms to analyze the combined impact of topology and routing policy on the network's fault tolerance. Our analysis operates entirely in the abstract domain and guarantees correctness for all concrete instantiations of the topology. Experiments with many types of real-world topologies and policies show that our abstractions and analysis are precise and that, for large networks, configuration synthesis is two orders of magnitude faster than systems that operate over concrete topologies.
@@ -237,8 +237,8 @@ running 24/7 is an enormous
 challenge~\cite{mahajan+:bgp-misconfiguration,feamster+:rcc,batfish,dc-failure-study}.
 %
 While hardware faults, backhoes, power failures and natural disasters all pose
-problems, studies have consistently shown that human errors in network
-configuration is one of the leading cause of
+problems, studies have shown that human error in network
+configuration is one of the leading causes of
 outages~\cite{juniper-study,xx}.
 
 To configure large networks, instead of considering individual
@@ -253,7 +253,7 @@ Operators author a configuration {\em template} for each role. Templates are
 macros that, given a network topology, can be instantiated with different concrete values to generate device configurations.
 
 Unfortunately, template construction is a low-level, manual process. Operators
-manually decompose network-wide routing and fault-tolerance policies (e.g.,
+must decompose network-wide routing and fault-tolerance policies (e.g.,
 prefer one path over another, or a link failure should not cause connectivity loss) across different roles and encode the decomposition using assembly-language-like
 configuration primitives (e.g., role A should not transmit routing information
 from B to C). Such decomposition and encoding is highly complex~\cite{propane}.
@@ -302,9 +302,9 @@ policies refer to abstract roles.
 
 Based on these inputs, the \sysname compiler generates one template per role. It
 guarantees that, when the templates are instantiated to configurations for {\em
-any} concrete topology that complies with the abstract topology, the result
+any} concrete topology that complies with the abstract topology, the resulting
 network will correctly implement the routing policy and meet the fault-tolerance
-requirements. We show how precise fault-tolerance analysis can be done in the abstract domain by using a set of sound inference rules to infer the lower bound on the number of edge-disjoint paths in any concrete topology.
+requirements. We show how fault-tolerance analysis can be done in the abstract domain by using a set of sound inference rules to infer the lower bound on the number of edge-disjoint paths in any concrete topology.
 %Our analysis uses a set of sound inference rules and  using an optimizing SMT solver.
 
 \sysname's abstract reasoning provides two other benefits. First, its templates are evolution friendly. When the network migrates from
@@ -647,7 +647,7 @@ with a symbolic variable (\EG, $e1$) that denotes a constraint on the number of 
 
 For example, in Figure~\ref{fig:example3}, the first two constraints: $e1 = AG$ and $e2 = TG$ say that, within any pod P, the number of outgoing edges from a node in the $TG$ role to a node in the $AG$ role is equal to the number of nodes in the $AG$ role. Similarly, the number of outgoing edges from a node in the $AG$ role to a node in the $TG$ role is equal to the number of nodes in the $TG$ role. These constraints capture the fact that, within any given pod, the global aggregators and ToRs are in a full mesh. Furthermore, the constraints $AG = AL$ and $AG \leq S$ ensure that, within pods P and Q, the $AG$ and $TG$ roles have the same number of routers, which is less than the number of routers in the spine role $S$.
 %
-The constraint $e3 \geq 2$ says that, in each pod, each aggregator node has at least 2 outgoing edges to nodes in the spine role. Symmetrically, the constraint $e4 \geq 1$ says that, for each pod P, each node in the spine role has at least one outgoing edge to a node in the $AG$ role. Similar constraints appear for the local aggregator role. The constraint $2 \leq S \leq 4$ makes explicit the possibility for growth, for example by growing the network from that of Figure~\ref{fig:example} to that of Figure~\ref{fig:example2}. In general, we need not bound the number of spine routers to admit more concrete topologies, potentially at the expense of analysis precision. We include the constraints $(S \mod AG) = 0$, and $(S \mod AL) = 0$ simply to show that constraints do not have to be inequalities. Operators can write constraints using logical formula from any theory supported by modern SMT solvers.
+The constraint $e3 \geq 2$ says that, in each pod, each aggregator node has at least 2 outgoing edges to nodes in the spine role. Symmetrically, the constraint $e4 \geq 1$ says that, for each pod P, each node in the spine role has at least one outgoing edge to a node in the $AG$ role. Similar constraints appear for the local aggregator role. The constraint $2 \leq S \leq 4$ makes explicit the possibility for growth, for example by growing the network from that of Figure~\ref{fig:example} to that of Figure~\ref{fig:example2}. In general, we need not bound the number of spine routers to admit more concrete topologies, potentially at the expense of analysis precision. We also include the constraints $(S \mod AG) = 0$, and $(S \mod AL) = 0$~simply to show that constraints do not have to be in the form of inequalities. Operators can write constraints using logical formulas from any theory supported by modern SMT solvers.
 
 A final type of abstraction is the $\Mincut(1)$ constraint between the spine role S and N[1--2]. It says that any node in the spine role has at least one path to any node in the neighbor N1 (and N2) role. Such annotations are useful for a "one big switch" abstraction \cite{Casado:2010} in which part of a complex network is represented as a single node. For example, to model an ISP backbone network the operator might divide the network into separate geographic regions with two roles per region---one for the border routers and another for the core of the network. Mincut annotations can be used to describe the degree of fault tolerance both within region cores as well as across regions.
 
@@ -724,7 +724,7 @@ NoValley & \Agg(PG, \In -> \Out)
 \end{code}
 \noindent%
 
-This instructs \sysname to find BGP router configurations that satisfy the conjunction of all the constraints. It also declares an additional constraint that we want to perform prefix summarization (as PG) for global prefixes at the border of the datacenter (\IE, along any edge starting inside our datacenter and ending at a peer outside the datacenter).
+This instructs \sysname to find BGP router configurations that satisfy the conjunction of all the constraints. It also declares an additional constraint that we want to perform prefix aggregation, as covering prefix PG, for global prefixes at the border of the datacenter (\IE, along any edge starting inside our datacenter and ending at a peer outside the datacenter).
 
 \para{Fault-tolerance policy} This policy specifies how many link failures the network should be able to withstand before traffic experiences connectivity loss. Operators can specify different tolerance levels for different pairs of abstract nodes. For instance, they may say that ToR to spine connectivity should be robust to 2 failures, \IE, no ToR-spine pair should lose connectivity as long as the number of simultaneous link failures is 2 or fewer; and ToR-to-ToR connectivity should be be robust to 1 failure.
 
@@ -903,7 +903,7 @@ using information in the concrete topology. To ensure the process is sound,
 
 
 
-The syntax introduced in \S\ref{sec:overview} is just syntactic sugar for a core language based on regular expressions. Figure~\ref{fig:syntax} shows the core \sysname syntax.
+The syntax introduced in \S\ref{sec:overview} is just syntactic sugar for a core language based on regular expressions. Figure~\ref{fig:syntax} shows the \sysname syntax.
 %
 A policy has one or more constraints, each of which is either an aggregation constraint or a path constraint. Path constraints consists of a test on a prefix destination and a list of regular expressions describing preferred network paths. Regular paths are defined over network locations, where each location is either a router inside the operator's network, or an external neighbor connected to the operator's network. Values \In~ and \Out, will match any internal and external location respectively. There are two types of predicates: a test for a concrete prefix $d.d.d.d/[d..d]$ matches a range of IP prefixes (\EG, 10.0.1.0/[24..32]) where metavariable $d$ represents an integer.
 
@@ -911,7 +911,7 @@ Converting from the high-level syntax from \S\ref{sec:overview} to the core synt
 %
 Each constraint desugars to a regular expression. For example, the constraint $\Always\CD{(\In)}$ becomes $\In^*$ and the constraint $\CD{\End(TG)}$ becomes $\mathtt{\Sigma}^* \cdot \CD{TG}$.
 %
-Preferences are lifted to the top level of the regular expression when their use is unambiguous, and separate sets of constraints are joined prefix-by-prefix by taking the set intersection of their constraints.
+Preferences are lifted to the top level of the regular expression when their use is unambiguous, and separate sets of constraints are joined prefix-by-prefix by taking the regular expression intersection of their constraints.
 
 %For example, the combining the Routing and Local constraints in the data center policy from \S\ref{sec:overview} would result in the following \sysname policy:
 %
@@ -923,9 +923,9 @@ Preferences are lifted to the top level of the regular expression when their use
 %\noindent%
 %
 
-A key step for \sysname to generate device configurations is to build a data structure amenable to joint analysis of both the topology and routing policy. Intutively, \sysname captures both topology and routing constraints by ``intersecting" the finite automata associated with the policy regular expressions with the graph structure of the topology into a data structure called the Product Graph~\cite{propane} (PG).
+A key step for \sysname to generate device configurations is to build a data structure amenable to joint analysis of both the topology and routing policy. Intuitively, \sysname captures both topology and routing constraints by ``intersecting" the finite automata associated with the policy regular expressions with the graph structure of the topology into a new data structure called the Product Graph~\cite{propane} (PG).
 
-The PG compactly encodes all paths that protocol messages should be passed along through the network in order to guarantee that the devices find policy-compliant paths dynamically.
+The PG compactly encodes all paths that protocol messages should be passed along through the network in order to guarantee that the BGP-speaking devices find policy-compliant paths dynamically.
 %
 %Although \sysname policies describe the routes that traffic should take through the network, network protocols (including BGP) typically disseminate router information in the opposite direction. For example, a router Y will tell its neighbor X that it has a route to the destination meaning that X can send traffic through Y. For this reason, we start by compiling
 %
@@ -948,7 +948,7 @@ The preference function $P(m)$ denotes the rank of paths through the PG ending a
 %
 Finally, we write $\tilde{m} = l$ to extract the topology location from a PG node, when $m = (l, q_{m_1}, \dots, q_{m_k}) \in V'$.
 
-Figure~\ref{fig:example-compilation} shows an example of a PG for the policy that applies to all external traffic from the datacenter example in \S\ref{sec:overview}.
+Figure~\ref{fig:example-compilation} shows the PG for the datacenter policy that applies to all external traffic ($\CD{\True \Path \Exit(N1~\Prefer~N2)}$).
 %
 %\begin{code}
 %\True \Path \Exit(\sf{Peer1}) \Prefer \Exit(\sf{Peer2})
@@ -957,19 +957,19 @@ Figure~\ref{fig:example-compilation} shows an example of a PG for the policy tha
 %
 The first automaton represents the more preferred constraint $\CD{\Exit(N1)}$ and the second automaton represents the less preferred constraint $\CD{\Exit(N2)}$. The PG is shown for both an instance of a simple concrete network matching the abstraction from \S\ref{sec:overview} as well as for the abstract topology.
 
-Paths through the PG represent paths through the topology that protocol messages may use to ensure policy-compliant. For example, in the concrete PG, all messages from N1 are not blocked at each spine router. Paths for a destination learned through N1 will end in an accepting state for the first automaton (\EG, node (T1,1,0)). Similarly, paths for a destination learned through N2 will end in an accepting state for the second automaton.
+Paths through the PG represent paths through the topology that protocol messages may use to ensure policy-compliance. For example, in the concrete PG, all messages from N1 are not blocked at spine routers S1 and S2. Paths for a destination learned through N1 will end in an accepting state for the first automaton (\EG, node (T1,1,0)). Similarly, paths for a destination learned through N2 will end in an accepting state for the second automaton.
 
 One interesting observation is that the PG for both the concrete and abstract networks share a similar structure. This leads us to the following observation:
 
 \begin{defn}
 \label{def:homomorphism}
-If we have a graph homomorphism $f : G \rightarrow G^A$, concrete $PG = (G',\mathit{start},P)$ and abstract $PG^A = (G'^A, \mathit{start}^A, P^A)$, then we can construct a new homomorphism $f_{pg} : G' \rightarrow G'^A$ as follows:
+If we have a graph homomorphism $f : G \rightarrow G^A$, concrete product graph $PG = (G',\mathit{start},P)$ and abstract product graph $PG^A = (G'^A, \mathit{start}^A, P^A)$, then we can construct a new homomorphism $f_{pg} : G' \rightarrow G'^A$ in the following way:
 \[ \begin{array}{rcl}
   f_{pg}( \mathit{start} ) & = & \mathit{start}^A  \\
   f_{pg}( (l,q_1,\ldots,q_n) ) & = & (f(l),q_1,\ldots,q_n) \\
 \end{array} \]
 \end{defn}
-
+%
 As we will see in \S\ref{sec:generation}, we have proven that our generation strategy commutes with concrete expansion, meaning that we obtain the same results if we expand the abstraction early, or if we defer the expansion until after template generation.
 %
 Definition~\ref{def:homomorphism} provides some intuition concerning why our strategy for generating templates is correct.
