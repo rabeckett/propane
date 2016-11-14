@@ -683,7 +683,7 @@ Let us see how to express the routing policy of the networks in \S\ref{sec:motiv
 \end{code}
 \noindent%
 
-The second line introduces a prefix \emph{template} variable $\CD{\$GP}$. It says that traffic for each global prefix associated with the variable should follow a path that ends at its corresponding destination router in the $\CD{TG}$ role. The second line does the same for all local prefixes.
+The second line introduces a prefix \emph{template} variable $\CD{\$GP}$. It says that traffic for each global prefix associated with the variable should follow a path that ends at its corresponding destination router in the $\CD{TG}$ role. As we will see in \S\ref{sec:language}, constraints like $\CD{\End(TG)}$ are just syntactic sugar for regular expressions describing network paths. The second line has a similar policy for local prefixes.
 %
 The final rule matches all other IP prefix destinations and allows traffic to follow a path that leaves the datacenter, ending at some outside location, through neighbors $\CD{N1}$ or $\CD{N2}$ with a preference for leaving through $\CD{N1}$. The $\CD{\Prefer}$~symbol indicates that traffic should satisfy the constraint on the left and resort to the backup (right) only when that is not possible due to network failures.%
 
