@@ -621,11 +621,9 @@ We designed the abstractions to be able to precisely capture real network topolo
 
 %Ideally, we would like to find a suitable topology abstraction that can describe both of the datacenters from figures~\ref{fig:example} and~\ref{fig:example2} as well as any reasonable generalization of these datacenters. \sysname provides several abstraction mechanisms to achieve this goal.
 
-We introduce our topology abstractions using the networks from \S\ref{sec:motivation}. Topology abstractions consist of several components.
-The first is a role-based abstraction that allows an operator to map routers in the concrete network to roles in the abstract network. Figure~\ref{fig:example3} shows an example of an abstraction for both datacenter networks from \S\ref{sec:motivation}. In the example, the concrete networks are abstracted into a new topology with 5 different roles: local ToR (TL), global ToR (TG), local aggregator (AL), global aggregator (AG), and spine (S).
-
-More specifically, a network topology is a graph $G$ = ($V, E$), which consists of a set of vertices $V$ and a set of directed edges $E \colon V \times V$. A role-based abstraction is a graph homomorphism from $G$ to an abstract graph $G^A$ = ($V^A$,$E^A$). A graph homorphism $f : G \rightarrow G^A$ maps each node in the concrete graph to a node in the abstract graph such that, whenever $(u,v) \in E$, then $(f(u),f(v)) \in E^A$.
-
+%We introduce our topology abstractions using the networks from \S\ref{sec:motivation}.
+Our topology abstractions consist of several concepts.
+The primary one is a role-based abstraction that allows an operator to map routers in the concrete network to roles in the abstract network. Figure~\ref{fig:example3} shows an example of this abstraction for both networks from \S\ref{sec:motivation}. In the example, the concrete networks are abstracted into a new topology with 5 different roles: local ToR (TL), global ToR (TG), local aggregator (AL), global aggregator (AG), and spine (S).
 
 \begin{figure}[t!]
   \centering
@@ -636,20 +634,22 @@ More specifically, a network topology is a graph $G$ = ($V, E$), which consists 
   \vspace{-1em}
 \end{figure}
 
-The role-based abstraction therefore overapproximates the connectivity of the underlying concrete graphs. On its own, this abstraction loses a lot of information about the structure of concrete networks, making it difficult to reason precisely about fault-tolerance.
+More specifically, a network topology is a graph $G$ = ($V, E$), which consists of a set of vertices $V$ and a set of directed edges $E \colon V \times V$. A role-based abstraction is a graph homomorphism from $G$ to an abstract graph $G^A$ = ($V^A$,$E^A$). A graph homorphism $f : G \rightarrow G^A$ maps each node in the concrete graph to a node in the abstract graph such that, whenever $(u,v) \in E$, then $(f(u),f(v)) \in E^A$. The role-based abstraction therefore overapproximates the connectivity of the underlying concrete graphs. 
+
+On its own, this abstraction loses a lot of information about the concrete network's structure, making it difficult to reason precisely about fault-tolerance.
 %which would hinder a useful analysis of its fault-tolerance.
-For example, with this abstraction any spine router in a concrete network may or may not be connected to any aggregator router.
+For example, with this abstraction any spine router may or may not connect to any aggregator router.
 %
-To capture more precisely the kinds of concrete networks of interest,
-we introduce several additional concepts. The first is the idea of a topology hierarchy captured by P and Q, which indicate that nodes in the ToR and aggregator roles are grouped into a number of smaller pods.
-The second is a notion of node and edge \emph{multiplicities}. Each edge (and node) is labelled
+To capture concrete networks more precisely, 
+we introduce additional concepts. The first is topology hierarchy, captured by P and Q, which indicate that nodes in the ToR and aggregator roles are grouped into pods.
+The second is node and edge \emph{multiplicity}. Each edge (and node) is labelled
 with a symbolic variable (\EG, $e1$) that denotes a constraint on the number of edges (and nodes) that may appear in any valid concrete network. Operators can capture concrete network invariants by adding constraints on the symbolic variables using logical formulas.
 
-For example, in Figure~\ref{fig:example3}, the first two constraints: $e1 = AG$ and $e2 = TG$ say that, within any pod P, the number of outgoing edges from a node in the $TG$ role to a node in the $AG$ role is equal to the number of nodes in the $AG$ role. Similarly, the number of outgoing edges from a node in the $AG$ role to a node in the $TG$ role is equal to the number of nodes in the $TG$ role. These constraints capture the fact that, within any given pod, the global aggregators and ToRs are in a full mesh. Furthermore, the constraints $AG = AL$ and $AG \leq S$ ensure that, within pods P and Q, the $AG$ and $TG$ roles have the same number of routers, which is less than the number of routers in the spine role $S$.
+For example, in Figure~\ref{fig:example3}, the first two constraints: $e1 = AG$ and $e2 = TG$ say that, within any pod P, the number of outgoing edges from a node in the $TG$ role to a node in the $AG$ role equals the number of nodes in the $AG$ role. Similarly, the number of outgoing edges from a node in the $AG$ role to a node in the $TG$ role equals the number of nodes in the $TG$ role. These constraints capture the fact that, within any pod, the global aggregators and ToRs are in a full mesh. Furthermore, the constraints $AG = AL$ and $AG \leq S$ ensure that, within pods P and Q, the $AG$ and $TG$ roles have the same number of routers, which is less than the number of routers in the spine role $S$.
 %
-The constraint $e3 \geq 2$ says that, in each pod, each aggregator node has at least 2 outgoing edges to nodes in the spine role. Symmetrically, the constraint $e4 \geq 1$ says that, for each pod P, each node in the spine role has at least one outgoing edge to a node in the $AG$ role. Similar constraints appear for the local aggregator role. The constraint $2 \leq S \leq 4$ makes explicit the possibility for growth, for example by growing the network from that of Figure~\ref{fig:example} to that of Figure~\ref{fig:example2}. In general, we need not bound the number of spine routers to admit more concrete topologies, potentially at the expense of analysis precision. We also include the constraints $(S \mod AG) = 0$, and $(S \mod AL) = 0$~simply to show that constraints do not have to be in the form of inequalities. Operators can write constraints using logical formulas from any theory supported by modern SMT solvers.
+The constraint $e3 \geq 2$ says that, in each pod, each aggregator node has at least 2 outgoing edges to nodes in the spine role. Symmetrically, the constraint $e4 \geq 1$ says that, for each pod P, each node in the spine role has at least one outgoing edge to a node in the $AG$ role. Similar constraints appear for the local aggregator role. The constraint $2 \leq S \leq 4$ makes explicit the possibility for growth, for example, by growing the network from Figure~\ref{fig:example} to Figure~\ref{fig:example2}. In general, we need not bound the number of spine routers to admit more concrete topologies, potentially at the expense of analysis precision. We also include the constraints $(S \mod AG) = 0$, and $(S \mod AL) = 0$~simply to show that constraints do not have to be in the form of inequalities. Operators can use logical formulas from any theory supported by modern SMT solvers.
 
-A final type of abstraction is the $\Mincut(1)$ constraint between the spine role S and N[1--2]. It says that any node in the spine role has at least one path to any node in the neighbor N1 (and N2) role. Such annotations are useful for a "one big switch" abstraction \cite{Casado:2010} in which part of a complex network is represented as a single node. For example, to model an ISP backbone network the operator might divide the network into separate geographic regions with two roles per region---one for the border routers and another for the core of the network. Mincut annotations can be used to describe the degree of fault tolerance both within region cores as well as across regions.
+A final concept is the $\Mincut(1)$ constraint between the spine role S and N[1--2]. It says that any spine router has at least one path to any node in the neighbor N1 (and N2) role. Such annotations are useful for a "one big switch" abstraction \cite{Casado:2010} in which a complex, unstructured network is represented as a single node. As another use case, an ISP backbone can be modeled by dividing the network into separate geographic regions with two roles per region---one for the border routers and another for the network core. Mincut annotations can describe the degree of fault tolerance both within regional cores and across regions.
 
 Our topology abstractions can trivially capture concrete topologies; there will be a one-to-one correspondence between abstract and concrete nodes (and edges). This ability enables operators to define complex networks in which they expect some (e.g., legacy) parts of the network to not evolve and others to evolve. It also means that our compiler subsumes those that operate only over concrete topologies.
 
@@ -671,9 +671,9 @@ Our topology abstractions can trivially capture concrete topologies; there will 
 %Second, it introduces prefix template variables into the language to allow writing policies that are
 %parameterized over prefix destination.
 
-\para{Routing policy} Routing policies in \sysname consist of an ordered sequence of both a predicate matching a class of traffic and a list of ranked constraints on the paths that the traffic matching the predicate should prefer to take through the network. We borrow syntax from Propane~\cite{propane}, but instead of concrete prefixes and nodes, \sysname specifications can use abstract prefixes and nodes.
+\para{Routing policy} Routing policies in \sysname consist of an ordered sequence of $i)$ a predicate that matches a class of traffic; and $ii)$ paths that the traffic should take through the network, ranked per their relative preference. \sysname borrows syntax from Propane~\cite{propane}, but instead of concrete predicates and paths, uses abstract predicates and paths.
 
-Let us see how to configure each of the datacenter networks from \S\ref{sec:motivation} by writing a \sysname routing policy over the abstract topology. We can capture the basic routing behavior, constraints (1, 2, 6), for the datacenters as follows:
+Let us see how to express the routing policy of the networks in \S\ref{sec:motivation} over the abstract topology. We can capture the basic routing behavior, constraints (1, 2, 6),  as follows:
 %
 \begin{code}
 \Define Routing =
@@ -683,11 +683,11 @@ Let us see how to configure each of the datacenter networks from \S\ref{sec:moti
 \end{code}
 \noindent%
 
-The first line introduces a prefix \emph{template} variable. It says that traffic for each global prefix associated with the template variable $\CD{\$GP}$ has the constraint that it should follow a path that ends at its corresponding destination router contained in the $\CD{TG}$ role. The second line does the same for all local prefixes.
+The second line introduces a prefix \emph{template} variable $\CD{\$GP}$. It says that traffic for each global prefix associated with the variable should follow a path that ends at its corresponding destination router in the $\CD{TG}$ role. The second line does the same for all local prefixes.
 %
-The final rule matches all other IP prefix destinations and allows traffic to follow a path that leaves the datacenter, ending up at some outside location, through either of its peers $\CD{N1}$ or $\CD{N2}$ with a preference for leaving through $\CD{N1}$ over $\CD{N2}$. The $\CD{\Prefer}$~symbol indicates that traffic should satisfy the constraint on the left whenever possible (\IE, a path exists in the network), and only resort to the backup (right) when this is not possible due to network failures.%
+The final rule matches all other IP prefix destinations and allows traffic to follow a path that leaves the datacenter, ending at some outside location, through neighbors $\CD{N1}$ or $\CD{N2}$ with a preference for leaving through $\CD{N1}$. The $\CD{\Prefer}$~symbol indicates that traffic should satisfy the constraint on the left and resort to the backup (right) only when that is not possible due to network failures.%
 
-Next we can capture constraint (4) that traffic for local prefixes must stay local to the datacenter:
+Next we can capture constraint (4) that traffic for local prefixes must stay within in the datacenter:
 %
 \begin{code}
 \Define Local =
@@ -695,9 +695,9 @@ Next we can capture constraint (4) that traffic for local prefixes must stay loc
 \end{code}
 \noindent%
 %
-The Local constraint applies to any traffic destined for a local prefix described by the $\CD{\$LP}$ prefix template variable and adds the constraint that the traffic must follow a path that matches an internal location (\IE, in the datacenter) at each hop of the path.
+The Local constraint applies to any traffic destined for a local prefix described by the variable $\CD{\$LP}$ and adds the constraint that the traffic must follow a path that matches an internal location (\IE, in the datacenter) at each hop of the path.
 %
-The constraint to prevent "valleys" (5) is written:
+The constraint to prevent "valleys" (5) is written as:
 %
 \begin{code}
 \Define NoValley =
@@ -707,7 +707,7 @@ The constraint to prevent "valleys" (5) is written:
 %
 This policy applies to all traffic and prevents valley paths by adding the $\Novalley$ constraint with arguments corresponding to each datacenter level.
 %
-Constraint (7) to prevent transit traffic between neighbors is expressed in \sysname as:
+Constraint (7) to prevent transit traffic between neighbors is expressed as:
 %
 \begin{code}
 \Define Peer = \{N1,N2\}
@@ -716,15 +716,16 @@ Constraint (7) to prevent transit traffic between neighbors is expressed in \sys
 \end{code}
 \noindent%
 %
-We define a $\CD{Peer}$ to be either $\CD{N1}$ or $\CD{N2}$ and disallow paths where traffic both enters the datacenter through a peer and exits through a peer. Finally, we can combine these constraints together as follows:
+We define a $\CD{Peer}$ as $\CD{N1}$ or $\CD{N2}$ and disallow paths where traffic both enters and exits the datacenter through a peer. 
+
+Finally, we can combine these constraints together as:
 
 \begin{code}
 Routing & Local & NoTransit &
 NoValley & \Agg(PG, \In -> \Out)
 \end{code}
-\noindent%
-
-This instructs \sysname to find BGP router configurations that satisfy the conjunction of all the constraints. It also declares an additional constraint that we want to perform prefix aggregation, as covering prefix PG, for global prefixes at the border of the datacenter (\IE, along any edge starting inside our datacenter and ending at a peer outside the datacenter).
+\noindent
+This instructs \sysname to satisfy the conjunction of all the constraints. It also declares that we want to perform route aggregation, as covering prefix PG, for global prefixes at the border of the datacenter (\IE, along any edge that connects the inside of the datacenter to the outside).
 
 \para{Fault-tolerance policy} This policy specifies how many link failures the network should be able to withstand before traffic experiences connectivity loss. Operators can specify different tolerance levels for different pairs of abstract nodes. For instance, they may say that ToR to spine connectivity should be robust to 2 failures, \IE, no ToR-spine pair should lose connectivity as long as the number of simultaneous link failures is 2 or fewer; and ToR-to-ToR connectivity should be be robust to 1 failure.
 
@@ -733,7 +734,7 @@ This instructs \sysname to find BGP router configurations that satisfy the conju
 %\sysname builds on the Propane network configuration tool, by supporting both synthesis for and reasoning over parameterized classes of topologies and their interactions with user-specified routing policy.
 
 %Although \sysname can ensure correct forwarding behavior independent of the exact concrete topology or failure scenario, it is often useful to be able to ask "what if" questions about other network properties. For example, an operator may require a certain level fault tolerance between between different collections of routers. Such analysis depends, not only on the network topology, but also on the underlying routing policy, both of which \sysname has access to.
-The \sysname compiler generates templates from the inputs above in three phases. First, it combines the abstract topology and routing policy into a {\em product graph} (PG) that compactly captures the flow of routing information over the topology in a policy-compliant manner. The algorithm for this phase builds on the \propane compiler, which was designed for concrete networks; we show that it can be extended to abstract inputs and that the extensions are correct.
+The \sysname compiler generates templates from the inputs above in three phases. First, it combines the abstract topology and routing policy into a {\em product graph} (PG) that compactly captures the flow of routing information over the topology in a policy-compliant manner. The algorithm for this phase builds on the \propane compiler (for concrete networks); we show that it can be extended to abstract inputs and that the extensions are correct.
 
 Second, \sysname checks if the fault-tolerance policy can be met by considering the joint impact of the abstract topology and routing policy. Joint analysis is needed, because connectivity depends on both: traffic will not flow along
 valid topological paths if the routing policy disallows it.
@@ -777,9 +778,11 @@ policy cannot be met.
 %the worst-case fault-tolerance level for the concrete network from
 %Figure~\ref{fig:example2}.
 
-If \sysname determines that the fault-tolerance policy can be met, it generates templates for the abstract topology.  Per-device BGP configurations can in turn be generated from the templates
+If it can be met, \sysname generates templates for each node in the abstract topology.  Per-device BGP configurations can in turn be generated from the templates
 using information in the concrete topology. To ensure the process is sound,
 \sysname checks that the given concrete topology is an instance of the abstract topology.
+
+The following sections detail each of the three phases.
 
 %
 %The constraint prevents traffic from over taking a path that traverses
@@ -1504,9 +1507,9 @@ To evaluate \sysname, we apply it on policies for backbone and datacenter networ
       \begin{tabular}{| l | c | c | c | c | c | }
       \hline
       \textbf{Topology} & \textbf{Fixed} & \multicolumn{2}{|c|}{\textbf{Reachability}} & \multicolumn{2}{|c|}{\textbf{K-paths}} \\ \hline
-      & & Some & All & Some & All \\ 
+      & & Some & All & Some & All \\
       & & Pairs & Pairs & Pairs & Pairs \\ \hline
- 
+
       Fattree~\cite{fattree} & -- & \cmark & \cmark & \cmark & \xmark  \\ \hline
       Facebook~\cite{facebook-fattree} & -- & \cmark & \cmark & \cmark & \cmark \\ \hline
       F10~\cite{f10-fattree} & -- & \cmark & \cmark & \cmark & \xmark \\ \hline
@@ -1530,9 +1533,9 @@ To evaluate \sysname, we apply it on policies for backbone and datacenter networ
       \begin{tabular}{| l | c | c | c | c | }
       \hline
       \textbf{Clos Variant} & \multicolumn{2}{|c|}{\textbf{Reachability}} & \multicolumn{2}{|c|}{\textbf{K-paths}} \\ \hline
-      & Some & All & Some & All \\ 
+      & Some & All & Some & All \\
       & Pairs & Pairs & Pairs & Pairs \\ \hline
- 
+
       Fattree & \cmark & \cmark & \cmark & \cmark  \\ \hline
       Facebook & \cmark & \cmark & \cmark & \cmark \\ \hline
       F10 & \cmark & \cmark & \cmark & \cmark \\ \hline
