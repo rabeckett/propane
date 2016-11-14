@@ -1083,8 +1083,12 @@ Definition~\ref{def:homomorphism} provides intuition as to why our strategy for 
 %\subsection{Abstract k-disjoint paths}
 %\label{sec:property-checking}
 
+The possibility of network failures only exacerbates the difficulty of constructing correct configurations. 
+Link failures in networks occur frequently; it is not uncommon for a large network to experience dozens of such failures in any given day~\cite{dc-failure-study}. However, existing tools~\cite{condor,propane} can only reason about about fault-tolerance for concrete topologies. The problem for \sysname is significantly harder because it must verify that all possible concrete instantiations of an abstract topology satisfy the desired fault-tolerance requirements, which requires a fundamentally different approach.
+
 %
-To infer bounds on the number of edge-disjoint paths between concrete nodes, we use information about the structure of the underlying concrete topologies encoded in abstraction constraints.
+We frame satisfying the fault-tolerance policy provided by the user as an analysis problem over the structure of the PG. In particular, in this section we develop an analysis that uses information about the structure of  concrete instantiations of the abstract topology to infer bounds on the number of edge-disjoint paths between pairs of concrete nodes. 
+
 %
 For each node in the abstract PG,
 the idea is to maintain invariants learned about the number of disjoint paths
