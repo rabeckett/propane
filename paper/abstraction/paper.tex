@@ -1125,7 +1125,7 @@ Consider rule \infrule{I-out2}, and consider any node in the role $n$. There are
 
 The two rules \infrule{I-mesh1} and \infrule{I-mesh2} handle the case where there is a full mesh between the two roles. This happens when the number of outgoing edges ($e_1$) nodes in role $m$ equals the number of nodes on top ($n$). \infrule{I-mesh1} says that we can find disjoint paths to each node in the top role restricted to the number of disjoint paths we started with. \infrule{I-mesh2} uses the fact that each node in the top role is connected to each node in the bottom role to infer that there can be $j$ disjoint paths to any single node in the top role.
 
-The annotation $mincut(X)$ appearing on a n edge in an assertion about the fault tolerance between nodes in two roles. The rule \infrule{I-mincut} uses such assertions. To each node in role $n$, we can construct at least the minimum of $X$ and $k$ disjoint paths.
+The annotation $mincut(X)$ appearing on an edge in an assertion about the fault tolerance between nodes in two different roles. The rule \infrule{I-mincut} uses such assertions. To each node in role $n$, from a node in role $m$, we can construct at least the minimum of $X$ and $k$ disjoint paths.
 
 %The rule \infrule{I-mincut} can be thought of as an assertion about the fault tolerance between nodes in two roles. The rule applies to an edge that has been annotated with a $mincut(X)$ statement, which means that there are at least $X$ disjoint paths between any node in role $m$ and any node in role $n$.
 
