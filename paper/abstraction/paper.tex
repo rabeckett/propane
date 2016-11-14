@@ -159,22 +159,6 @@
 %
 %=====================================================
 
-
-% Points to make
-%
-% (1) Lets operators think about topologies/policies at a high-level of abstraction
-%     - matches current thinking (e.g., templates)
-%
-% (2) Promotes a correct-by-construction methodology
-%
-%     properties that hold over abstract topologies hold over concrete ones
-%      - includes correct forwarding behavior
-%      - includes reachability (under k-failures)
-%
-% (3) Enables reusability (e.g., across datacenters) and expansion (e.g., within a datacenter)
-%
-% (4) lets us scale synthesis to large-scale topologies
-
 \textbf{Abstract---}
 We develop \sysname, a system to generate provably-correct configurations for large, evolving networks from high-level specifications of their topology, routing policy, and fault-tolerance requirements. It is based on new abstractions for capturing parameterized network topologies, and their evolution, and algorithms to analyze the combined impact of topology and routing policy on the network's fault tolerance. Our analysis operates entirely on abstract topologies and guarantees correctness for all concrete instantiations of the topology. Its output is also guaranteed to require minimal changes to the configurations of existing devices when the topology evolves to include new devices or links. Our experiments with many types of real-world topologies and policies show that our abstractions and fault-tolerance analysis are precise. They also show that, for large networks, our configuration synthesis is two orders of magnitude faster than systems that operate over concrete topologies.
 
@@ -464,9 +448,9 @@ When announcing destinations to certain neighbors, a BGP router may perform {\em
 
 \begin{figure}[t!]
   \centering
-  \includegraphics[width=1.02\columnwidth]{figures/templates}
-  \caption{Example of a small part of a router template for the datacenter spine role.}
-  \label{fig:example2}
+  \includegraphics[width=\columnwidth]{figures/templates}
+  \caption{Example of a small configuration component of a router template for the datacenter spine role.}
+  \label{fig:templates}
   \vspace{-1em}
 \end{figure}
 
@@ -501,10 +485,9 @@ To simplify network configuration, operators are adopting a template-based appro
 A {\em role} is a specific function that is served by one or more routers.
 %\footnote{If a role is played by devices from multiple vendors, there is one template per role-vendor combination because templates use vendor configuration languages.}
 %
-The network in Figure~\ref{fig:example} might have five roles: spine, global aggregator, global ToR, local aggregator, and local ToR.
+For example, the network in Figure~\ref{fig:example} might have five roles: spine, global aggregator, global ToR, local aggregator, and local ToR.
 %
-Templates have parameters for various aspects of the configuration (\EG, neighbor list) and are compiled to device configurations by instantiating the parameters using the network topology and a database of network information.
-\ryan{TODO: discuss figure}
+Figure~\ref{fig:templates} shows an example of what a small component of a template for the spine role in the two datacenters might look like. The template has parameters for various aspects of the configuration (\EG, neighbor list, local prefixes) and are compiled to low-level device configurations by instantiating the parameters using the network topology and a database of network information.
 
 %Templates provide two key advantages. First, they help eliminate a class of configuration errors that stem from typos and inconsistencies, e.g., using the wrong address for a router, having inconsistent addresses for the two ends of a link, and failing to configure one side of a routing adjacency.  Second, templates have the potential for re-use when the topology changes while maintaining its basic structure (e.g., adding a new pod to the data center) or multiple networks with similar structures need to be instantiated (e.g., in an organization that runs multiple data centers).
 
