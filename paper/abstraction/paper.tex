@@ -956,7 +956,7 @@ If we have a graph homomorphism $f : G \rightarrow G^A$, concrete product graph 
 \end{array} \]
 \end{defn}
 %
-As we will see in \S\ref{sec:generation}, we have proven that our generation strategy commutes with concrete expansion, meaning that we obtain the same results if we expand the abstraction early, or if we defer the expansion until after template generation.
+As we will see in \S\ref{sec:generation}, we have proven that our generation strategy commutes with template instantiation, meaning that we obtain the same results if we instantiate the abstraction early, or if we defer the instantiation until after template generation.
 %
 Definition~\ref{def:homomorphism} provides intuition as to why our strategy for generating templates is correct.
 %Abstract product graphs are related to concrete product graphs via a graph homomorphism, just as abstract topologies are related to concrete topologies via a graph homomorphism.
@@ -1247,7 +1247,7 @@ Notice that in the abstract PG $(S,0,1) \leq (S,1,0)$ also holds.
 $m \leq m'$ in the concrete PG iff $f_{pg}(m) \leq f_{pg}(m')$ in the abstract PG.
 \end{lem}
 
-Lemma~\ref{lem:preference} tells us that inferring preferences over the abstract PG before concrete expansion is equivalent to inferring preferences over an already-expanded concrete PG.
+Lemma~\ref{lem:preference} tells us that inferring preferences for the abstract PG before template instantiation is equivalent to inferring preferences for an already-instantiated concrete PG.
 
 \begin{figure}[t!]
   \begin{center}
@@ -1550,7 +1550,8 @@ For a fixed number of dimensions $L$, we abstract each full mesh of $S_L$ nodes 
 \para{Results}
 The bottom part of Figure~\ref{fig:analysis-precision} shows the results for all types of topologies coupled with shortest-path routing. (Valley-free routing is not meaningful for non-tree-based topologies.) For all tree-based topologies, analysis is precise for determining reachability, but for three of them, it does not compute a tight bound for edge-disjoint paths for all router pairs. Specifically, it underestimates ToR-to-spine paths; it fails to account for circuitous paths that traverse another spine because it could not disambiguate two concrete spines that map to the same abstract role.
 %For all fat tree variants, the analysis correctly computes the number of ToR to ToR disjoint paths, but can lose precision between ToR to spine routers due to valley paths. For a valley-free routing policy, the analysis is precise for ToR to spine connectivity.
-For both recursive topologies, the analysis can accurately determine reachability (i.e., at least 1 disjoint path) but is conservative in determining k-disjoint paths. For the BCube topology, it is able to to determine the correct number of disjoint paths between some pairs of nodes, but not all. For all hypercube topologies, \sysname's fault-tolerance analysis is precise.
+For both recursive topologies, the analysis can accurately determine reachability (i.e., at least 1 disjoint path) but is conservative in determining k-disjoint paths. 
+%For the BCube topology, it is able to to determine the correct number of disjoint paths between some pairs of nodes, but not all. For all hypercube topologies, \sysname's fault-tolerance analysis is precise.
 
 
 %\para{Random Network Topologies}
