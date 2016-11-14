@@ -809,11 +809,13 @@ The following sections detail each of the three phases.
   \vspace*{-1\baselineskip}
   %
   \[ \begin{array}{rclr}
-     pol     &::=& p_1, \dots, p_n & \textit{policy} \\
-     p       &::=& t \hspace{.3em} \Path \hspace{.3em} r_1 \Prefer \dots \Prefer r_m \BNFALT a & \textit{path preferences}  \\
-     t       &::=& \$x \BNFALT d.d.d.d/[d..d] \hspace{1.5em} & \textit{predicate} \\
-     a      &::=& agg(t, r_1 \rightarrow r_2) & \textit{aggregation} \\
-     r       &::=& l \BNFALT \emptyset \BNFALT \In \BNFALT \Out \BNFALT r_1 \cup r_2 \BNFALT & \textit{regular path} \\
+     d       &\in& \textit{Integers} \\
+     x       &\in& \textit{Variables} \\
+     pol     &::=& p_1, \dots, p_n & \text{Policy} \\
+     p       &::=& t \hspace{.3em} \Path \hspace{.3em} r_1 \Prefer \dots \Prefer r_m \BNFALT a & \text{Path Preferences}  \\
+     t       &::=& \$x \BNFALT d.d.d.d/[d..d] \hspace{1.5em} & \text{Predicate} \\
+     a      &::=& \mathit{agg}(t, r_1 \rightarrow r_2) & \text{Aggregation} \\
+     r       &::=& l \BNFALT \emptyset \BNFALT \CD{in} \BNFALT \CD{out} \BNFALT r_1 \cup r_2 \BNFALT & \text{Regular Path} \\
              &   & r_1 \cap r_2 \BNFALT r_1 \cdot r_2 \BNFALT \NOT r \BNFALT r^* \\
   \end{array} \]%
 
@@ -1473,8 +1475,8 @@ We evaluate \sysname by applying it on policies for backbone and datacenter netw
       \begin{tabular}{| l | c| c | c | c | c | }
       \hline
        & \textbf{Fixed} & \multicolumn{2}{|c|}{\textbf{Reachability}} & \multicolumn{2}{|c|}{\textbf{K-paths}} \\ \hline
-      & & Some & All & Some & All \\
-      & & Pairs & Pairs & Pairs & Pairs \\ \hline
+       & & Some & All & Some & All \\
+       & & Pairs & Pairs & Pairs & Pairs \\ \hline
 
       \multicolumn{6}{l}{\textbf{Tree-based topologies, valley-free routing}} \\ \hline
 
