@@ -449,9 +449,9 @@ When announcing destinations to certain neighbors, a BGP router may perform {\em
 \begin{figure}[t!]
   \centering
   \includegraphics[width=\columnwidth]{figures/templates}
-  \caption{Example of a small configuration component of a router template for the datacenter spine role.}
+  \caption{Idealized small configuration component for the datacenter spine role based on router templates from a large cloud provider (\IE, macros over gobbledygook).}
   \label{fig:templates}
-  \vspace{-1em}
+  \vspace{-.8em}
 \end{figure}
 
 We demonstrate the difficulty of configuring networks today using the data center example in Figure~\ref{fig:example}. The boxes denote routers. Using terminology for fat tree networks~\cite{fattree}, S[1--2] are spine routers, A[1--8] are aggregation routers,\footnote{This term is not related to BGP route aggregation.} and T[1--8] are top-of-rack (ToR) routers. The spine routers connect to the Internet through neighbors N[1--2].
@@ -492,7 +492,7 @@ Figure~\ref{fig:templates} shows an example of what a small component of a templ
 %Templates provide two key advantages. First, they help eliminate a class of configuration errors that stem from typos and inconsistencies, e.g., using the wrong address for a router, having inconsistent addresses for the two ends of a link, and failing to configure one side of a routing adjacency.  Second, templates have the potential for re-use when the topology changes while maintaining its basic structure (e.g., adding a new pod to the data center) or multiple networks with similar structures need to be instantiated (e.g., in an organization that runs multiple data centers).
 
 %While templates help avoid a class of configuration errors (e.g., inconsistent routing adjacencies), they provide no guarantees
-As described earlier (\S\ref{sec:introduction}), templates are hard to author and hard to validate. At the same time, templates that work for one topology may not work for seemingly-inconsequential variations (which may arise after the network evolves).
+As described earlier (\S\ref{sec:introduction}), templates are hard to author and hard to validate. Worse, templates that work for one topology may not work for seemingly-inconsequential variations (which may arise after the network evolves).
 Consider the network in Figure~\ref{fig:example2}, which is similar to Figure~\ref{fig:example}: it has the same five roles, connected in a similar hierarchy. One might think that the same templates (with different database entries) can be used for both cases. However, if the templates are configured to disallow ``valley" paths (per policy (5) above), they will work for Figure~\ref{fig:example} but silently violate the fault tolerance policy ($(8)$) when used for Figure~\ref{fig:example2}.  Specifically, in Figure~\ref{fig:example2}, an aggregation-based blackhole (\S\ref{sec:background}) will occur when the link S1--A1 fails; after this failure, S1 has no valley-free path to P[1--2] even though it will continue to get traffic for these prefixes as it announces the covering prefix PG (because it gets routes for P[3--4]). No such blackhole will occur in Figure~\ref{fig:example} after a single link failure because spine routers have two links to each pod.
 
 %Unfotunately, currently, there is no way to predict which variations will behave correctly for a given set of templates.
@@ -1066,7 +1066,7 @@ Definition~\ref{def:homomorphism} provides intuition as to why our strategy for 
   \begin{tikzpicture}
     % \inference{0}{L$(j,k)$}{$e_i > 0$}{S$(min(j*k,g),1)$}{I-out3}{$e_1$}{$e_2$}
     \inferencetwo{0}
-    \node[anchor=west] at (1,2.2) {where $g=n-\dfrac{(m-j)*e_1}{e_2}$};
+    \node[anchor=west] at (1,2.2) {where $g \geq n-\dfrac{(m-j)*e_1}{e_2}$};
     \inferencelocal{6.5}{.4}
     \inferenceglobal{12}{.4}
   \end{tikzpicture}
@@ -1113,9 +1113,13 @@ To learn information about disjoint paths, we develop a collection of sound infe
 
 In general, the inference rules try to learn information about both the largest number of disjoint paths to any single node in an abstract role as well as the largest reachable group in a particular role with at least one disjoint path to each.
 
-The first rule, \infrule{I-out1} applies to a learned invariant of the form $L_m(j,k)$ where the number of outgoing edges from any concrete node in the $m$ role is greater than 0. In the worst case, the largest group of concrete nodes we could hope to reach at the $n$ role would be $e_1$ since all j nodes at the bottom may have outgoing edges to the same concrete nodes at the top. Furthermore, the total number of disjoint paths to the $j$ nodes at the bottom is equal to $j*k$. Since adding disjoint edges between the nodes keeps the existing paths disjoint, and since we can not exceed the current number of disjoint paths to the concrete nodes in role $m$ on the bottom, the largest reachable group for the role $n$ on the top will be $min(j*k,e_1)$. However, because we do not know for certain that all $j$ nodes in role $m$ have outgoing edges to the same nodes at the top, we conservatively use $1$ for the number of disjoint paths to each node on top.
+The first rule, \infrule{I-out1} applies to a learned invariant of the form $L_m(j,k)$ where the number of outgoing edges from any concrete node in the $m$ role is greater than 0. In the worst case, the largest group of concrete nodes we could hope to reach at the $n$ role would be $e_1$ since all j nodes at the bottom may have outgoing edges to the same concrete nodes at the top. Furthermore, the total number of disjoint paths to the $j$ nodes at the bottom is equal to $j*k$. Since extending the existing disjoint paths with disjoint edges keeps the paths disjoint, and since we can not exceed the current number of disjoint paths to the concrete nodes in role $m$ on the bottom, the largest reachable group for the role $n$ on the top will be $min(j*k,e_1)$. 
+%
+We conservatively use $1$ for the number of disjoint paths to each node in role $n$, since when $n$ is very large, all reachable nodes in role $m$ might only have a single edge to completely different nodes in $n$.
+%However, because we do not know for certain that all $j$ nodes in role $m$ have outgoing edges to the same nodes at the top, we conservatively use $1$ for the number of disjoint paths to each node on top. 
+%For example, if $n$ is very large, then each node in role $m$ may have only a single edge to each reachable node in role $n$.
 
-Consider rule \infrule{I-out2}, and consider any node in the role $n$. There are $e_2$ incoming edges to that node. Due to the fact that A$_m(j,k)$, we know that at least j of those $e_2$ edges are connected to nodes with disjoint paths from the origin. Hence we infer A$_n(1,min(j,e_2))$.
+Consider rule \infrule{I-out2}, and consider any node in the role $n$. There are $e_2$ incoming edges to that node. Due to the fact that $A_m(j,k)$, we know that at least j of those $e_2$ edges are connected to nodes with disjoint paths from the origin. Hence we infer $A_n(1,min(j,e_2))$.
 
 %The rule \infrule{I-out2} follows a similar line of reasoning. It says that if any group of size $j$ with $k$ disjoint paths to each is reachable in the bottom role, and there is at least one incoming edge for each concrete node in the top role, then there are $min(j,e_2)$ disjoint paths to any single concrete node in the top role. This is because we can choose the $j$ nodes on the bottom for which we want to find disjoint paths, and then use each of the $e_2$ disjoint incoming edges for the particular node at the top connecting it to the bottom.
 
@@ -1126,7 +1130,7 @@ The annotation $mincut(X)$ appearing on a n edge in an assertion about the fault
 %The rule \infrule{I-mincut} can be thought of as an assertion about the fault tolerance between nodes in two roles. The rule applies to an edge that has been annotated with a $mincut(X)$ statement, which means that there are at least $X$ disjoint paths between any node in role $m$ and any node in role $n$.
 
 The rule \infrule{I-striping} is the most complicated case.
-It starts with the invariant L$_m(j,k)$ at role $m$ and can be applied if each edge multiplicity $e_i > 0$ is valid given the constraints. The first inference for role $n$ tries to find the largest reachable group with disjoint paths to each. The idea is similar to the rule \infrule{I-out1}, but is able to use the fact that $e_2 > 0$ to learn more about the structure of the concrete topology. In particular it uses the following inequality, where $g$ represents the size of the group for the role $n$:
+It starts with the invariant $L_m(j,k)$ at role $m$ and can be applied if each edge multiplicity $e_i > 0$ is valid given the constraints. The first inference for role $n$ tries to find the largest reachable group with disjoint paths to each. The idea is similar to the rule \infrule{I-out1}, but is able to use the fact that $e_2 > 0$ to learn more about the structure of the concrete topology. In particular it uses the following inequality, where $g$ represents the size of the group for the role $n$:
 %
 \[ \begin{array}{c}
   (m-j)*e_1 \geq (n-g)*e_2
@@ -1137,7 +1141,7 @@ The remaining nodes ($m-j$) that are not part of the reachable group in the bott
 
 The second part of the rule allows uses a similar idea to reason about the overlap between roles $m$ and $o$ with respect to role $n$. This rule is useful particularly useful for datacenter topologies where routers in one tier of the datacenter often have a particular striping pattern with another tier.
 
-Finally, rules \infrule{I-local} and \infrule{I-global} allow us to reason across pod hierarchies. The first rule, \infrule{I-local}, says that if there is an inference from L$_m(j,k)$ to L$_n(j',k')$ on the left, then if both nodes are in the same local pod P, we can leave all labels up to P unchanged. The global rule \infrule{I-global} says that when the edge goes between pods, we can infer the fact for all pods Q since the multiplicities apply uniformly for each pod.
+Finally, rules \infrule{I-local} and \infrule{I-global} allow us to reason across pod hierarchies. The first rule, \infrule{I-local}, says that if there is an inference from $L_m(j,k)$ to $L_n(j',k')$ on the left, then if both nodes are in the same local pod P, we can leave all labels up to P unchanged. The global rule \infrule{I-global} says that when the edge goes between pods, we can infer the fact for all pods Q since the multiplicities apply uniformly for each pod.
 
 
 \begin{figure}
