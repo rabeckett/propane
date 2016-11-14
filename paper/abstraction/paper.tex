@@ -612,7 +612,7 @@ Such patches reintroduce the complexity and errors that templates were meant to 
 
 %\subsection{Inputs}
 
-\sysname takes as input the network's abstract topology and its policy. The policy has two components: the routing policy describes how traffic should flow, and the fault-tolerance policy describes how many simultaneous failures the network can withstand without loosing connectivity.
+\sysname takes as input the network's abstract topology and its policy. The policy has two components: the routing policy describes how traffic should flow, and the fault-tolerance policy describes how many simultaneous failures the network can withstand without losing connectivity.
 
 \para{Abstract topology}
 Abstract topologies in \sysname define structural and role-based invariants that compactly describe all concrete networks that can emerge as the network evolves. They are encoded in the form of a graph homomorphism annotated with logical constraints about node and edge multiplicities.
@@ -697,7 +697,7 @@ Next we can capture constraint (4) that traffic for local prefixes must stay wit
 %
 The Local constraint applies to any traffic destined for a local prefix described by the variable $\CD{\$LP}$ and adds the constraint that the traffic must follow a path that matches an internal location (\IE, in the datacenter) at each hop of the path.
 %
-The constraint to prevent "valleys" (5) is written as:
+The constraint to prevent ``valleys" (5) is written as:
 %
 \begin{code}
 \Define NoValley =
