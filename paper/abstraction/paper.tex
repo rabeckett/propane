@@ -920,7 +920,7 @@ Preferences are lifted to the top level of the regular expression when their use
 %\noindent%
 %
 
-%After converting the routing policy to the regular expression based language, 
+%After converting the routing policy to the regular expression based language,
 We are now ready to generate the PG. Intuitively, the PG captures topology and routing constraints by ``intersecting" the finite automata associated with the policy regular expressions with the graph structure of the topology.
 %The PG compactly encodes all paths that protocol messages should be passed along through the network in order to guarantee that the BGP-speaking devices find policy-compliant paths dynamically.
 %
@@ -1150,14 +1150,14 @@ Finally, the \infrule{I-local} and \infrule{I-global} rules allow us to lift eac
 
 The abstract disjoint path analysis starts from a fixed source location $src$ and repeatedly applies the inference rules from Figure~\ref{fig:inference-rules} until it reaches a fixed point. Inference rule conditions are checked for validity over all concrete topologies using an SMT solver. In order to ensure termination, we make the observation that, for any fact learned of the form $L(j,k)$, it is sound to instead infer $L(j',k')$ if $j' \leq j$ and $k' \leq k$. Therefore, for each inference $L(j,k)$ we minimize the symbolic expressions for $j$ and $k$ subject to the topology constraints using the optimizing SMT solver $\nu$Z~\cite{z3opt}.
 
-The algorithm associates with each inference, the set of abstract locations used to derive the inference, \IE, an overapproximation of set of concrete locations used for the edge-disjoint paths. When applying an inference rule between an invariant at role $m$, with a set of abstract locations $C$, to learn an invariant at role $n$, we associate the new invariant with the set $C \cup \{ n \}$. 
+The algorithm associates with each inference, the set of abstract locations used to derive the inference, \IE, an overapproximation of set of concrete locations used for the edge-disjoint paths. When applying an inference rule between an invariant at role $m$, with a set of abstract locations $C$, to learn an invariant at role $n$, we associate the new invariant with the set $C \cup \{ n \}$.
 %
-When, at a single PG node there is an inference $L_{X_1} \dots L_{X_{n-1}}$ A$_m(j,k)$ with location set $C$ and inference $L_{X_1} \dots L_{X_{n-1}}$ L$_m(j',k')$ with location set $D$, where $C \cap D = \emptyset$, we add a new inference with location set $C \cup D$: 
+When, at a single PG node there is an inference $L_{X_1} \dots L_{X_{n-1}}$ A$_m(j,k)$ with location set $C$ and inference $L_{X_1} \dots L_{X_{n-1}}$ L$_m(j',k')$ with location set $D$, where $C \cap D = \emptyset$, we add a new inference with location set $C \cup D$:
 %
-$$L_{X_1} \dots L_{X_{n-1}} L_m(\min(j, j'), k + k')$$ 
+$$L_{X_1} \dots L_{X_{n-1}} L_m(\min(j, j'), k + k')$$
 %
 \noindent
-The idea is that, because non-overlapping abstract paths can never contain overlapping concrete paths, due to the graph homomorphism property, we can merge inferences about these disjoint paths in the abstraction. 
+The idea is that, because non-overlapping abstract paths can never contain overlapping concrete paths, due to the graph homomorphism property, we can merge inferences about these disjoint paths in the abstraction.
 
 Recall the policy for global prefixes in the datacenter.
 %
@@ -1443,7 +1443,7 @@ Although the disjoint path analysis takes place over the PG, each application of
 \section{Evaluation}
 \label{sec:evaluation}
 
-To evaluate \sysname, we apply it on policies for backbone and datacenter networks. We aim to evaluate the expressiveness of our abstracttions, the precision of the abstract disjoint-path analysis, and the generation time of \sysname both with abstraction and without.
+We evaluate \sysname by applying it on policies for backbone and datacenter networks. We aim to evaluate the expressiveness of our abstractions, the precision of the abstract disjoint-path analysis, and the generation time of \sysname both with abstraction and without.
 
 
 \begin{figure}[t!]
@@ -1467,15 +1467,38 @@ To evaluate \sysname, we apply it on policies for backbone and datacenter networ
 \end{figure}
 
 
-\subsection{Analysis precision}
+\subsection{Expressiveness and precision}
 
 \begin{figure}[t!]
   \begin{center}
-      \begin{tabular}{| l | c | c | c | c | c | }
+      \begin{tabular}{| l | c| c | c | c | c | }
       \hline
-      \textbf{Topology} & \textbf{Fixed} & \multicolumn{2}{|c|}{\textbf{Reachability}} & \multicolumn{2}{|c|}{\textbf{K-paths}} \\ \hline
+       & \textbf{Fixed} & \multicolumn{2}{|c|}{\textbf{Reachability}} & \multicolumn{2}{|c|}{\textbf{K-paths}} \\ \hline
       & & Some & All & Some & All \\
       & & Pairs & Pairs & Pairs & Pairs \\ \hline
+
+      \multicolumn{6}{l}{\textbf{Tree-based topologies, valley-free routing}} \\ \hline
+
+      Fattree~\cite{fattree} & -- & \cmark & \cmark & \cmark & \cmark  \\ \hline
+      Facebook~\cite{facebook-fattree} & -- & \cmark & \cmark & \cmark & \cmark \\ \hline
+      F10~\cite{f10-fattree} & -- & \cmark & \cmark & \cmark & \cmark \\ \hline
+      VL2~\cite{vl2-fattree} & -- & \cmark & \cmark & \cmark & \cmark \\ \hline
+%      \end{tabular}
+%  \end{center}
+%  \vspace{-.6em}
+%  \caption{Expressiveness and analysis precision for fat tree topologies with valley-free routing policy.}
+%  \label{fig:analysis-precision2}
+%\end{figure}
+%
+%\begin{figure}[t!]
+%  \begin{center}
+%      \begin{tabular}{| l | c | c | c | c | c | }
+%      \hline
+%      \textbf{Topology} & \textbf{Fixed} & \multicolumn{2}{|c|}{\textbf{Reachability}} & \multicolumn{2}{|c|}{\textbf{K-paths}} \\ \hline
+%      & & Some & All & Some & All \\
+%      & & Pairs & Pairs & Pairs & Pairs \\ \hline
+
+      \multicolumn{6}{l}{\textbf{All topologies, shortest-path routing}} \\ \hline
 
       Fattree~\cite{fattree} & -- & \cmark & \cmark & \cmark & \xmark  \\ \hline
       Facebook~\cite{facebook-fattree} & -- & \cmark & \cmark & \cmark & \cmark \\ \hline
@@ -1490,51 +1513,43 @@ To evaluate \sysname, we apply it on policies for backbone and datacenter networ
       \end{tabular}
   \end{center}
   \vspace{-.6em}
-  \caption{Fault-tolerance analysis precision for all topologies with shortest path routing.}
+  \caption{Expressiveness and precision of \sysname.}
   \label{fig:analysis-precision}
   \vspace{-1em}
 \end{figure}
 
-\begin{figure}[t!]
-  \begin{center}
-      \begin{tabular}{| l | c | c | c | c | }
-      \hline
-      \textbf{Clos Variant} & \multicolumn{2}{|c|}{\textbf{Reachability}} & \multicolumn{2}{|c|}{\textbf{K-paths}} \\ \hline
-      & Some & All & Some & All \\
-      & Pairs & Pairs & Pairs & Pairs \\ \hline
 
-      Fattree & \cmark & \cmark & \cmark & \cmark  \\ \hline
-      Facebook & \cmark & \cmark & \cmark & \cmark \\ \hline
-      F10 & \cmark & \cmark & \cmark & \cmark \\ \hline
-      VL2 & \cmark & \cmark & \cmark & \cmark \\ \hline
-      \end{tabular}
-  \end{center}
-  \vspace{-.6em}
-  \caption{Fault-tolerance analysis precision for fat tree topologies with valley-free routing.}
-  \label{fig:analysis-precision2}
-\end{figure}
+We evaluate the expressiveness of \sysname's topology abstractions and the precision of its fault-tolerance analysis on a range of network topologies found in production networks and in the networking literature. We characterize expressiveness by checking if our abstractions allow the topologies to evolve arbitrarily or certain aspects must be fixed (i.e., cannot be symbolic). We measure precision by checking if we find a tight lower-bound on fault-tolerance (\IE, there exists a concrete network with that fault-tolerance level).
+
+The top part of Figure~\ref{fig:analysis-precision} shows the results for common real-world settings: tree-based topologies coupled with valley-free routing.
+We consider four variants of tree topologies: a standard fat tree~\cite{fattree}, the Facebook fat tree~\cite{facebook-fattree}, the F10 fault-tolerant fat tree~\cite{f10-fattree}, and VL2~\cite{vl2-fattree}. These variants differ in the number of tiers and the connectivity pattern between roles. For each, we use a tiered abstraction similar to that in our example (\S\ref{sec:overview}) and parameterize over the number of pods, which can be scaled to allow expansion. We report precision of both analyzing reachability and computing the number of disjoint paths, and we report if \sysname is precise for all pairs of abstract nodes or only some of them. %"All pairs" precision implies "some pairs" precision, but not the other way around.
+
+Our results are encouraging for these realistic settings. Our abstractions are perfectly expressive for all tree-based topologies---we did not have to fix any aspect of their structure---and the analysis is precise in all cases.
 
 
-We evaluate the expressiveness of \sysname's abstractions and the precision of the fault-tolerance analysis on a range of different network topologies found both in the network literature and in production networks. The analysis is precise if it finds a tight lower-bound on the fault-tolerance (\IE, there is actually a concrete network with that fault tolerance).
-For each topology in Figure~\ref{fig:analysis-precision} we define a suitable abstraction. Since many topologies have tunable parameters (\EG, the recursion depth $k$ for the DCell topology), we list all such parameters that are fixed for the abstraction. For all topologies (Figure~\ref{fig:analysis-precision}), we implement a shortest path routing policy. Additionally, for clos-style topologies, we implement a valley-free routing policy (Figure~\ref{fig:analysis-precision2}) for comparison. In each case, we record the precision of the analysis in terms of whether or not it is able to accurately prove reachability and/or the correct number of disjoint paths between some or all pairs of nodes from a fixed source.
+%For each topology in Figure~\ref{fig:analysis-precision} we define a suitable abstraction. Since many topologies have tunable parameters (\EG, the recursion depth $k$ for the DCell topology), we list all such parameters that are fixed for the abstraction. For all topologies (Figure~\ref{fig:analysis-precision}), we implement a shortest path routing policy. Additionally, for clos-style topologies, we implement a valley-free routing policy (Figure~\ref{fig:analysis-precision2}) for comparison. In each case, we record the precision of the analysis in terms of whether or not it is able to accurately prove reachability and/or the correct number of disjoint paths between some or all pairs of nodes from a fixed source.
 
-\para{Fat Tree Topologies}
+%\para{Fat Tree Topologies}
+%
+%The fat tree topology is a widely used datacenter topology. We look at the precision of our analysis on four fat tree variants used in practice: a standard fat tree~\cite{fattree}, the Facebook fat tree~\cite{facebook-fattree}, the F10 fault tolerant fat tree~\cite{f10-fattree}, and the VL2 topology~\cite{vl2-fattree}. For each fat tree variant, we use a tiered abstraction similar to that in our previous example. Each fat tree topology is parameterized over the number of pods $k$, which can be scaled up in the abstraction to allow for expansion.
 
-The fat tree topology is a widely used datacenter topology. We look at the precision of our analysis on four fat tree variants used in practice: a standard fat tree~\cite{fattree}, the Facebook fat tree~\cite{facebook-fattree}, the F10 fault tolerant fat tree~\cite{f10-fattree}, and the VL2 topology~\cite{vl2-fattree}. For each fat tree variant, we use a tiered abstraction similar to that in our previous example. Each fat tree topology is parameterized over the number of pods $k$, which can be scaled up in the abstraction to allow for expansion. For all fat tree variants, the analysis correctly computes the number of ToR to ToR disjoint paths, but can lose precision between ToR to spine routers due to valley paths. For a valley-free routing policy, the analysis is precise for ToR to spine connectivity.
+To stress our abstractions and analysis, we consider additional topologies from the literature.
 
 \para{Recursive Topologies}
-
-We also model several recursive topologies. These include the BCube~\cite{bcube} and DCell~\cite{dcell} topologies. Each topology includes a recursion depth parameter ($k$), which we fix. For a recursive topology with depth $k$, we model it as an abstract topology consisting of a pod to represent all depth $k-1$ subcomponents. This allows for safe expansion within a subcomponent, but not from increasing the recursion depth.
+These topologies include BCube~\cite{bcube} and DCell~\cite{dcell}. Each topology includes a recursion depth parameter ($k$), which we fixed while abstracting them. For a recursive topology with depth $k$, we model it as an abstract topology consisting of a pod to represent all depth $k-1$ subcomponents. This allows for safe expansion within a subcomponent, but does not allow changing the recursion depth dynamically. 
 For BCube, we model each tier of the datacenter as a separate role. Figure~\ref{fig:example-abstractions} shows an example of a BCube abstraction for $k=1$.
-The analysis is able to accurately determine reachability (i.e., at least 1 disjoint path) for each recursive topology, but is overly conservative in determining k-disjoint paths. For the BCube topology, it is able to to determine the correct number of disjoint paths between some pairs of nodes, but not all.
 
 \para{Hypercube Topologies}
-
 Hypercube variants can be used as an alternative to Clos-style topologies for networks with port density routers. The HyperX~\cite{hyperx} topology generalizes the hypercube and butterfly topologies and includes parameters $L$ for the lattice dimension of the network, and $S_i$ for the node multiplicity of each dimension $i$.
 %$K_i$ for the bandwidth of links for each dimension,
 %and $T$ for the number of terminal nodes (servers) connected to each router.
 For a fixed number of dimensions $L$, we abstract each full mesh of $S_L$ nodes into its own abstract node. Nodes in dimension $S_{x-1}$ are abstracted using pods of abstract nodes from dimension $S_x$. Figure~\ref{fig:example-abstractions} shows an example for $L=2$.
-For all hypercube variants, the fault-tolerance analysis is precise.
+%For all hypercube variants, the fault-tolerance analysis is precise.
+
+The bottom part of Figure~\ref{fig:analysis-precision} shows the results for all types of topologies coupled with shortest-path routing. (Valley-free routing is not meaningful for non-tree-based topologies.) For all tree-based topologies, analysis is precise for determining reachability, but for three of them, it does not compute a tight bound for edge-disjoint paths for all router pairs. Specifically, it underestimates ToR-to-spine paths; it fails to account for circuitous paths that traverse another spine because it could not disambiguate two concrete spines that map to the same abstract role.
+%For all fat tree variants, the analysis correctly computes the number of ToR to ToR disjoint paths, but can lose precision between ToR to spine routers due to valley paths. For a valley-free routing policy, the analysis is precise for ToR to spine connectivity.
+For both recursive topologies, the analysis can accurately determine reachability (i.e., at least 1 disjoint path) but is conservative in determining k-disjoint paths. For the BCube topology, it is able to to determine the correct number of disjoint paths between some pairs of nodes, but not all. For all hypercube topologies, \sysname's fault-tolerance analysis is precise.
+
 
 %\para{Random Network Topologies}
 %
@@ -1605,7 +1620,7 @@ Figure~\ref{fig:abstract-breakdown} shows the relative time taken by each phase 
 
 Our work is related to four threads of prior work.
 
-\para{Network synthesis} Many recent systems focus on allowing operators to specify their policies at a high level. These can be classified into two classes. The first class targets networks based on SDN (software-defined networking) and directly generates the forwarding rules that tell routers how to forward packets~\cite{foster:merlin,fattire,netgen}. The second class, and to which our work belongs, targets conventional networks and generates router configuration, based on which the routers interact and compute forwarding rules~\cite{propane,narain:lisa05,narain+:configassure}. 
+\para{Network synthesis} Many recent systems focus on allowing operators to specify their policies at a high level. These can be classified into two classes. The first class targets networks based on SDN (software-defined networking) and directly generates the forwarding rules that tell routers how to forward packets~\cite{foster:merlin,fattire,netgen}. The second class, and to which our work belongs, targets conventional networks and generates router configuration, based on which the routers interact and compute forwarding rules~\cite{propane,narain:lisa05,narain+:configassure}.
 Almost all large networks (old or new) use the conventional paradigm because that scales better~\cite{bgp-in-dc}.
 
 While we borrow much from existing configuration synthesis work, especially Propane~\cite{propane}, our goal is to generate role templates from abstract topologies, rather than router configurations from concrete topologies.
