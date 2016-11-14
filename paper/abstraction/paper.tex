@@ -634,13 +634,13 @@ The primary one is a role-based abstraction that allows an operator to map route
   \vspace{-1em}
 \end{figure}
 
-More specifically, a network topology is a graph $G$ = ($V, E$), which consists of a set of vertices $V$ and a set of directed edges $E \colon V \times V$. A role-based abstraction is a graph homomorphism from $G$ to an abstract graph $G^A$ = ($V^A$,$E^A$). A graph homorphism $f : G \rightarrow G^A$ maps each node in the concrete graph to a node in the abstract graph such that, whenever $(u,v) \in E$, then $(f(u),f(v)) \in E^A$. The role-based abstraction therefore overapproximates the connectivity of the underlying concrete graphs. 
+More specifically, a network topology is a graph $G$ = ($V, E$), which consists of a set of vertices $V$ and a set of directed edges $E \colon V \times V$. A role-based abstraction is a graph homomorphism from $G$ to an abstract graph $G^A$ = ($V^A$,$E^A$). A graph homorphism $f : G \rightarrow G^A$ maps each node in the concrete graph to a node in the abstract graph such that, whenever $(u,v) \in E$, then $(f(u),f(v)) \in E^A$. The role-based abstraction therefore overapproximates the connectivity of the underlying concrete graphs.
 
 On its own, this abstraction loses a lot of information about the concrete network's structure, making it difficult to reason precisely about fault-tolerance.
 %which would hinder a useful analysis of its fault-tolerance.
 For example, with this abstraction any spine router may or may not connect to any aggregator router.
 %
-To capture concrete networks more precisely, 
+To capture concrete networks more precisely,
 we introduce additional concepts. The first is topology hierarchy, captured by P and Q, which indicate that nodes in the ToR and aggregator roles are grouped into pods.
 The second is node and edge \emph{multiplicity}. Each edge (and node) is labelled
 with a symbolic variable (\EG, $e1$) that denotes a constraint on the number of edges (and nodes) that may appear in any valid concrete network. Operators can capture concrete network invariants by adding constraints on the symbolic variables using logical formulas.
@@ -716,7 +716,7 @@ Constraint (7) to prevent transit traffic between neighbors is expressed as:
 \end{code}
 \noindent%
 %
-We define a $\CD{Peer}$ as $\CD{N1}$ or $\CD{N2}$ and disallow paths where traffic both enters and exits the datacenter through a peer. 
+We define a $\CD{Peer}$ as $\CD{N1}$ or $\CD{N2}$ and disallow paths where traffic both enters and exits the datacenter through a peer.
 
 Finally, we can combine these constraints together as:
 
@@ -900,15 +900,9 @@ The following sections detail each of the three phases.
 \end{figure*}
 
 
-
-
-
-
-
-
-The syntax introduced in \S\ref{sec:overview} is just syntactic sugar for a core language based on regular expressions. Figure~\ref{fig:syntax} shows the \sysname syntax.
+The first step for the \sysname compiler is to build the product graph (PG), a data structure that is amenable to joint analysis of the topology and routing policy. As a precursor to this step, we convert the routing policy syntax in \S\ref{sec:overview} to a core language based on regular expressions, shown in Figure~\ref{fig:syntax}.
 %
-A policy has one or more constraints, each of which is either an aggregation constraint or a path constraint. Path constraints consists of a test on a prefix destination and a list of regular expressions describing preferred network paths. Regular paths are defined over network locations, where each location is either a router inside the operator's network, or an external neighbor connected to the operator's network. Values \In~ and \Out, will match any internal and external location respectively. There are two types of predicates: a test for a concrete prefix $d.d.d.d/[d..d]$ matches a range of IP prefixes (\EG, 10.0.1.0/[24..32]) where metavariable $d$ represents an integer.
+A policy has one or more constraints, each an aggregation or a path constraint. Path constraints have a test on a destination prefix and a list of regular expressions describing network paths. Regular paths are defined over network locations, where each location is either a router inside the operator's network, or an external neighbor connected to that network. Values \In~ and \Out, will match any internal and external location respectively. There are two types of predicates, as shown. A test for a concrete prefix $d.d.d.d/[d..d]$ matches a range of IP prefixes (\EG, 10.0.1.0/[24..32]) where metavariable $d$ represents an integer.
 
 Converting from the high-level syntax from \S\ref{sec:overview} to the core syntax is straightforward. The predicate $\True$ becomes the prefix range $0.0.0.0/[0..32]$.
 %
@@ -926,13 +920,13 @@ Preferences are lifted to the top level of the regular expression when their use
 %\noindent%
 %
 
-A key step for \sysname to generate device configurations is to build a data structure amenable to joint analysis of both the topology and routing policy. Intuitively, \sysname captures both topology and routing constraints by ``intersecting" the finite automata associated with the policy regular expressions with the graph structure of the topology into a new data structure called the Product Graph~\cite{propane} (PG).
-
-The PG compactly encodes all paths that protocol messages should be passed along through the network in order to guarantee that the BGP-speaking devices find policy-compliant paths dynamically.
+%After converting the routing policy to the regular expression based language, 
+We are now ready to generate the PG. Intuitively, the PG captures topology and routing constraints by ``intersecting" the finite automata associated with the policy regular expressions with the graph structure of the topology.
+%The PG compactly encodes all paths that protocol messages should be passed along through the network in order to guarantee that the BGP-speaking devices find policy-compliant paths dynamically.
 %
 %Although \sysname policies describe the routes that traffic should take through the network, network protocols (including BGP) typically disseminate router information in the opposite direction. For example, a router Y will tell its neighbor X that it has a route to the destination meaning that X can send traffic through Y. For this reason, we start by compiling
 %
-Because \sysname policies can have a separate routing policy for each predicate matching traffic, we construct one such PG for each predicate.
+Because there can be a separate routing policy for each predicate matching traffic, we construct one PG for each predicate.
 
 
 For each regular path constraint $r_i$ from $r_1 ~\Prefer~ .. ~\Prefer~ r_k$, we construct a DFA for the reverse of $r_i$. A DFA for $r_i$ is defined as a tuple ($\Sigma, Q_i, F_i, q_{0_i}, \sigma_i$). The alphabet $\Sigma$ is the set of topology locations, $Q_i$ is the set of states for automaton i, $F_i$ is the set of final states, $q_{0_i}$ is the initial state, and $\sigma_i \colon Q_i \times \Sigma \rightarrow Q_i$ is the state transition function.
@@ -960,9 +954,9 @@ Figure~\ref{fig:example-compilation} shows the PG for the datacenter policy that
 %
 The first automaton represents the more preferred constraint $\CD{\Exit(N1)}$ and the second automaton represents the less preferred constraint $\CD{\Exit(N2)}$. The PG is shown for both an instance of a simple concrete network matching the abstraction from \S\ref{sec:overview} as well as for the abstract topology.
 
-Paths through the PG represent paths through the topology that protocol messages may use to ensure policy-compliance. For example, in the concrete PG, all messages from N1 are not blocked at spine routers S1 and S2. Paths for a destination learned through N1 will end in an accepting state for the first automaton (\EG, node (T1,1,0)). Similarly, paths for a destination learned through N2 will end in an accepting state for the second automaton.
+Paths through the PG represent paths through the topology that BGP announcements may use to ensure policy-compliance. For example, in the concrete PG, all messages from N1 are not blocked at spine routers S1 and S2. Paths for a destination learned through N1 will end in an accepting state for the first automaton (\EG, node (T1,1,0)). Similarly, paths for a destination learned through N2 will end in an accepting state for the second automaton.
 
-One interesting observation is that the PG for both the concrete and abstract networks share a similar structure. This leads us to the following observation:
+Interestingly, the concrete and abstract PGs have a similar structure, which leads to the following observation:
 
 \begin{defn}
 \label{def:homomorphism}
@@ -975,7 +969,7 @@ If we have a graph homomorphism $f : G \rightarrow G^A$, concrete product graph 
 %
 As we will see in \S\ref{sec:generation}, we have proven that our generation strategy commutes with concrete expansion, meaning that we obtain the same results if we expand the abstraction early, or if we defer the expansion until after template generation.
 %
-Definition~\ref{def:homomorphism} provides some intuition concerning why our strategy for generating templates is correct.
+Definition~\ref{def:homomorphism} provides intuition as to why our strategy for generating templates is correct.
 %Abstract product graphs are related to concrete product graphs via a graph homomorphism, just as abstract topologies are related to concrete topologies via a graph homomorphism.
 
 
@@ -1570,7 +1564,7 @@ We evaluate generation time in \sysname both with and without abstraction using 
 
 Routers in the datacenter network run BGP using private AS numbers and peer with multiple backbone networks. The routers aggregate some prefix blocks when announcing them to the backbone network, and keep some prefixes internal. The policy also ensures that private address space from external neighbors is dropped. The data center prefers that traffic leave through certain peers over others and ensures that transit traffic between peers is dropped.
 
-We use a fat tree topology and scale the size of the topology according the the number of pods $k$, starting with 4 pods and ending with 24 pods. The abstract topology uses one abstract node for each tier of the datacenter with an additional abstract node for separate local and global ToRs. 
+We use a fat tree topology and scale the size of the topology according the the number of pods $k$, starting with 4 pods and ending with 24 pods. The abstract topology uses one abstract node for each tier of the datacenter with an additional abstract node for separate local and global ToRs.
 
 
 
@@ -1605,10 +1599,10 @@ Figure~\ref{fig:abstract-breakdown} shows the relative time taken by each phase 
 
 Our work is related to four threads of prior work.
 
-\para{Network synthesis} Many recent systems focus on allowing operators to specify their policies at a high level. These can be classified into two classes. The first class targets networks based on SDN (software-defined networking) and directly generates the forwarding rules that tell routers how to forward packets~\cite{x,y,z}. The second class, and to which our work belongs, targets conventional networks and generates router configuration, based on which the routers interact and compute forwarding rules~\cite{propane,narain:lisa05,narain+:configassure}. 
+\para{Network synthesis} Many recent systems focus on allowing operators to specify their policies at a high level. These can be classified into two classes. The first class targets networks based on SDN (software-defined networking) and directly generates the forwarding rules that tell routers how to forward packets~\cite{x,y,z}. The second class, and to which our work belongs, targets conventional networks and generates router configuration, based on which the routers interact and compute forwarding rules~\cite{propane,narain:lisa05,narain+:configassure}.
 Almost all large networks (old or new) use the conventional paradigm because that scales better~\cite{bgp-in-dc}.
 
-While we borrow much from existing configuration synthesis work, especially Propane~\cite{propane}, our goal is to generate role templates from abstract topologies, rather than router configurations from concrete topologies. 
+While we borrow much from existing configuration synthesis work, especially Propane~\cite{propane}, our goal is to generate role templates from abstract topologies, rather than router configurations from concrete topologies.
 This goal aligns better with operators' mental models and tools and permits network evolution with minimal disruption to existing routers. In the process, develop new abstractions for network topologies, fault-tolerance analysis algorithms for abstract topologies, and assign formal semantics to templates.
 
 \para{Topology design} Network topology design, especially for data centers, is another active research area, with researchers exploring designs with different properties~\cite{fattree,facebook-fattree,f10-fattree,vl2,bcube,dcell,hyperx,butterfly}.  We do not develop new designs but develop abstractions that can capture these designs (and their evolution). %and algorithms that can analyze the fault tolerance of abstract topologies.
