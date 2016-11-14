@@ -449,9 +449,9 @@ When announcing destinations to certain neighbors, a BGP router may perform {\em
 \begin{figure}[t!]
   \centering
   \includegraphics[width=\columnwidth]{figures/templates}
-  \caption{Example of a small configuration component of a router template for the datacenter spine role.}
+  \caption{Idealized small configuration component for the datacenter spine role based on router templates from a large cloud provider (\IE, macros over gobbledygook).}
   \label{fig:templates}
-  \vspace{-1em}
+  \vspace{-.8em}
 \end{figure}
 
 We demonstrate the difficulty of configuring networks today using the data center example in Figure~\ref{fig:example}. The boxes denote routers. Using terminology for fat tree networks~\cite{fattree}, S[1--2] are spine routers, A[1--8] are aggregation routers,\footnote{This term is not related to BGP route aggregation.} and T[1--8] are top-of-rack (ToR) routers. The spine routers connect to the Internet through neighbors N[1--2].
@@ -492,7 +492,7 @@ Figure~\ref{fig:templates} shows an example of what a small component of a templ
 %Templates provide two key advantages. First, they help eliminate a class of configuration errors that stem from typos and inconsistencies, e.g., using the wrong address for a router, having inconsistent addresses for the two ends of a link, and failing to configure one side of a routing adjacency.  Second, templates have the potential for re-use when the topology changes while maintaining its basic structure (e.g., adding a new pod to the data center) or multiple networks with similar structures need to be instantiated (e.g., in an organization that runs multiple data centers).
 
 %While templates help avoid a class of configuration errors (e.g., inconsistent routing adjacencies), they provide no guarantees
-As described earlier (\S\ref{sec:introduction}), templates are hard to author and hard to validate. At the same time, templates that work for one topology may not work for seemingly-inconsequential variations (which may arise after the network evolves).
+As described earlier (\S\ref{sec:introduction}), templates are hard to author and hard to validate. Worse, templates that work for one topology may not work for seemingly-inconsequential variations (which may arise after the network evolves).
 Consider the network in Figure~\ref{fig:example2}, which is similar to Figure~\ref{fig:example}: it has the same five roles, connected in a similar hierarchy. One might think that the same templates (with different database entries) can be used for both cases. However, if the templates are configured to disallow ``valley" paths (per policy (5) above), they will work for Figure~\ref{fig:example} but silently violate the fault tolerance policy ($(8)$) when used for Figure~\ref{fig:example2}.  Specifically, in Figure~\ref{fig:example2}, an aggregation-based blackhole (\S\ref{sec:background}) will occur when the link S1--A1 fails; after this failure, S1 has no valley-free path to P[1--2] even though it will continue to get traffic for these prefixes as it announces the covering prefix PG (because it gets routes for P[3--4]). No such blackhole will occur in Figure~\ref{fig:example} after a single link failure because spine routers have two links to each pod.
 
 %Unfotunately, currently, there is no way to predict which variations will behave correctly for a given set of templates.
@@ -612,7 +612,7 @@ Such patches reintroduce the complexity and errors that templates were meant to 
 
 %\subsection{Inputs}
 
-\sysname takes as input the network's abstract topology and its policy. The policy has two components: the routing policy describes how traffic should flow, and the fault-tolerance policy describes how many simultaneous failures the network can withstand without loosing connectivity.
+\sysname takes as input the network's abstract topology and its policy. The policy has two components: the routing policy describes how traffic should flow, and the fault-tolerance policy describes how many simultaneous failures the network can withstand without losing connectivity.
 
 \para{Abstract topology}
 Abstract topologies in \sysname define structural and role-based invariants that compactly describe all concrete networks that can emerge as the network evolves. They are encoded in the form of a graph homomorphism annotated with logical constraints about node and edge multiplicities.
@@ -683,7 +683,7 @@ Let us see how to express the routing policy of the networks in \S\ref{sec:motiv
 \end{code}
 \noindent%
 
-The second line introduces a prefix \emph{template} variable $\CD{\$GP}$. It says that traffic for each global prefix associated with the variable should follow a path that ends at its corresponding destination router in the $\CD{TG}$ role. The second line does the same for all local prefixes.
+The second line introduces a prefix \emph{template} variable $\CD{\$GP}$. It says that traffic for each global prefix associated with the variable should follow a path that ends at its corresponding destination router in the $\CD{TG}$ role. As we will see in \S\ref{sec:language}, constraints like $\CD{\End(TG)}$ are just syntactic sugar for regular expressions describing network paths. The second line has a similar policy for local prefixes.
 %
 The final rule matches all other IP prefix destinations and allows traffic to follow a path that leaves the datacenter, ending at some outside location, through neighbors $\CD{N1}$ or $\CD{N2}$ with a preference for leaving through $\CD{N1}$. The $\CD{\Prefer}$~symbol indicates that traffic should satisfy the constraint on the left and resort to the backup (right) only when that is not possible due to network failures.%
 
@@ -697,7 +697,7 @@ Next we can capture constraint (4) that traffic for local prefixes must stay wit
 %
 The Local constraint applies to any traffic destined for a local prefix described by the variable $\CD{\$LP}$ and adds the constraint that the traffic must follow a path that matches an internal location (\IE, in the datacenter) at each hop of the path.
 %
-The constraint to prevent "valleys" (5) is written as:
+The constraint to prevent ``valleys" (5) is written as:
 %
 \begin{code}
 \Define NoValley =
@@ -902,7 +902,7 @@ The following sections detail each of the three phases.
 
 The first step for the \sysname compiler is to build the product graph (PG), a data structure that is amenable to joint analysis of the topology and routing policy. As a precursor to this step, we convert the routing policy syntax in \S\ref{sec:overview} to a core language based on regular expressions, shown in Figure~\ref{fig:syntax}.
 %
-A policy has one or more constraints, each an aggregation or a path constraint. Path constraints have a test on a destination prefix and a list of regular expressions describing network paths. Regular paths are defined over network locations, where each location is either a router inside the operator's network, or an external neighbor connected to that network. Values \In~ and \Out, will match any internal and external location respectively. There are two types of predicates, as shown. A test for a concrete prefix $d.d.d.d/[d..d]$ matches a range of IP prefixes (\EG, 10.0.1.0/[24..32]) where metavariable $d$ represents an integer.
+A policy has one or more constraints, each an aggregation or a path constraint. Path constraints have a test on a destination prefix and a list of regular expressions describing network paths. Regular paths are defined over network locations, where each location is either a router inside the operator's network, or an external neighbor connected to that network. Values \In\ and \Out\ will match any internal and external location respectively. There are two types of predicates, as shown. A test for a concrete prefix $d.d.d.d/[d..d]$ matches a range of IP prefixes (\EG, 10.0.1.0/[24..32]) where metavariable $d$ represents an integer.
 
 Converting from the high-level syntax from \S\ref{sec:overview} to the core syntax is straightforward. The predicate $\True$ becomes the prefix range $0.0.0.0/[0..32]$.
 %
@@ -931,7 +931,7 @@ Because there can be a separate routing policy for each predicate matching traff
 
 For each regular path constraint $r_i$ from $r_1 ~\Prefer~ .. ~\Prefer~ r_k$, we construct a DFA for the reverse of $r_i$. A DFA for $r_i$ is defined as a tuple ($\Sigma, Q_i, F_i, q_{0_i}, \sigma_i$). The alphabet $\Sigma$ is the set of topology locations, $Q_i$ is the set of states for automaton i, $F_i$ is the set of final states, $q_{0_i}$ is the initial state, and $\sigma_i \colon Q_i \times \Sigma \rightarrow Q_i$ is the state transition function.
 %
-The PG is a tuple ($G'$, $start$, $P$) where $G' = (V',E')$ is has
+The PG is a tuple ($G'$, $start$, $P$) where $G' = (V',E')$ has
 vertices $V' \colon V \times Q_1 \times \dots \times Q_j$,
 edges $E' \colon V' \times V'$,
 a unique starting vertex $start$,
@@ -1066,7 +1066,7 @@ Definition~\ref{def:homomorphism} provides intuition as to why our strategy for 
   \begin{tikzpicture}
     % \inference{0}{L$(j,k)$}{$e_i > 0$}{S$(min(j*k,g),1)$}{I-out3}{$e_1$}{$e_2$}
     \inferencetwo{0}
-    \node[anchor=west] at (1,2.2) {where $g=n-\dfrac{(m-j)*e_1}{e_2}$};
+    \node[anchor=west] at (1,2.2) {where $g \geq n-\dfrac{(m-j)*e_1}{e_2}$};
     \inferencelocal{6.5}{.4}
     \inferenceglobal{12}{.4}
   \end{tikzpicture}
@@ -1083,8 +1083,12 @@ Definition~\ref{def:homomorphism} provides intuition as to why our strategy for 
 %\subsection{Abstract k-disjoint paths}
 %\label{sec:property-checking}
 
+The possibility of network failures only exacerbates the difficulty of constructing correct configurations. 
+Link failures in networks occur frequently; it is not uncommon for a large network to experience dozens of such failures in any given day~\cite{dc-failure-study}. However, existing tools~\cite{condor,propane} can only reason about about fault-tolerance for concrete topologies. The problem for \sysname is significantly harder because it must verify that all possible concrete instantiations of an abstract topology satisfy the desired fault-tolerance requirements, which requires a fundamentally different approach.
+
 %
-To infer bounds on the number of edge-disjoint paths between concrete nodes, we use information about the structure of the underlying concrete topologies encoded in abstraction constraints.
+We frame satisfying the fault-tolerance policy provided by the user as an analysis problem over the structure of the PG. In particular, in this section we develop an analysis that uses information about the structure of  concrete instantiations of the abstract topology to infer bounds on the number of edge-disjoint paths between pairs of concrete nodes. 
+
 %
 For each node in the abstract PG,
 the idea is to maintain invariants learned about the number of disjoint paths
@@ -1113,27 +1117,35 @@ To learn information about disjoint paths, we develop a collection of sound infe
 
 In general, the inference rules try to learn information about both the largest number of disjoint paths to any single node in an abstract role as well as the largest reachable group in a particular role with at least one disjoint path to each.
 
-The first rule, \infrule{I-out1} applies to a learned invariant of the form $L_m(j,k)$ where the number of outgoing edges from any concrete node in the $m$ role is greater than 0. In the worst case, the largest group of concrete nodes we could hope to reach at the $n$ role would be $e_1$ since all j nodes at the bottom may have outgoing edges to the same concrete nodes at the top. Furthermore, the total number of disjoint paths to the $j$ nodes at the bottom is equal to $j*k$. Since adding disjoint edges between the nodes keeps the existing paths disjoint, and since we can not exceed the current number of disjoint paths to the concrete nodes in role $m$ on the bottom, the largest reachable group for the role $n$ on the top will be $min(j*k,e_1)$. However, because we do not know for certain that all $j$ nodes in role $m$ have outgoing edges to the same nodes at the top, we conservatively use $1$ for the number of disjoint paths to each node on top.
+The first rule, \infrule{I-out1} applies to a learned invariant of the form $L_m(j,k)$ where the number of outgoing edges from any concrete node in the $m$ role is greater than 0. In the worst case, the largest group of concrete nodes we could hope to reach at the $n$ role would be $e_1$ since all j nodes at the bottom may have outgoing edges to the same concrete nodes at the top. Furthermore, the total number of disjoint paths to the $j$ nodes at the bottom is equal to $j*k$. Since extending the existing disjoint paths with disjoint edges keeps the paths disjoint, and since we cannot exceed the current number of disjoint paths to the concrete nodes in role $m$ on the bottom, the largest reachable group for the role $n$ on the top will be $min(j*k,e_1)$. 
+%
+We conservatively use $1$ for the number of disjoint paths to each node in role $n$, since when $n$ is very large, all reachable nodes in role $m$ might only have a single edge to completely different nodes in $n$.
+%However, because we do not know for certain that all $j$ nodes in role $m$ have outgoing edges to the same nodes at the top, we conservatively use $1$ for the number of disjoint paths to each node on top. 
+%For example, if $n$ is very large, then each node in role $m$ may have only a single edge to each reachable node in role $n$.
 
-The rule \infrule{I-out2} follows a similar line of reasoning. It says that if any group of size $j$ with $k$ disjoint paths to each is reachable in the bottom role, and there is at least one incoming edge for each concrete node in the top role, then there are $min(j,e_2)$ disjoint paths to any single concrete node in the top role. This is because we can choose the $j$ nodes on the bottom for which we want to find disjoint paths, and then use each of the $e_2$ disjoint incoming edges for the particular node at the top connecting it to the bottom.
+Consider rule \infrule{I-out2}, and consider any node in the role $n$. There are $e_2$ incoming edges to that node. Due to the fact that $A_m(j,k)$, we know that at least j of those $e_2$ edges are connected to nodes with disjoint paths from the origin. Hence we infer $A_n(1,min(j,e_2))$.
 
-The two rules \infrule{I-mesh1} and \infrule{I-mesh2} handle the case where there is a full mesh between the two roles. This happens when the number of outgoing edges from the bottom $e_1$ is equal to the number of nodes on the top $n$. The first case for \infrule{I-mesh1} says that we can find disjoint paths to each node in the top role restricted to the number of disjoint paths we started with. The second case for \infrule{I-mesh2} uses the fact that each node in the top role is connected to each node in the bottom role to infer that there can be $j$ disjoint paths to any single node in the top role.
+%The rule \infrule{I-out2} follows a similar line of reasoning. It says that if any group of size $j$ with $k$ disjoint paths to each is reachable in the bottom role, and there is at least one incoming edge for each concrete node in the top role, then there are $min(j,e_2)$ disjoint paths to any single concrete node in the top role. This is because we can choose the $j$ nodes on the bottom for which we want to find disjoint paths, and then use each of the $e_2$ disjoint incoming edges for the particular node at the top connecting it to the bottom.
+
+The two rules \infrule{I-mesh1} and \infrule{I-mesh2} handle the case where there is a full mesh between the two roles. This happens when the number of outgoing edges ($e_1$) from nodes in role $m$ equals the number of nodes on top ($n$). \infrule{I-mesh1} says that we can find disjoint paths to each node in the top role restricted to the number of disjoint paths we started with. \infrule{I-mesh2} uses the fact that each node in the top role is connected to each node in the bottom role to infer that there can be $j$ disjoint paths to any single node in the top role.
+
+The annotation $mincut(X)$ appearing on an edge is an assertion about the fault tolerance between nodes in two different roles. The rule \infrule{I-mincut} uses such assertions. To each node in role $n$, from a node in role $m$, we can construct at least the minimum of $X$ and $k$ disjoint paths.
+
+%The rule \infrule{I-mincut} can be thought of as an assertion about the fault tolerance between nodes in two roles. The rule applies to an edge that has been annotated with a $mincut(X)$ statement, which means that there are at least $X$ disjoint paths between any node in role $m$ and any node in role $n$.
 
 The rule \infrule{I-striping} is the most complicated case.
-It starts with the invariant L$_m(j,k)$ at role $m$ and can be applied if each edge multiplicity $e_i > 0$ is valid given the constraints. The first inference for role $n$ tries to find the largest reachable group with disjoint paths to each. The idea is similar to the rule \infrule{I-out1}, but is able to use the fact that $e_2 > 0$ to learn more about the structure of the concrete topology. In particular it uses the following inequality, where $g$ represents the size of the group for the role $n$:
+It starts with the invariant $L_m(j,k)$ at role $m$ and can be applied if each edge multiplicity $e_i > 0$ is valid given the constraints. The first inference for role $n$ tries to find the largest reachable group with disjoint paths to each. The idea is similar to the rule \infrule{I-out1}, but is able to use the fact that $e_2 > 0$ to learn more about the structure of the concrete topology. In particular it uses the following inequality, where $g$ represents the size of the group for the role $n$:
 %
 \[ \begin{array}{c}
   (m-j)*e_1 \geq (n-g)*e_2
 \end{array} \]
 \noindent
 %
-The remaining nodes ($m-j$) that are not part of the reachable group in the bottom role, each have $e_1$ outgoing edges and must be able to at least "fill" the incoming edges for the remaining nodes not in the reachable group at the top ($n-g$) with $e_2$ incoming edges each. Solving the inequality gives the lower bound for $g$ used in Figure~\ref{fig:inference-rules}.
+The remaining nodes ($m-j$) that are not part of the reachable group in the bottom role, each have $e_1$ outgoing edges and must be able to at least ``fill" the incoming edges for the remaining nodes not in the reachable group at the top ($n-g$), which each have $e_2$ incoming edges. Solving the inequality gives the lower bound for $g$ used in Figure~\ref{fig:inference-rules}.
 
-The second part of the rule allows uses a similar idea to reason about the overlap between roles $m$ and $o$ with respect to role $n$. This rule is useful particularly useful for datacenter topologies where routers in one tier of the datacenter often have a particular striping pattern with another tier.
+The second part of the rule uses a similar idea to reason about the overlap between roles $m$ and $o$ with respect to role $n$. This rule is useful particularly useful for datacenter topologies where routers in one tier of the datacenter often have a particular striping pattern with another tier.
 
-The rule \infrule{I-mincut} can be thought of as an assertion about the fault tolerance between nodes in two roles. The rule applies to an edge that has been annotated with a $mincut(X)$ statement, which means that there are at least $X$ disjoint paths between any node in role $m$ and any node in role $n$.
-
-Finally, the \infrule{I-local} and \infrule{I-global} rules allow us to lift each of the other rules to reason across pod hierarchies. The first rule, \infrule{I-local}, says that if there is an inference from L$_m(j,k)$ to L$_n(j',k')$ on the left, then if both nodes are in the same local pod P, we can leave all labels up to P unchanged. The global rule \infrule{I-global} says that when the edge goes between pods, we can infer the fact for all pods Q since the multiplicities apply uniformly for each pod.
+Finally, rules \infrule{I-local} and \infrule{I-global} allow us to reason across pod hierarchies. The first rule, \infrule{I-local}, says that if there is an inference from $L_m(j,k)$ to $L_n(j',k')$ on the left, then if both nodes are in the same local pod P, we can leave all labels up to P unchanged. The global rule \infrule{I-global} says that when the edge goes between pods, we can infer the fact for all pods Q since the multiplicities apply uniformly for each pod.
 
 
 \begin{figure}
@@ -1150,6 +1162,7 @@ Finally, the \infrule{I-local} and \infrule{I-global} rules allow us to lift eac
 
 The abstract disjoint path analysis starts from a fixed source location $src$ and repeatedly applies the inference rules from Figure~\ref{fig:inference-rules} until it reaches a fixed point. Inference rule conditions are checked for validity over all concrete topologies using an SMT solver. In order to ensure termination, we make the observation that, for any fact learned of the form $L(j,k)$, it is sound to instead infer $L(j',k')$ if $j' \leq j$ and $k' \leq k$. Therefore, for each inference $L(j,k)$ we minimize the symbolic expressions for $j$ and $k$ subject to the topology constraints using the optimizing SMT solver $\nu$Z~\cite{z3opt}.
 
+<<<<<<< HEAD
 The algorithm associates with each inference, the set of abstract locations used to derive the inference, \IE, an overapproximation of set of concrete locations used for the edge-disjoint paths. When applying an inference rule between an invariant at role $m$, with a set of abstract locations $C$, to learn an invariant at role $n$, we associate the new invariant with the set $C \cup \{ n \}$.
 %
 When, at a single PG node there is an inference $L_{X_1} \dots L_{X_{n-1}}$ A$_m(j,k)$ with location set $C$ and inference $L_{X_1} \dots L_{X_{n-1}}$ L$_m(j',k')$ with location set $D$, where $C \cap D = \emptyset$, we add a new inference with location set $C \cup D$:
@@ -1158,6 +1171,16 @@ $$L_{X_1} \dots L_{X_{n-1}} L_m(\min(j, j'), k + k')$$
 %
 \noindent
 The idea is that, because non-overlapping abstract paths can never contain overlapping concrete paths, due to the graph homomorphism property, we can merge inferences about these disjoint paths in the abstraction.
+=======
+%The algorithm associates with each inference, the set of abstract locations used to derive the inference, \IE, an overapproximation of set of concrete locations used for the edge-disjoint paths. When applying an inference rule between an invariant at role $m$, with a set of abstract locations $C$, to learn an invariant at role $n$, we associate the new invariant with the set $C \cup \{ n \}$. 
+%
+%When, at a single PG node there is an inference $L_{X_1} \dots L_{X_{n-1}}$ A$_m(j,k)$ with location set $C$ and inference $L_{X_1} \dots L_{X_{n-1}}$ L$_m(j',k')$ with location set $D$, where $C \cap D = \emptyset$, we add a new inference with location set $C \cup D$: 
+%
+%$$L_{X_1} \dots L_{X_{n-1}} L_m(\min(j, j'), k + k')$$ 
+%
+%\noindent
+%The idea is that, because non-overlapping abstract paths can never contain overlapping concrete paths, due to the graph homomorphism property, we can merge inferences about these disjoint paths in the abstraction. 
+>>>>>>> 442d0fd02909aafed9c5ecbfc46afc37390f3443
 
 Recall the policy for global prefixes in the datacenter.
 %
@@ -1174,11 +1197,11 @@ The first step applies the rule \infrule{I-mesh1} together with \infrule{I-local
 %
 The next step uses the inference rule \infrule{I-out2} to learn that any single spine node is reachable. It also can apply rule \infrule{I-striping} to determine that there is some group of at least 2 spine routers reachable at node $(S,0)$ and also that there is some group of at least 2 nodes reachable in the AL role in state $(AL,0)$.
 
-Note that, because each inference rule only applies to directed edges in the PG, the algorithm can not make any inferences about connectivity from the AL role to the S role since there is no directed edge between them. This restriction ensures that the analysis is policy-sensitive.
+Note that, because each inference rule only applies to directed edges in the PG, the algorithm cannot make any inferences about connectivity from the AL role to the S role since there is no directed edge from AL to S. This restriction ensures that the analysis is policy-sensitive.
 
 The next step is to use \infrule{I-mesh2} together with \infrule{I-local} to infer than any single node in the TL role for any pod Q is reachable via at least 2 disjoint paths. This process will continue until a fixed point is reached.
 
-In this case, the algorithm was able to infer that any node in the spine role has at least 1 disjoint path and any node in the TL node has at least 2 disjoint paths to a router in role TG. Note that, in this case, the analysis is precise. There exists a concrete network, namely the datacenter from Figure~\ref{fig:example2}, where a single failure can disconnect a global tor from a spine router due to the valleyfree constraint. In this case in particular, the bound on the fault tolerance between a tor and spine router can be used to determine that an aggregation-induced black hole may arise at the border of the datacenter after a single failures in some topologies.
+In this case, the algorithm was able to infer that any node in the spine role has at least 1 disjoint path and any node in the TL node has at least 2 disjoint paths to a router in role TG. Note that, in this case, the analysis is precise. There exists a concrete network, namely the datacenter from Figure~\ref{fig:example2}, where a single failure can disconnect a global ToR from a spine router due to the valley-free constraint. In this case in particular, the bound on the fault tolerance between a ToR and spine router can be used to determine that an aggregation-induced black hole may arise at the border of the datacenter after a single failure in some topologies.
 
 
 %=====================================================
@@ -1399,7 +1422,7 @@ The template configuration matches any global prefix $\CD{\$GP}$ from any intern
 
 \para{Concretization}
 
-One observation is that the spine template configuration and concrete spine configurations are structured similarly. We formalize this idea by defining a simple, vendor-neutral language for BGP configurations called \mbgp and formally define compilation for policies over both concrete and abstract topologies to \mbgp. In addition we define a two concretization ($con$) functions that translates an abstract \sysname policy and \mbgp configuration to a concrete \sysname policy and concrete \mbgp configuration respectively. Concretization takes a context $\Gamma : \mathit{Var} \rightarrow 2^{\mathit{Prefix} \times V}$ that maps each template variable to a set of pairs of a concrete prefix and topology location where the prefix is owned. Intuitively, the spine template in concretized by replacing each abstract role with the set of all concrete routers that map to that role and each prefix template variable with a new entry in the configuration for each individual prefix provided by the context $\Gamma$.
+One observation is that the spine template configuration and concrete spine configurations are structured similarly. We formalize this idea by defining a simple, vendor-neutral language for BGP configurations called \mbgp and formally define compilation for policies over both concrete and abstract topologies to \mbgp. In addition we define two concretization ($con$) functions that translate an abstract \sysname policy and \mbgp configuration to a concrete \sysname policy and concrete \mbgp configuration respectively. Concretization takes a context $\Gamma : \mathit{Var} \rightarrow 2^{\mathit{Prefix} \times V}$ that maps each template variable to a set of pairs of a concrete prefix and topology location where the prefix is owned. Intuitively, the spine template is concretized by replacing each abstract role with the set of all concrete routers that map to that role and each prefix template variable with a new entry in the configuration for each individual prefix provided by the context $\Gamma$.
 The main theoretical result is that the compilation and concretization functions commute:
 
 
@@ -1420,7 +1443,7 @@ Full definitions of compilation and concretization, as well as the proof of Theo
 
 Suppose that an operator want to expand the concrete datacenter by adding an additional ToR router to the TG role. Per the network routing policy, the new ToR router will advertise any owned prefixes provided by looking up {\small \$GP} in $\Gamma$. Because the new topology matches the abstraction, the compiled templates will remain the same. However, in the spine router configurations, the match on the global prefix template variable {\small \$GP} must be expanded when concretizing the template to include the new prefixes added by the ToR. Unfortunately, this small change to the topology results in a change to every single spine router configuration.
 
-However, template variables tell us exactly where this kind of change can happen. The only way in which the spine routers depend on anything non-local is in the match on prefix template variables. Instead, we can associate a new unique community tag for template variable {\small \$GP} and then replace each match on {\small \$GP} with a test on the new community tag. The new ToR must now simply attach the new community tag to advertisements for its prefixes so downstream routers can just match the community tag. Figure~\ref{fig:bgp-configs} (right) shows the templates after the transformation.
+However, template variables tell us exactly where this kind of change can happen. The only way in which the spine routers depend on anything non-local is in the match on prefix template variables. Therefore, we can avoid having to modify the configurations for the spine routers by associating a new unique community tag for template variable {\small \$GP} and then replacing each match on {\small \$GP} with a test on the new community tag. The new ToR must now simply attach the new community tag to advertisements for its prefixes so downstream routers can match against it. Figure~\ref{fig:bgp-configs} (right) shows the templates after the transformation.
 
 
 
