@@ -1149,16 +1149,6 @@ Finally, rules \infrule{I-local} and \infrule{I-global} allow us to reason acros
 
 The abstract disjoint path analysis starts from a fixed source location $src$ and repeatedly applies the inference rules from Figure~\ref{fig:inference-rules} until it reaches a fixed point. Inference rule conditions are checked for validity over all concrete topologies using an SMT solver. In order to ensure termination, we make the observation that, for any fact learned of the form $L(j,k)$, it is sound to instead infer $L(j',k')$ if $j' \leq j$ and $k' \leq k$. Therefore, for each inference $L(j,k)$ we minimize the symbolic expressions for $j$ and $k$ subject to the topology constraints using the optimizing SMT solver $\nu$Z~\cite{z3opt}.
 
-<<<<<<< HEAD
-The algorithm associates with each inference, the set of abstract locations used to derive the inference, \IE, an overapproximation of set of concrete locations used for the edge-disjoint paths. When applying an inference rule between an invariant at role $m$, with a set of abstract locations $C$, to learn an invariant at role $n$, we associate the new invariant with the set $C \cup \{ n \}$.
-%
-When, at a single PG node there is an inference $L_{X_1} \dots L_{X_{n-1}}$ A$_m(j,k)$ with location set $C$ and inference $L_{X_1} \dots L_{X_{n-1}}$ L$_m(j',k')$ with location set $D$, where $C \cap D = \emptyset$, we add a new inference with location set $C \cup D$:
-%
-$$L_{X_1} \dots L_{X_{n-1}} L_m(\min(j, j'), k + k')$$
-%
-\noindent
-The idea is that, because non-overlapping abstract paths can never contain overlapping concrete paths, due to the graph homomorphism property, we can merge inferences about these disjoint paths in the abstraction.
-=======
 %The algorithm associates with each inference, the set of abstract locations used to derive the inference, \IE, an overapproximation of set of concrete locations used for the edge-disjoint paths. When applying an inference rule between an invariant at role $m$, with a set of abstract locations $C$, to learn an invariant at role $n$, we associate the new invariant with the set $C \cup \{ n \}$. 
 %
 %When, at a single PG node there is an inference $L_{X_1} \dots L_{X_{n-1}}$ A$_m(j,k)$ with location set $C$ and inference $L_{X_1} \dots L_{X_{n-1}}$ L$_m(j',k')$ with location set $D$, where $C \cap D = \emptyset$, we add a new inference with location set $C \cup D$: 
@@ -1167,7 +1157,6 @@ The idea is that, because non-overlapping abstract paths can never contain overl
 %
 %\noindent
 %The idea is that, because non-overlapping abstract paths can never contain overlapping concrete paths, due to the graph homomorphism property, we can merge inferences about these disjoint paths in the abstraction. 
->>>>>>> 442d0fd02909aafed9c5ecbfc46afc37390f3443
 
 Recall the policy for global prefixes in the datacenter.
 %
