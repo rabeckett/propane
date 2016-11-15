@@ -1575,7 +1575,7 @@ For both recursive topologies, the analysis can accurately determine reachabilit
 %Random networks such as Scafida and Jellyfish have seen a great deal of interest in academia. These topologies were designed with an eye towards incremental expansion and are based on probabilistic arguments of bisection bandwidth in random regular graphs. However, because the topologies are created randomly, there are no hard guarantees on the connectivity between different routers. We can trivially represent these networks using a \emph{one big router} abstraction for the entire network.
 
 
-\subsection{Generation time}
+\subsection{Synthesis time}
 
 \begin{figure}[t!]
   \subcaptionbox{Datacenter}
@@ -1583,7 +1583,7 @@ For both recursive topologies, the analysis can accurately determine reachabilit
   \subcaptionbox{Backbone}
     {\includegraphics[width=.49\columnwidth]{figures/backbone-time.png}} \\
   \vspace{-.6em}
-  \caption{Concrete vs. Abstract Generation Time. \label{fig:compilation-times}}
+  \caption{Concrete vs. Abstract Synthesis Time. \label{fig:compilation-times}}
   \vspace{-1em}
 \end{figure}
 
@@ -1593,40 +1593,40 @@ For both recursive topologies, the analysis can accurately determine reachabilit
   \subcaptionbox{Backbone}
     {\includegraphics[width=.49\columnwidth]{figures/backbone-analysis-time.png}} \\
   \vspace{-.6em}
-  \caption{Abstract Generation Time by Phase. \label{fig:abstract-breakdown}}
+  \caption{Abstract Synthesis Time by Phase. \label{fig:abstract-breakdown}}
   \vspace{-1em}
 \end{figure}
 
-We evaluate generation time in \sysname both with and without abstraction using routing policy for backbone and datacenter networks inspired by configurations obtained from a large cloud provider. For both types networks, we fix the routing policy and scale the size of the underlying topology.
+We evaluate synthesis time in \sysname using routing policy for backbone and datacenter networks inspired by configurations from a large cloud provider. For both types of networks, we fix the routing policy and scale the topology.
 
 
 \para{Datacenter}
 
-Routers in the datacenter network run BGP using private AS numbers and peer with multiple backbone networks. The routers aggregate some prefix blocks when announcing them to the backbone network, and keep some prefixes internal. The policy also ensures that private address space from external neighbors is dropped. The data center prefers that traffic leave through certain peers over others and ensures that transit traffic between peers is dropped.
+Routers in the datacenter network run BGP using unique AS numbers and connect to multiple external neighbors. The routers aggregate some prefix blocks when announcing them to external neighbors, and keep some prefixes internal. The data center prefers that traffic leave through certain neighbors over others and should not transit traffic between neighbors. The policy also says that the datacenter routers not use external neighbors to reach ``private" destinations  (i.e., those in the part of the IP address space reserved for private use).
 
-We use a fat tree topology and scale the size of the topology according the the number of pods $k$. The abstract topology uses one abstract node for each tier of the datacenter with an additional node for separate local and global ToRs.
+We use a fat tree~\cite{fattree} and scale it by increasing the number of pods. The abstract topology uses one abstract node for each tier with additional nodes for local and global ToRs.
 
 
 
 \para{Backbone}
 
-The backbone policy classifies neighbors into several categories based on commercial relationship and prefers paths through them in order. Similar to the datacenter, it drops private address space from  neighbors, drops transit traffic between certain peers but not others, and aggregates internal prefixes at the border of the network.
+The backbone policy classifies neighbors into several categories based on commercial relationship~\cite{gao-rexford} and prefers paths through them in order. Similar to the datacenter, it blocks private destinations from neighbors, drops transit traffic between certain neighbors but not others, and aggregates internal prefixes at the border of the network.
 
-For the backbone networks, we split the network into two parts: a collection of border routers and an internal core. We scale the backbone networks from 10 to 250 routers. The abstract topology uses a single abstract node for the border routers and another for the network core with mincut annotations both within the core and between the core and border roles. Neighbors are grouped into roles based on their commercial relationship to the current AS.
+We scale the backbone network from 10 to 250 routers. To abstract it, we split it into two parts: border routers that connect to external neighbors and an internal core. We use one abstract node for the border routers and one for the network core with mincut annotations both within the core and between the core and border roles. For neighbors, there is one abstract role per commercial category.
 
 
 \para{Results}
 
-Figure~\ref{fig:compilation-times} shows total configuration generation time for \sysname vs the concrete network synthesis tool \propane. All experiments were run on an 8 core, 2.4 GHz Intel i7 processor machine running Mac with 16GB of Ram.
+Figure~\ref{fig:compilation-times} shows total configuration synthesis time for \sysname and the concrete network synthesis tool Propane. All experiments were run on an 8 core, 2.4 GHz Intel i7 processor machine running Mac with 16GB of Ram.
 
-For both networks, the abstract generation starts off slightly slower than \propane's concrete generation for small topologies due to the overhead of the fault-tolerance analysis. However, as the size of the topology increases, abstract generation becomes orders of magnitude faster than concrete generation. In all cases for both networks, abstract generation takes less than 10 seconds to complete.
+For both networks, the abstract synthesis is slightly slower than concrete synthesis for small topologies due to the overhead of the fault-tolerance analysis. However, as the topology size increases, abstract synthesis becomes orders of magnitude faster. In all cases for both networks, it takes less than 10 seconds to complete.
 
-Figure~\ref{fig:abstract-breakdown} shows the relative time taken by each phase of \sysname. Notably, the fault-tolerance analysis takes the most time, however the analysis does not depend on the number of concrete nodes in the network, and thus is largely a fixed cost. In particular, the number of calls to $\nu$Z remains constant across topology size. The seesaw behavior for the data center networks results from differences in time taken by $\nu$Z to minimize similar constraints with different values.
+Figure~\ref{fig:abstract-breakdown} shows the relative time taken by each phase of \sysname. The fault-tolerance analysis takes the most time, but that does not depend on the number of concrete nodes in the network, and thus is largely a fixed cost. In particular, the number of calls to $\nu$Z remains constant across topology size. The seesaw behavior for the data center networks results from differences in time taken by $\nu$Z to minimize similar constraints with different values.
 
 \subsection{Incrementality}
 \label{sec:incrementality}
 
-The design of \sysname guarantees that network evolution requires configuration changes only for nodes that acquire or lose a neighbor. We experimentally confirmed that our implementation provides this guarantee. To the networks we studied above, we made a range of changes, including adding and removing routers and pods and changing the prefix that a router originates. In each case, we found the guarantee to hold; for prefix changes, only the originator's configuration changed. In contrast, all router configurations were modified with Propane because it heavily uses prefix lists which are sensitive to such changes. While Propane may be made friendlier to network evolution (e.g., prefix lists are unnecessary at aggregation routers), its fundamental limitation will remain because it does not understand roles and the network's underlying structure that \sysname leverages.
+\sysname compilation strategy guarantees that network evolution requires configuration changes only for nodes that acquire or lose a neighbor. We experimentally confirmed that our implementation provides this guarantee. For the networks we studied above, we made a range of changes, including adding and removing routers and pods and changing prefixes that routers originate. In each case, we found the guarantee to hold; for prefix changes, only the originator's configuration changed. In contrast, all router configurations were modified with Propane because it heavily uses prefix lists which are sensitive to such changes. While Propane may be made friendlier to network evolution (e.g., prefix lists are unnecessary at aggregation routers), its fundamental limitation will remain because it does not understand roles and the network's underlying structure that \sysname leverages.
 
 
 
