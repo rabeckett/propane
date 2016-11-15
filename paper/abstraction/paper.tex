@@ -1072,11 +1072,11 @@ Definition~\ref{def:homomorphism} provides intuition as to why our strategy for 
 %\subsection{Abstract k-disjoint paths}
 %\label{sec:property-checking}
 
-The possibility of network failures only exacerbates the difficulty of constructing correct configurations.
-Link failures in networks occur frequently; it is not uncommon for a large network to experience dozens of such failures in any given day~\cite{dc-failure-study}. However, existing tools~\cite{condor,propane} can only reason about about fault-tolerance for concrete topologies. The problem for \sysname is significantly harder because it must verify that all possible concrete instantiations of an abstract topology satisfy the desired fault-tolerance requirements, which requires a fundamentally different approach.
+The possibility of network failures exacerbates the difficulty of constructing correct configurations.
+Link failures in networks occur frequently; it is not uncommon for a large network to experience dozens of such failures in any given day~\cite{dc-failure-study}. However, existing tools~\cite{condor,propane} can reason about fault-tolerance only for concrete topologies. The problem for \sysname is harder because it must verify that all possible concrete instantiations of an abstract topology satisfy the fault-tolerance requirements, which requires a fundamentally different approach.
 
 %
-We frame satisfying the fault-tolerance policy provided by the user as an analysis problem over the structure of the PG. In particular, in this section we develop an analysis that uses information about the structure of  concrete instantiations of the abstract topology to infer bounds on the number of edge-disjoint paths between pairs of concrete nodes.
+We frame satisfying the fault-tolerance policy provided by the user as an analysis problem over the structure of the PG. In particular, we develop an analysis that uses information about the structure of  concrete instantiations of the abstract topology to infer bounds on the number of edge-disjoint paths between pairs of concrete nodes.
 
 %
 For each node in the abstract PG,
@@ -1102,9 +1102,9 @@ an inference of the form $A_{Q} A_{TL}(2,3)$ states that, from some fixed source
 
 \newcommand{\infrule}[1]{{\small \sf #1}\xspace}
 
-To learn information about disjoint paths, we develop a collection of sound inference rules for invariants of the above form. Figure~\ref{fig:inference-rules} shows each of the inference rules. The rules are read from bottom to top. The label on the bottom left represents a known invariant. We use $L$ to represent a rule that is parametric over the label ($S$ or $A$). The labels on other nodes correspond to new invariants learned after applying the inference rule. Conditions that must be \emph{valid} for the rule to apply are shown in a box next to the rule.
+To learn about disjoint paths, we develop a collection of sound inference rules for invariants of the form above. Figure~\ref{fig:inference-rules} shows each rule. They are read from bottom to top. The label on the bottom left is a known invariant. We use $L$ to represent a rule that is parametric over the label ($S$ or $A$). The labels on other nodes correspond to invariants learned after applying the inference rule. The adjacent box shows the conditions that must be \emph{valid} for the rule to apply.
 
-In general, the inference rules try to learn information about both the largest number of disjoint paths to any single node in an abstract role as well as the largest reachable group in a particular role with at least one disjoint path to each.
+In general, the inference rules try to learn about both the largest number of disjoint paths to any single node in an abstract role as well as the largest reachable group in a particular role with at least one disjoint path to each.
 
 The first rule, \infrule{I-out1} applies to a learned invariant of the form $L_m(j,k)$ where the number of outgoing edges from any concrete node in the $m$ role is greater than 0. In the worst case, the largest group of concrete nodes we could hope to reach at the $n$ role would be $e_1$ since all j nodes at the bottom may have outgoing edges to the same concrete nodes at the top. Furthermore, the total number of disjoint paths to the $j$ nodes at the bottom is equal to $j*k$. Since extending the existing disjoint paths with disjoint edges keeps the paths disjoint, and since we cannot exceed the current number of disjoint paths to the concrete nodes in role $m$ on the bottom, the largest reachable group for the role $n$ on the top will be $min(j*k,e_1)$.
 %
