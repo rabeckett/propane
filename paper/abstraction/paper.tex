@@ -1003,6 +1003,16 @@ Definition~\ref{def:homomorphism} provides intuition as to why our strategy for 
     \draw [->] (#1, .2 + .4) -- (#1, 2.5 - .4 - .2);
 }
 
+\newcommand{\derivation}[3]{
+    \node at (#1, -.6) {#2};
+    \node at (#1, 3.1) {#3};
+    \node at (#1, -.6 + .9) {$\mathcal{E}$};
+    \node at (#1, 3.1 - .9) {$\mathcal{D}$};
+    \node at (#1, 2.5/2) {.};
+    \node at (#1, 2.5/2 - .26) {.};
+    \node at (#1, 2.5/2 + .26) {.};
+}
+
 \newcommand{\inferencetwo}[1]{
     \node[draw, anchor=west] at (#1 + 2, 1.25) {$e_i > 0$};
     \node[] at (#1 + .46, 1.25 + 2.5) {\textbf{I-striping}};
@@ -1022,17 +1032,24 @@ Definition~\ref{def:homomorphism} provides intuition as to why our strategy for 
 }
 
 \newcommand{\inferencelocal}[2]{
-    \node[] at (#1 + 1.2, 2.5 / 2 + 2.5) {\textbf{I-local}};
-    \inferencenobox{#1}{X}{}{Y}{}{}{}
-    \inferencenobox{#1+2 + #2}{$\ldots$ L$_P$ X}{}{$\ldots$ L$_P$ Y}{}{}{}
+
+    \node[] at (#1 + 1.2, 1.25 + 2.5) {\textbf{I-local}};
+
+    \derivation{#1}{X}{Y}
+    \derivation{#1+2+#2}{L$_P$ X}{L$_P$ Y}
+    %\inferencenobox{#1}{X}{}{Y}{}{}{}
+    %\inferencenobox{#1+2 + #2}{$\ldots$ L$_P$ X}{}{$\ldots$ L$_P$ Y}{}{}{}
     \node[anchor=east] at (#1 + 2 + #2 - .6, 2.5) {P};
     \draw[dashed] (#1+1 + #2 - .2, -.34) rectangle (#1+3 + #2 + .1, 2.85);
 }
 
 \newcommand{\inferenceglobal}[2]{
     \node[] at (#1 + 1.2, 2.5 / 2 + 2.5) {\textbf{I-global}};
-    \inferencenobox{#1}{X}{}{Y}{}{}{}
-    \inferencenobox{#1+2+#2}{L$_P$ X}{}{A$_Q$ Y}{}{}{}
+    %\inferencenobox{#1}{X}{}{Y}{}{}{}
+    %\inferencenobox{#1+2+#2}{L$_P$ X}{}{A$_Q$ Y}{}{}{}
+    \derivation{#1}{X}{Y}
+    \derivation{#1+2+#2}{L$_P$ X}{A$_Q$ Y}
+
     \node[anchor=east] at (#1 + 2 + #2 - .6, .4) {P};
     \node[anchor=east] at (#1 + 2 + #2 - .6, 2.5) {Q};
     \draw[dashed] (#1+1+#2 - .2, -.34) rectangle (#1+3+#2 + .1, .8);
@@ -1149,7 +1166,8 @@ Finally, rules \infrule{I-local} and \infrule{I-global} reason across pod hierar
 
 \subsection{An inference algorithm}
 
-Our analysis starts from a fixed source location $src$ and repeatedly applies every inference rule from Figure~\ref{fig:inference-rules} until it reaches a fixed point. Inference rule conditions are checked for validity over all concrete topologies using an SMT solver. Because the inference rules may continue to yield increasingly larger symbolic expressions, we make the following observation to ensure termination: for any fact learned of the form $L(j,k)$, it is sound to instead infer $L(j',k')$ if $j' \leq j$ and $k' \leq k$. Therefore, for each inference $L(j,k)$ we minimize the symbolic expressions for $j$ and $k$ subject to the topology constraints using the optimizing SMT solver $\nu$Z~\cite{z3opt}. Invariants learned with $j=0$ or $k=0$ provide no useful information and are discarded.
+
+The abstract disjoint path analysis starts from a fixed source location $src$ and repeatedly tries to apply every inference rule from Figure~\ref{fig:inference-rules} until it reaches a fixed point. The algorithm applies an inference rule when the rule condition is valid given the abstract topology constraints. This ensures that the condition holds for all concrete instantiations of the topology.  Because the inference rules may continue to yield larger and larger symbolic expressions, we make the following observation to ensure termination: for any fact learned of the form $L(j,k)$, it is sound to instead infer $L(j',k')$ if $j' \leq j$ and $k' \leq k$. Therefore, for each inference $L(j,k)$ we minimize the symbolic expressions for $j$ and $k$ subject to the topology constraints using the optimizing SMT solver $\nu$Z~\cite{z3opt}. Invariants learned with $j=0$ or $k=0$ provide no useful information and are discarded.
 
 %The algorithm associates with each inference, the set of abstract locations used to derive the inference, \IE, an overapproximation of set of concrete locations used for the edge-disjoint paths. When applying an inference rule between an invariant at role $m$, with a set of abstract locations $C$, to learn an invariant at role $n$, we associate the new invariant with the set $C \cup \{ n \}$.
 %
