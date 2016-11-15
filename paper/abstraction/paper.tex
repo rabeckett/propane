@@ -165,7 +165,7 @@
 %=====================================================
 
 \textbf{Abstract---}
-We develop \sysname, a system to synthesize provably-correct configurations for large, evolving networks from high-level specifications of topology, routing policy, and fault-tolerance requirements. It is based on new abstractions for capturing parameterized network topologies and their evolution, and algorithms to analyze the impact of topology and routing policy on fault tolerance. Our algorithms operates entirely on abstract topologies and guarantees correctness for all its concrete instantiations. \sysname also guarantees that minimal changes to existing device configurations are required when the network evolves to add or remove devices and links. Our experiments with real-world topologies and policies show that our abstractions and algorithms are effective and that, for large networks, \sysname synthesizes configurations two orders of magnitude faster than systems that operate over concrete topologies.
+We develop \sysname, a system to synthesize provably-correct configurations for large, evolving networks from high-level specifications of topology, routing policy, and fault-tolerance requirements. It is based on new abstractions for capturing parameterized network topologies and their evolution, and algorithms to analyze the impact of topology and routing policy on fault tolerance. Our algorithms operate entirely on abstract topologies and guarantee correctness for all its concrete instantiations. \sysname also guarantees that minimal changes to existing device configurations are required when the network evolves to add or remove devices and links. Our experiments with real-world topologies and policies show that our abstractions and algorithms are effective and that, for large networks, \sysname synthesizes configurations two orders of magnitude faster than systems that operate over concrete topologies.
 
 %\ryan{Copied from conclusion for reference}
 %We develop \sysname, the first system that can generate device configuration templates for large networks from high-level specifications of network topology and policy. \sysname is based on new abstractions for capturing parameterized network topologies, and their evolution, and algorithms to analyze the combined impact of topology and routing policy on the network's fault tolerance. Our analysis operates entirely in the abstract domain and guarantees correctness for all concrete instantiations of the topology. Experiments with many types of real-world topologies and policies show that our abstractions and analysis are precise and that, for large networks, configuration synthesis is two orders of magnitude faster than systems that operate over concrete topologies.
@@ -1433,8 +1433,7 @@ Our main theoretical result is that the compilation and concretization functions
 \end{thm}
 %
 \vspace{-.6em}
-Full definitions of compilation and concretization, as well as the proof of Theorem~\ref{thm:concretization} are included in the appendix. These results also help assign semantics to templates.
-
+Full definitions of compilation and concretization, as well as the proof of Theorem~\ref{thm:concretization} are included in the appendix. 
 
 \para{Incrementality}
 
@@ -1644,7 +1643,7 @@ Figure~\ref{fig:abstract-breakdown} shows the relative time taken by each phase 
 
 Our work is related to three threads of prior work.
 
-\para{Network synthesis} Many recent systems focus on allowing operators to specify their policies at a high level. These can be classified into two classes. The first class targets networks based on SDN (software-defined networking) and directly generates the forwarding rules that tell routers how to forward packets~\cite{foster:merlin,fattire,netgen}. The second class, to which our work belongs, targets conventional networks and generates control-plane router configurations.
+\para{Network synthesis} Many recent systems focus on allowing operators to specify their policies at a high level. These can be classified into two classes. The first class targets networks based on SDN (software-defined networking) and directly generates the forwarding rules that tell routers how to forward packets~\cite{foster:merlin,fattire,netgen}. The second class, to which our work belongs, targets conventional networks and generates control-plane router configurations~\cite{synet-synthesis,narain+:configassure,propane}.
 %, based on which the routers interact and compute forwarding rules~\cite{propane,narain:lisa05,narain+:configassure}.
 %Almost all large networks (old or new) use the conventional paradigm because that scales better~\cite{bgp-in-dc}.
 
@@ -1656,7 +1655,7 @@ This goal aligns better with operators' mental models and tools and permits netw
 While not the focus of this paper, \sysname can enable operators to pick the right design for their networks, more quickly and with stronger guarantees. Today, when picking a design, operators analyze its multiple concrete instantiations because available analysis tools work with concrete topologies~\cite{condor}. This process is time-consuming and not fool-proof; analyzing large, concrete topologies (with potentially thousands of nodes) takes a lot of time and the analysis does not cover the entire space of topologies that may arise.
 
 \para{Network verification}
-A complementary approach to reducing configuration errors is to analyze the forwarding rules or the configuration of a network to ensure the absence of (a class of) bugs~\cite{anteater,hsa,veriflow,feamster+:rcc,ipassure,batfish,bagpipe,arc,era,surgery}. Our focus, in contrast, is on a correct-by-construction approach. It has the downside that operators must express policies in a new language, but it saves them from the challenging and time-consuming task of manual configuration generation.
+A complementary approach to reducing configuration errors is to analyze the forwarding rules or the configuration of a network to ensure the absence of (a class of) bugs~\cite{anteater,hsa,veriflow,feamster+:rcc,ipassure,batfish,bagpipe,arc,era,surgery,coalgebraic}. Our focus, in contrast, is on a correct-by-construction approach. It has the downside that operators must express policies in a new language, but it saves them from the challenging and time-consuming task of manual configuration generation.
 
 
 %\para{Configuration synthesis}
