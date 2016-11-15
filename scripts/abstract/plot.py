@@ -110,12 +110,12 @@ def makeGraph(con, abs, name, descr):
   color3 = "#FCF5C7"
   color4 = "#A0CED9"
 
-  # Compilation times
+  # Synthesis times
   fig = plt.figure()
   plt.plot(sizeCon, totalCon, label="Concrete", linewidth=5.0, color="cornflowerblue")
   plt.plot(sizeAbs, totalAbs, label="Abstract", linewidth=5.0, linestyle='--', color="lightsalmon")
   plt.xlabel(descr, fontsize=28)
-  plt.ylabel('Compilation Time (sec)', fontsize=28)
+  plt.ylabel('Synthesis Time (sec)', fontsize=28)
   plt.tick_params(axis='both', which='major', labelsize=28)
   plt.tick_params(axis='both', which='minor', labelsize=28)
   if name == "Fattree":
@@ -143,7 +143,7 @@ def makeGraph(con, abs, name, descr):
   ax1.fill_between(sizeAbs, y_stack[1,:], y_stack[2,:], facecolor=color3)
   ax1.fill_between(sizeAbs, y_stack[2,:], y_stack[3,:], facecolor=color4)
   ax1.set_xlabel(descr, fontsize=28)
-  ax1.set_ylabel('Compilation Time (sec)', fontsize=28)
+  ax1.set_ylabel('Synthesis Time (sec)', fontsize=28)
   ax1.tick_params(axis='both', which='major', labelsize=28)
   ax1.tick_params(axis='both', which='minor', labelsize=28)
   if name == "Fattree":
