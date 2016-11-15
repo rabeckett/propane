@@ -1134,7 +1134,7 @@ The remaining nodes ($m-j$) that are not part of the reachable group in the bott
 
 The second part of the rule uses a similar idea to reason about the overlap between roles $m$ and $o$ with respect to role $n$. This rule is useful particularly useful for datacenter topologies where routers in one tier of the datacenter often have a particular striping pattern with another tier.
 
-Finally, rules \infrule{I-local} and \infrule{I-global} allow us to reason across pod hierarchies. The first rule, \infrule{I-local}, says that if there is an inference from $L_m(j,k)$ to $L_n(j',k')$ on the left, then if both nodes are in the same local pod P, we can leave all labels up to P unchanged. The global rule \infrule{I-global} says that when the edge goes between pods, we can infer the fact for all pods Q since the multiplicities apply uniformly for each pod.
+Finally, rules \infrule{I-local} and \infrule{I-global} reason across pod hierarchies. \infrule{I-local} says that if there is an inference from $L_m(j,k)$ to $L_n(j',k')$ on the left, then if both nodes are in the same pod P, we can leave all labels up to P unchanged. \infrule{I-global} says that when the edge goes across pods, we can infer the fact for all pods Q since the multiplicities apply uniformly for each pod.
 
 
 \begin{figure}
@@ -1149,7 +1149,7 @@ Finally, rules \infrule{I-local} and \infrule{I-global} allow us to reason acros
 
 \subsection{An inference algorithm}
 
-The abstract disjoint path analysis starts from a fixed source location $src$ and repeatedly applies every inference rule from Figure~\ref{fig:inference-rules} until it reaches a fixed point. Inference rule conditions are checked for validity over all concrete topologies using an SMT solver. Because the inference rules may continue to yield larger and larger symbolic expressions, we make the following observation to ensure termination: for any fact learned of the form $L(j,k)$, it is sound to instead infer $L(j',k')$ if $j' \leq j$ and $k' \leq k$. Therefore, for each inference $L(j,k)$ we minimize the symbolic expressions for $j$ and $k$ subject to the topology constraints using the optimizing SMT solver $\nu$Z~\cite{z3opt}. Invariants learned with $j=0$ or $k=0$ provide no useful information and are discarded.
+Our analysis starts from a fixed source location $src$ and repeatedly applies every inference rule from Figure~\ref{fig:inference-rules} until it reaches a fixed point. Inference rule conditions are checked for validity over all concrete topologies using an SMT solver. Because the inference rules may continue to yield increasingly larger symbolic expressions, we make the following observation to ensure termination: for any fact learned of the form $L(j,k)$, it is sound to instead infer $L(j',k')$ if $j' \leq j$ and $k' \leq k$. Therefore, for each inference $L(j,k)$ we minimize the symbolic expressions for $j$ and $k$ subject to the topology constraints using the optimizing SMT solver $\nu$Z~\cite{z3opt}. Invariants learned with $j=0$ or $k=0$ provide no useful information and are discarded.
 
 %The algorithm associates with each inference, the set of abstract locations used to derive the inference, \IE, an overapproximation of set of concrete locations used for the edge-disjoint paths. When applying an inference rule between an invariant at role $m$, with a set of abstract locations $C$, to learn an invariant at role $n$, we associate the new invariant with the set $C \cup \{ n \}$.
 %
@@ -1179,7 +1179,7 @@ Note that, because each inference rule only applies to directed edges in the PG,
 
 The next step is to use \infrule{I-mesh2} together with \infrule{I-local} to infer than any single node in the TL role for any pod Q is reachable via at least 2 disjoint paths. This process will continue until a fixed point is reached.
 
-The algorithm was able to infer that any node in the spine role has at least 1 disjoint path and any node in the TL node has at least 2 disjoint paths to a router in role TG. Note that, in this case, the analysis is precise. There exists a concrete network, namely the datacenter from Figure~\ref{fig:example2}, where a single failure can disconnect a global ToR from a spine router due to the valley-free constraint. The bound on the fault tolerance between ToR and spine routers can also be used to determine that an aggregation-induced black hole may arise at the border of the datacenter after a single failure in some concrete instantiation.
+The algorithm was able to infer that any spine router has at least 1 disjoint path and any TL router has at least 2 disjoint paths to a TG router. In this case, the analysis is precise. There exists a concrete network, namely the datacenter from Figure~\ref{fig:example2}, where a single failure can disconnect a global ToR from a spine router due to the valley-free constraint. The bound on the fault tolerance between ToR and spine routers can also be used to determine that an aggregation-induced black hole may arise at the datacenter boundary after a single failure in some concrete instantiation.
 
 
 %=====================================================
