@@ -1072,11 +1072,11 @@ Definition~\ref{def:homomorphism} provides intuition as to why our strategy for 
 %\subsection{Abstract k-disjoint paths}
 %\label{sec:property-checking}
 
-The possibility of network failures only exacerbates the difficulty of constructing correct configurations. 
+The possibility of network failures only exacerbates the difficulty of constructing correct configurations.
 Link failures in networks occur frequently; it is not uncommon for a large network to experience dozens of such failures in any given day~\cite{dc-failure-study}. However, existing tools~\cite{condor,propane} can only reason about about fault-tolerance for concrete topologies. The problem for \sysname is significantly harder because it must verify that all possible concrete instantiations of an abstract topology satisfy the desired fault-tolerance requirements, which requires a fundamentally different approach.
 
 %
-We frame satisfying the fault-tolerance policy provided by the user as an analysis problem over the structure of the PG. In particular, in this section we develop an analysis that uses information about the structure of  concrete instantiations of the abstract topology to infer bounds on the number of edge-disjoint paths between pairs of concrete nodes. 
+We frame satisfying the fault-tolerance policy provided by the user as an analysis problem over the structure of the PG. In particular, in this section we develop an analysis that uses information about the structure of  concrete instantiations of the abstract topology to infer bounds on the number of edge-disjoint paths between pairs of concrete nodes.
 
 %
 For each node in the abstract PG,
@@ -1106,10 +1106,10 @@ To learn information about disjoint paths, we develop a collection of sound infe
 
 In general, the inference rules try to learn information about both the largest number of disjoint paths to any single node in an abstract role as well as the largest reachable group in a particular role with at least one disjoint path to each.
 
-The first rule, \infrule{I-out1} applies to a learned invariant of the form $L_m(j,k)$ where the number of outgoing edges from any concrete node in the $m$ role is greater than 0. In the worst case, the largest group of concrete nodes we could hope to reach at the $n$ role would be $e_1$ since all j nodes at the bottom may have outgoing edges to the same concrete nodes at the top. Furthermore, the total number of disjoint paths to the $j$ nodes at the bottom is equal to $j*k$. Since extending the existing disjoint paths with disjoint edges keeps the paths disjoint, and since we cannot exceed the current number of disjoint paths to the concrete nodes in role $m$ on the bottom, the largest reachable group for the role $n$ on the top will be $min(j*k,e_1)$. 
+The first rule, \infrule{I-out1} applies to a learned invariant of the form $L_m(j,k)$ where the number of outgoing edges from any concrete node in the $m$ role is greater than 0. In the worst case, the largest group of concrete nodes we could hope to reach at the $n$ role would be $e_1$ since all j nodes at the bottom may have outgoing edges to the same concrete nodes at the top. Furthermore, the total number of disjoint paths to the $j$ nodes at the bottom is equal to $j*k$. Since extending the existing disjoint paths with disjoint edges keeps the paths disjoint, and since we cannot exceed the current number of disjoint paths to the concrete nodes in role $m$ on the bottom, the largest reachable group for the role $n$ on the top will be $min(j*k,e_1)$.
 %
 We conservatively use $1$ for the number of disjoint paths to each node in role $n$, since when $n$ is very large, all reachable nodes in role $m$ might only have a single edge to completely different nodes in $n$.
-%However, because we do not know for certain that all $j$ nodes in role $m$ have outgoing edges to the same nodes at the top, we conservatively use $1$ for the number of disjoint paths to each node on top. 
+%However, because we do not know for certain that all $j$ nodes in role $m$ have outgoing edges to the same nodes at the top, we conservatively use $1$ for the number of disjoint paths to each node on top.
 %For example, if $n$ is very large, then each node in role $m$ may have only a single edge to each reachable node in role $n$.
 
 Consider rule \infrule{I-out2}, and consider any node in the role $n$. There are $e_2$ incoming edges to that node. Due to the fact that $A_m(j,k)$, we know that at least j of those $e_2$ edges are connected to nodes with disjoint paths from the origin. Hence we infer $A_n(1,min(j,e_2))$.
@@ -1151,14 +1151,14 @@ Finally, rules \infrule{I-local} and \infrule{I-global} allow us to reason acros
 
 The abstract disjoint path analysis starts from a fixed source location $src$ and repeatedly applies every inference rule from Figure~\ref{fig:inference-rules} until it reaches a fixed point. Inference rule conditions are checked for validity over all concrete topologies using an SMT solver. Because the inference rules may continue to yield larger and larger symbolic expressions, we make the following observation to ensure termination: for any fact learned of the form $L(j,k)$, it is sound to instead infer $L(j',k')$ if $j' \leq j$ and $k' \leq k$. Therefore, for each inference $L(j,k)$ we minimize the symbolic expressions for $j$ and $k$ subject to the topology constraints using the optimizing SMT solver $\nu$Z~\cite{z3opt}. Invariants learned with $j=0$ or $k=0$ provide no useful information and are discarded.
 
-%The algorithm associates with each inference, the set of abstract locations used to derive the inference, \IE, an overapproximation of set of concrete locations used for the edge-disjoint paths. When applying an inference rule between an invariant at role $m$, with a set of abstract locations $C$, to learn an invariant at role $n$, we associate the new invariant with the set $C \cup \{ n \}$. 
+%The algorithm associates with each inference, the set of abstract locations used to derive the inference, \IE, an overapproximation of set of concrete locations used for the edge-disjoint paths. When applying an inference rule between an invariant at role $m$, with a set of abstract locations $C$, to learn an invariant at role $n$, we associate the new invariant with the set $C \cup \{ n \}$.
 %
-%When, at a single PG node there is an inference $L_{X_1} \dots L_{X_{n-1}}$ A$_m(j,k)$ with location set $C$ and inference $L_{X_1} \dots L_{X_{n-1}}$ L$_m(j',k')$ with location set $D$, where $C \cap D = \emptyset$, we add a new inference with location set $C \cup D$: 
+%When, at a single PG node there is an inference $L_{X_1} \dots L_{X_{n-1}}$ A$_m(j,k)$ with location set $C$ and inference $L_{X_1} \dots L_{X_{n-1}}$ L$_m(j',k')$ with location set $D$, where $C \cap D = \emptyset$, we add a new inference with location set $C \cup D$:
 %
-%$$L_{X_1} \dots L_{X_{n-1}} L_m(\min(j, j'), k + k')$$ 
+%$$L_{X_1} \dots L_{X_{n-1}} L_m(\min(j, j'), k + k')$$
 %
 %\noindent
-%The idea is that, because non-overlapping abstract paths can never contain overlapping concrete paths, due to the graph homomorphism property, we can merge inferences about these disjoint paths in the abstraction. 
+%The idea is that, because non-overlapping abstract paths can never contain overlapping concrete paths, due to the graph homomorphism property, we can merge inferences about these disjoint paths in the abstraction.
 
 Recall the policy for global prefixes in the datacenter.
 %
@@ -1537,7 +1537,7 @@ Our results are encouraging for these realistic settings. Our abstractions are p
 To stress our abstractions and analysis, we consider additional topologies from the literature.
 
 \para{Recursive Topologies}
-These topologies include BCube~\cite{bcube} and DCell~\cite{dcell}. Each topology includes a recursion depth parameter ($k$), which we fixed while abstracting them. For a recursive topology with depth $k$, we model it as an abstract topology consisting of a pod to represent all depth $k-1$ subcomponents. This allows for safe expansion within a subcomponent, but does not allow changing the recursion depth dynamically. 
+These topologies include BCube~\cite{bcube} and DCell~\cite{dcell}. Each topology includes a recursion depth parameter ($k$), which we fixed while abstracting them. For a recursive topology with depth $k$, we model it as an abstract topology consisting of a pod to represent all depth $k-1$ subcomponents. This allows for safe expansion within a subcomponent, but does not allow changing the recursion depth dynamically.
 For BCube, we model each tier of the datacenter as a separate role. Figure~\ref{fig:example-abstractions} shows an example of a BCube abstraction for $k=1$.
 
 \para{Hypercube Topologies}
@@ -1550,7 +1550,7 @@ For a fixed number of dimensions $L$, we abstract each full mesh of $S_L$ nodes 
 \para{Results}
 The bottom part of Figure~\ref{fig:analysis-precision} shows the results for all types of topologies coupled with shortest-path routing. (Valley-free routing is not meaningful for non-tree-based topologies.) For all tree-based topologies, analysis is precise for determining reachability, but for three of them, it does not compute a tight bound for edge-disjoint paths for all router pairs. Specifically, it underestimates ToR-to-spine paths; it fails to account for circuitous paths that traverse another spine because it could not disambiguate two concrete spines that map to the same abstract role.
 %For all fat tree variants, the analysis correctly computes the number of ToR to ToR disjoint paths, but can lose precision between ToR to spine routers due to valley paths. For a valley-free routing policy, the analysis is precise for ToR to spine connectivity.
-For both recursive topologies, the analysis can accurately determine reachability (i.e., at least 1 disjoint path) but is conservative in determining k-disjoint paths. 
+For both recursive topologies, the analysis can accurately determine reachability (i.e., at least 1 disjoint path) but is conservative in determining k-disjoint paths.
 %For the BCube topology, it is able to to determine the correct number of disjoint paths between some pairs of nodes, but not all. For all hypercube topologies, \sysname's fault-tolerance analysis is precise.
 
 
@@ -1607,6 +1607,10 @@ For both networks, the abstract generation starts off slightly slower than \prop
 
 Figure~\ref{fig:abstract-breakdown} shows the relative time taken by each phase of \sysname. Notably, the fault-tolerance analysis takes the most time, however the analysis does not depend on the number of concrete nodes in the network, and thus is largely a fixed cost. In particular, the number of calls to $\nu$Z remains constant across topology size. The seesaw behavior for the data center networks results from differences in time taken by $\nu$Z to minimize similar constraints with different values.
 
+\subsection{Incrementality}
+\label{sec:incrementality}
+
+The design of \sysname guarantees that network evolution requires configuration changes only for nodes that acquire or lose a neighbor. We experimentally confirmed that our implementation provides this guarantee. To the networks we studied above, we made a range of changes, including adding and removing routers and pods and changing the prefix that a router originates. In each case, we found the guarantee to hold; for prefix changes, only the originator's configuration changed. In contrast, all router configurations were modified with Propane because it heavily uses prefix lists which are sensitive to such changes. While Propane may be made friendlier to network evolution (e.g., prefix lists are unnecessary at aggregation routers), its fundamental limitation will remain because it does not understand roles and the network's underlying structure that \sysname leverages.
 
 
 
