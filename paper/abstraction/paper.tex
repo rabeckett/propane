@@ -1210,14 +1210,14 @@ The translation from the PG to per-device templates that run the distributed BGP
 
 \para{Route filtering}
 
-The first idea is to tag every protocol message with a BGP community that encodes the state of each DFA when advertising a route to a neighbor. Routers then allow route advertisements that correspond to an edge in the PG and block those that do not.
+The first idea is to tag every BGP announcement with a community that encodes the state of each DFA when advertising a route to a neighbor. Routers then allow announcements that correspond to an edge in the PG and block others. 
 For example, in the concrete PG in figure~\ref{fig:example-compilation}, router S1 will allow an advertisement from its neighbors N1 and N2. If it uses the path advertised by neighbor N1, then it will add the tag $(1,0)$ before sending this to its neighbors. If it uses neighbor N2, then it will add the tag $(0,1)$ instead.
 
 
 \para{Preference Search}
-The second idea is to have each router totally order advertisements from neighbors. For example, to satisfy the policy that leaving through N1 is preferred to leaving through N2, router S1 should prefer a message it hears from N1 over N2. Similarly, router A1 should prefer routes tagged with $(1,0)$ over those tagged with $(0,1)$.
+The second idea is to have each router totally order advertisements from neighbors. For example, to satisfy the policy that leaving through N1 is preferred to leaving through N2, S1 should prefer a message it hears from N1 over N2. Similarly, A1 should prefer routes tagged with $(1,0)$ over those with $(0,1)$.
 %In general, because BGP is distributed, each router does not have a full view of the entire network when choosing which path to use. Because finding a collection of preferences to ensure correct end-to-end behavior for all failures is a hard problem,
-Propane introduced a conservative search strategy for determining route preferences. To make this work for abstract topologies, we modify the search based on the following observation about the structure of the PG:
+Propane introduced a conservative search strategy for determining route preferences. To make it work for abstract topologies, we modify the search based on the following observation about the PG structure:
 
 \begin{defn}
 Let $m \geq_{rank} n$ be a relation over PG vertices that holds iff $P(n) = \emptyset$ or $\min P(m) \geq \min P(n)$. Intuitively $m \geq_{rank} n$ means that paths ending at PG node $m$ are no better than paths ending at $n$.
@@ -1236,7 +1236,7 @@ For example, in the concrete PG we would have the transition $(S1,1,0)\overset{A
 We write $m \leq m'$ if the subgraph reachable from $m$ and $m'$ respectively form a simulation relation with respect to the $\geq_{rank}$ relation.
 \end{defn}
 
-If we determine that each router has a total order with respect to the simulation relation ($\leq$) for its corresponding PG nodes, then we can simply sort the nodes and prefer advertisements from peers of node $m$ over those of node $m'$ whenever $m' \leq m$. This condition ensures that BGP devices will converge to the most preferred paths in the network even when failures occur.
+If we determine that each router has a total order with respect to the simulation relation ($\leq$) for its corresponding PG nodes, then we can simply sort the nodes and prefer advertisements from peers of node $m$ over those of $m'$ whenever $m' \leq m$. This condition ensures that BGP devices will converge to the most preferred paths in the network even when failures occur.
 %
 For example, in the concrete PG the inequality $(S1,0,1) \leq (S1,1,0)$ holds since nodes on the left side of the PG can always match transitions made on the right hand side with respect to the $\geq_{rank}$ relation. This relation does not hold the other way around since $(S1,0,1) \ngeq_{rank} (S1,1,0)$. Therefore, advertisements received at $S1$ in state $(1,0)$ must be preferred to those received at $S1$ in state $(0,1)$.
 %
@@ -1399,9 +1399,8 @@ The template configuration matches any global prefix $\CD{\$GP}$ from any intern
 %\end{figure*}%
 
 \para{Concretization}
-
-One observation is that the spine template configuration and concrete spine configurations are structured similarly. We formalize this idea by defining a simple, vendor-neutral language for BGP configurations called \mbgp and formally define compilation for policies over both concrete and abstract topologies to \mbgp. In addition we define two concretization ($con$) functions that translate an abstract \sysname policy and \mbgp configuration to a concrete \sysname policy and concrete \mbgp configuration respectively. Concretization takes a context $\Gamma : \mathit{Var} \rightarrow 2^{\mathit{Prefix} \times V}$ that maps each template variable to a set of pairs of a concrete prefix and topology location where the prefix is owned. Intuitively, the spine template is concretized by replacing each abstract role with the set of all concrete routers that map to that role and each prefix template variable with a new entry in the configuration for each individual prefix provided by the context $\Gamma$.
-The main theoretical result is that the compilation and concretization functions commute:
+Observe that the spine template and concrete configurations are structured similarly. We formalize this observation by defining a simple, vendor-neutral language for BGP configurations called \mbgp and formally define compilation for policies over both concrete and abstract topologies to \mbgp. In addition we define two concretization ($con$) functions that translate an abstract \sysname policy and \mbgp configuration to a concrete \sysname policy and concrete \mbgp configuration respectively. Concretization takes a context $\Gamma : \mathit{Var} \rightarrow 2^{\mathit{Prefix} \times V}$ that maps each template variable to a set of pairs of a concrete prefix and topology location where the prefix is owned. Intuitively, the spine template is concretized by replacing each abstract role with the set of all concrete routers that map to that role and each prefix template variable with a new entry in the configuration for each individual prefix provided by the context $\Gamma$.
+Our main theoretical result is that the compilation and concretization functions commute:
 
 
 \begin{thm}
@@ -1414,14 +1413,14 @@ The main theoretical result is that the compilation and concretization functions
 \end{thm}
 %
 \vspace{-.8em}
-Full definitions of compilation and concretization, as well as the proof of Theorem~\ref{thm:concretization} are included in the appendix.
+Full definitions of compilation and concretization, as well as the proof of Theorem~\ref{thm:concretization} are included in the appendix. These results also help assign semantics to templates.
 
 
 \para{Incrementality}
 
-Suppose that an operator want to expand the concrete datacenter by adding an additional ToR router to the TG role. Per the network routing policy, the new ToR router will advertise any owned prefixes provided by looking up {\small \$GP} in $\Gamma$. Because the new topology matches the abstraction, the compiled templates will remain the same. However, in the spine router configurations, the match on the global prefix template variable {\small \$GP} must be expanded when concretizing the template to include the new prefixes added by the ToR. Unfortunately, this small change to the topology results in a change to every single spine router configuration.
+Suppose an operator wants to expand the concrete datacenter by adding an additional ToR router to the TG role. Per the network routing policy, the new ToR router will advertise any owned prefixes provided by looking up {\small \$GP} in $\Gamma$. Because the new topology matches the abstraction, the compiled templates will remain the same. However, in the spine router configurations, the match on the global prefix template variable {\small \$GP} must be expanded when concretizing the template to include the new prefixes added by the ToR. Unfortunately, this small change to the topology results in a change to every single spine router configuration.
 
-However, template variables tell us exactly where this kind of change can happen. The only way in which the spine routers depend on anything non-local is in the match on prefix template variables. Therefore, we can avoid having to modify the configurations for the spine routers by associating a new unique community tag for template variable {\small \$GP} and then replacing each match on {\small \$GP} with a test on the new community tag. The new ToR must now simply attach the new community tag to advertisements for its prefixes so downstream routers can match against it. Figure~\ref{fig:bgp-configs} (right) shows the templates after the transformation.
+However, template variables tell us exactly where this kind of change can happen. The only way in which the spine routers depend on anything non-local is in the match on prefix template variables. Therefore, we can prevent modifications to the spine routers' configurations by associating a new unique community tag for template variable {\small \$GP} and then replacing each match on {\small \$GP} with a test on the new community tag. The new ToR must now simply attach the new community tag to advertisements for its prefixes so downstream routers can match against it. Figure~\ref{fig:bgp-configs} (right) shows the templates after the transformation.
 
 
 
