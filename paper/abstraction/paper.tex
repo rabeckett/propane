@@ -1090,7 +1090,7 @@ Definition~\ref{def:homomorphism} provides intuition as to why our strategy for 
 %\label{sec:property-checking}
 
 The possibility of network failures exacerbates the difficulty of constructing correct configurations.
-Link failures in networks occur frequently; it is not uncommon for a large network to experience dozens of such failures in any given day~\cite{dc-failure-study}. However, existing tools~\cite{condor,propane} can reason about fault-tolerance only for concrete topologies. The problem for \sysname is harder because it must verify that all possible concrete instantiations of an abstract topology satisfy the fault-tolerance requirements, which requires a fundamentally different approach.
+Link failures in networks occur frequently; it is not uncommon for a large network to experience dozens of failures in any given day~\cite{dc-failure-study}. However, existing tools~\cite{condor,propane} reason about fault-tolerance only for concrete topologies. The problem for \sysname is harder because it must verify that all possible concrete instantiations of an abstract topology satisfy the fault-tolerance policy, which requires a fundamentally different approach.
 
 %
 We frame satisfying the fault-tolerance policy provided by the user as an analysis problem over the structure of the PG. In particular, we develop an analysis that uses information about the structure of  concrete instantiations of the abstract topology to infer bounds on the number of edge-disjoint paths between pairs of concrete nodes.
@@ -1151,7 +1151,7 @@ The remaining nodes ($m-j$) that are not part of the reachable group in the bott
 
 The second part of the rule uses a similar idea to reason about the overlap between roles $m$ and $o$ with respect to role $n$. This rule is useful particularly useful for datacenter topologies where routers in one tier of the datacenter often have a particular striping pattern with another tier.
 
-Finally, rules \infrule{I-local} and \infrule{I-global} reason across pod hierarchies. \infrule{I-local} says that if there is an inference from $L_m(j,k)$ to $L_n(j',k')$ on the left, then if both nodes are in the same pod P, we can leave all labels up to P unchanged. \infrule{I-global} says that when the edge goes across pods, we can infer the fact for all pods Q since the multiplicities apply uniformly for each pod.
+Finally, rules \infrule{I-local} and \infrule{I-global} reason across pod hierarchies. \infrule{I-local} says that if there is an inference from $X$ to $Y$, then the derivation can be used inside pod P by leaving the P-label unchanged. \infrule{I-global} says that when the edge goes across pods, we can infer the fact for all pods Q since the multiplicities apply uniformly for each pod.
 
 
 \begin{figure}
@@ -1167,7 +1167,7 @@ Finally, rules \infrule{I-local} and \infrule{I-global} reason across pod hierar
 \subsection{An inference algorithm}
 
 
-The abstract disjoint path analysis starts from a fixed source location $src$ and repeatedly tries to apply every inference rule from Figure~\ref{fig:inference-rules} until it reaches a fixed point. The algorithm applies an inference rule when the rule condition is valid given the abstract topology constraints. This ensures that the condition holds for all concrete instantiations of the topology.  Because the inference rules may continue to yield larger and larger symbolic expressions, we make the following observation to ensure termination: for any fact learned of the form $L(j,k)$, it is sound to instead infer $L(j',k')$ if $j' \leq j$ and $k' \leq k$. Therefore, for each inference $L(j,k)$ we minimize the symbolic expressions for $j$ and $k$ subject to the topology constraints using the optimizing SMT solver $\nu$Z~\cite{z3opt}. Invariants learned with $j=0$ or $k=0$ provide no useful information and are discarded.
+The abstract disjoint path analysis starts from a fixed source location $src$ and repeatedly tries to apply every inference rule from Figure~\ref{fig:inference-rules} until it reaches a fixed point. The algorithm applies an inference rule when the rule's condition is valid given the abstract topology constraints. This ensures that the condition holds for all concrete instantiations of the topology.  Because the inference rules may continue to yield larger and larger symbolic expressions, we make the following observation to ensure termination: for any fact learned of the form $L(j,k)$, it is sound to instead infer $L(j',k')$ if $j' \leq j$ and $k' \leq k$. Therefore, for each inference $L(j,k)$ we minimize the symbolic expressions for $j$ and $k$ subject to the topology constraints using the optimizing SMT solver $\nu$Z~\cite{z3opt}. Invariants learned with $j=0$ or $k=0$ are discarded.
 
 %The algorithm associates with each inference, the set of abstract locations used to derive the inference, \IE, an overapproximation of set of concrete locations used for the edge-disjoint paths. When applying an inference rule between an invariant at role $m$, with a set of abstract locations $C$, to learn an invariant at role $n$, we associate the new invariant with the set $C \cup \{ n \}$.
 %
@@ -1197,7 +1197,8 @@ Note that, because each inference rule only applies to directed edges in the PG,
 
 The next step is to use \infrule{I-mesh2} together with \infrule{I-local} to infer than any single node in the TL role for any pod Q is reachable via at least 2 disjoint paths. This process will continue until a fixed point is reached.
 
-The algorithm was able to infer that any spine router has at least 1 disjoint path and any TL router has at least 2 disjoint paths to a TG router. In this case, the analysis is precise. There exists a concrete network, namely the datacenter from Figure~\ref{fig:example2}, where a single failure can disconnect a global ToR from a spine router due to the valley-free constraint. The bound on the fault tolerance between ToR and spine routers can also be used to determine that an aggregation-induced black hole may arise at the datacenter boundary after a single failure in some concrete instantiation.
+The algorithm was able to infer that there is at least 1 disjoint path to any spine router, and at least 2 disjoint paths to any TL router. In this case, the analysis is precise. There exists a concrete network, namely the datacenter from Figure~\ref{fig:example2}, where a single failure can disconnect a global ToR from a spine router due to the valley-free constraint. 
+%The bound on the fault tolerance between ToR and spine routers can also be used to determine that an aggregation-induced black hole may arise at the datacenter boundary after a single failure in some concrete instantiation.
 
 
 %=====================================================
@@ -1565,9 +1566,9 @@ For a fixed number of dimensions $L$, we abstract each full mesh of $S_L$ nodes 
 %For all hypercube variants, the fault-tolerance analysis is precise.
 
 \para{Results}
-The bottom part of Figure~\ref{fig:analysis-precision} shows the results for all types of topologies coupled with shortest-path routing. (Valley-free routing is not meaningful for non-tree-based topologies.) For all tree-based topologies, analysis is precise for determining reachability, but for three of them, it does not compute a tight bound for edge-disjoint paths for all router pairs. Specifically, it underestimates ToR-to-spine paths; it fails to account for circuitous paths that traverse another spine because it could not disambiguate two concrete spines that map to the same abstract role.
+The bottom part of Figure~\ref{fig:analysis-precision} shows the results for all types of topologies coupled with shortest-path routing. (Valley-free routing is not meaningful for non-tree-based topologies.) For all tree-based topologies, the analysis is precise for determining reachability, but for three of them, it does not compute a tight bound for disjoint paths for all router pairs. Specifically, it underestimates ToR-to-spine paths; it fails to account for some circuitous paths that traverse another spine because it could not disambiguate two concrete spines that map to the same abstract role.
 %For all fat tree variants, the analysis correctly computes the number of ToR to ToR disjoint paths, but can lose precision between ToR to spine routers due to valley paths. For a valley-free routing policy, the analysis is precise for ToR to spine connectivity.
-For both recursive topologies, the analysis can accurately determine reachability (i.e., at least 1 disjoint path) but is conservative in determining k-disjoint paths.
+For both recursive topologies, the analysis can accurately determine reachability but is conservative in determining disjoint paths.
 %For the BCube topology, it is able to to determine the correct number of disjoint paths between some pairs of nodes, but not all. For all hypercube topologies, \sysname's fault-tolerance analysis is precise.
 
 
@@ -1605,7 +1606,7 @@ We evaluate generation time in \sysname both with and without abstraction using 
 
 Routers in the datacenter network run BGP using private AS numbers and peer with multiple backbone networks. The routers aggregate some prefix blocks when announcing them to the backbone network, and keep some prefixes internal. The policy also ensures that private address space from external neighbors is dropped. The data center prefers that traffic leave through certain peers over others and ensures that transit traffic between peers is dropped.
 
-We use a fat tree topology and scale the size of the topology according the the number of pods $k$, starting with 4 pods and ending with 24 pods. The abstract topology uses one abstract node for each tier of the datacenter with an additional abstract node for separate local and global ToRs.
+We use a fat tree topology and scale the size of the topology according the the number of pods $k$. The abstract topology uses one abstract node for each tier of the datacenter with an additional node for separate local and global ToRs.
 
 
 
@@ -1644,8 +1645,8 @@ The design of \sysname guarantees that network evolution requires configuration 
 
 Our work is related to four threads of prior work.
 
-\para{Network synthesis} Many recent systems focus on allowing operators to specify their policies at a high level. These can be classified into two classes. The first class targets networks based on SDN (software-defined networking) and directly generates the forwarding rules that tell routers how to forward packets~\cite{foster:merlin,fattire,netgen}. The second class, and to which our work belongs, targets conventional networks and generates router configuration, based on which the routers interact and compute forwarding rules~\cite{propane,narain:lisa05,narain+:configassure}.
-Almost all large networks (old or new) use the conventional paradigm because that scales better~\cite{bgp-in-dc}.
+\para{Network synthesis} Many recent systems focus on allowing operators to specify their policies at a high level. These can be classified into two classes. The first class targets networks based on SDN (software-defined networking) and directly generates the forwarding rules that tell routers how to forward packets~\cite{foster:merlin,fattire,netgen}. The second class, to which our work belongs, targets conventional networks and generates router configuration, based on which the routers interact and compute forwarding rules~\cite{propane,narain:lisa05,narain+:configassure}.
+%Almost all large networks (old or new) use the conventional paradigm because that scales better~\cite{bgp-in-dc}.
 
 While we borrow much from existing configuration synthesis work, especially Propane~\cite{propane}, our goal is to generate role templates from abstract topologies, rather than router configurations from concrete topologies.
 This goal aligns better with operators' mental models and tools and permits network evolution with minimal disruption to existing routers. In the process, develop new abstractions for network topologies, fault-tolerance analysis algorithms for abstract topologies, and assign formal semantics to templates.
@@ -1691,7 +1692,7 @@ A complementary approach to reducing configuration errors is by analyzing the fo
 \section{Conclusions}
 \label{sec:conclusions}
 
-To help configure large networks correctly, we develop \sysname, the first system that can generate role templates from high-level specifications of network topology and policy. \sysname is based on new abstractions for capturing network topologies, and their evolution, and algorithms to analyze the combined impact of topology and routing policy on the network's fault tolerance. Our analysis operates entirely in the abstract domain and guarantees correctness for all concrete instantiations of the topology. Experiments with many types of real-world topologies and policies show that our abstractions and analysis are precise and that, for large networks, configuration synthesis is two orders of magnitude faster than systems that operate over concrete topologies.
+To help configure large networks correctly, we develop \sysname, the first system that can generate role templates from high-level specifications of network topology and policy. \sysname is based on new abstractions for capturing network topologies, and their evolution, and algorithms to analyze the combined impact of topology and routing policy on the network's fault tolerance. Our analysis operates entirely in the abstract domain and guarantees correctness for all concrete instantiations of the topology. Experiments with many types of real-world topologies and policies show that our abstractions and analysis are effective and that, for large networks, configuration synthesis is two orders of magnitude faster than systems that operate over concrete topologies.
 
 
 %=====================================================
