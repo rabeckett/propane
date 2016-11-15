@@ -113,7 +113,7 @@
 \copyrightdoi{nnnnnnn.nnnnnnn}
 
 %\titlebanner{DRAFT -- do not distribute}        % These are ignored unless
-\preprintfooter{submission for PLDI 2017}   % 'preprint' option specified.
+%\preprintfooter{submission for PLDI 2017}   % 'preprint' option specified.
 
 \title{Network Configuration Synthesis with Abstract Topologies}
 
@@ -271,7 +271,7 @@ simulation or verification tools~\cite{feamster+:rcc, batfish, era, arc, bagpipe
 devices and links are added or taken offline for maintenance. Templates that
 work for the current topology, may or may not work for future
 topologies, and it is intractable to test all possible future topologies. Updating the templates, if found to not work for a future topology,
-may cause trickle-down, network-wide configuration changes, which is highly
+may cause trickle-down, network-wide configuration changes that are highly
 disruptive in production networks with live traffic.
 %Building sophisticated tools for validating templates is difficult
 
@@ -282,7 +282,7 @@ disruptive in production networks with live traffic.
 Given the challenges of generating and validating network configurations, one
 might think that operators will be receptive to systems that can generate
 provably-correct configurations from high-level policy
-specifications~\cite{narain+:configassure,propane}. However, our conversations
+specifications~\cite{narain+:configassure,propane,synet-synthesis}. However, our conversations
 with two major cloud providers reveal that operators of large networks are
 reluctant to use such systems. While they think of their network abstractly, in
 terms of roles, these systems only understand concrete topologies, with no understanding of roles.  Even if two devices play the same role,
@@ -300,7 +300,7 @@ and their connectivity. For instance, they may specify roles for ``top-of-rack''
 and ``aggregation" routers and specify that every top-of-rack router connects to
 at least two aggregation routers (to tolerate the failure of a link to an
 aggregation router). Other inputs to \sysname include the routing policy of the
-network and its fault-tolerance requirements (e.g., the number of link failures
+network and its fault-tolerance requirements (e.g., the number of simultaneous link failures
 to tolerate). For high-level specification of routing policy, we borrow notation from
 Propane~\cite{propane}. But while Propane policies refer to concrete devices, \sysname
 policies refer to abstract roles.
