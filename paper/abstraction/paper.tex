@@ -1023,16 +1023,16 @@ Definition~\ref{def:homomorphism} provides intuition as to why our strategy for 
 
 \newcommand{\inferencelocal}[2]{
     \node[] at (#1 + 1.2, 2.5 / 2 + 2.5) {\textbf{I-local}};
-    \inferencenobox{#1}{L$_m(j,k)$}{}{L$_n(j',k')$}{}{}{}
-    \inferencenobox{#1+2 + #2}{$\ldots$ L$_P$ L$_m(j,k)$}{}{$\ldots$ L$_P$ L$_n(j',k')$}{}{}{}
+    \inferencenobox{#1}{X}{}{Y}{}{}{}
+    \inferencenobox{#1+2 + #2}{$\ldots$ L$_P$ X}{}{$\ldots$ L$_P$ Y}{}{}{}
     \node[anchor=east] at (#1 + 2 + #2 - .6, 2.5) {P};
     \draw[dashed] (#1+1 + #2 - .2, -.34) rectangle (#1+3 + #2 + .1, 2.85);
 }
 
 \newcommand{\inferenceglobal}[2]{
     \node[] at (#1 + 1.2, 2.5 / 2 + 2.5) {\textbf{I-global}};
-    \inferencenobox{#1}{L$_1(j,k)$}{}{L$_2(j',k')$}{}{}{}
-    \inferencenobox{#1+2+#2}{$\ldots$ L$_P$ L$_m(j,k)$}{}{$\ldots$ A$_Q$ L$_n(j',k')$}{}{}{}
+    \inferencenobox{#1}{X}{}{Y}{}{}{}
+    \inferencenobox{#1+2+#2}{L$_P$ X}{}{A$_Q$ Y}{}{}{}
     \node[anchor=east] at (#1 + 2 + #2 - .6, .4) {P};
     \node[anchor=east] at (#1 + 2 + #2 - .6, 2.5) {Q};
     \draw[dashed] (#1+1+#2 - .2, -.34) rectangle (#1+3+#2 + .1, .8);
