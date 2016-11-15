@@ -246,7 +246,7 @@ specific functionality and is served by one or more devices. For instance, in a
 data center, roles may be ``top-of-rack,'' ``aggregation,'' and ``spine''
 routers; and in a backbone network, they may be ``core'' and ``border''
 routers. While the network may have hundreds or thousands of devices---a scale
-that is impossible for humans to handle---there tend to be a handful of roles.
+that is impossible for humans to handle---there tend to be only a handful of roles.
 %
 Operators author a configuration {\em template} for each role. Templates are
 macros that, given a network topology, can be instantiated with different concrete values to generate device configurations.
@@ -303,7 +303,7 @@ Based on these inputs, \sysname generates one template per role. It
 guarantees that, when the templates are instantiated to configurations for {\em
 any} concrete topology that complies with the abstract topology, the resulting
 network will correctly implement the routing policy and meet the fault-tolerance
-requirements. We show how fault-tolerance analysis can be done in the abstract domain by using a set of sound inference rules to infer the lower bound on the number of edge-disjoint paths in any concrete topology.
+requirements. We show how fault-tolerance analysis can be done in the abstract domain by using a set of sound inference rules to infer a lower bound on the number of edge-disjoint paths in any concrete topology.
 %Our analysis uses a set of sound inference rules and  using an optimizing SMT solver.
 
 \sysname's abstract reasoning provides two other benefits. First, its templates are evolution friendly. When the network migrates from
@@ -332,9 +332,9 @@ abstract topologies.
 %concrete network satisfying the abstract connectivity invariants.
 %\item Design of a template generation strategy that supports network
 %evolution.
-\item Implementation and evaluation of the \sysname tool that generates
+\item Implementation and evaluation of the \sysname compiler that generates
 provably-correct templates and is much faster
-than tools based on concrete topologies.
+than compilers based on concrete topologies.
 \end{itemize}
 
 
@@ -489,7 +489,7 @@ Figure~\ref{fig:templates} shows an example of what a small component of a templ
 %Templates provide two key advantages. First, they help eliminate a class of configuration errors that stem from typos and inconsistencies, e.g., using the wrong address for a router, having inconsistent addresses for the two ends of a link, and failing to configure one side of a routing adjacency.  Second, templates have the potential for re-use when the topology changes while maintaining its basic structure (e.g., adding a new pod to the data center) or multiple networks with similar structures need to be instantiated (e.g., in an organization that runs multiple data centers).
 
 As described earlier (\S\ref{sec:introduction}), templates are hard to author and hard to validate. Worse, templates that work for one topology may not work for seemingly-inconsequential variations (which may arise after the network evolves).
-Consider the network in Figure~\ref{fig:example2}, which is similar to Figure~\ref{fig:example}: it has the same five roles, connected in a similar hierarchy. One might think that the same templates (with different database entries) can be used for both cases. However, if the templates are configured to disallow ``valley" paths (per policy (5) above), they will work for Figure~\ref{fig:example} but silently violate the fault tolerance policy ($(8)$) when used for Figure~\ref{fig:example2}.  Specifically, in Figure~\ref{fig:example2}, an aggregation-based blackhole (\S\ref{sec:background}) will occur when the link S1--A1 fails; after this failure, S1 has no valley-free path to P[1--2] even though it will continue to get traffic for these prefixes as it announces the covering prefix PG (because it gets routes for P[3--4]). No such blackhole will occur in Figure~\ref{fig:example} after a single link failure because spine routers have two links to each pod.
+Consider the network in Figure~\ref{fig:example2}, which is similar to Figure~\ref{fig:example}: it has the same five roles, connected in a similar hierarchy. One might think that the same templates (with different database entries) can be used for both cases. However, if the templates are configured to disallow ``valley" paths (per policy (5) above), they will work for Figure~\ref{fig:example} but silently violate the fault tolerance policy $(8)$ when used for Figure~\ref{fig:example2}.  Specifically, in Figure~\ref{fig:example2}, an aggregation-based blackhole (\S\ref{sec:background}) will occur when the link S1--A1 fails; after this failure, S1 has no valley-free path to P[1--2] even though it will continue to get traffic for these prefixes as it announces the covering prefix PG (because it gets routes for P[3--4]). No such blackhole will occur in Figure~\ref{fig:example} after a single link failure because spine routers have two links to each pod.
 
 %Unfotunately, currently, there is no way to predict which variations will behave correctly for a given set of templates.
 
@@ -627,7 +627,7 @@ The primary one is a role-based abstraction that allows an operator to map route
   \vspace{-1em}
 \end{figure}
 
-More specifically, a network topology is a graph $G$ = ($V, E$), which consists of a set of vertices $V$ and a set of directed edges $E \colon V \times V$. A role-based abstraction is a graph homomorphism from $G$ to an abstract graph $G^A$ = ($V^A$,$E^A$). A graph homorphism $f : G \rightarrow G^A$ maps each node in the concrete graph to a node in the abstract graph such that, whenever $(u,v) \in E$, then $(f(u),f(v)) \in E^A$. The role-based abstraction therefore overapproximates the connectivity of the underlying concrete graphs.
+More specifically, a network topology is a graph $G$ = ($V, E$), which consists of a set of vertices $V$ and a set of directed edges $E \colon V \times V$. A role-based abstraction is a graph homomorphism from $G$ to an abstract graph $G^A$ = ($V^A$,$E^A$). A graph homomorphism $f : G \rightarrow G^A$ maps each node in the concrete graph to a node in the abstract graph such that, whenever $(u,v) \in E$, then $(f(u),f(v)) \in E^A$. The role-based abstraction therefore overapproximates the connectivity of the underlying concrete graphs.
 
 On its own, this abstraction loses a lot of information about the concrete network's structure, making it difficult to reason precisely about fault-tolerance.
 %which would hinder a useful analysis of its fault-tolerance.
@@ -689,7 +689,7 @@ Next we can capture constraint (4) that traffic for local prefixes must stay wit
 \end{code}
 \noindent%
 %
-The Local constraint applies to any traffic destined for a local prefix described by the variable $\CD{\$LP}$ and adds the constraint that the traffic must follow a path that matches an internal location (\IE, in the data center) at each hop of the path.
+The Local policy adds the $\CD{\Always(\In)}$ constraint for each local prefix described by the template variable $\CD{\$LP}$. This constraint ensures that traffic follows a path that matches an internal location (\IE, in the data center) at each hop of the path.
 %
 The constraint to prevent ``valleys" (5) is written as:
 %
@@ -699,7 +699,7 @@ The constraint to prevent ``valleys" (5) is written as:
 \end{code}
 \noindent%
 %
-This policy applies to all traffic and prevents valley paths by adding the $\Novalley$ constraint with arguments corresponding to each data center level.
+This policy applies to all traffic and prevents valley paths by adding the $\Novalley$ constraint with arguments corresponding to each level in the data center.
 %
 Constraint (7) to prevent transit traffic between neighbors is expressed as:
 %
@@ -721,7 +721,7 @@ NoValley & \Agg(PG, \In -> \Out)
 \noindent
 This instructs \sysname to satisfy the conjunction of all the constraints. It also declares that we want to perform route aggregation, as covering prefix PG, for global prefixes at the border of the data center (\IE, along any edge that connects the inside of the data center to the outside).
 
-\para{Fault-tolerance policy} This policy specifies how many link failures the network should be able to withstand before traffic experiences connectivity loss. Operators can specify different tolerance levels for different pairs of abstract nodes. For instance, they may say that ToR to spine connectivity should be robust to 2 failures, \IE, no ToR-spine pair should lose connectivity as long as the number of simultaneous link failures is 2 or fewer; and ToR-to-ToR connectivity should be be robust to 1 failure.
+\para{Fault-tolerance policy} This policy specifies how many link failures the network should be able to withstand before traffic experiences connectivity loss. Operators can specify different tolerance levels for different pairs of abstract nodes. For instance, they may say that ToR to spine connectivity should be robust to 2 failures, \IE, no ToR-spine pair should lose connectivity as long as the number of simultaneous link failures is 2 or fewer; and ToR-to-ToR connectivity should be robust to 1 failure.
 
 % The \text{} is needed for some reason for formatting
 \para{Synthesis} \sysname generates templates from the inputs above in three phases. First, it combines the abstract topology and routing policy into a {\em product graph} (PG) that compactly captures the flow of routing information over the topology in a policy-compliant manner. The algorithm for this phase builds on Propane (for concrete networks); we show that it can be extended to abstract inputs and that the extensions are correct.
@@ -1109,7 +1109,7 @@ an inference of the form $A_{Q} A_{TL}(2,3)$ states that, from some fixed source
 
 \newcommand{\infrule}[1]{{\small \sf #1}\xspace}
 
-To learn about disjoint paths, we develop a collection of sound inference rules for invariants of the form above. Figure~\ref{fig:inference-rules} shows each rule. They are read from bottom to top. The label on the bottom left is a known invariant. We use $L$ to represent a rule that is parametric over the label ($S$ or $A$). The labels on other nodes correspond to invariants learned after applying the inference rule. The adjacent box shows the conditions that must be \emph{valid} for the rule to apply.
+To learn about disjoint paths, we develop a collection of sound inference rules for invariants of the form above. Figure~\ref{fig:inference-rules} shows each rule. They are read from bottom to top. The label on the bottom left is a known invariant. We use $L$ to represent a rule that is parametric over the label ($S$ or $A$). The labels on other nodes correspond to invariants learned after applying the inference rule. The adjacent box shows the conditions that must be \emph{valid}, given the abstraction constraints, for the rule to apply. Validity ensures that the condition holds for all concrete instantiations of the topology.
 
 In general, the inference rules try to learn about both the largest number of disjoint paths to any single node in an abstract role as well as the largest reachable group in a particular role with at least one disjoint path to each.
 
@@ -1139,7 +1139,7 @@ It starts with the invariant $L_m(j,k)$ at role $m$ and can be applied if each e
 %
 The remaining nodes ($m-j$) that are not part of the reachable group in the bottom role, each have $e_1$ outgoing edges and must be able to at least ``fill" the incoming edges for the remaining nodes not in the reachable group at the top ($n-g$), which each have $e_2$ incoming edges. Solving the inequality gives the lower bound for $g$ used in Figure~\ref{fig:inference-rules}.
 
-The second part of the rule uses a similar idea to reason about the overlap between roles $m$ and $o$ with respect to role $n$. This rule is useful particularly useful for data center topologies where routers in one tier of the data center often have a particular striping pattern with another tier.
+The second part of the rule uses a similar idea to reason about the overlap between roles $m$ and $o$ with respect to role $n$. This rule is particularly useful for data center topologies where routers in one tier of the data center often have a particular striping pattern with another tier.
 
 Finally, rules \infrule{I-local} and \infrule{I-global} reason across pod hierarchies. \infrule{I-local} says that if there is an inference from $X$ to $Y$, then the derivation can be used inside pod P by leaving the P-label unchanged. \infrule{I-global} says that when the edge goes across pods, we can infer the fact for all pods Q since the multiplicities apply uniformly for each pod.
 
@@ -1157,7 +1157,7 @@ Finally, rules \infrule{I-local} and \infrule{I-global} reason across pod hierar
 \subsection{An inference algorithm}
 
 
-The abstract disjoint path analysis starts from a fixed source location $src$ and repeatedly tries to apply every inference rule from Figure~\ref{fig:inference-rules} until it reaches a fixed point. The algorithm applies an inference rule when the rule's condition is valid given the abstract topology constraints. This ensures that the condition holds for all concrete instantiations of the topology.  Because the inference rules may continue to yield larger and larger symbolic expressions, we make the following observation to ensure termination: for any fact learned of the form $L(j,k)$, it is sound to instead infer $L(j',k')$ if $j' \leq j$ and $k' \leq k$. Therefore, for each inference $L(j,k)$ we minimize the symbolic expressions for $j$ and $k$ subject to the topology constraints using the optimizing SMT solver $\nu$Z~\cite{z3opt}. Invariants learned with $j=0$ or $k=0$ are discarded.
+The abstract disjoint path analysis starts from a fixed source location $src$ and repeatedly tries to apply every inference rule from Figure~\ref{fig:inference-rules} until it reaches a fixed point. The algorithm applies an inference rule when the rule's condition is valid given the abstract topology constraints. Because the inference rules may continue to yield larger and larger symbolic expressions, we make the following observation to ensure termination: for any invariant learned of the form $L(j,k)$, it is sound to instead infer $L(j',k')$ if $j' \leq j$ and $k' \leq k$. Therefore, for each inference $L(j,k)$ we minimize the symbolic expressions for $j$ and $k$ subject to the topology constraints using the optimizing SMT solver $\nu$Z~\cite{z3opt}. Invariants learned with $j=0$ or $k=0$ are discarded.
 
 %The algorithm associates with each inference, the set of abstract locations used to derive the inference, \IE, an overapproximation of set of concrete locations used for the edge-disjoint paths. When applying an inference rule between an invariant at role $m$, with a set of abstract locations $C$, to learn an invariant at role $n$, we associate the new invariant with the set $C \cup \{ n \}$.
 %
