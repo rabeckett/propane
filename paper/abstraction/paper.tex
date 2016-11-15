@@ -1197,7 +1197,7 @@ Note that, because each inference rule only applies to directed edges in the PG,
 
 The next step is to use \infrule{I-mesh2} together with \infrule{I-local} to infer than any single node in the TL role for any pod Q is reachable via at least 2 disjoint paths. This process will continue until a fixed point is reached.
 
-The algorithm was able to infer that there is at least 1 disjoint path to any spine router, and at least 2 disjoint paths to any TL router. In this case, the analysis is precise. There exists a concrete network, namely the datacenter from Figure~\ref{fig:example2}, where a single failure can disconnect a global ToR from a spine router due to the valley-free constraint. 
+The algorithm was able to infer that there is at least 1 disjoint path to any spine router, and at least 2 disjoint paths to any TL router. In this case, the analysis is precise. There exists a concrete network, namely the datacenter from Figure~\ref{fig:example2}, where a single failure can disconnect a global ToR from a spine router due to the valley-free constraint.
 %The bound on the fault tolerance between ToR and spine routers can also be used to determine that an aggregation-induced black hole may arise at the datacenter boundary after a single failure in some concrete instantiation.
 
 
@@ -1229,7 +1229,7 @@ The translation from the PG to per-device templates that run the distributed BGP
 
 \para{Route filtering}
 
-The first idea is to tag every BGP announcement with a community that encodes the state of each DFA when advertising a route to a neighbor. Routers then allow announcements that correspond to an edge in the PG and block others. 
+The first idea is to tag every BGP announcement with a community that encodes the state of each DFA when advertising a route to a neighbor. Routers then allow announcements that correspond to an edge in the PG and block others.
 For example, in the concrete PG in figure~\ref{fig:example-compilation}, router S1 will allow an advertisement from its neighbors N1 and N2. If it uses the path advertised by neighbor N1, then it will add the tag $(1,0)$ before sending this to its neighbors. If it uses neighbor N2, then it will add the tag $(0,1)$ instead.
 
 
@@ -1464,28 +1464,6 @@ Although the disjoint path analysis takes place over the PG, each application of
 
 We evaluate \sysname by applying it on policies for backbone and datacenter networks. We aim to evaluate the expressiveness of our abstractions, the precision of the abstract disjoint-path analysis, and the generation time of \sysname both with abstraction and without.
 
-
-\begin{figure}[t!]
-  \begin{minipage}[t]{\linewidth}
-    \hdr{HyperX}{}
-    \vspace{.6em}
-    \includegraphics[width=\linewidth]{figures/hyperx}
-  \end{minipage}%
-
-  \vspace{1.4em}
-  \begin{minipage}[t]{\linewidth}
-    \hdr{BCube}{}
-    \vspace{.3em}
-    \includegraphics[width=\linewidth]{figures/bcube}
-  \end{minipage}%
-
-
-  \caption{Example abstractions for HyperX and BCube.}
-  \vspace*{-1em}%
-  \label{fig:example-abstractions}
-\end{figure}
-
-
 \subsection{Expressiveness and precision}
 
 \begin{figure}[t!]
@@ -1551,6 +1529,26 @@ Our results are encouraging for these realistic settings. Our abstractions are p
 %\para{Fat Tree Topologies}
 %
 %The fat tree topology is a widely used datacenter topology. We look at the precision of our analysis on four fat tree variants used in practice: a standard fat tree~\cite{fattree}, the Facebook fat tree~\cite{facebook-fattree}, the F10 fault tolerant fat tree~\cite{f10-fattree}, and the VL2 topology~\cite{vl2-fattree}. For each fat tree variant, we use a tiered abstraction similar to that in our previous example. Each fat tree topology is parameterized over the number of pods $k$, which can be scaled up in the abstraction to allow for expansion.
+
+\begin{figure}[t!]
+  \begin{minipage}[t]{\linewidth}
+    \hdr{HyperX}{}
+    \vspace{.6em}
+    \includegraphics[width=\linewidth]{figures/hyperx}
+  \end{minipage}%
+
+  \vspace{1.4em}
+  \begin{minipage}[t]{\linewidth}
+    \hdr{BCube}{}
+    \vspace{.3em}
+    \includegraphics[width=\linewidth]{figures/bcube}
+  \end{minipage}%
+
+
+  \caption{Example abstractions for HyperX and BCube.}
+  \vspace*{-1em}%
+  \label{fig:example-abstractions}
+\end{figure}
 
 To stress our abstractions and analysis, we consider additional topologies from the literature.
 
@@ -1643,7 +1641,7 @@ The design of \sysname guarantees that network evolution requires configuration 
 \section{Related Work}
 \label{sec:related}
 
-Our work is related to four threads of prior work.
+Our work is related to three threads of prior work.
 
 \para{Network synthesis} Many recent systems focus on allowing operators to specify their policies at a high level. These can be classified into two classes. The first class targets networks based on SDN (software-defined networking) and directly generates the forwarding rules that tell routers how to forward packets~\cite{foster:merlin,fattire,netgen}. The second class, to which our work belongs, targets conventional networks and generates router configuration, based on which the routers interact and compute forwarding rules~\cite{propane,narain:lisa05,narain+:configassure}.
 %Almost all large networks (old or new) use the conventional paradigm because that scales better~\cite{bgp-in-dc}.
