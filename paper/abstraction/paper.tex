@@ -272,7 +272,7 @@ devices and links are added or taken offline for maintenance. Templates that
 work for the current topology, may or may not work for future
 topologies, and it is intractable to test all possible future topologies. Updating the templates, if found to not work for a future topology,
 may cause trickle-down, network-wide configuration changes, which is highly
-disruptive.
+disruptive in production networks with live traffic.
 %Building sophisticated tools for validating templates is difficult
 
 %It is no wonder that a major
@@ -819,7 +819,7 @@ The following sections detail each of the three phases.
   \vspace{-.3em}
   \caption{\sysname core syntax.}
   \label{fig:syntax}
-  %\vspace{-1em}
+  %\vspace{-1.4em}
 \end{figure}%
 
 
@@ -1546,7 +1546,7 @@ Our results are encouraging for these realistic settings. Our abstractions are p
 
 
   \caption{Example abstractions for HyperX and BCube.}
-  %\vspace*{-1em}%
+  \vspace*{-1em}%
   \label{fig:example-abstractions}
 \end{figure}
 
