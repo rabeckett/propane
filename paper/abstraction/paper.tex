@@ -1079,7 +1079,7 @@ As shown in \S\ref{sec:generation}, our generation strategy commutes with templa
   \vspace*{1em}
   \caption{Abstract k-disjoint path analysis inference rules.}
   \label{fig:inference-rules}
-  \vspace{-1.4em}
+  \vspace{-.8em}
 \end{figure*}
 
 
@@ -1432,7 +1432,7 @@ Our main theoretical result is that the compilation and concretization functions
   \label{thm:concretization}
 \end{thm}
 %
-\vspace{-.8em}
+\vspace{-.6em}
 Full definitions of compilation and concretization, as well as the proof of Theorem~\ref{thm:concretization} are included in the appendix. These results also help assign semantics to templates.
 
 
@@ -1513,7 +1513,7 @@ We evaluate \sysname by applying it on policies for backbone and data center net
   \vspace{-.6em}
   \caption{Expressiveness and precision of \sysname.}
   \label{fig:analysis-precision}
-  \vspace{-1em}
+  %\vspace{-1em}
 \end{figure}
 
 
@@ -1547,7 +1547,7 @@ Our results are encouraging for these realistic settings. Our abstractions are p
 
 
   \caption{Example abstractions for HyperX and BCube.}
-  \vspace*{-1em}%
+  %\vspace*{-1em}%
   \label{fig:example-abstractions}
 \end{figure}
 
@@ -1649,9 +1649,9 @@ Our work is related to three threads of prior work.
 %Almost all large networks (old or new) use the conventional paradigm because that scales better~\cite{bgp-in-dc}.
 
 While we borrow much from existing configuration synthesis work, especially Propane~\cite{propane}, our goal is to generate role templates from abstract topologies, rather than router configurations from concrete topologies.
-This goal aligns better with operators' mental models and tools and permits network evolution with minimal disruption to existing routers. In the process, we develop new abstractions for network topologies, compilation algorithms that generate templates, and analysis techniques that operate over classes of networks. 
+This goal aligns better with operators' mental models and tools and permits network evolution with minimal disruption. In the process, we develop new abstractions for network topologies, compilation algorithms that generate templates, and analysis techniques that operate over classes of networks.
 
-\para{Topology design} Network topology design, especially for data centers, is another active research area, with researchers exploring designs with different properties~\cite{fattree,facebook-fattree,f10-fattree,vl2-fattree,bcube,dcell,hyperx,butterfly}.  We do not develop new designs but develop abstractions that can capture these designs (and their evolution).
+\para{Topology design} Network topology design, especially for data centers, is another active research area, with researchers exploring designs with different properties~\cite{fattree,facebook-fattree,f10-fattree,vl2-fattree,bcube,dcell,hyperx,butterfly}. We do not develop new designs but develop abstractions that can capture these designs (and their evolution).
 
 While not the focus of this paper, \sysname can enable operators to pick the right design for their networks, more quickly and with stronger guarantees. Today, when picking a design, operators analyze its multiple concrete instantiations because available analysis tools work with concrete topologies~\cite{condor}. This process is time-consuming and not fool-proof; analyzing large, concrete topologies (with potentially thousands of nodes) takes a lot of time and the analysis does not cover the entire space of topologies that may arise.
 
