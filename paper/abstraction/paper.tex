@@ -36,9 +36,8 @@
 \newcommand{\ETC}{\emph{etc.}}
 \newcommand{\ETAL}{\emph{et al.}}
 
-\newcommand{\sysname}{{\small \sf Methane}\xspace}
+\newcommand{\sysname}{{\text{}\small \sf Methane}\xspace}
 \newcommand{\sysnamesec}{{\sf Methane}\xspace}
-\newcommand{\propane}{{\small \sf Propane}\xspace}
 \newcommand{\mbgp}{{\small \sf mBGP}\xspace}
 
 \newcommand{\para}[1]{\paragraph*{\textbf{#1}}}
@@ -46,7 +45,7 @@
 \newcommand{\set}[1]{\ensuremath{\{ #1 \} }}
 \newcommand{\abs}[1]{\ensuremath{ \lvert #1 \rvert }}
 
-\newcommand{\CD}[1]{\texttt{\small #1}}  % code font
+\newcommand{\CD}[1]{\texttt{\small #1}}
 \newcommand{\KW}[1]{\texttt{\small\bfseries{#1}}}
 
 \newcommand{\True}{\CD{true}}
@@ -160,7 +159,7 @@
 %=====================================================
 
 \textbf{Abstract---}
-We develop \sysname, a system to generate provably-correct configurations for large, evolving networks from high-level specifications of their topology, routing policy, and fault-tolerance requirements. It is based on new abstractions for capturing parameterized network topologies and their evolution, and algorithms to analyze the combined impact of topology and routing policy on the network's fault tolerance. Our analysis operates entirely on abstract topologies and guarantees correctness for all concrete instantiations of the topology. Its output is also guaranteed to require minimal changes to the configurations of existing devices when the topology evolves to include new devices or links. Our experiments with many real-world topologies and policies show that our abstractions and fault-tolerance analysis are effective and that, for large networks, configuration synthesis with \sysname is two orders of magnitude faster than similar systems that operate over concrete topologies.
+We develop \sysname, a system to generate provably-correct configurations for large, evolving networks from high-level specifications of their topology, routing policy, and fault-tolerance requirements. It is based on new abstractions for capturing parameterized network topologies and their evolution, and algorithms to analyze the combined impact of topology and routing policy on the network's fault tolerance. Our analysis operates entirely on abstract topologies and guarantees correctness for all concrete instantiations of the topology. Its output is also guaranteed to require minimal changes to the configurations of existing devices when the topology evolves to include new devices or links. Our experiments with many real-world topologies and policies show that our abstractions and fault-tolerance analysis are effective and that, for large networks, configuration synthesis with \sysname is two orders of magnitude faster than systems that operate over concrete topologies.
 
 %\ryan{Copied from conclusion for reference}
 %We develop \sysname, the first system that can generate device configuration templates for large networks from high-level specifications of network topology and policy. \sysname is based on new abstractions for capturing parameterized network topologies, and their evolution, and algorithms to analyze the combined impact of topology and routing policy on the network's fault tolerance. Our analysis operates entirely in the abstract domain and guarantees correctness for all concrete instantiations of the topology. Experiments with many types of real-world topologies and policies show that our abstractions and analysis are precise and that, for large networks, configuration synthesis is two orders of magnitude faster than systems that operate over concrete topologies.
@@ -300,7 +299,7 @@ to tolerate). For high-level specification of routing policy, we borrow notation
 Propane~\cite{propane}. But while Propane policies refer to concrete devices, \sysname
 policies refer to abstract roles.
 
-Based on these inputs, the \sysname compiler generates one template per role. It
+Based on these inputs, \sysname generates one template per role. It
 guarantees that, when the templates are instantiated to configurations for {\em
 any} concrete topology that complies with the abstract topology, the resulting
 network will correctly implement the routing policy and meet the fault-tolerance
@@ -312,12 +311,10 @@ one concrete topology to another, both of which comply with the abstract
 topology, only the configurations of devices that acquire or lose a neighbor need to change. This guarantee is the best that any system can give as neighbor relationships are explicitly configured in devices.
 %No other device in the network is impacted.
 
-Second, \sysname can scale substantially better than its nearest competitor \propane that operates over concrete topologies. As the number of devices in a
+Second, \sysname can scale substantially better than its nearest competitor Propane that operates over concrete topologies. As the number of devices in a
 network grows, the number of distinct roles will often stay constant~\cite{surgery}.
-Consequently, the \sysname compiler can be two orders of magnitude
-faster than \propane, taking less than 10 seconds to synthesize templates for large structured networks.
-
-%\todo{Talk about evaluation result here ... roll the point about faster compilation there.}
+Consequently, \sysname can be two orders of magnitude
+faster than Propane, taking less than 10 seconds to synthesize templates for large structured networks.
 
 
 \vspace{1em}
@@ -335,9 +332,9 @@ abstract topologies.
 %concrete network satisfying the abstract connectivity invariants.
 %\item Design of a template generation strategy that supports network
 %evolution.
-\item Implementation and evaluation of the \sysname compiler that generates
+\item Implementation and evaluation of the \sysname tool that generates
 provably-correct templates and is much faster
-than a compiler based on concrete topologies.
+than tools based on concrete topologies.
 \end{itemize}
 
 
@@ -367,13 +364,13 @@ than a compiler based on concrete topologies.
 \section{Background}
 \label{sec:background}
 
-In this work, we focus on synthesizing configurations for a network that runs the Border Gateway Protocol (BGP), the standard for routing across independent organizations and inside large datacenters. It scales effectively and allows operators to define flexible policies.
+In this work, we focus on synthesizing configurations for a network that runs the Border Gateway Protocol (BGP), the standard for routing across independent organizations and inside large data centers. It scales effectively and allows operators to define flexible policies.
 
 We provide a brief background on BGP focused on aspects relevant to our work. How a BGP-based network carries traffic depends on how the routers exchange and process routing announcements. To invite traffic from a neighbor to a destination, routers announce the destination's address {\em prefix} (e.g., 10.1.1.0/24\footnote{An IP address
 such as 10.1.1.0 is 32 bits, with each of the four values representing 8 bits. The prefix 10.1.1.0/24 denotes the set of addresses that share the first 24 bits with 10.1.1.0, \IE, all addresses that begin with 10.1.1.}) to the neighbor. Traffic flows in the opposite direction to such route announcements.
 
 All route announcements carry an {\em AS path}, the sequence of BGP speakers (called Autonomous Systems) that will be traversed to reach the destination.
-%When BGP is used inside a datacenter, each router tends to be its own AS.
+%When BGP is used inside a data center, each router tends to be its own AS.
 Optionally, they may also include one or more {\em communities}, which are arbitrary tags whose semantics are agreed upon out of band.
 
 When a BGP router receives one or more announcements for a prefix from different neighbors, it selects which one to use (if any) based on its configuration. This selection can depend on the AS path, communities, or the neighbor that sent the announcement, and it can even discard certain announcements (i.e., never use them for sending traffic). Then, based again on its configuration, the router forwards the selected route to one or more neighbors, after adding itself to the AS path, and optionally, modifying communities.
@@ -449,7 +446,7 @@ When announcing destinations to certain neighbors, a BGP router may perform {\em
 \begin{figure}[t!]
   \centering
   \includegraphics[width=\columnwidth]{figures/templates}
-  \caption{Idealized small configuration component for the datacenter spine role based on router templates from a large cloud provider (\IE, macros over gobbledygook).}
+  \caption{Idealized small configuration component for the data center spine role based on router templates from a large cloud provider (\IE, macros over gobbledygook).}
   \label{fig:templates}
   \vspace{-.8em}
 \end{figure}
@@ -487,11 +484,10 @@ A {\em role} is a specific function that is served by one or more routers.
 %
 For example, the network in Figure~\ref{fig:example} might have five roles: spine, global aggregator, global ToR, local aggregator, and local ToR.
 %
-Figure~\ref{fig:templates} shows an example of what a small component of a template for the spine role in the two datacenters might look like. The template has parameters for various aspects of the configuration (\EG, neighbor list, local prefixes) and are compiled to low-level device configurations by instantiating the parameters using the network topology and a database of network information.
+Figure~\ref{fig:templates} shows an example of what a small component of a template for the spine role in the two data centers might look like. The template has parameters for various aspects of the configuration (\EG, neighbor list, local prefixes) and are compiled to low-level device configurations by instantiating the parameters using the network topology and a database of network information.
 
 %Templates provide two key advantages. First, they help eliminate a class of configuration errors that stem from typos and inconsistencies, e.g., using the wrong address for a router, having inconsistent addresses for the two ends of a link, and failing to configure one side of a routing adjacency.  Second, templates have the potential for re-use when the topology changes while maintaining its basic structure (e.g., adding a new pod to the data center) or multiple networks with similar structures need to be instantiated (e.g., in an organization that runs multiple data centers).
 
-%While templates help avoid a class of configuration errors (e.g., inconsistent routing adjacencies), they provide no guarantees
 As described earlier (\S\ref{sec:introduction}), templates are hard to author and hard to validate. Worse, templates that work for one topology may not work for seemingly-inconsequential variations (which may arise after the network evolves).
 Consider the network in Figure~\ref{fig:example2}, which is similar to Figure~\ref{fig:example}: it has the same five roles, connected in a similar hierarchy. One might think that the same templates (with different database entries) can be used for both cases. However, if the templates are configured to disallow ``valley" paths (per policy (5) above), they will work for Figure~\ref{fig:example} but silently violate the fault tolerance policy ($(8)$) when used for Figure~\ref{fig:example2}.  Specifically, in Figure~\ref{fig:example2}, an aggregation-based blackhole (\S\ref{sec:background}) will occur when the link S1--A1 fails; after this failure, S1 has no valley-free path to P[1--2] even though it will continue to get traffic for these prefixes as it announces the covering prefix PG (because it gets routes for P[3--4]). No such blackhole will occur in Figure~\ref{fig:example} after a single link failure because spine routers have two links to each pod.
 
@@ -565,9 +561,6 @@ Such patches reintroduce the complexity and errors that templates were meant to 
 
 %For instance, suppose the engineers want to add another pod with local services to the network in Figure~\ref{fig:example}. In this network, Propane, a concrete synthesis tool, uses prefix lists at spines to ensure that local prefixes are not advertised externally. To accommodate the expansion, the new spine configurations outputted by Propane will not only enable the interfaces that connect to the new aggregators but will also have to update the prefix list filters. A system that supports incremental growth should need only interface configuration changes (not filter changes). It can configure all local ToRs, including the new ones, to attach a tag to their announcements and filter external announcements at the spines based on this tag. Engineers prefer fewer configuration changes because each change runs the risks of poor transient behavior (which synthesis tools do not reason about).
 
-
-
-
 %As an aside, a possible template implementation that works correctly for both networks is: allow valley paths and use an explicit list of local prefixes at spines to decide which announcements should not be forwarded externally.
 
 %\begin{figure}
@@ -619,7 +612,7 @@ Abstract topologies in \sysname define structural and role-based invariants that
 %
 We designed the abstractions to be able to precisely capture real network topologies, while being amenable to fault-tolerance analysis in the abstract domain.
 
-%Ideally, we would like to find a suitable topology abstraction that can describe both of the datacenters from figures~\ref{fig:example} and~\ref{fig:example2} as well as any reasonable generalization of these datacenters. \sysname provides several abstraction mechanisms to achieve this goal.
+%Ideally, we would like to find a suitable topology abstraction that can describe both of the data centers from figures~\ref{fig:example} and~\ref{fig:example2} as well as any reasonable generalization of these data centers. \sysname provides several abstraction mechanisms to achieve this goal.
 
 %We introduce our topology abstractions using the networks from \S\ref{sec:motivation}.
 Our topology abstractions consist of several concepts.
@@ -651,7 +644,8 @@ The constraint $e3 \geq 2$ says that, in each pod, each aggregator node has at l
 
 A final concept is the $\Mincut(1)$ constraint between the spine role S and N[1--2]. It says that any spine router has at least one path to any node in the neighbor N1 (and N2) role. Such annotations are useful for a ``one big switch" abstraction \cite{Casado:2010} in which a complex, unstructured network is represented as a single node. As another use case, an ISP backbone can be modeled by dividing the network into separate geographic regions with two roles per region---one for the border routers and another for the network core. Mincut annotations can describe the degree of fault tolerance both within regional cores and across regions.
 
-Our topology abstractions can trivially capture concrete topologies; there will be a one-to-one correspondence between abstract and concrete nodes (and edges). This ability enables operators to define complex networks in which they expect some (e.g., legacy) parts of the network to not evolve and others to evolve. It also means that our compiler subsumes those that operate only over concrete topologies.
+Our topology abstractions can also capture concrete topologies; there will be a one-to-one correspondence between abstract and concrete nodes (and edges). This ability enables operators to define complex networks in which they expect some (e.g., legacy) parts of the network to not evolve and others to evolve. 
+%It also means that our compiler subsumes those that operate only over concrete topologies.
 
 %All the guarantees provided by \sysname hold for any instantiation of the abstract network. This means that operators can safely expand their network in the future so long as the new network also satisfies these logical constraints.
 
@@ -659,9 +653,9 @@ Our topology abstractions can trivially capture concrete topologies; there will 
 %the policy is intricately linked to the actual structure of the concrete network.
 %For example, each prefix in the routing constraint is enumerated with its concrete destination
 %location, and the definition of the valleyfree constraint depends on the actual routers that
-%comprise each tier of the datacenter.
+%comprise each tier of the data center.
 %
-%This is unfortunate since any expansion of our datacenter network will require a corresponding
+%This is unfortunate since any expansion of our data center network will require a corresponding
 %change to the policy. Furthermore, there is no guarantee that a safe policy can be found
 %for the expanded network, and even if one can be found, it may require changes to every
 %configuration in the network -- a huge barrier to adoption in practice.
@@ -685,9 +679,9 @@ Let us see how to express the routing policy of the networks in \S\ref{sec:motiv
 
 The second line introduces a prefix \emph{template} variable $\CD{\$GP}$. It says that traffic for each global prefix associated with the variable should follow a path that ends at its corresponding destination router in the $\CD{TG}$ role. As we will see in \S\ref{sec:language}, constraints like $\CD{\End(TG)}$ are just syntactic sugar for regular expressions describing network paths. The second line has a similar policy for local prefixes.
 %
-The final rule matches all other IP prefix destinations and allows traffic to follow a path that leaves the datacenter, ending at some outside location, through neighbors $\CD{N1}$ or $\CD{N2}$ with a preference for leaving through $\CD{N1}$. The $\CD{\Prefer}$~symbol indicates that traffic should satisfy the constraint on the left and resort to the backup (right) only when that is not possible due to network failures.%
+The final rule matches all other IP prefix destinations and allows traffic to follow a path that leaves the data center, ending at some outside location, through neighbors $\CD{N1}$ or $\CD{N2}$ with a preference for leaving through $\CD{N1}$. The $\CD{\Prefer}$~symbol indicates that traffic should satisfy the constraint on the left and resort to the backup (right) only when that is not possible due to network failures.%
 
-Next we can capture constraint (4) that traffic for local prefixes must stay within in the datacenter:
+Next we can capture constraint (4) that traffic for local prefixes must stay within in the data center:
 %
 \begin{code}
 \Define Local =
@@ -695,7 +689,7 @@ Next we can capture constraint (4) that traffic for local prefixes must stay wit
 \end{code}
 \noindent%
 %
-The Local constraint applies to any traffic destined for a local prefix described by the variable $\CD{\$LP}$ and adds the constraint that the traffic must follow a path that matches an internal location (\IE, in the datacenter) at each hop of the path.
+The Local constraint applies to any traffic destined for a local prefix described by the variable $\CD{\$LP}$ and adds the constraint that the traffic must follow a path that matches an internal location (\IE, in the data center) at each hop of the path.
 %
 The constraint to prevent ``valleys" (5) is written as:
 %
@@ -705,7 +699,7 @@ The constraint to prevent ``valleys" (5) is written as:
 \end{code}
 \noindent%
 %
-This policy applies to all traffic and prevents valley paths by adding the $\Novalley$ constraint with arguments corresponding to each datacenter level.
+This policy applies to all traffic and prevents valley paths by adding the $\Novalley$ constraint with arguments corresponding to each data center level.
 %
 Constraint (7) to prevent transit traffic between neighbors is expressed as:
 %
@@ -716,7 +710,7 @@ Constraint (7) to prevent transit traffic between neighbors is expressed as:
 \end{code}
 \noindent%
 %
-We define a $\CD{Peer}$ as $\CD{N1}$ or $\CD{N2}$ and disallow paths where traffic both enters and exits the datacenter through a peer.
+We define a $\CD{Peer}$ as $\CD{N1}$ or $\CD{N2}$ and disallow paths where traffic both enters and exits the data center through a peer.
 
 Finally, we can combine these constraints together as:
 
@@ -725,19 +719,14 @@ Routing & Local & NoTransit &
 NoValley & \Agg(PG, \In -> \Out)
 \end{code}
 \noindent
-This instructs \sysname to satisfy the conjunction of all the constraints. It also declares that we want to perform route aggregation, as covering prefix PG, for global prefixes at the border of the datacenter (\IE, along any edge that connects the inside of the datacenter to the outside).
+This instructs \sysname to satisfy the conjunction of all the constraints. It also declares that we want to perform route aggregation, as covering prefix PG, for global prefixes at the border of the data center (\IE, along any edge that connects the inside of the data center to the outside).
 
 \para{Fault-tolerance policy} This policy specifies how many link failures the network should be able to withstand before traffic experiences connectivity loss. Operators can specify different tolerance levels for different pairs of abstract nodes. For instance, they may say that ToR to spine connectivity should be robust to 2 failures, \IE, no ToR-spine pair should lose connectivity as long as the number of simultaneous link failures is 2 or fewer; and ToR-to-ToR connectivity should be be robust to 1 failure.
 
-\para{Synthesis}
+% The \text{} is needed for some reason for formatting
+\para{Synthesis} \sysname generates templates from the inputs above in three phases. First, it combines the abstract topology and routing policy into a {\em product graph} (PG) that compactly captures the flow of routing information over the topology in a policy-compliant manner. The algorithm for this phase builds on Propane (for concrete networks); we show that it can be extended to abstract inputs and that the extensions are correct.
 
-%\sysname builds on the Propane network configuration tool, by supporting both synthesis for and reasoning over parameterized classes of topologies and their interactions with user-specified routing policy.
-
-%Although \sysname can ensure correct forwarding behavior independent of the exact concrete topology or failure scenario, it is often useful to be able to ask "what if" questions about other network properties. For example, an operator may require a certain level fault tolerance between between different collections of routers. Such analysis depends, not only on the network topology, but also on the underlying routing policy, both of which \sysname has access to.
-The \sysname compiler generates templates from the inputs above in three phases. First, it combines the abstract topology and routing policy into a {\em product graph} (PG) that compactly captures the flow of routing information over the topology in a policy-compliant manner. The algorithm for this phase builds on the \propane compiler (for concrete networks); we show that it can be extended to abstract inputs and that the extensions are correct.
-
-Second, \sysname checks if the fault-tolerance policy can be met by considering the joint impact of the abstract topology and routing policy. Joint analysis is needed, because connectivity depends on both: traffic will not flow along
-valid topological paths if the routing policy disallows it.
+Second, \sysname checks if the fault-tolerance policy can be met by considering the joint impact of the abstract topology and routing policy. Joint analysis is needed, because connectivity depends on both: traffic will not flow along valid topological paths if the routing policy disallows it.
 %
 We develop a sound analysis based on computing the minimum
 number of edge-disjoint, policy-compliant paths between pairs of nodes
@@ -934,7 +923,7 @@ The preference function $P(m)$ denotes the rank of paths through the PG ending a
 %
 Finally, we write $\tilde{m} = l$ to extract the topology location from a PG node, when $m = (l, q_{m_1}, \dots, q_{m_k}) \in V'$.
 
-Figure~\ref{fig:example-compilation} shows the PG for the datacenter policy that applies to all external traffic ($\CD{\True \Path \Exit(N1~\Prefer~N2)}$).
+Figure~\ref{fig:example-compilation} shows the PG for the data center policy that applies to all external traffic ($\CD{\True \Path \Exit(N1~\Prefer~N2)}$).
 %
 %\begin{code}
 %\True \Path \Exit(\sf{Peer1}) \Prefer \Exit(\sf{Peer2})
@@ -1034,9 +1023,9 @@ Definition~\ref{def:homomorphism} provides intuition as to why our strategy for 
 \newcommand{\inferencelocal}[2]{
 
     \node[] at (#1 + 1.2, 1.25 + 2.5) {\textbf{I-local}};
-
     \derivation{#1}{X}{Y}
     \derivation{#1+2+#2}{L$_P$ X}{L$_P$ Y}
+    \node[anchor=east] at (#1 + .5 + #2, 2.5 / 2) {$\Rightarrow$};
     %\inferencenobox{#1}{X}{}{Y}{}{}{}
     %\inferencenobox{#1+2 + #2}{$\ldots$ L$_P$ X}{}{$\ldots$ L$_P$ Y}{}{}{}
     \node[anchor=east] at (#1 + 2 + #2 - .6, 2.5) {P};
@@ -1049,6 +1038,7 @@ Definition~\ref{def:homomorphism} provides intuition as to why our strategy for 
     %\inferencenobox{#1+2+#2}{L$_P$ X}{}{A$_Q$ Y}{}{}{}
     \derivation{#1}{X}{Y}
     \derivation{#1+2+#2}{L$_P$ X}{A$_Q$ Y}
+    \node[anchor=east] at (#1 + .5 + #2, 2.5 / 2) {$\Rightarrow$};
 
     \node[anchor=east] at (#1 + 2 + #2 - .6, .4) {P};
     \node[anchor=east] at (#1 + 2 + #2 - .6, 2.5) {Q};
@@ -1063,7 +1053,7 @@ Definition~\ref{def:homomorphism} provides intuition as to why our strategy for 
     \inference{3.5}{A$_m(j,k)$}{$e_2 > 0$}{A$_n(1,min(j,e2))$}{I-out2}{$e_1$}{$e_2$}
     \inference{7}{L$_m(j,k)$}{$e_1=n$}{A$_n(min(j*k,n),1)$}{I-mesh1}{$e_1$}{$e_2$}
     \inference{10.5}{L$_m(j,k)$}{$e_1=n$}{A$_n(1,j)$}{I-mesh2}{$e_1$}{$e_2$}
-    \inferencenobox{14}{L$(j,k)$}{$mincut(X)$}{A$(1,min(k,X))$}{I-mincut}{}{}
+    \inferencenobox{14}{L$(j,k)$}{$\Mincut(X)$}{A$(1,min(k,X))$}{I-mincut}{}{}
   \end{tikzpicture}
   \end{minipage}
 
@@ -1135,7 +1125,7 @@ Consider rule \infrule{I-out2}, and consider any node in the role $n$. There are
 
 The two rules \infrule{I-mesh1} and \infrule{I-mesh2} handle the case where there is a full mesh between the two roles. This happens when the number of outgoing edges ($e_1$) from nodes in role $m$ equals the number of nodes on top ($n$). \infrule{I-mesh1} says that we can find disjoint paths to each node in the top role restricted to the number of disjoint paths we started with. \infrule{I-mesh2} uses the fact that each node in the top role is connected to each node in the bottom role to infer that there can be $j$ disjoint paths to any single node in the top role.
 
-The annotation $mincut(X)$ appearing on an edge is an assertion about the fault tolerance between nodes in two different roles. The rule \infrule{I-mincut} uses such assertions. To each node in role $n$, from a node in role $m$, we can construct at least the minimum of $X$ and $k$ disjoint paths.
+The annotation $\Mincut(X)$ appearing on an edge is an assertion about the fault tolerance between nodes in two different roles. The rule \infrule{I-mincut} uses such assertions. To each node in role $n$, from a node in role $m$, we can construct at least the minimum of $X$ and $k$ disjoint paths.
 
 %The rule \infrule{I-mincut} can be thought of as an assertion about the fault tolerance between nodes in two roles. The rule applies to an edge that has been annotated with a $mincut(X)$ statement, which means that there are at least $X$ disjoint paths between any node in role $m$ and any node in role $n$.
 
@@ -1149,7 +1139,7 @@ It starts with the invariant $L_m(j,k)$ at role $m$ and can be applied if each e
 %
 The remaining nodes ($m-j$) that are not part of the reachable group in the bottom role, each have $e_1$ outgoing edges and must be able to at least ``fill" the incoming edges for the remaining nodes not in the reachable group at the top ($n-g$), which each have $e_2$ incoming edges. Solving the inequality gives the lower bound for $g$ used in Figure~\ref{fig:inference-rules}.
 
-The second part of the rule uses a similar idea to reason about the overlap between roles $m$ and $o$ with respect to role $n$. This rule is useful particularly useful for datacenter topologies where routers in one tier of the datacenter often have a particular striping pattern with another tier.
+The second part of the rule uses a similar idea to reason about the overlap between roles $m$ and $o$ with respect to role $n$. This rule is useful particularly useful for data center topologies where routers in one tier of the data center often have a particular striping pattern with another tier.
 
 Finally, rules \infrule{I-local} and \infrule{I-global} reason across pod hierarchies. \infrule{I-local} says that if there is an inference from $X$ to $Y$, then the derivation can be used inside pod P by leaving the P-label unchanged. \infrule{I-global} says that when the edge goes across pods, we can infer the fact for all pods Q since the multiplicities apply uniformly for each pod.
 
@@ -1178,7 +1168,7 @@ The abstract disjoint path analysis starts from a fixed source location $src$ an
 %\noindent
 %The idea is that, because non-overlapping abstract paths can never contain overlapping concrete paths, due to the graph homomorphism property, we can merge inferences about these disjoint paths in the abstraction.
 
-Recall the policy for global prefixes in the datacenter.
+Recall the policy for global prefixes in the data center.
 %
 \begin{code}
 \$GP \Path \End(TG) \ensuremath{\cap}
@@ -1197,8 +1187,8 @@ Note that, because each inference rule only applies to directed edges in the PG,
 
 The next step is to use \infrule{I-mesh2} together with \infrule{I-local} to infer than any single node in the TL role for any pod Q is reachable via at least 2 disjoint paths. This process will continue until a fixed point is reached.
 
-The algorithm was able to infer that there is at least 1 disjoint path to any spine router, and at least 2 disjoint paths to any TL router. In this case, the analysis is precise. There exists a concrete network, namely the datacenter from Figure~\ref{fig:example2}, where a single failure can disconnect a global ToR from a spine router due to the valley-free constraint.
-%The bound on the fault tolerance between ToR and spine routers can also be used to determine that an aggregation-induced black hole may arise at the datacenter boundary after a single failure in some concrete instantiation.
+The algorithm was able to infer that there is at least 1 disjoint path to any spine router, and at least 2 disjoint paths to any TL router. In this case, the analysis is precise. There exists a concrete network, namely the data center from Figure~\ref{fig:example2}, where a single failure can disconnect a global ToR from a spine router due to the valley-free constraint. 
+%The bound on the fault tolerance between ToR and spine routers can also be used to determine that an aggregation-induced black hole may arise at the data center boundary after a single failure in some concrete instantiation.
 
 
 %=====================================================
@@ -1437,7 +1427,7 @@ Full definitions of compilation and concretization, as well as the proof of Theo
 
 \para{Incrementality}
 
-Suppose an operator wants to expand the concrete datacenter by adding an additional ToR router to the TG role. Per the network routing policy, the new ToR router will advertise any owned prefixes provided by looking up {\small \$GP} in $\Gamma$. Because the new topology matches the abstraction, the compiled templates will remain the same. However, in the spine router configurations, the match on the global prefix template variable {\small \$GP} must be expanded when concretizing the template to include the new prefixes added by the ToR. Unfortunately, this small change to the topology results in a change to every single spine router configuration.
+Suppose an operator wants to expand the concrete data center by adding an additional ToR router to the TG role. Per the network routing policy, the new ToR router will advertise any owned prefixes provided by looking up {\small \$GP} in $\Gamma$. Because the new topology matches the abstraction, the compiled templates will remain the same. However, in the spine router configurations, the match on the global prefix template variable {\small \$GP} must be expanded when concretizing the template to include the new prefixes added by the ToR. Unfortunately, this small change to the topology results in a change to every single spine router configuration.
 
 However, template variables tell us exactly where this kind of change can happen. The only way in which the spine routers depend on anything non-local is in the match on prefix template variables. Therefore, we can prevent modifications to the spine routers' configurations by associating a new unique community tag for template variable {\small \$GP} and then replacing each match on {\small \$GP} with a test on the new community tag. The new ToR must now simply attach the new community tag to advertisements for its prefixes so downstream routers can match against it. Figure~\ref{fig:bgp-configs} (right) shows the templates after the transformation.
 
@@ -1455,14 +1445,14 @@ However, template variables tell us exactly where this kind of change can happen
 \section{Implementation}
 \label{sec:implementation}
 
-The \sysname compiler is implemented in around 9500 lines of F\# code. The compiler accepts both concrete and abstract topologies and will generate configurations for open-source Quagga~\cite{quagga} routers by default. The fault-tolerance analysis uses $\nu$Z~\cite{z3opt} to test validity and minimize variables subject to the topology constraints. Since the analysis typically calls the SMT solver many times with relatively small optimization problems, we use a timeout of 200ms.
+\sysname is implemented in approximately 9500 lines of F\# code. The compiler accepts both concrete and abstract topologies and will generate configurations for open-source Quagga~\cite{quagga} routers by default. The fault-tolerance analysis uses $\nu$Z~\cite{z3opt} to test validity and minimize variables subject to the topology constraints. Since the analysis typically calls the SMT solver many times with relatively small optimization problems, we use a timeout of 200ms.
 
 Although the disjoint path analysis takes place over the PG, each application of the inference rules from figure~\ref{fig:inference-rules} depends only on the topology. Therefore, we lazily apply the rules and cache the satisfiability and minimization calls to $\nu$Z after their first use. Furthermore, the cached results are shared across different prefixes, each of which may have a unique PG representation.
 
 \section{Evaluation}
 \label{sec:evaluation}
 
-We evaluate \sysname by applying it on policies for backbone and datacenter networks. We aim to evaluate the expressiveness of our abstractions, the precision of the abstract disjoint-path analysis, and the generation time of \sysname both with abstraction and without.
+We evaluate \sysname by applying it on policies for backbone and data center networks. We aim to evaluate the expressiveness of our abstractions, the precision of the abstract disjoint-path analysis, and the generation time of \sysname both with abstraction and without.
 
 \subsection{Expressiveness and precision}
 
@@ -1528,7 +1518,7 @@ Our results are encouraging for these realistic settings. Our abstractions are p
 
 %\para{Fat Tree Topologies}
 %
-%The fat tree topology is a widely used datacenter topology. We look at the precision of our analysis on four fat tree variants used in practice: a standard fat tree~\cite{fattree}, the Facebook fat tree~\cite{facebook-fattree}, the F10 fault tolerant fat tree~\cite{f10-fattree}, and the VL2 topology~\cite{vl2-fattree}. For each fat tree variant, we use a tiered abstraction similar to that in our previous example. Each fat tree topology is parameterized over the number of pods $k$, which can be scaled up in the abstraction to allow for expansion.
+%The fat tree topology is a widely used data center topology. We look at the precision of our analysis on four fat tree variants used in practice: a standard fat tree~\cite{fattree}, the Facebook fat tree~\cite{facebook-fattree}, the F10 fault tolerant fat tree~\cite{f10-fattree}, and the VL2 topology~\cite{vl2-fattree}. For each fat tree variant, we use a tiered abstraction similar to that in our previous example. Each fat tree topology is parameterized over the number of pods $k$, which can be scaled up in the abstraction to allow for expansion.
 
 \begin{figure}[t!]
   \begin{minipage}[t]{\linewidth}
@@ -1554,7 +1544,7 @@ To stress our abstractions and analysis, we consider additional topologies from 
 
 \para{Recursive Topologies}
 These topologies include BCube~\cite{bcube} and DCell~\cite{dcell}. Each topology includes a recursion depth parameter ($k$), which we fixed while abstracting them. For a recursive topology with depth $k$, we model it as an abstract topology consisting of a pod to represent all depth $k-1$ subcomponents. This allows for safe expansion within a subcomponent, but does not allow changing the recursion depth dynamically.
-For BCube, we model each tier of the datacenter as a separate role. Figure~\ref{fig:example-abstractions} shows an example of a BCube abstraction for $k=1$.
+For BCube, we model each tier of the data center as a separate role. Figure~\ref{fig:example-abstractions} shows an example of a BCube abstraction for $k=1$.
 
 \para{Hypercube Topologies}
 Hypercube variants can be used as an alternative to Clos-style topologies for networks with port density routers. The HyperX~\cite{hyperx} topology generalizes the hypercube and butterfly topologies and includes parameters $L$ for the lattice dimension of the network, and $S_i$ for the node multiplicity of each dimension $i$.
@@ -1578,7 +1568,7 @@ For both recursive topologies, the analysis can accurately determine reachabilit
 \subsection{Synthesis time}
 
 \begin{figure}[t!]
-  \subcaptionbox{Datacenter}
+  \subcaptionbox{Data center}
     {\includegraphics[width=.49\columnwidth]{figures/Fattree-time.png}}
   \subcaptionbox{Backbone}
     {\includegraphics[width=.49\columnwidth]{figures/backbone-time.png}} \\
@@ -1588,7 +1578,7 @@ For both recursive topologies, the analysis can accurately determine reachabilit
 \end{figure}
 
 \begin{figure}[t!]
-  \subcaptionbox{Datacenter}
+  \subcaptionbox{Data center}
     {\includegraphics[width=.49\columnwidth]{figures/Fattree-analysis-time.png}}
   \subcaptionbox{Backbone}
     {\includegraphics[width=.49\columnwidth]{figures/backbone-analysis-time.png}} \\
@@ -1597,29 +1587,30 @@ For both recursive topologies, the analysis can accurately determine reachabilit
   \vspace{-1em}
 \end{figure}
 
-We evaluate synthesis time in \sysname using routing policy for backbone and datacenter networks inspired by configurations from a large cloud provider. For both types of networks, we fix the routing policy and scale the topology.
+
+We evaluate generation time in \sysname both with and without abstraction using routing policy for backbone and data center networks inspired by configurations obtained from a large cloud provider. For both types networks, we fix the routing policy and scale the size of the underlying topology.
 
 
-\para{Datacenter}
+\para{Data center}
 
-Routers in the datacenter network run BGP using unique AS numbers and connect to multiple external neighbors. The routers aggregate some prefix blocks when announcing them to external neighbors, and keep some prefixes internal. The data center prefers that traffic leave through certain neighbors over others and should not transit traffic between neighbors. The policy also says that the datacenter routers not use external neighbors to reach ``private" destinations  (i.e., those in the part of the IP address space reserved for private use).
+Routers in the data center network run BGP using private AS numbers and peer with multiple backbone networks. The routers aggregate some prefix blocks when announcing them to the backbone network, and keep some prefixes internal. The policy also ensures that private address space from external neighbors is dropped. The data center prefers that traffic leave through certain peers over others and ensures that transit traffic between peers is dropped.
 
-We use a fat tree~\cite{fattree} and scale it by increasing the number of pods. The abstract topology uses one abstract node for each tier with additional nodes for local and global ToRs.
+We use a fat tree topology and scale the size of the topology according the the number of pods $k$. The abstract topology uses one abstract node for each tier of the data center with an additional node for separate local and global ToRs.
 
 
 
 \para{Backbone}
 
-The backbone policy classifies neighbors into several categories based on commercial relationship~\cite{gao-rexford} and prefers paths through them in order. Similar to the datacenter, it blocks private destinations from neighbors, drops transit traffic between certain neighbors but not others, and aggregates internal prefixes at the border of the network.
+The backbone policy classifies neighbors into several categories based on commercial relationship and prefers paths through them in order. Similar to the data center, it drops private address space from  neighbors, drops transit traffic between certain peers but not others, and aggregates internal prefixes at the border of the network.
 
 We scale the backbone network from 10 to 250 routers. To abstract it, we split it into two parts: border routers that connect to external neighbors and an internal core. We use one abstract node for the border routers and one for the network core with mincut annotations both within the core and between the core and border roles. For neighbors, there is one abstract role per commercial category.
 
 
 \para{Results}
 
-Figure~\ref{fig:compilation-times} shows total configuration synthesis time for \sysname and the concrete network synthesis tool Propane. All experiments were run on an 8 core, 2.4 GHz Intel i7 processor machine running Mac with 16GB of Ram.
+Figure~\ref{fig:compilation-times} shows total configuration generation time for \sysname vs the concrete network synthesis tool Propane. All experiments were run on an 8 core, 2.4 GHz Intel i7 processor machine running Mac with 16GB of Ram.
 
-For both networks, the abstract synthesis is slightly slower than concrete synthesis for small topologies due to the overhead of the fault-tolerance analysis. However, as the topology size increases, abstract synthesis becomes orders of magnitude faster. In all cases for both networks, it takes less than 10 seconds to complete.
+For both networks, the abstract generation starts off slightly slower than Propane's concrete generation for small topologies due to the overhead of the fault-tolerance analysis. However, as the size of the topology increases, abstract generation becomes orders of magnitude faster than concrete generation. In all cases for both networks, abstract generation takes less than 10 seconds to complete.
 
 Figure~\ref{fig:abstract-breakdown} shows the relative time taken by each phase of \sysname. The fault-tolerance analysis takes the most time, but that does not depend on the number of concrete nodes in the network, and thus is largely a fixed cost. In particular, the number of calls to $\nu$Z remains constant across topology size. The seesaw behavior for the data center networks results from differences in time taken by $\nu$Z to minimize similar constraints with different values.
 
