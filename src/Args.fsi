@@ -12,6 +12,7 @@ type T =
      Parallel : bool
      Cbgp : bool
      Test : bool
+     GenTests : bool
      Bench : bool
      Debug : bool
      DebugDir : string

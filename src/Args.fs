@@ -6,7 +6,7 @@ open System.IO
 type T = 
    { PolFile : string option
      TopoFile : string option
-     OutDir : string
+     OutDir : string  
      Anycast : bool
      UseMed : bool
      UsePrepending : bool
@@ -15,6 +15,7 @@ type T =
      Parallel : bool
      Cbgp : bool
      Test : bool
+     GenTests : bool 
      Bench : bool
      Debug : bool
      DebugDir : string
@@ -55,6 +56,7 @@ Options:
     --test               Run compiler unit tests.
     --bench              Generate benchmark policies.
     --debug              Output debugging information.
+    --genTests           Generate exhaustive test cases
 """
 
 let checkFile f = 
@@ -113,6 +115,7 @@ let parse (argv : string []) : unit =
         UseNoExport = vs.["--noexport"].IsTrue
         Cbgp = vs.["--cbgp"].IsTrue
         Test = vs.["--test"].IsTrue
+        GenTests = vs.["--genTests"].IsTrue
         Bench = vs.["--bench"].IsTrue
         Debug = vs.["--debug"].IsTrue
         DebugDir = !debugDir
