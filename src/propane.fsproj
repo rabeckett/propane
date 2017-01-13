@@ -57,6 +57,9 @@
     <Reference Include="QuickGraph.Serialization">
       <HintPath>..\packages\QuickGraph.3.6.61119.7\lib\net4\QuickGraph.Serialization.dll</HintPath>
     </Reference>
+    <Reference Include="Microsoft.Z3">
+      <HintPath>..\Microsoft.Z3.dll</HintPath>
+    </Reference>
     <Reference Include="System" />
     <Reference Include="System.Core" />
     <Reference Include="System.Numerics" />
@@ -105,6 +108,7 @@
     <Compile Include="Generate.fs" />
     <Compile Include="Benchmark.fs" />
     <Compile Include="Stats.fs" />
+    <Compile Include="TestGenerator.fs"/>
     <Compile Include="Program.fs" />
     <None Include="App.config" />
     <None Include="packages.config" />
