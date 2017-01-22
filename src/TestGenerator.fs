@@ -41,9 +41,9 @@ let genTest (input: CGraph.T) (ctx : Context) : Solver =
         condSet <- Set.add exp condSet;
     
     // if a vertex is true, atleast one incoming edge is true, and atleast one outgoign edge
-    for i in 0 .. (Seq.length edges - 1) do
+    for i in 0 .. (Seq.length vertices - 1) do
         // find vertices at the start and end of an edge for implication between edges and vertices for connectivity
-        let edge = Seq.item i edges in
+        let incomingEdges = Seq.item i edges in
         let a = Map.find edge.Source vMap in
         let b = Map.find edge.Target vMap in
         let arr = Array.create 2 vArray.[a] in
