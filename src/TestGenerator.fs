@@ -43,9 +43,28 @@ let genTest (input: CGraph.T) (ctx : Context) : Solver =
     // if a vertex is true, atleast one incoming edge is true, and atleast one outgoign edge
     for i in 0 .. (Seq.length vertices - 1) do
         // find vertices at the start and end of an edge for implication between edges and vertices for connectivity
-        let incomingEdges = Seq.item i edges in
-        let a = Map.find edge.Source vMap in
-        let b = Map.find edge.Target vMap in
+        let vertex = Seq.item i vertices in
+
+        // atleast one incoming edge is true
+        let incoming = input.Graph.InEdges vertex in
+        let arr = Array.create (Seq.length incoming) eArray.[0] in
+        for i in 0 .. (Seq.length incoming - 1) do
+            let e = Seq.item i incoming in
+            let eVar = Map.find e eMap in
+            Array.set arr i (ctx.MkNot eArray.[eVar]);
+        let exp = ctx.MkAtMost(arr, (Seq.length incoming) - 1) in
+        condSet <- Set.add exp condSet;
+
+        // exactly one outgoing edge is true
+        let outgoing = input.Graph.OutEdges vertex in
+        let arr = Array.create (Seq.length outgoing) eArray.[0] in
+        for i in 0 .. (Seq.length outgoing - 1) do
+            let e = Seq.item i outgoing in
+            let eVar = Map.find e eMap in
+            Array.set arr i eArray.[eVar];
+        let exp = ctx.MkAtMost(arr, 1) in
+        condSet <- Set.add exp condSet;
+
         let arr = Array.create 2 vArray.[a] in
         Array.set arr 1 vArray.[b];
         let ends = ctx.MkAnd arr in
