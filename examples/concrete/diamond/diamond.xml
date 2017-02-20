@@ -1,0 +1,12 @@
+<topology asn="100">
+  <node internal="true" name="A"></node>
+  <node internal="true" name="B"></node>
+  <node internal="true" name="C"></node>
+  <node internal="true" name="D"></node>
+
+  <edge source="A" target="B"></edge>
+  <edge source="A" target="C"></edge>
+  <edge source="B" target="C"></edge>
+  <edge source="B" target="D"></edge>
+  <edge source="C" target="D"></edge>
+</topology>

@@ -12,9 +12,10 @@
 	  <element>T1</element>
   </abstractpod>
   <!-- Abstract topology constraints -->
-  <constraint assertion="(= T0 2)"></constraint>
-  <constraint assertion="(= T1 2)"></constraint>
-  <constraint assertion="(= T2 4)"></constraint>
+  <constraint assertion="(= T0 T1)"></constraint>
+  <constraint assertion="(>= T0 2)"></constraint>
+  <constraint assertion="(>= T1 2)"></constraint>
+  <constraint assertion="(= T2 (* 2 T1))"></constraint>
   <constraint assertion="(= E1 T1)"></constraint>
   <constraint assertion="(= E2 T0)"></constraint>
   <constraint assertion="(= E3 2)"></constraint>

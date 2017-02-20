@@ -111,7 +111,7 @@ def makeGraph(con, abs, name, descr):
   color4 = "#A0CED9"
 
   # Synthesis times
-  fig = plt.figure()
+  fig = plt.figure(figsize=(8,6))
   plt.plot(sizeCon, totalCon, label="Concrete", linewidth=5.0, color="cornflowerblue")
   plt.plot(sizeAbs, totalAbs, label="Abstract", linewidth=5.0, linestyle='--', color="lightsalmon")
   plt.xlabel(descr, fontsize=28)
@@ -119,10 +119,13 @@ def makeGraph(con, abs, name, descr):
   plt.tick_params(axis='both', which='major', labelsize=28)
   plt.tick_params(axis='both', which='minor', labelsize=28)
   if name == "Fattree":
-    plt.xlim([4, 24])
+    pass
+    #plt.xlim([4, 24])
   else:
-    plt.xlim([10,240])
-  plt.legend(loc=2, fontsize=22)
+    pass
+    #plt.xlim([10,240])
+  #plt.ylim([10**0, 10**3])
+  plt.legend(loc=2, fontsize=22, edgecolor="black")
   plt.yscale('log')
   fig.savefig(direct + '/graphs/' + name + '-time.png', bbox_inches='tight')
 
@@ -135,31 +138,32 @@ def makeGraph(con, abs, name, descr):
   y_stack = np.cumsum(np.row_stack( data ), axis=0)
 
   # stacked plot showing different running times
-  fig = plt.figure()
+  fig = plt.figure(figsize=(8,6))
   plt.grid()
   ax1 = fig.add_subplot(111)
-  ax1.fill_between(sizeAbs, 0, y_stack[0,:], facecolor=color1, alpha=.7)
-  ax1.fill_between(sizeAbs, y_stack[0,:], y_stack[1,:], facecolor=color2, alpha=.7)
-  ax1.fill_between(sizeAbs, y_stack[1,:], y_stack[2,:], facecolor=color3)
-  ax1.fill_between(sizeAbs, y_stack[2,:], y_stack[3,:], facecolor=color4)
+  ax1.fill_between(sizeAbs, 0, y_stack[0,:], facecolor=color1, alpha=.7, edgecolor="black")
+  ax1.fill_between(sizeAbs, y_stack[0,:], y_stack[1,:], facecolor=color2, alpha=.7, edgecolor="black")
+  ax1.fill_between(sizeAbs, y_stack[1,:], y_stack[2,:], facecolor=color3, edgecolor="black")
+  ax1.fill_between(sizeAbs, y_stack[2,:], y_stack[3,:], facecolor=color4, edgecolor="black")
   ax1.set_xlabel(descr, fontsize=28)
   ax1.set_ylabel('Synthesis Time (sec)', fontsize=28)
   ax1.tick_params(axis='both', which='major', labelsize=28)
   ax1.tick_params(axis='both', which='minor', labelsize=28)
+  ax1.autoscale(enable=True, axis='x', tight=True)
   if name == "Fattree":
-    ax1.set_xlim([4,24])
-    ax1.set_ylim([0,14])
+    # ax1.set_xlim([4,24])
+    ax1.set_ylim([0,2*max(totalAbs)])
   else: 
-    ax1.set_xlim([10,240])
-    ax1.set_ylim([0,5])
+    # ax1.set_xlim([10,240])
+    ax1.set_ylim([0,2*max(totalAbs)])
   # custom legend for stack color
-  p1 = plt.Rectangle((0, 0), 1, 1, fc=color1, alpha=.7)
-  p2 = plt.Rectangle((0, 0), 1, 1, fc=color2, alpha=.7)
-  p3 = plt.Rectangle((0, 0), 1, 1, fc=color3, alpha=.7)
-  p4 = plt.Rectangle((0, 0), 1, 1, fc=color4, alpha=.7)
+  p1 = plt.Rectangle((0, 0), 1, 1, fc=color1, alpha=.7, edgecolor="black")
+  p2 = plt.Rectangle((0, 0), 1, 1, fc=color2, alpha=.7, edgecolor="black")
+  p3 = plt.Rectangle((0, 0), 1, 1, fc=color3, alpha=.7, edgecolor="black")
+  p4 = plt.Rectangle((0, 0), 1, 1, fc=color4, alpha=.7, edgecolor="black")
   leg_boxes = [p4, p3, p2, p1]
   descrs = ["Policy to mBGP", "mBGP to Quagga", "Substitution", "Failure Analysis"]
-  ax1.legend(leg_boxes, descrs, loc=2, fontsize=22)
+  ax1.legend(leg_boxes, descrs, loc=2, fontsize=22, edgecolor="black")
   fig.savefig(direct + '/graphs/' + name + '-analysis-time.png', bbox_inches='tight')
 
 

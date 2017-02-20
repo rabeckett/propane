@@ -1,0 +1,35 @@
+<topology asn="100">
+  <node internal="true" name="A"></node>
+  <node internal="true" name="B"></node>
+  <node internal="true" name="C"></node>
+  <node internal="true" name="D"></node>
+  <node internal="true" name="E"></node>
+  <node internal="true" name="F"></node>
+  <node internal="true" name="G"></node>
+  <node internal="true" name="H"></node>
+  <node internal="true" name="X"></node>
+  <node internal="true" name="Y"></node>
+  <node internal="false" asn="200" name="Peer1"></node>
+  <node internal="false" asn="300" name="Peer2"></node>
+
+  <edge source="A" target="C"></edge>
+  <edge source="A" target="D"></edge>
+  <edge source="B" target="C"></edge>
+  <edge source="B" target="D"></edge>
+  <edge source="E" target="G"></edge>
+  <edge source="E" target="H"></edge>
+  <edge source="F" target="G"></edge>
+  <edge source="F" target="H"></edge>
+  <edge source="C" target="X"></edge>
+  <edge source="C" target="Y"></edge>
+  <edge source="D" target="X"></edge>
+  <edge source="D" target="Y"></edge>
+  <edge source="G" target="X"></edge>
+  <edge source="G" target="Y"></edge>
+  <edge source="H" target="X"></edge>
+  <edge source="H" target="Y"></edge>
+  <edge source="X" target="Peer1"></edge>
+  <edge source="X" target="Peer2"></edge>
+  <edge source="Y" target="Peer1"></edge>
+  <edge source="Y" target="Peer2"></edge>
+</topology>

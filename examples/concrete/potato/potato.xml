@@ -1,0 +1,15 @@
+<topology asn="100">
+  <node internal="true" name="A"></node>
+  <node internal="true" name="B"></node>
+  <node internal="true" name="C"></node>
+  <node internal="true" name="D"></node>
+  <node internal="true" name="E"></node>
+  <node internal="false" name="Peer" asn="200"></node>
+ 
+  <edge source="A" target="Peer"></edge>
+  <edge source="B" target="Peer"></edge>
+  <edge source="E" target="B"></edge>
+  <edge source="E" target="D"></edge>
+  <edge source="D" target="C"></edge>
+  <edge source="C" target="A"></edge>
+</topology>

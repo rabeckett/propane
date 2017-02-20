@@ -459,7 +459,7 @@ let reachability (ti : Topology.TopoInfo) (cg : CGraph.T) (src : CgState) : Anal
       let (Inference(labels, j, k, edges)) = inf
       log (sprintf "looking at inference: %s" (string inf))
       for u in CGraph.neighbors cg v |> Seq.filter CGraph.isRealNode do
-         debugLearned learned ti
+         // debugLearned learned ti
          let m = getNodeConstraintName ti v
          let n = getNodeConstraintName ti u
          let es = getEdgeConstraintNames ti v u
@@ -563,12 +563,14 @@ let reachability (ti : Topology.TopoInfo) (cg : CGraph.T) (src : CgState) : Anal
                               update (namev, nameu) (v, u) (1, min j ze) false
                            | _ -> ()
       first := false
-      debugLearned learned ti
-   debugLearned learned ti
+   // debugLearned learned ti
+   // debugLearned learned ti
    let ret = combineAllInferences learned
-   for kv in ret do
-      let v = Topology.router kv.Key.Node.Loc ti
-      let (x, y) = kv.Value
-      printfn "%s --> (all=%d, some=%d)" v x y
-      log (sprintf "%s --> (all=%d, some=%d)" v x y)
+   let settings = Args.getSettings()
+   if settings.Verbose then 
+      for kv in ret do
+         let v = Topology.router kv.Key.Node.Loc ti
+         let (x, y) = kv.Value
+         printfn "%s --> (all=%d, some=%d)" v x y
+         log (sprintf "%s --> (all=%d, some=%d)" v x y)
    ret

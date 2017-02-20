@@ -233,3 +233,7 @@ src/packages
 
 # static doc files
 docs/static
+
+# latex files
+*.dvi
+*.bbl

@@ -20,6 +20,7 @@ type T =
      DebugDir : string
      CheckFailures : bool
      Failures : Option<int>
+     Verbose : bool
      Stats : bool
      Csv : bool
      CheckOnly : bool
@@ -40,6 +41,7 @@ Options:
     --policy FILE        Propane policy file.
     --topo FILE          Network topology file (xml).
     --output DIR         Specify output directory.
+    --verbose            Display detailed information about fault-tolerance.
     --no-failures        Disable checks for aggregation safety
     --failures k         Guarantee k failure safety for aggregation.
     --check              Only check for correctness, don't generate configs.
@@ -100,6 +102,7 @@ let parse (argv : string []) : unit =
       { PolFile = getFile vs.["--policy"]
         TopoFile = getFile vs.["--topo"]
         OutDir = outDir
+        Verbose = vs.["--verbose"].IsTrue
         CheckFailures = vs.["--no-failures"].IsFalse
         Failures = getFailures vs.["--failures"]
         CheckOnly = vs.["--check"].IsTrue
