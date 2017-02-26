@@ -1,21 +1,87 @@
 Shepherd letter:
 
-Here are the most important changes (which are all "must changes"):
+> Here are the most important changes (which are all "must changes"):
+>
+> - title, abstract, and introduction (and throughout the paper): tone
+>   down the contributions and make sure it is clear this paper is about
+>   BGP (which is fine... BGP is the currently (and only) default
+>   protocol in large-scale Data-Centers. In other contexts, such as
+>   Internet Service Providers (ISPs), BGP is not the only protocol but
+>   by far the hardest to configure. The ability to automate its
+>   configuration is therefore useful.)
 
-- title, abstract, and introduction (and throughout the paper): tone
-  down the contributions and make sure it is clear this paper is about
-  BGP (which is fine... BGP is the currently (and only) default
-  protocol in large-scale Data-Centers. In other contexts, such as
-  Internet Service Providers (ISPs), BGP is not the only protocol but
-  by far the hardest to configure. The ability to automate its
-  configuration is therefore useful.)
+As we wrote and rewrote the abstract and introduction, we did not notice that the fact that
+we rely on BGP was not mentioned.  We agree that having it first mentioned at the beginning of 
+section 2 is jarring and could lead a reader who only reads the abstract or introduction to
+our paper to come away misinformed.  We made the following changes:
+
+- we mentioned BGP in the first sentence of the new abstract:
+
+"We develop \sysname, a system to synthesize provably-correct
+BGP configurations for large, evolving networks from high-level
+specifications of topology, routing policy, and fault-tolerance
+requirements."
+
+- we modified the introduction in several key places (there are other modifications just to improve
+the overall quality of the writing)
+
+First, we spend a paragraph saying explicitly that we target BGP and that other
+protocols are beyond the scope of the paper:
+
+"Based on these inputs, \sysname generates one template per role.
+These templates specify routing policy using the Border Gateway
+Protocol (BGP).  BGP is a useful target for synthesis, as it is the
+standard protocol for interdomain routing and it is also commonly used
+within data centers due to its scalability properties.  However, it is
+far from the only control plane protocol; synthesis of configurations
+for other common protocols such as OSPF is beyond the scope of this
+paper."
+
+Second, we explain that our evolution-friendly property depends on BGP's tagging mechanism:
+
+"First, its templates are evolution friendly.  When the network
+migrates from one concrete topology to another, both of which comply
+with the abstract topology, only the configurations of devices that
+acquire or lose a neighbor need to change.  This guarantee is the best
+that any system can give as neighbor relationships are explicitly
+configured in devices.  We achieve this guarantee in part by relying
+on the ability of BGP to tag announcements with abstract values.  For
+example, these abstract values make it possible to change the source
+of an announcement without the target being aware of a change
+happening.  Other control plane protocols that do not provide such
+tagging mechanisms or that implement link-state as opposed to
+path-vector protocols would not be able to avail themselves of these
+techniques."
+
+Third, when we summarize our contributions, we again mention that
+our templates are for BGP:
+
+"Implementation and evaluation of the \sysname compiler that generates
+provably-correct BGP templates and is much faster than compilers based
+on concrete topologies."
+
+- While we are in complete agreement with the reviewers comments
+concerning our abstract and introduction and have done our best to
+address those comments, we do rather like the existing title and
+believe it is quite a good title for the paper.  It is concise and it
+emphasizes the most novel element of the paper (analysis of abstract
+topologies).  The paper does not make any specific technical claim
+that is false -- it doesn't make any claim at all in fact.  It merely
+suggests a general area of work, like many titles do.  The choice of
+title is a highly subjective, artistic choice and depends largely on
+aesthetics.  We hope that you will simply grant us poetic license to
+choose our own title.
 
 
-- In places where you feel can say more than just about BGP make an explicit remark and explain clearly how you would generalise the results.
+> 
+> - In places where you feel can say more than just about BGP make an explicit remark and 
+> explain clearly how you would generalise the results.
+> 
+> - Section on template generation: please improve the explanations (see reviews).
+> 
+> - Theorem 7.2 - make clear what the proof covers and improve proof.
 
-- Section on template generation: please improve the explanations (see reviews).
 
-- Theorem 7.2 - make clear what the proof covers and improve proof.
 
 
 
