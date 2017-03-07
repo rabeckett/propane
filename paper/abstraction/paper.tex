@@ -1295,12 +1295,72 @@ The algorithm was able to infer that there is at least 1 disjoint path to any sp
 \newcommand{\MED}{\texttt{MED}}
 \newcommand{\Arrow}{\ensuremath{\leftarrow}}
 
+
+\newcommand{\Con}{\text{con}}
+\newcommand{\Pfx}{\mathit{pfx}}%
+
+\vspace{2em}
+\begin{figure*}[t!]\small%
+  
+  \hrulefill%
+
+  \vspace{1em}%
+  \begin{minipage}[t]{.47\linewidth}
+  \hdr{ABGP Syntax}{}
+  \vspace*{-1\baselineskip}
+  %
+  \[ \begin{array}{rclr}
+     d    &   & & \textit{integer} \\
+     c    &   & & \textit{community} \\
+     l    &   & & \textit{location} \\
+     t    &::=& \$x \BNFALT d.d.d.d/[d..d] & \textit{predicate} \\
+     ns   &::=& \{ l_1, ~\dots,~ l_k \} & \textit{peers} \\
+     ma   &::=& d : ({ns}_1, c_1) \rightarrow ({ns}_2, c_2) & \textit{match action} \\
+     pc   &::=& ma_1, \dots, ma_k & \textit{prefix config} \\
+     rc   &::=& t_1 \rightarrow {pc}_1, ~\dots,~ t_k \rightarrow {pc}_k & \textit{router config} \\
+     abgp &::=& l_1 \rightarrow {rc}_1, ~\dots,~ l_k \rightarrow {rc}_k & \textit{abgp policy} \\%
+  \end{array} \]%%
+
+  \end{minipage}
+  %
+  %
+  \begin{minipage}[t]{.49\linewidth}
+  \hdr{Compilation}{}
+  \vspace*{-1\baselineskip}
+  %
+  \[ \begin{array}{l}
+     \mathrm{compile}_\mathrm{ABGP}( (t_1,PG_1,ord_1), \dots, (t_k,PG_k,ord_k), G ) = \\
+     ~~~~~ [~ l \rightarrow rc ~\vert~ l \in \mathrm{internal}(G.V), ~rc = \mathrm{append}_i~  \\
+     ~~~~~~~~~~~~~~~ [~ t_i \rightarrow [~ ma ~\vert~ \\
+     ~~~~~~~~~~~~~~~~~~~~~ m \leftarrow (l,q_m) \in PG_i, \\
+     ~~~~~~~~~~~~~~~~~~~~~ pin \leftarrow \mathrm{adjIn}(PG_i,m), \\
+     ~~~~~~~~~~~~~~~~~~~~~ (in,q_n) \leftarrow \{ (bs,q_n) ~\vert~ bs=\{b ~\vert~ (b,q_n) \in pin \}, bs \neq \emptyset \}, \\
+     ~~~~~~~~~~~~~~~~~~~~~ out \leftarrow \{ c ~\vert~ (c,\_) \in \mathrm{adjOut}(PG_i,m) \}, \\
+     ~~~~~~~~~~~~~~~~~~~~~ ma = \mathrm{ord}_i(m) : (in,q_n) \rightarrow (out,q_m) ~] ~] ~] \\
+     \\
+     \mathrm{compile}( p_1, \dots, p_k, G) = \\
+     ~~~~~~ \mathrm{compile}_\mathrm{ABGP}(\mathrm{compile}_\mathrm{PG}(p_1,G), \dots, \mathrm{compile}_\mathrm{PG}(p_k,G), G) \\
+  \end{array} \]%
+  \end{minipage}%
+
+  \vspace{1em}
+  \hrulefill%
+  %\vspace{1em}%
+
+  \caption{Abstract BGP syntax (left), and compilation from product graphs (right).}
+  \label{fig:concretization}
+\end{figure*}%
+
+
+
 \section{Template Generation}
 \label{sec:generation}
 
-The translation from the PG to per-device templates that run the distributed BGP protocol involves several ideas.
+At a high level, the translation from the PG to per-device templates that run the distributed BGP protocol involves the following high-level ideas: First, BGP messages are tagged to record the state of the product graph as messages are passed between routers. This information allows routers to drop messages that do not correspond to any path not permitted. Next, we must search for a ranking of messages for each router in the network such that, under those preferences, the network as a whole satisfies the \sysname policy's preferences. Finally, templates can be soundly concretized for the actual network by replacing instances of abstract neighbors with the union of all concrete neighbors. Finally, by modifying compilation slightly we can further ensure that every configuration depends only on its immediate neighbors. This guarantees that any change made to the concrete topology will result in a minimal number of changes. 
 
-\para{Route filtering}
+We look at each of these steps in turn.
+ 
+\para{Tagging and Filtering}
 
 The first idea is to tag every BGP announcement with a community that encodes the state of each DFA when advertising a route to a neighbor. Routers then allow announcements that correspond to an edge in the PG and block others.
 For example, in the concrete PG in Figure~\ref{fig:example-compilation}, router S1 will allow an advertisement from its neighbors N1 and N2. If it uses the path advertised by neighbor N1, then it will add the tag $(1,0)$ before sending this to its neighbors. If it uses neighbor N2, then it will add the tag $(0,1)$ instead.
@@ -1359,9 +1419,6 @@ Figure~\ref{fig:bgp-configs} (left) shows part of the final configuration for sp
 For prefix $\True$ ($0.0.0.0/[0..32]$), the spine routers will match advertisements from peer N1 and N2. The match for N1 is preferred since it has a higher BGP local-preference attribute (110). If an advertisement from N1 is available the spine uses this and attaches the community tag $(1,0)$ before sending the route to all its peers ($*$). If an advertisement is only available from the backup N2, then it attaches the tag $(0,1)$ instead.
 %
 The template configuration matches any global prefix $\CD{\$GP}$ from any internal peer and re-advertises the route to all of its peers. For any local prefix it will allow an advertisement from any internal peer, and re-advertise the route to only other internal peers. The concrete configurations have a similar configuration for each local and global prefix.
-
-\newcommand{\Con}{\text{con}}
-\newcommand{\Pfx}{\mathit{pfx}}%
 
 %\vspace{2em}
 %\begin{figure*}[t!]\small%
