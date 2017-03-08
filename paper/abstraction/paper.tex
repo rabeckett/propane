@@ -21,6 +21,8 @@
 \usepackage{pifont}
 \newcommand{\cmark}{\ding{51}}
 \newcommand{\xmark}{\ding{55}}
+\usepackage{algorithm}
+\usepackage[noend]{algpseudocode}
 
 \definecolor{princetonorange}{RGB}{255,143,0}
 \definecolor{tmlblue}{RGB}{0,58,120}  % tmlblue == Toronto Maple Leafs Blue!
@@ -1274,6 +1276,36 @@ The algorithm was able to infer that there is at least 1 disjoint path to any sp
 %The bound on the fault tolerance between ToR and spine routers can also be used to determine that an aggregation-induced black hole may arise at the data center boundary after a single failure in some concrete instantiation.
 
 
+\begin{algorithm}[t!]
+\caption{Checking safe neighbor preferences}
+\label{alg:failures}
+\begin{algorithmic}[1]
+\Procedure{$\leq$($N_1$, $N_2$)}{}
+  \If {$N_1 \not\approx N_2$} \Return false
+  \EndIf
+  \State $q \gets Queue()$
+  \State $q.Enqueue (N_1, N_2)$
+  \While {$!q.Empty()$}
+    \State $(m,n) \gets q.Dequeue()$
+    \If {$m \nleq_{rank} n$}
+      \Return false
+    \EndIf
+    \For {$n'$ in adjOut($PG$, $n$)}
+      \If {\big($\exists m' \in \textup{adjOut}(PG,m), m' \approx n'$\big)}
+        \If {$(m',n')$ not marked}
+          \State {mark $(m',n')$ as seen}
+          \State $q.Enqueue(m',n')$
+        \EndIf
+      \Else { \Return $false$}
+      \EndIf
+    \EndFor
+  \EndWhile \\
+  \hspace{\algorithmicindent} \Return true
+\EndProcedure
+\end{algorithmic}
+\end{algorithm}
+
+
 %=====================================================
 %
 %
@@ -1372,7 +1404,7 @@ For example, in the concrete PG in Figure~\ref{fig:example-compilation}, router 
 
 \para{Preference Search}
 
-Tagging and filtering according to the PG with community values in BGP forces the protocol to only search for paths to the destination that are allowed by the policy (\IE are paths in the PG). However, finding \emph{some} path to the destination is not enough. We must ensure that each router uses its \emph{best} available path to the destination according to the policy. Further, this must continue to hold as additional elements of the network fail. In the example from Figure~\ref{fig:example-compilation}, the policy was $\True ~\Path~ \CD{\Exit(N1\Prefer N2)}$, which indicates that paths through N1 should be used whenever possible, and paths through N2 should only be used as a backup. If router S1 allows advertisements from both N1 and N2 but does not prefer one advertisement over another, it might end up choosing to use a path through N2 even though a more preferred path through N1 exists and is available\footnote{ties between equally preferred paths can be broken nondeterministic based on message ordering}. On the other hand, if the S1-N1 link fails, then the best available path is through N2.
+Tagging and filtering according to the PG with community values in BGP forces the protocol to only search for paths to the destination that are allowed by the policy (\IE are paths in the PG). However, finding \emph{some} path to the destination is not enough. We must ensure that each router uses its \emph{best} available path to the destination according to the policy. Further, this must continue to hold as additional elements of the network fail. In the example from Figure~\ref{fig:example-compilation}, the policy was $\True ~\Path~ \CD{\Exit(N1\Prefer N2)}$, which indicates that paths through N1 should be used whenever possible, and paths through N2 should only be used as a backup. If router S1 allows advertisements from both N1 and N2 but does not prefer one advertisement over another, it might end up choosing to use a path through N2 even though a more preferred path through N1 exists and is available\footnote{ties between equally preferred paths can be broken nondeterministically}. On the other hand, if the S1-N1 link fails, then the best available path is through N2.
 
 To enforce correct network-wide preferences, we use the BGP local-preference attribute, which allows routers to prefer routes from one neighbor (or with some tag) over routers learned from another neighbor. The challenge is to find a collection of device-local preferences that correctly enforce the network-wide preferences from the policy for all failures.
 
@@ -1388,7 +1420,7 @@ Let $m \geq_{rank} n$ be a relation over PG vertices that holds iff $\min (\Pref
 %
 
 %\begin{defn}
-The PG can be viewed as a labelled transition system by pushing the location from each directed edge's target node onto the edge. That is, $m\overset{l}{\rightarrow}n$ if edge $(m,n) \in E'$ and $\Topo{n} = l$.
+The PG can be viewed as a labelled transition system by pushing the location from each directed edge's target node onto the edge. That is, $m\overset{l}{\rightarrow}n$ if there is an edge $(m,n)$ in the PG and $\Topo{n} = l$.
 %\end{defn}
 %
 For example, in the concrete PG we would have the transition $(S1,1,0)\overset{A2}{\rightarrow}(A2,1,0)$.
@@ -1397,7 +1429,11 @@ For example, in the concrete PG we would have the transition $(S1,1,0)\overset{A
 We write $m \leq m'$ if the subgraph reachable from $m$ and $m'$ respectively form a simulation relation with respect to $\geq_{rank}$.
 \end{defn}
 
-If we determine that each router has a total order with respect to the simulation relation ($\leq$) for its corresponding PG nodes, then we can simply sort the nodes and prefer advertisements from peers of node $m$ over those of $m'$ whenever $m' \leq m$. This condition ensures that BGP devices will converge to the most preferred paths in the network even when failures occur.
+The existence of multiple nodes in the PG for the same topology location (\EG, $(S1,1,0)$ and $(S1,0,1)$) indicates that S1 can receive advertisements in different contexts and must choose between messages received in these different contexts. Node $m$ is preferred to $m'$ if, $m' \geq_{rank} m$ and, transitively, for each neighbor of $m'$, $m$ has a corresponding neighbor that is more preferred.
+Algorithm~\ref{alg:failures} shows a simple procedure for determining if a nPG ode $N1$ can safely be preferred to a PG node $N2$.
+
+For each router, its corresponding PG nodes are then sorted according the the $\leq$ operator. If $\leq$ defines a total order on PG nodes, then the compiler can simply prefer advertisements from peers of node $m$ over those of $m'$ whenever $m' \leq m$. This condition ensures that BGP devices will converge to the most preferred paths in the network even when failures occur. However, if $\leq$ does not form a total order, then the policy is rejected as being potentially unsafe under some failure conditions.
+
 %
 For example, in the concrete PG the inequality $(S1,0,1) \leq (S1,1,0)$ holds since nodes on the left side of the PG can always match transitions made on the right hand side with respect to the $\geq_{rank}$ relation. This relation does not hold the other way around since $(S1,0,1) \ngeq_{rank} (S1,1,0)$. Therefore, advertisements received at $S1$ with tag $(1,0)$ must be preferred to those received at $S1$ with tag $(0,1)$.
 %
