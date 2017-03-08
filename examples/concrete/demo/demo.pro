@@ -24,7 +24,3 @@ define notransit = {
 }
 
 define main = destination & locality & notransit
-
-control {
-	aggregate(2.0.0.0/16, in -> out)
-}

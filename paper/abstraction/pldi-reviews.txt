@@ -65,7 +65,7 @@ concerning our abstract and introduction and have done our best to
 address those comments, we do rather like the existing title and
 believe it is quite a good title for the paper.  It is concise and it
 emphasizes the most novel element of the paper (analysis of abstract
-topologies).  The paper does not make any specific technical claim
+topologies).  The title does not make any specific technical claim
 that is false -- it doesn't make any claim at all in fact.  It merely
 suggests a general area of work, like many titles do.  The choice of
 title is a highly subjective, artistic choice and depends largely on

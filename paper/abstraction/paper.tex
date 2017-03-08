@@ -1302,9 +1302,9 @@ The algorithm was able to infer that there is at least 1 disjoint path to any sp
 \vspace{2em}
 \begin{figure*}[t!]\small%
   
-  \hrulefill%
+  %\hrulefill%
 
-  \vspace{1em}%
+  %\vspace{1em}%
   \begin{minipage}[t]{.47\linewidth}
   \hdr{ABGP Syntax}{}
   \vspace*{-1\baselineskip}
@@ -1325,7 +1325,7 @@ The algorithm was able to infer that there is at least 1 disjoint path to any sp
   %
   %
   \begin{minipage}[t]{.49\linewidth}
-  \hdr{Compilation}{}
+  \hdr{Compilation to ABGP}{}
   \vspace*{-1\baselineskip}
   %
   \[ \begin{array}{l}
@@ -1356,18 +1356,25 @@ The algorithm was able to infer that there is at least 1 disjoint path to any sp
 \section{Template Generation}
 \label{sec:generation}
 
-At a high level, the translation from the PG to per-device templates that run the distributed BGP protocol involves the following high-level ideas: First, BGP messages are tagged to record the state of the product graph as messages are passed between routers. This information allows routers to drop messages that do not correspond to any path not permitted. Next, we must search for a ranking of messages for each router in the network such that, under those preferences, the network as a whole satisfies the \sysname policy's preferences. Finally, templates can be soundly concretized for the actual network by replacing instances of abstract neighbors with the union of all concrete neighbors. Finally, by modifying compilation slightly we can further ensure that every configuration depends only on its immediate neighbors. This guarantees that any change made to the concrete topology will result in a minimal number of changes. 
+At a high level, the translation from the PG to per-device templates that run the distributed BGP protocol involves the following high-level ideas: (1) Every BGP message is tagged to record the state of the product graph as messages are passed between routers. The tags allow BGP to only search for valid paths in the PG by dropping messages that do not correspond to any edge in the PG. (2) To ensure BGP always finds the \emph{most preferred} paths in the network, we must rank messages for each router in the network by giving them a preference such that, under those preferences, the network as a whole satisfies the \sysname policy's end-to-end network preferences. (3) We introduce a simple, vendor-independent BGP configuration language called mBGP and describe a compilation function that uses the inferred preference ordering to generate concrete configurations from a concrete topology, or templates from an abstract topology. (4) Templates can then be soundly instantiated for a concrete network by replacing instances of abstract neighbors with the union of all concrete neighbors under the homomorphism. We prove that concretization and compilation commute. (5) By modifying compilation slightly we can further ensure that every configuration depends only on its immediate neighbors. This guarantees that any change made to the concrete topology will result in a minimal number of changes to the configurations.
 
-We look at each of these steps in turn.
+We now look at each of these steps in turn.
  
 \para{Tagging and Filtering}
 
-The first idea is to tag every BGP announcement with a community that encodes the state of each DFA when advertising a route to a neighbor. Routers then allow announcements that correspond to an edge in the PG and block others.
-For example, in the concrete PG in Figure~\ref{fig:example-compilation}, router S1 will allow an advertisement from its neighbors N1 and N2. If it uses the path advertised by neighbor N1, then it will add the tag $(1,0)$ before sending this to its neighbors. If it uses neighbor N2, then it will add the tag $(0,1)$ instead.
+The BGP routing protocol standard allows for the use of \emph{community tags}, collections of 32-bit integer tags that can be attached or removed arbitrarily from routing advertisements. 
+Community tags serve as a simple form of \emph{memory}, and operators routinely use such tags to implement policy (e.g., to prevent transit traffic by recording where a message enters the network and blocking upon egress accordingly).
+
+The idea for template generation is to use community tags to record the state of the automata from the Product Graph in every BGP announcement and update these tags whenever messages are passed between routers. Such a tagging mechanism is used to ensure that BGP only considers paths that are allowed by the \sysname policy, routers will allow advertisments that correspond to an edge in the PG and block any advertisments that do not.
+
+For example, in the concrete PG in Figure~\ref{fig:example-compilation}, router S1 appears in two different PG nodes: $(S1,1,0)$ and $(S1,0,1)$. These nodes have two different peers than can send them messages in the PG: $(N1,0,0)$ and $(N2,0,0)$. Therefore, S1 will not block an advertisement from peer $N1$ and will also not block an advertisement from peer $N2$. If S1 uses the path advertised by neighbor N1, then it will add the tag $(1,0)$ to the advertisement before sending this to its neighbors A1 and A2. If S1 uses a path advertised from neighbor N2, then it will add the tag $(0,1)$ instead. Similarly, router A1 appears in two separate PG nodes. It will not block advertisements from S1 if they either have the $(1,0)$ tag or the $(0,1)$ tag attached. If A1 chooses a path with tag $(1,0)$ attached, then it will export the path to its neighbors without modifying the tag. If A1 chooses a path with tag $(0,1)$ attached, it will also export the path to its neighbors without modifying the tag.
 
 
 \para{Preference Search}
-The second idea is to have each router totally order advertisements from neighbors. For example, to satisfy the policy that leaving through N1 is preferred to leaving through N2, S1 should prefer a message it hears from N1 over N2. Similarly, A1 should prefer routes tagged with $(1,0)$ over those with $(0,1)$.
+
+Tagging and filtering according to the PG with community values in BGP allows the protocol to only search for paths to the destination that are allowed by the policy. However, finding \emph{some} path to the destination is not enough. We must ensure that each router uses the \emph{best} path to the destination according to the policy. Further, this must continue to hold as elements of the network fail. To this end, we use the BGP local-preference attribute, which allows routers to prefer routes from one neighbor (or with some tag) over routers learned from another neighbor.
+
+The idea then is to have each router totally order advertisements from different neighbors (possibly with different tags). For example, to satisfy the policy that leaving through N1 is preferred to leaving through N2, S1 should prefer a message it hears from N1 over N2. Similarly, A1 should prefer routes tagged with $(1,0)$ over those with $(0,1)$.
 %In general, because BGP is distributed, each router does not have a full view of the entire network when choosing which path to use. Because finding a collection of preferences to ensure correct end-to-end behavior for all failures is a hard problem,
 \Propane introduced a conservative search strategy for determining route preferences. To make it work for abstract topologies, we modify the search based on the following observation about the PG structure:
 
