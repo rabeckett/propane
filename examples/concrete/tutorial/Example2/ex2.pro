@@ -5,7 +5,9 @@ define private =
   10.0.0.0/[8..32] or 
   172.16.0.0/[12..32] or 
   192.168.0.0/[16..32] or 
-  169.254.0.0/[16..32]
+  169.254.0.0/[16..32] or 
+  240.0.0.0/[4..32] or 
+  192.0.0.0/[24..32]
 
 # Prefer to leave through R2 over R1 over a Peer
 define preferences = { 

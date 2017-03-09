@@ -1,26 +1,29 @@
-define LP1 = 1.0.0.0/24
-define LP2 = 1.0.1.0/24
-define GP1 = 2.0.0.0/24
-define GP2 = 2.0.1.0/24
-
-define Peer = {Peer1, Peer2}
-
-define destination = {
-	GP1 => end(A), 
-	GP2 => end(B),
-	LP1 => end(E),
-	LP2 => end(F),
-	true => exit(Peer1 >> Peer2),
+define pfx1 = 1.0.0.0/24
+define pfx2 = 1.0.1.0/24
+define pfx3 = 2.0.0.0/24
+define pfx4 = 2.0.1.0/24
+  
+define local = pfx1 or pfx2
+ 
+define basic_routing = {
+	pfx1 => end(A), 
+	pfx2 => end(B),
+	pfx3 => end(E),
+	pfx4 => end(F),
+	true => end(out) & exit(IDAT >> CORE),
 }
 
 define locality = {
-	LP1 or LP2 => internal
+	local => internal
 }
 
-define transit(X,Y) = enter(X) & exit(Y)
+define transit(X,Y) = enter({X,Y}) & exit({X,Y})
+
+define peer = {CORE, IDAT}
 
 define notransit = {
-	true => not transit(Peer,Peer) 
+	true => not transit(peer, peer)
 }
 
-define main = destination & locality & notransit
+define main = basic_routing & locality & notransit
+

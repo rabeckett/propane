@@ -1,0 +1,453 @@
+%\documentclass{sig-alternate-10pt}
+\documentclass[10pt]{acmart}
+
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{xcolor}
+\usepackage{url}
+\usepackage{xspace}
+\usepackage{code}
+%\usepackage{geometry}
+%\usepackage{balance}
+
+
+\definecolor{princetonorange}{RGB}{255,143,0}
+\definecolor{tmlblue}{RGB}{0,58,120}  % tmlblue == Toronto Maple Leafs Blue!
+
+\newcommand{\todo}[1]{\textcolor{red}{[TODO: #1]}}
+\newcommand{\ratul}[1]{\textcolor{blue}{[ratul: #1]}}
+\newcommand{\ryan}[1]{\textcolor{green}{[ryan: #1]}}
+\newcommand{\dpw}[1]{\textcolor{tmlblue}{[dpw: #1]}}
+\newcommand{\todd}[1]{\textcolor{princetonorange}{[todd: #1]}}
+
+\newcommand{\EG}{\emph{e.g.}}
+\newcommand{\IE}{\emph{i.e.}}
+\newcommand{\ETC}{\emph{etc.}}
+\newcommand{\ETAL}{\emph{et al.}}
+
+\newcommand{\sysname}{{\small \sf Propane}\xspace}
+
+\newcommand{\para}[1]{\paragraph*{\textbf{#1}}}
+
+\newcommand{\set}[1]{\ensuremath{\{ #1 \} }}
+\newcommand{\abs}[1]{\ensuremath{ \lvert #1 \rvert }}
+
+\newcommand{\CD}[1]{\texttt{\small #1}}  % code font
+\newcommand{\KW}[1]{\texttt{\small\bfseries{#1}}}
+%\newcommand{\KW}[1]{\texttt{#1}}
+\newcommand{\True}{\CD{true}}
+\newcommand{\Define}{\KW{define}}
+\newcommand{\Prefer}{\texttt{>>}}
+\newcommand{\Path}{\texttt{=>}}
+\newcommand{\Link}{\texttt{->}}
+\newcommand{\Agg}{\KW{agg}}
+\newcommand{\Any}{\KW{any}}
+\newcommand{\None}{\KW{drop}}
+\newcommand{\In}{\KW{in}}
+\newcommand{\Out}{\KW{out}}
+\newcommand{\AND}{\texttt{\&}}
+\newcommand{\OR}{\texttt{|}}
+\newcommand{\NOT}{\texttt{!}}
+\newcommand{\Intersect}{\ensuremath{\cap}}
+\newcommand{\Union}{\ensuremath{\cup}}
+
+\newcommand{\Exit}{\KW{exit}}
+\newcommand{\End}{\KW{end}}
+\newcommand{\Start}{\KW{start}}
+\newcommand{\Enter}{\KW{enter}}
+\newcommand{\Later}{\KW{later}}
+\newcommand{\Before}{\KW{before}}
+\newcommand{\Internal}{\KW{internal}}
+\newcommand{\Never}{\KW{never}}
+\newcommand{\Only}{\KW{only}}
+\newcommand{\Through}{\KW{through}}
+\newcommand{\LinkKW}{\KW{link}}
+\newcommand{\PathKW}{\KW{path}}
+\newcommand{\Novalley}{\KW{novalley}}
+
+%\let\Url\url
+%\renewcommand*{\LaTeX}{\oldLaTeX\space}
+\renewcommand{\path}[2]{ #1 \mapsto \ensuremath{#2} }
+
+
+
+\begin{document}
+
+%\special{papersize=8.5in,11in}
+%\setlength{\pdfpageheight}{\paperheight}
+%\setlength{\pdfpagewidth}{\paperwidth}
+
+\title{Don't Mind the Gap:  Bridging Network-wide Objectives and Device-level Configurations}
+
+%\author{Paper \#324, 14 pages}
+
+
+%\author{%
+%Ryan Beckett\\
+%  \affaddr{Princeton}
+%  %\\
+%  %\email{rbeckett@princeton.edu}
+%\and
+%Ratul Mahajan\\
+%  \affaddr{Microsoft}
+%  %\\
+%  %\email{ratul@microsoft.com}
+%\and
+%Todd Millstein\\
+%  \affaddr{UCLA}
+%  %\affaddr{University of California, Los Angeles}
+%  %\\
+%  %\email{todd@cs.ucla.edu}
+%\and
+%Jitendra Padhye\\
+%  \affaddr{Microsoft}
+%  %\\
+%  %\email{padhye@microsoft.com}
+%\and
+%David Walker\\
+%  \affaddr{Princeton}
+%  %\\
+%  %\email{dpw@princeton.edu}
+%}
+
+%\maketitle
+
+%=====================================================
+%
+%
+%  **Abstract**
+%
+%
+%=====================================================
+
+%\textbf{Abstract---}
+%% Networks are notoriously difficult to configure correctly.
+%% Operators typically rely on local configuration of individual devices running
+%% distributed control plane protocols to achieve network-wide objectives.
+%% Managing implicit dependencies between device configurations and properly accounting for failures makes
+%% a network operator's work particularly difficult.
+%% %
+%% %The recent move towards software-defined networking has been motivated, in part,
+%% %by the simplicity of the centralized model, where a controller directly manages
+%% %individual devices rather than letting them manage themselves. However distributed
+%% %protocols have many important advantages in scalability,
+%% %latency and fault tolerance over the completely centralized approach.
+%% %
+%% In this paper, we describe a new system -- \sysname, which allows an operator to specify a high-level,
+%% centralized routing policy declaratively, but then to compile it to a purely distributed
+%% implementation, which uses the BGP routing protocol to run on existing, commodity hardware.
+%% %
+%% Propane allows operators to describe the types of paths traffic may (or may not) take
+%% through the network, as well as relative preferences (or backups) between paths.
+%% %
+%% Network policies compiled with \sysname are guaranteed to implement the correct routing policy regardless of the number of failures, if possible.  If this is not possible, the compiler notifies the user at compile time rather than as the network is in
+%% operation.
+%% %
+%% %\sysname also takes the centralized model one step further by unifying inter and intra-domain routing. Operators can specify routing policy for an autonomous system by programming against the abstraction that they can control any route in the wider internet.
+%% %
+%% We have implemented a compiler for \sysname and evaluated it against several real-world configurations for datacenters and core backbone networks. We demonstrate the \sysname compiler can scale to
+%% topologies with thousands of routers.
+%
+%\begin{abstract}
+%Traditional network operators have a difficult job: They are charged
+%with achieving network-wide objectives, but they must do so by
+%managing many individual, separate devices, each of which is running a
+%complex distributed control plane protocol.  Bridging the gap between
+%high-level objectives and low-level mechanisms manually is a challenging and
+%error-prone task.
+%%
+%In this paper, we describe our preliminary efforts to design and
+%implement a new language called Propane, which simplifies the task of
+%network management by allowing operators to specify their objectives
+%using end-to-end forwarding paths rather than device-by-device
+%configurations.  A compiler rather than a human bridges the gap
+%between high-level goals and the low-level mechanisms.  More
+%specifically, Propane allows operators to describe and rank the sets
+%of paths that traffic may follow.  Such paths stretch from external
+%ASes, through the user's network, and possibly onward again to other
+%ASes.  The Propane compiler analyzes these user specifications and
+%then compiles them to a collection of BGP configurations, so they may
+%exploit existing distributed fault tolerance mechanisms and
+%execute on existing commodity hardware.  During the compilation
+%process, it automatically synthesizes per-device import and export
+%filters, local preferences, MED attributes, and community tags.  An
+%important feature of the language is that whenever possible, compiled
+%configurations are guaranteed to implement the correct routing policy,
+%regardless of the number of failures.  If correct compilation is
+%impossible, the compiler notifies the user at compile time rather than
+%waiting until the system is in operation and failures have occurred.
+%To date, we have used the language and compiler to experiment with
+%several real-world configurations for datacenters and core backbone
+%networks.  We demonstrate our prototype compiler can scale to
+%topologies with thousands of routers.
+%\end{abstract}
+
+%\textbf{Abstract---}
+%We develop a system called \sysname to help network operators with a challenging and error prone task: bridging the gap between network-wide routing objectives and low-level configurations of devices that run complex distributed protocols.
+%%
+%\sysname allows operators to specify their objectives naturally, describing high-level constraints and preferences on the types of paths that traffic should take through their network or other networks.
+%%using ranked sets of paths which may be partial or end-to-end and may also refer to other networks.
+%%
+%Our compiler automatically translates these specifications to a collection of BGP router configurations.
+%% that can execute on existing commodity hardware.
+%%
+%We introduce data structures and algorithms that guarantee that the compiled, distributed configurations correctly implement the routing policy under all possible combinations of failures.
+%%
+%We use \sysname to specify and compile the configurations of real
+%datacenter and backbone networks.  We show that, despite its strong guarantees, it scales to topologies with hundreds to thousands of routers.
+
+\textbf{Abstract---}
+We develop \sysname, a language and compiler to help network operators with a challenging, error-prone task---bridging the gap between network-wide routing objectives and low-level configurations of devices that run complex, distributed protocols.
+%
+The language allows operators to specify their objectives naturally, using
+high-level constraints on both the shape and relative preference of traffic paths.
+%
+The compiler automatically translates these specifications to router-level BGP configurations, using an effective intermediate representation that compactly encodes the flow of routing information along policy-compliant paths.
+%It uses We introduce data structures and algorithms that
+It guarantees that the compiled configurations correctly implement the specified policy under all possible combinations of failures.
+%
+We show that \sysname can effectively express the policies of datacenter and backbone networks of a large cloud provider;  and despite its strong guarantees, our compiler scales to networks with hundreds or thousands of routers.
+
+
+%=====================================================
+%
+%
+%  **Introduction**
+%
+%
+%=====================================================
+
+
+\section{Introduction}
+\label{sec:introduction}
+
+It is well known that configuring networks is error
+prone and that such errors can lead to disruptive
+downtimes~\cite{mahajan+:bgp-misconfiguration,feamster+:rcc,batfish,dc-failure-study}.
+For instance, a recent misconfiguration led to an hour-long, nation-wide outage for Time Warner's backbone network~\cite{time-warner}; and a major BGP-related incident makes international news every few months~\cite{bgpmon}.
+
+A fundamental reason for the prevalence of misconfigurations is the
+semantic mismatch between the intended high-level
+policies and the low-level configurations.
+Many policies involve network-wide properties---prefer a certain neighbor,
+never announce a particular destination externally,
+use a particular path only if another fails---but configurations describe the behavior of
+individual devices.
+%
+Operators must manually decompose network-wide policy into
+device behaviors, such that policy-compliant behavior results from the distributed interactions of
+these devices.
+%
+Policy-compliance must be ensured not only under normal
+circumstances but also during failures.  The need to reason
+about all possible failures exacerbates the challenge
+for network operators.  As a result, configurations that work
+correctly in failure-free environments have nonetheless been found to violate key
+network-wide properties when failures occur~\cite{batfish}.
+
+To reduce configuration errors, operators are increasingly adopting an
+approach in which common tasks are captured as parameterized templates~\cite{hatch,thwack}.
+%
+%More powerful still are systems like
+%ConfigAssure~\cite{narain:lisa05,narain+:configassure}, which use SAT solving
+%and model finding tools to fill in parameters in configurations while
+%ensuring key correctness constraints are satisfied.
+%One step further, systems like
+%ConfigAssure~\cite{narain:lisa05,narain+:configassure} use SAT solving
+%and model finding tools to correctly and consistently fill in some parameters.
+%
+While templates help ensure certain kinds of consistency across devices,
+they do not provide fundamentally different abstractions from existing configuration languages
+or bridge the semantic divide between network-wide policies and device-level configuration.
+%They do not provide fundamentally different abstractions
+%from existing configuration languages and
+Thus, they still require operators to
+manually decompose policies into device behaviors.
+
+As a complementary approach, configuration analysis tools can help reduce misconfigurations by checking if low-level configurations match high-level policy~\cite{batfish,feamster+:rcc}. However, such tools cannot help operators with the challenging task of generating configurations in the first place.
+
+%Further, today's tools cannot verify correctness under concrete failure scenarios, rather than under all possible failures.
+
+Software-defined networking (SDN) and its abstractions
+are, in part, the research
+community's response to the difficulty of maintaining policy
+compliance through distributed device interactions~\cite{ethane}.
+Instead of organizing networks around a distributed
+collection of devices that compute forwarding tables through
+mutual interactions, the devices are told how to
+forward packets by a centralized controller. The controller is responsible for ensuring that the
+paths taken are compliant with operator specifications.
+%Researchers
+%have developed increasingly sophisticated languages that let operators
+%specify desirable network paths~\cite{x,y,z} which are then translated
+%to forwarding tables at runtime.
+
+The centralized control planes of SDN, however, are not a panacea.
+First, while many SDN programming systems~\cite{sdn-languages} provide effective \emph{intra}-domain routing
+abstractions, letting users specify paths within their network,
+they fail to provide a coherent means to specify \emph{inter}-domain routes.
+Second, centralized control planes
+require careful design and engineering to be robust to failures---one must ensure that all devices can communicate with the controller at all times, even under arbitrary failure combinations. Even ignoring failures, it is necessary for the control system to
+scale to meet the demands of large or geographically-distributed networks,
+and to react quickly
+to environmental changes. For this challenge, researchers are exploring
+multi-controller systems with interacting controllers, thus bringing back distributed
+control planes~\cite{mccauley2013extending,onos} and their current programming difficulties.
+%However, academic
+%language design and implementation efforts have not kept pace.  For instance, work on many
+%experimental SDN languages~\cite{frenetic,flowlog,vericon,merlin,netkat,kinetic,pga} has not yet shown how to implement fault tolerant
+%multi-controller systems that support their high-level abstractions efficiently.
+
+Hence, in this paper, we have two central goals:
+\begin{enumerate}
+\item Design a new, high-level language with natural abstractions
+for expressing intra-domain routing, inter-domain
+routing and routing alternatives in case of failures.
+\item Define algorithms for compiling these specifications into
+configurations for devices running standard
+distributed control plane algorithms, while ensuring correct behavior
+independent of the number of faults.
+\end{enumerate}
+
+To achieve the first goal, we borrow the idea of using regular
+expressions to specify network paths from
+recent high-level SDN languages such as FatTire~\cite{fattire},
+Merlin~\cite{foster:merlin}, and
+NetKAT~\cite{netkat}.  However, our design also contains several key
+departures from existing languages.  The most important one is semantic:  the paths specified
+can extend from outside the operator's network to inside
+the network, across several devices internally, and then out again. This design
+choice allows users to specify preferences about both external and internal
+routes in the exact same way.
+In addition, we augment the algebra
+of regular expressions to support a notion of {\em preferences} and provide a semantics in terms of sets of ranked paths. The preferences indicate fail-over behaviors:  among all specified paths that are still available,
+the system guarantees that the distributed implementation will always use the highest-ranked ones.
+Although we target a distributed implementation, the language is more general and could potentially be used in an SDN context.
+
+%We also support network operators by defining a
+%set of common abbreviations for entering, leaving, and traversing
+%the user network and we provide abstractions for managing common features %of
+%control plane algorithms such as route aggregation.  Operators use familiar logical operations
+%to build routes in a modular and compositional manner from these
+%primitives.  Our abbreviations are translated in to our regular-expression-based
+%intermediate representation and compiled from there.
+
+To achieve the second goal, we develop program analysis and compilation
+algorithms that translate the regular policies to a graph-based
+intermediate representation and from there to per-device BGP configurations, which include various filters and preferences that govern BGP behavior.
+%import and export filters, local preferences, MED attributes, and community tags.
+We target BGP for pragmatic reasons:
+it is a highly flexible routing protocol,
+it is an industry standard,
+and many networks use it internally as well as externally.
+Despite the advent of SDN, many networks will continue to
+use BGP for the foreseeable future due to existing infrastructure investments, the difficulty of transitioning to SDN, and the scalability and fault-tolerance advantages of a distributed
+control plane.
+
+The BGP configurations produced by our compiler are
+guaranteed to be policy-compliant in the face of
+{\em arbitrary} failures.\footnote{We assume that BGP is the only routing protocol running in the network or the other protocols are correctly configured and do not have adverse interactions with BGP~\cite{igp-correctness1,igp-correctness2}.} This guarantee does not mean that the implementation is always
+able to send traffic to its ultimate destination
+(\EG, in the case of a network partition), but rather that it always respects the
+centralized policy, which may include dropping traffic when there is no route.
+%
+In this way, we provide network operators
+with a strong guarantee that is otherwise impossible to achieve
+today.
+However, some policies simply cannot be implemented correctly in BGP in
+ the presence of arbitrary failures.  We develop new
+algorithms to detect such policies
+and report our findings to the operators, so they may fix the policy
+specification at compile time rather than experience undesirable
+behavior after the configurations are deployed.
+%We also analyze route aggregation to detect the possibility of failure-induced black-holes.
+
+%These algorithms differ from
+%standard BGP analysis algorithms~\cite{feamster:rcc,batfish} because they operate on
+%our graph-based intermediate representation, which operates at a higher level
+%of abstraction than raw BGP configurations (and which has the pleasant effect of simplifying our
+%task).
+
+We have implemented our language and compiler in a system called \sysname. To evaluate it, we use it to specify real policies for datacenter and backbone networks.
+% and compared these specifications with existing configurations.
+We find that our language expresses such policies easily, and that the compiler scales to topologies with hundreds or thousands of routers, compiling in under 9 minutes in all cases.
+
+%measured the performance of our compiler, demonstrating that our compilation
+%algorithms scale to topologies with several thousand routers.
+%
+%\dpw{The following could be cut for space.}
+%In the remainder of the paper, we review BGP (Section~\ref{sec:background}---readers
+%familiar with BGP may skip this section),
+%further motivate the need for new languages
+%for programming distributed control planes (Section \ref{sec:motivation}),
+%introduce \sysname{} by example (Section \ref{sec:propane}),
+%explain our compiler algorithms (Section \ref{sec:compilation}),
+%present several lemmas justifying the correctness of our techniques (Section \ref{sec:theory}), describe our implementation (Section \ref{sec:implementation})
+%evaluate our work  (Section \ref{sec:evaluation}) and discuss related work (Section \ref{sec:related}).
+
+%% In this paper, we ask if it is possible to program
+%% fully distributed control planes using
+%% \emph{end-to-end},
+%% \emph{network-wide} policies, while handing the job of compiling
+%% such policy.  In particular,
+%% operators should be able to directly express \emph{end-to-end},
+%% \emph{network-wide} policies directly; it is the job of a compiler
+%% to decompose such policies into individual device configurations.
+%% In addition, the resulting forwarding behavior, which emerges through device interactions, must be policy-compliant under all possible failures.
+%% If successful, this approach would combine easy programmability of centralized control planes with the failure robustness and scalability of distributed control planes.
+%% %
+%% More pragmatically, it would help many networks that, for the foreseeable future, will continue to use a distributed control plane, due to the difficulty of migrating to SDN or the inherent scalability and failure-robustness of distributed control.
+
+%% Through \sysname, our system that includes a language and a compiler, we demonstrate the feasibility of programming distributed control planes. We focus on BGP, a common and highly flexible way to implement distributed control planes, and show how to automatically generate router BGP configurations from network-wide policies.
+
+%% We face two challenges in designing \sysname that differ from designing a system for programming data planes~\cite{x,y,z}. The first is policy specification itself---specifying network {\em policies} is different from specifying network {\em paths}.
+%% %
+%% The specification must compactly capture behavior under all possible failures. Since there is no controller at runtime, the routers must be programmed ahead of time, based on the specification, to handle failures.
+%% %
+%% Further, many policies naturally under-specify paths (e.g., "prefer paying neighbors" is not a concrete path).
+%% %
+%% \sysname addresses this specification challenge by allowing operators to express {\em path preferences}, where preference describes a set of valid paths and less-preferred options are taken only when a higher-preference options are unavailable.
+
+%% The direct nature of \sysname specifications brings up the second challenge, of compiling them to router configurations.  We must compute the sets of paths represented by the intersection of multiple preferences and topology, compute which ones can be honored under a given failure scenario, and ensure policy compliance under all possible failure cases. We handle this challenge by compactly capturing policy and topology in a {\em product graph} and developing efficient algorithms that operate on this graph.
+
+%% We evaluate \sysname by using it to encode policies of real backbone and datacenter networks.
+
+%% \todo{new intro is not complete}
+
+
+
+
+%=====================================================
+%
+%
+%  **Conclusions**
+%
+%
+%=====================================================
+
+\section{Conclusions}
+\label{sec:conclusions}
+
+We introduced \sysname, a language and compiler for implementing network-wide policies using a distributed set of devices running BGP. Propane allows operators to describe their policy through high-level constraints on both the shape and relative preferences of paths for different types of traffic. When \sysname compiles a policy, the resulting BGP configurations are guaranteed to 
+%remain policy-compliant
+implement the centralized policy in a distributed fashion, 
+regardless of any number of network failures. Applying \sysname to real-world networks showed that its language is expressive and its compiler is scalable.
+
+
+%=====================================================
+%
+%
+%  **Bibliography**
+%
+%
+%=====================================================
+
+%\balance
+
+\bibliographystyle{abbrv}
+\bibliography{references}
+
+% The bibliography should be embedded for final submission.
+
+
+\end{document}

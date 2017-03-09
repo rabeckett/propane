@@ -1430,7 +1430,7 @@ We write $m \leq m'$ if the subgraph reachable from $m$ and $m'$ respectively fo
 \end{defn}
 
 The existence of multiple nodes in the PG for the same topology location (\EG, $(S1,1,0)$ and $(S1,0,1)$) indicates that S1 can receive advertisements in different contexts and must choose between messages received in these different contexts. Node $m$ is preferred to $m'$ if, $m' \geq_{rank} m$ and, transitively, for each neighbor of $m'$, $m$ has a corresponding neighbor that is more preferred.
-Algorithm~\ref{alg:failures} shows a simple procedure for determining if a nPG ode $N1$ can safely be preferred to a PG node $N2$.
+Algorithm~\ref{alg:failures} shows a simple procedure for determining if a PG node $N1$ can safely be preferred to a PG node $N2$.
 
 For each router, its corresponding PG nodes are then sorted according the the $\leq$ operator. If $\leq$ defines a total order on PG nodes, then the compiler can simply prefer advertisements from peers of node $m$ over those of $m'$ whenever $m' \leq m$. This condition ensures that BGP devices will converge to the most preferred paths in the network even when failures occur. However, if $\leq$ does not form a total order, then the policy is rejected as being potentially unsafe under some failure conditions.
 
