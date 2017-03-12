@@ -1276,36 +1276,6 @@ The algorithm was able to infer that there is at least 1 disjoint path to any sp
 %The bound on the fault tolerance between ToR and spine routers can also be used to determine that an aggregation-induced black hole may arise at the data center boundary after a single failure in some concrete instantiation.
 
 
-\begin{algorithm}[t!]
-\caption{Checking safe neighbor preferences}
-\label{alg:failures}
-\begin{algorithmic}[1]
-\Procedure{$\leq$($N_1$, $N_2$)}{}
-  \If {$N_1 \not\approx N_2$} \Return false
-  \EndIf
-  \State $q \gets Queue()$
-  \State $q.Enqueue (N_1, N_2)$
-  \While {$!q.Empty()$}
-    \State $(m,n) \gets q.Dequeue()$
-    \If {$m \nleq_{rank} n$}
-      \Return false
-    \EndIf
-    \For {$n'$ in adjOut($PG$, $n$)}
-      \If {\big($\exists m' \in \textup{adjOut}(PG,m), m' \approx n'$\big)}
-        \If {$(m',n')$ not marked}
-          \State {mark $(m',n')$ as seen}
-          \State $q.Enqueue(m',n')$
-        \EndIf
-      \Else { \Return $false$}
-      \EndIf
-    \EndFor
-  \EndWhile \\
-  \hspace{\algorithmicindent} \Return true
-\EndProcedure
-\end{algorithmic}
-\end{algorithm}
-
-
 %=====================================================
 %
 %
@@ -1326,6 +1296,58 @@ The algorithm was able to infer that there is at least 1 disjoint path to any sp
 \newcommand{\COMM}{\texttt{comm}}
 \newcommand{\MED}{\texttt{MED}}
 \newcommand{\Arrow}{\ensuremath{\leftarrow}}
+
+
+
+\section{Template Generation}
+\label{sec:generation}
+
+At a high level, the translation from the PG representation to per-device templates that run the distributed BGP protocol involves the following steps: (1) Every BGP message is tagged to record the state of the product graph as messages are passed between routers. The tags allow BGP to only search for valid paths by dropping messages that do not correspond to any edge in the PG. (2) To ensure that BGP always converges to the \emph{most preferred} paths in the network, we must rank route advertisements for each router by giving them a preference such that, under those preferences, the network as a whole satisfies the \sysname policy's end-to-end network preferences. 
+
+We introduce a simple, vendor-independent BGP configuration language called \mbgp and describe a compilation function that uses the inferred preference ordering to generate concrete configurations from a concrete topology, or templates from an abstract topology. Templates can then be soundly instantiated for a concrete network by replacing instances of abstract neighbors with the union of all concrete neighbors under the inverse homomorphism. We prove that concretization and compilation commute. By modifying compilation slightly we can further ensure that every configuration depends only on its immediate neighbors. This guarantees that any change made to the concrete topology will result in a minimal number of changes to the configurations.
+
+We now look at each of these steps in turn.
+ 
+\para{Tagging and Filtering}
+
+The BGP routing protocol standard allows for the use of \emph{community tags}, 32-bit integer tags that can be arbitrarily attached to, or removed from routing advertisements. 
+Community tags serve as a simple form of \emph{history}, and operators routinely use such tags to implement policy. For example, operators might record where an advertisment enters the network using community tags and then conditionally block the export of the advertisment later to other peers to prevent becoming a transit point between peers.
+
+The idea for template generation is to use community tags to record the state of the automata from the Product Graph in every BGP announcement and update these tags whenever messages are passed between routers. Such a tagging mechanism is used to ensure that BGP only considers paths that are allowed by the \sysname policy (\IE, paths in the PG). Routers will allow advertisments that correspond to an edge in the PG and block any advertisments that do not.
+
+For example, in the concrete PG in Figure~\ref{fig:example-compilation}, router S1 appears in two different PG nodes: $(S1,1,0)$ and $(S1,0,1)$. These nodes have two different peers that can send them messages in the PG: $(N1,0,0)$ and $(N2,0,0)$. Therefore, S1 will allow an advertisement from peer $N1$ and will also allow an advertisement from peer $N2$. If S1 uses the path advertised by neighbor N1, then it will add the tag $(1,0)$ to the advertisement before sending this to its neighbors A1 and A2. If S1 uses a path advertised from neighbor N2, then it will add the tag $(0,1)$ instead. Similarly, router A1 appears in two separate PG nodes. It will not block advertisements from S1 if they either have the $(1,0)$ tag or the $(0,1)$ tag attached. In either case, it will not modify the tag before exporting the route to its neighbors.
+
+%If A1 chooses a path with tag $(1,0)$ attached, then it will export the path to its neighbors without modifying the tag. If A1 chooses a path with tag $(0,1)$ attached, it will also export the path to its neighbors without modifying the tag.
+
+%\begin{algorithm}[t!]
+%\caption{Checking safe neighbor preferences}
+%\label{alg:failures}
+%\begin{algorithmic}[1]
+%\Procedure{$\leq$($N_1$, $N_2$)}{}
+%  \If {$N_1 \not\approx N_2$} \Return false
+%  \EndIf
+%  \State $q \gets Queue()$
+%  \State $q.Enqueue (N_1, N_2)$
+%  \While {$!q.Empty()$}
+%    \State $(m,n) \gets q.Dequeue()$
+%    \If {$m \nleq_{rank} n$}
+%      \Return false
+%    \EndIf
+%    \For {$n'$ in adjOut($PG$, $n$)}
+%      \If {\big($\exists m' \in \textup{adjOut}(PG,m), m' \approx n'$\big)}
+%        \If {$(m',n')$ not marked}
+%          \State {mark $(m',n')$ as seen}
+%          \State $q.Enqueue(m',n')$
+%        \EndIf
+%      \Else { \Return $false$}
+%      \EndIf
+%    \EndFor
+%  \EndWhile \\
+%  \hspace{\algorithmicindent} \Return true
+%\EndProcedure
+%\end{algorithmic}
+%\end{algorithm}
+
 
 
 \newcommand{\Con}{\text{con}}
@@ -1361,7 +1383,7 @@ The algorithm was able to infer that there is at least 1 disjoint path to any sp
   \vspace*{-1\baselineskip}
   %
   \[ \begin{array}{l}
-     \mathrm{compile}_\mathrm{ABGP}( (t_1,PG_1,ord_1), \dots, (t_k,PG_k,ord_k), G ) = \\
+     \mathrm{compile}_\mathrm{ABGP}( [(t_1,PG_1,ord_1), \dots, (t_k,PG_k,ord_k)], G ) = \\
      ~~~~~ [~ l \rightarrow rc ~\vert~ l \in \mathrm{internal}(G.V), ~rc = \mathrm{append}_i~  \\
      ~~~~~~~~~~~~~~~ [~ t_i \rightarrow [~ ma ~\vert~ \\
      ~~~~~~~~~~~~~~~~~~~~~ m \leftarrow (l,q_m) \in PG_i, \\
@@ -1371,7 +1393,7 @@ The algorithm was able to infer that there is at least 1 disjoint path to any sp
      ~~~~~~~~~~~~~~~~~~~~~ ma = \mathrm{ord}_i(m) : (in,q_n) \rightarrow (out,q_m) ~] ~] ~] \\
      \\
      \mathrm{compile}( p_1, \dots, p_k, G) = \\
-     ~~~~~~ \mathrm{compile}_\mathrm{ABGP}(\mathrm{compile}_\mathrm{PG}(p_1,G), \dots, \mathrm{compile}_\mathrm{PG}(p_k,G), G) \\
+     ~~~~~~ \mathrm{compile}_\mathrm{ABGP}([\mathrm{compile}_\mathrm{PG}(p_1,G), \dots, \mathrm{compile}_\mathrm{PG}(p_k,G)], G) \\
   \end{array} \]%
   \end{minipage}%
 
@@ -1384,33 +1406,24 @@ The algorithm was able to infer that there is at least 1 disjoint path to any sp
 \end{figure*}%
 
 
-
-\section{Template Generation}
-\label{sec:generation}
-
-At a high level, the translation from the PG to per-device templates that run the distributed BGP protocol involves the following high-level ideas: (1) Every BGP message is tagged to record the state of the product graph as messages are passed between routers. The tags allow BGP to only search for valid paths in the PG by dropping messages that do not correspond to any edge in the PG. (2) To ensure BGP always finds the \emph{most preferred} paths in the network, we must rank messages for each router in the network by giving them a preference such that, under those preferences, the network as a whole satisfies the \sysname policy's end-to-end network preferences. (3) We introduce a simple, vendor-independent BGP configuration language called mBGP and describe a compilation function that uses the inferred preference ordering to generate concrete configurations from a concrete topology, or templates from an abstract topology. (4) Templates can then be soundly instantiated for a concrete network by replacing instances of abstract neighbors with the union of all concrete neighbors under the homomorphism. We prove that concretization and compilation commute. (5) By modifying compilation slightly we can further ensure that every configuration depends only on its immediate neighbors. This guarantees that any change made to the concrete topology will result in a minimal number of changes to the configurations.
-
-We now look at each of these steps in turn.
- 
-\para{Tagging and Filtering}
-
-The BGP routing protocol standard allows for the use of \emph{community tags}, collections of 32-bit integer tags that can be attached or removed arbitrarily from routing advertisements. 
-Community tags serve as a simple form of \emph{memory}, and operators routinely use such tags to implement policy (e.g., to prevent transit traffic by recording where a message enters the network and blocking upon egress accordingly).
-
-The idea for template generation is to use community tags to record the state of the automata from the Product Graph in every BGP announcement and update these tags whenever messages are passed between routers. Such a tagging mechanism is used to ensure that BGP only considers paths that are allowed by the \sysname policy, routers will allow advertisments that correspond to an edge in the PG and block any advertisments that do not.
-
-For example, in the concrete PG in Figure~\ref{fig:example-compilation}, router S1 appears in two different PG nodes: $(S1,1,0)$ and $(S1,0,1)$. These nodes have two different peers than can send them messages in the PG: $(N1,0,0)$ and $(N2,0,0)$. Therefore, S1 will not block an advertisement from peer $N1$ and will also not block an advertisement from peer $N2$. If S1 uses the path advertised by neighbor N1, then it will add the tag $(1,0)$ to the advertisement before sending this to its neighbors A1 and A2. If S1 uses a path advertised from neighbor N2, then it will add the tag $(0,1)$ instead. Similarly, router A1 appears in two separate PG nodes. It will not block advertisements from S1 if they either have the $(1,0)$ tag or the $(0,1)$ tag attached. If A1 chooses a path with tag $(1,0)$ attached, then it will export the path to its neighbors without modifying the tag. If A1 chooses a path with tag $(0,1)$ attached, it will also export the path to its neighbors without modifying the tag.
-
-
 \para{Preference Search}
 
-Tagging and filtering according to the PG with community values in BGP forces the protocol to only search for paths to the destination that are allowed by the policy (\IE are paths in the PG). However, finding \emph{some} path to the destination is not enough. We must ensure that each router uses its \emph{best} available path to the destination according to the policy. Further, this must continue to hold as additional elements of the network fail. In the example from Figure~\ref{fig:example-compilation}, the policy was $\True ~\Path~ \CD{\Exit(N1\Prefer N2)}$, which indicates that paths through N1 should be used whenever possible, and paths through N2 should only be used as a backup. If router S1 allows advertisements from both N1 and N2 but does not prefer one advertisement over another, it might end up choosing to use a path through N2 even though a more preferred path through N1 exists and is available\footnote{ties between equally preferred paths can be broken nondeterministically}. On the other hand, if the S1-N1 link fails, then the best available path is through N2.
+Tagging and filtering according to the PG with community values in BGP forces the protocol to only consider paths to the destination that are allowed by the policy. However, finding \emph{some} path to the destination is not enough. We must ensure that each router uses its \emph{best} available path to the destination according to the policy. Further, this must continue to hold as additional elements of the network fail. In the example from Figure~\ref{fig:example-compilation}, the policy was $\True ~\Path~ \CD{\Exit(N1\Prefer N2)}$, which indicates that paths through N1 should be used whenever possible, and paths through N2 should only be used as a backup. If router S1 allows advertisements from both N1 and N2 but does not prefer one advertisement over another, it might end up choosing to use a path through N2 even though a more preferred path through N1 exists and is available\footnote{ties between equally preferred paths can be broken nondeterministically}. On the other hand, if the S1-N1 link fails, then the best available path is through N2.
+
+\begin{figure}[t!]
+  \begin{center}
+    \includegraphics[width=\columnwidth]{figures/configs}
+  \end{center}
+  \vspace{-1em}
+  \caption{Spine template and concrete configurations (left), and evolution-friendly templates (right).}
+  \label{fig:bgp-configs}
+\end{figure}
 
 To enforce correct network-wide preferences, we use the BGP local-preference attribute, which allows routers to prefer routes from one neighbor (or with some tag) over routers learned from another neighbor. The challenge is to find a collection of device-local preferences that correctly enforce the network-wide preferences from the policy for all failures.
 
-The idea then is to search for such a device-local preference function for each router that totally order advertisements from different neighbors (possibly with different tags). For example, to satisfy the policy that leaving through N1 is preferred to leaving through N2, S1 should prefer a message it hears from N1 over N2. Similarly, A1 should prefer routes tagged with $(1,0)$ over those with $(0,1)$. Intuitively, S1 should prefer a message from N1 because it results in an accepting state for automata 1, which is more preferred than automata 2. Further, it can result in downstream routers such as A1 receiving a message in a more preferred state $(A1,1,0)$ instead of $(A1,0,1)$.
+The idea then is to search for such a device-local preference function for each router that totally orders advertisements from different neighbors (possibly with different tags). For example, to satisfy the policy that leaving through N1 is preferred to leaving through N2, S1 should prefer a message it hears from N1 over N2. Similarly, A1 should prefer routes tagged with $(1,0)$ over those with $(0,1)$. Intuitively, S1 should prefer a message from N1 because it results in an accepting state for automata 1, which indicates a more preferred path. Further, it can result in downstream routers such as A1 obtaining a route that is accepting for automata 1 as well, \IE $(A1,1,0)$ instead of $(A1,0,1)$.
 
-In general, because BGP is distributed, each router does not have a view of the entire network when choosing which path to use and finding a collection of preferences to ensure correct end-to-end behavior for all failures is a hard problem. \Propane introduced a conservative search strategy for determining route preferences that works well in practice. To make it work for abstract topologies, we modify the search based on the following observation about the PG structure:
+In general, because BGP is distributed, each router does not have a view of the entire network when choosing which path to use, and finding a collection of preferences to ensure correct end-to-end behavior for all failures is a hard problem. \Propane introduced a conservative search strategy for determining route preferences that works well in practice. To make it work for abstract topologies, we modify the search based on the following observation about the PG structure:
 
 \begin{defn}
 Let $m \geq_{rank} n$ be a relation over PG vertices that holds iff $\min (\Pref(m)) \geq \min (\Pref(n))$ or $\Pref(n) = \emptyset$. Intuitively $m \geq_{rank} n$ means that paths ending at node $m$ are no better than paths ending at $n$.
@@ -1426,37 +1439,33 @@ The PG can be viewed as a labelled transition system by pushing the location fro
 For example, in the concrete PG we would have the transition $(S1,1,0)\overset{A2}{\rightarrow}(A2,1,0)$.
 
 \begin{defn}
-We write $m \leq m'$ if the subgraph reachable from $m$ and $m'$ respectively form a simulation relation with respect to $\geq_{rank}$.
+We write $m \leq n$ if the subgraph reachable from $m$ and $n$ respectively form a simulation relation with respect to $\geq_{rank}$.
 \end{defn}
 
-The existence of multiple nodes in the PG for the same topology location (\EG, $(S1,1,0)$ and $(S1,0,1)$) indicates that S1 can receive advertisements in different contexts and must choose between messages received in these different contexts. Node $m$ is preferred to $m'$ if, $m' \geq_{rank} m$ and, transitively, for each neighbor of $m'$, $m$ has a corresponding neighbor that is more preferred.
-Algorithm~\ref{alg:failures} shows a simple procedure for determining if a PG node $N1$ can safely be preferred to a PG node $N2$.
+More specifically, we say that $m \leq n$ if $m \geq_{rank} n$ and for every transition $n\overset{l}{\rightarrow}n'$ from PG node $n$ there exists a transition $m\overset{l}{\rightarrow}m'$ from $m$ and $m' \leq n'$.
+%
+Intuitively, the $m \leq n$ relation means advertisements received for node $m$ can safely be preferred over those received for node $n$ after accounting for the network-wide impact of the choice. For example in Figure~\ref{fig:example-compilation}, S1 can receive advertisements in two different contexts ($(S1,1,0)$ and $(S1,0,1)$) and must choose between messages received in these different contexts. Advertisements are preferred in state $(S1,1,0)$ because it results in a better path for S1 ($(S1,0,1) \geq_{rank} (S1,1,0)$) and downstream routers such as A1 will also obtain paths no worse than if S1 had choosen $(S1,1,0)$ instead. The policy is guaranteed to be safe from failures because if a link fails in the topology, then $m \leq n$ will still hold since any transition that becomes unusable for $m$ also becomes unusable for $n$. That is $m \leq n$ before the failure implies $m \leq n$ after the failure.
 
-For each router, its corresponding PG nodes are then sorted according the the $\leq$ operator. If $\leq$ defines a total order on PG nodes, then the compiler can simply prefer advertisements from peers of node $m$ over those of $m'$ whenever $m' \leq m$. This condition ensures that BGP devices will converge to the most preferred paths in the network even when failures occur. However, if $\leq$ does not form a total order, then the policy is rejected as being potentially unsafe under some failure conditions.
+For each router, its corresponding PG nodes are then sorted according the the $\leq$ operator. If the operator defines a total order on PG nodes, then the compiler can simply prefer advertisements from peers of node $m$ over those of $n$ whenever $n \leq m$. However, if $\leq$ does not form a total order, then the policy is rejected as being potentially unsafe under some failure conditions.
+
 
 %
-For example, in the concrete PG the inequality $(S1,0,1) \leq (S1,1,0)$ holds since nodes on the left side of the PG can always match transitions made on the right hand side with respect to the $\geq_{rank}$ relation. This relation does not hold the other way around since $(S1,0,1) \ngeq_{rank} (S1,1,0)$. Therefore, advertisements received at $S1$ with tag $(1,0)$ must be preferred to those received at $S1$ with tag $(0,1)$.
+For example, in the inequality $(S1,0,1) \leq (S1,1,0)$ holds since nodes on the left side of the PG can always match transitions made on the right hand side with respect to the $\geq_{rank}$ relation. This relation does not hold the other way around since $(S1,0,1) \ngeq_{rank} (S1,1,0)$. Therefore, advertisements received at $S1$ with tag $(1,0)$ must be preferred to those received at $S1$ with tag $(0,1)$.
 %
 Notice that in the abstract PG $(S,0,1) \leq (S,1,0)$ also holds.
 
 \begin{lem}
 \label{lem:preference}
-$m \leq m'$ in the concrete PG iff $f_{pg}(m) \leq f_{pg}(m')$ in the abstract PG.
+$m \leq n$ in the concrete PG iff $f_{pg}(m) \leq f_{pg}(n)$ in the abstract PG.
 \end{lem}
 
 Lemma~\ref{lem:preference} tells us that inferring preferences for the abstract PG before template instantiation is equivalent to inferring preferences for an already-instantiated concrete PG.
 
-\begin{figure}[t!]
-  \begin{center}
-    \includegraphics[width=\columnwidth]{figures/configs}
-  \end{center}
-  \vspace{-1em}
-  \caption{Spine template and concrete configurations (left), and evolution-friendly templates (right).}
-  \label{fig:bgp-configs}
-\end{figure}
+
+\para{mBGP}
 
 
-\para{BGP configurations}
+\para{Compilation}
 
 %By combining the tagging, filtering and preference mechanisms, we can generate safe BGP configurations. In general, configurations are generated by combining the per-prefix configurations in the same order specified in the policy.
 Figure~\ref{fig:bgp-configs} (left) shows part of the final configuration for spine routers for the concrete and abstract policies in a vendor-neutral syntax.

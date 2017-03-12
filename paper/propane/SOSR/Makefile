@@ -4,10 +4,10 @@ BIB=references.bib
 all: quick
 
 bib: $(SOURCES) $(BIB)
-	pdflatex propane
-	bibtex propane
-	pdflatex propane
-	pdflatex propane
+	pdflatex sosr
+	bibtex sosr
+	pdflatex sosr
+	pdflatex sosr
 
 quick:  $(SOURCES)
-	pdflatex propane
+	pdflatex sosr
