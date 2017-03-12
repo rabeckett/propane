@@ -123,39 +123,11 @@
 
 %\author{Paper \#324, 14 pages}
 
-\authorinfo{Ryan Beckett}{Princeton}{}
-\authorinfo{Ratul Mahajan}{Microsoft}{}
-\authorinfo{Todd Millstein}{UCLA}{}
-\authorinfo{Jitendra Padhye}{Microsoft}{} 
-\authorinfo{David Walker}{Princeton}{} 
-
-%\author{%
-%Ryan Beckett\\
-%  \affaddr{Princeton}
-%  %\\
-%  %\email{rbeckett@princeton.edu}
-%\and
-%Ratul Mahajan\\
-%  \affaddr{Microsoft}
-%  %\\
-%  %\email{ratul@microsoft.com}
-%\and
-%Todd Millstein\\
-%  \affaddr{UCLA}
-%  %\affaddr{University of California, Los Angeles}
-%  %\\
-%  %\email{todd@cs.ucla.edu}
-%\and
-%Jitendra Padhye\\
-%  \affaddr{Microsoft}
-%  %\\
-%  %\email{padhye@microsoft.com}
-%\and
-%David Walker\\
-%  \affaddr{Princeton}
-%  %\\
-%  %\email{dpw@princeton.edu}
-%}
+\authorinfo{Ryan Beckett}{Princeton University}{rbeckett@cs.princeton.edu}
+\authorinfo{Ratul Mahajan}{Microsoft Research}{ratul@microsoft.com}
+\authorinfo{Todd Millstein}{University of California, Los Angeles}{todd@cs.ucla.edu}
+\authorinfo{Jitendra Padhye}{Microsoft Research}{jpadhye@microsoft.com} 
+\authorinfo{David Walker}{Princeton University}{dpw@cs.princeton.edu} 
 
 \maketitle
 
@@ -183,38 +155,7 @@ are required when the network evolves to add or remove devices and
 links. Our experiments with real-world topologies and policies show
 that our abstractions and algorithms are effective, and that, for large
 networks, \sysname synthesizes configurations two orders of magnitude
-faster than systems that operate over concrete topologies.
-
-%\ryan{Copied from conclusion for reference}
-%We develop \sysname, the first system that can generate device configuration templates for large networks from high-level specifications of network topology and policy. \sysname is based on new abstractions for capturing parameterized network topologies, and their evolution, and algorithms to analyze the combined impact of topology and routing policy on the network's fault tolerance. Our analysis operates entirely in the abstract domain and guarantees correctness for all concrete instantiations of the topology. Experiments with many types of real-world topologies and policies show that our abstractions and analysis are precise and that, for large networks, configuration synthesis is two orders of magnitude faster than systems that operate over concrete topologies.
-
-
-%We develop techniques for automated reasoning about end-to-end properties of
-%abstract network topologies, and embody them in a network synthesis tool called
-%\sysname. \sysname allows network operators to write a high-level routing policy
-%over an abstraction of their network topology. From such a specification,
-%\sysname synthesizes a collection of router configurations running the
-%distributed Border Gateway Protocol (BGP) that are guaranteed to implement the
-%centralized routing policy for any concrete instantiation of the abstract
-%topology, and for any combination of network failures in the resulting concrete
-%topology.
-%
-%Additionally, properties proven by \sysname over the abstract topology, such as
-%reachability between a source and destination under k-failures, are also
-%guaranteed to hold under any concrete instantiation of the abstract topology.
-%
-%Something something, expandable/incremental networks. Something something scales
-%compilation to large networks. Something something, templates easier to
-%understand.
-%These strong guarantees allow operators to reason about the routing behavior of
-%their network at a high-level abstraction, while also generating an efficient
-%low-level implementation.
-%
-%In addition, operators are able to safely change or expand their network in any
-%way, so long as the new resulting topology also respects the abstraction.
-%
-%We test \sysname out on ... blah blah blah
-
+faster than systems that operate on concrete topologies.
 
 
 %=====================================================
@@ -225,13 +166,6 @@ faster than systems that operate over concrete topologies.
 %
 %=====================================================
 
-%\vspace{0.1in} \noindent \textbf{CCS Concepts}\\ $\bullet$ Networks
-%$\rightarrow$ {\em Network control algorithms; Network reliability; Network
-%management;} $\bullet$ Software and its engineering $\rightarrow$ {\em
-%Automated static analysis; Domain specific languages}
-
-%\vspace{0.1in} \noindent \textbf{Keywords}\\ \Propane; Domain-specific Language;
-%BGP; Synthesis; Compilation; Fault Tolerance; Distributed Systems
 
 
 %=====================================================
@@ -298,9 +232,9 @@ provided would not hold as large networks evolve frequently over time.  In parti
 devices and links are sometimes taken offline for maintenance and sometimes added to expand
 capacity.  Unfortunately, templates that
 work for the current topology, may or may not work for future
-topologies. Problems that occur may cause operators to make small, non-uniform, one-off changes to particular routers,
+topologies. Problems that occur may cause operators to make small, non-uniform changes to particular routers,
 which defeats the purpose of a template system.  An even worse situation occurs when
-operators feel obligated to update many (non-local) devices to extend or change their network.  
+operators feel obligated to update many devices to extend or change their network.  
 Such network-wide configuration changes entail a great deal of risk and may be highly
 disruptive in production networks with live traffic.
 %Ideally, network engineers would like some guarantees about the future, namely that 
@@ -340,7 +274,7 @@ To address the challenge of configuration synthesis in the presence of abstract 
 %such as OSPF, is also particularly
 %useful in our setting because it contains features that help us localize the effects of changes.
 \sysname
-allows operators to input \emph{abstract network topologies} in terms of roles
+allows operators to input \emph{abstract topologies} in terms of roles
 and their connectivity. For instance, they may specify roles for ``top-of-rack''
 and ``aggregation" routers and specify that every top-of-rack router connects to
 at least two aggregation routers (to tolerate the failure of a link to an
@@ -354,16 +288,14 @@ Based on these inputs, \sysname generates one template per role.
 These templates specify routing policy using the Border Gateway Protocol (BGP).
 BGP is a useful target for synthesis, as it is the standard protocol
 for interdomain routing and it is also commonly used
-within data centers due to its scalability properties.  However, it is far from the only control
-plane protocol; synthesis of configurations for other common protocols such as OSPF is beyond the 
+within data centers due to its scalability.  However, it is far from the only control
+plane protocol; synthesis of configurations for other protocols such as OSPF is beyond the 
 scope of this paper.
 
 During synthesis, our compiler performs an important analysis over abstract topologies to determine
-the fault tolerance properties of the specified policy.  This analysis determines the
-number of failures require to disconnect one abstract location from another given the constraints
-specified by the abstract topology.  The analysis is specified by a collection of inference rules
-and we prove these inference rules are sound: any concrete instance of the abstract topology will
-adhere to the given fault tolerance property. \dpw{Ryan: check this.}
+the fault tolerance properties of the specified policy.  This analysis determines a worst-case 
+lower bound on the number of link failures require to disconnect one abstract location from another 
+given the constraints specified by the abstract topology. Any concrete instance of the abstract topology will adhere to the given fault tolerance property.
 %% first analysis determines whether a user policy can be implemented correctly using BGP in
 %% the face of failures (\ie, given any number of failures, will the traffic flow along one of the 
 %% specified paths if such a path is available).  The second analysis determines the number of failures
@@ -412,7 +344,7 @@ abstract topologies.
 %concrete network satisfying the abstract connectivity invariants.
 %\item Design of a template generation strategy that supports network
 %evolution.
-\item Implementation and evaluation of the \sysname compiler that generates
+\item Implementation and evaluation of a \sysname compiler that generates
 provably-correct BGP templates and is much faster
 than compilers based on concrete topologies.
 \end{itemize}
@@ -893,7 +825,7 @@ The following sections detail each of the three phases.
   \vspace{-.3em}
   \caption{\sysname core syntax.}
   \label{fig:syntax}
-  %\vspace{-1.4em}
+  %\vspace{-0.8em}
 \end{figure}%
 
 
@@ -1153,7 +1085,7 @@ As shown in \S\ref{sec:generation}, our generation strategy commutes with templa
   \vspace*{1em}
   \caption{Abstract k-disjoint path analysis inference rules.}
   \label{fig:inference-rules}
-  \vspace{-.8em}
+  \vspace{-1em}
 \end{figure*}
 
 
@@ -1161,12 +1093,12 @@ As shown in \S\ref{sec:generation}, our generation strategy commutes with templa
 %\label{sec:property-checking}
 
 The possibility of network failures exacerbates the difficulty of constructing correct configurations.
-Link failures in networks occur frequently; it is not uncommon for a large network to experience dozens of failures in any given day~\cite{dc-failure-study}. However, existing tools~\cite{condor,propane} reason about fault-tolerance only for concrete topologies. \sysname provides substantially stronger guarantees: all possible concrete instantiations of an abstract topology satisfy the fault-tolerance policy.
+Link failures in networks occur frequently; it is not uncommon for a large network to experience dozens of failures in any given day~\cite{dc-failure-study}. However, existing tools~\cite{condor,propane} reason about fault-tolerance only for concrete topologies. \sysname provides stronger guarantees: all possible concrete instantiations of an abstract topology satisfy the fault-tolerance policy.
 
 %The problem for \sysname is harder because it must verify that all possible concrete instantiations of an abstract topology satisfy the fault-tolerance policy, which requires a fundamentally different approach.
 
 %
-We frame satisfying the fault-tolerance policy provided by the user as an analysis problem over the structure of the PG. In particular, we develop an analysis that uses information embedded in the abstract topology to infer bounds on the number of edge-disjoint paths between pairs of concrete nodes.
+We frame satisfying the fault-tolerance requirements as an analysis problem over the structure of the PG. In particular, we develop an analysis that uses information embedded in the abstract topology to infer bounds on the number of edge-disjoint paths between pairs of concrete nodes.
 
 %
 For each node in the abstract PG,
@@ -1360,7 +1292,7 @@ For example, in the concrete PG in Figure~\ref{fig:example-compilation}, router 
 
   %\vspace{1em}%
   \begin{minipage}[t]{.47\linewidth}
-  \hdr{ABGP Syntax}{}
+  \hdr{mBGP Syntax}{}
   \vspace*{-1\baselineskip}
   %
   \[ \begin{array}{rclr}
@@ -1372,28 +1304,28 @@ For example, in the concrete PG in Figure~\ref{fig:example-compilation}, router 
      ma   &::=& d : ({ns}_1, c_1) \rightarrow ({ns}_2, c_2) & \textit{match action} \\
      pc   &::=& ma_1, \dots, ma_k & \textit{prefix config} \\
      rc   &::=& t_1 \rightarrow {pc}_1, ~\dots,~ t_k \rightarrow {pc}_k & \textit{router config} \\
-     abgp &::=& l_1 \rightarrow {rc}_1, ~\dots,~ l_k \rightarrow {rc}_k & \textit{abgp policy} \\%
+     mbgp &::=& l_1 \rightarrow {rc}_1, ~\dots,~ l_k \rightarrow {rc}_k & \textit{mbgp policy} \\%
   \end{array} \]%%
 
   \end{minipage}
   %
   %
   \begin{minipage}[t]{.49\linewidth}
-  \hdr{Compilation to ABGP}{}
+  \hdr{Compilation to mBGP}{}
   \vspace*{-1\baselineskip}
   %
   \[ \begin{array}{l}
-     \mathrm{compile}_\mathrm{ABGP}( [(t_1,PG_1,ord_1), \dots, (t_k,PG_k,ord_k)], G ) = \\
+     \mathrm{compile}_\mathrm{mBGP}( [(t_1,PG_1,pref_1), \dots, (t_k,PG_k,pref_k)], G ) = \\
      ~~~~~ [~ l \rightarrow rc ~\vert~ l \in \mathrm{internal}(G.V), ~rc = \mathrm{append}_i~  \\
      ~~~~~~~~~~~~~~~ [~ t_i \rightarrow [~ ma ~\vert~ \\
      ~~~~~~~~~~~~~~~~~~~~~ m \leftarrow (l,q_m) \in PG_i, \\
      ~~~~~~~~~~~~~~~~~~~~~ pin \leftarrow \mathrm{adjIn}(PG_i,m), \\
      ~~~~~~~~~~~~~~~~~~~~~ (in,q_n) \leftarrow \{ (bs,q_n) ~\vert~ bs=\{b ~\vert~ (b,q_n) \in pin \}, bs \neq \emptyset \}, \\
      ~~~~~~~~~~~~~~~~~~~~~ out \leftarrow \{ c ~\vert~ (c,\_) \in \mathrm{adjOut}(PG_i,m) \}, \\
-     ~~~~~~~~~~~~~~~~~~~~~ ma = \mathrm{ord}_i(m) : (in,q_n) \rightarrow (out,q_m) ~] ~] ~] \\
+     ~~~~~~~~~~~~~~~~~~~~~ ma = \mathrm{pref}_i(m) : (in,q_n) \rightarrow (out,q_m) ~] ~] ~] \\
      \\
      \mathrm{compile}( p_1, \dots, p_k, G) = \\
-     ~~~~~~ \mathrm{compile}_\mathrm{ABGP}([\mathrm{compile}_\mathrm{PG}(p_1,G), \dots, \mathrm{compile}_\mathrm{PG}(p_k,G)], G) \\
+     ~~~~~~ \mathrm{compile}_\mathrm{mBGP}([\mathrm{compile}_\mathrm{PG}(p_1,G), \dots, \mathrm{compile}_\mathrm{PG}(p_k,G)], G) \\
   \end{array} \]%
   \end{minipage}%
 
@@ -1452,7 +1384,7 @@ For each router, its corresponding PG nodes are then sorted according the the $\
 %
 For example, in the inequality $(S1,0,1) \leq (S1,1,0)$ holds since nodes on the left side of the PG can always match transitions made on the right hand side with respect to the $\geq_{rank}$ relation. This relation does not hold the other way around since $(S1,0,1) \ngeq_{rank} (S1,1,0)$. Therefore, advertisements received at $S1$ with tag $(1,0)$ must be preferred to those received at $S1$ with tag $(0,1)$.
 %
-Notice that in the abstract PG $(S,0,1) \leq (S,1,0)$ also holds.
+Notice that in the abstract PG $(S,0,1) \leq (S,1,0)$ also holds. This leads to the following observation:
 
 \begin{lem}
 \label{lem:preference}
@@ -1463,146 +1395,29 @@ Lemma~\ref{lem:preference} tells us that inferring preferences for the abstract 
 
 
 \para{mBGP}
+To characterize compilation we first introduce a simple, vendor independent configuration language for the BGP protocol called \mbgp. The syntax for \mbgp is shown in Figure~\ref{fig:concretization} (left). An \mbgp policy consists of a sequence of router configurations (one for each internal topology location $l$). A router configuration is an ordered sequence of a predicate describing the traffic, and a predicate configuration. A predicate is either a template variable $\$\mathrm{x}$ or a prefix. A predicate configuration is a collection of match action statements, where each match action indicates that the router will match advertisements from any of a set of peers $ns_1$ with a particular community tag $c_1$ with local preference $d$, before exporting the route to another set of peers $ns_2$ with a new community tag $c_2$.
 
 
 \para{Compilation}
 
-%By combining the tagging, filtering and preference mechanisms, we can generate safe BGP configurations. In general, configurations are generated by combining the per-prefix configurations in the same order specified in the policy.
-Figure~\ref{fig:bgp-configs} (left) shows part of the final configuration for spine routers for the concrete and abstract policies in a vendor-neutral syntax.
+Figure~\ref{fig:concretization} (right) defines compilation from \sysname to \mbgp. It proceeds by compiling constraints $p_i$ in the original \sysname policy to a tuple of: the predicate $t_i$, the product graph $PG_i$, and the preference function $pref_i$. These tuples are passed the the $\mathrm{compile}_\mathrm{mBGP}$ function, along with the network topology $G$. For each internal router in the topology $l$, and each predicate $t_i$ in the \sysname policy, compilation goes through each node $m$ for $l$ in $PG_i$, and groups the inbound neighbors of $m$ by tag ($q_n$) into sets ($in$). It allows imports from these neighbors before exporting to the outbound neighbors of $m$. The local preference for these imports is given by $\mathrm{pref}_i(m)$.
+
+Figure~\ref{fig:bgp-configs} (left) shows part of the generated \mbgp configuration for spine routers for both the concrete and abstract policies. For brevity, we using the symbol ($*$) to denote the set of all neighbors and omit tags when irrelevant.
 %
 For prefix $\True$ ($0.0.0.0/[0..32]$), the spine routers will match advertisements from peer N1 and N2. The match for N1 is preferred since it has a higher BGP local-preference attribute (110). If an advertisement from N1 is available the spine uses this and attaches the community tag $(1,0)$ before sending the route to all its peers ($*$). If an advertisement is only available from the backup N2, then it attaches the tag $(0,1)$ instead.
 %
-The template configuration matches any global prefix $\CD{\$GP}$ from any internal peer and re-advertises the route to all of its peers. For any local prefix it will allow an advertisement from any internal peer, and re-advertise the route to only other internal peers. The concrete configurations have a similar configuration for each local and global prefix.
+The template configuration matches any global prefix $\CD{\$GP}$ from any internal peer and re-advertises the route to all of its peers. For any local prefix it will allow an advertisement from any internal peer, and re-advertise the route to only other internal peers. The concrete configurations for S1 and S2 obtained from compilation for the concerete PG from Figure~\ref{fig:example-compilation} have a similar structure for each local and global prefix where local routes are reflected downward, while global routes are advertised to all peers.
 
-%\vspace{2em}
-%\begin{figure*}[t!]\small%
-
-%  \hrulefill%
-%  \vspace{1em}%
-
-%  \begin{minipage}[t]{.46\linewidth}
-%  \hdr{ABGP Syntax}{}
-%  \vspace*{-1\baselineskip}
-%  %
-%  \[ \begin{array}{rclr}
-%     d    &   & & \textit{integer} \\
-%     c    &   & & \textit{community} \\
-%     t    &::=& \$x \BNFALT d.d.d.d/[d..d] & \textit{predicate} \\
-%     ns   &::=& \{ l_1, ~\dots,~ l_k \} & \textit{peers} \\
-%     ma   &::=& d : ({ns}_1, c_1) \rightarrow ({ns}_2, c_2) & \textit{match action} \\
-%     pc   &::=& ma_1, \dots, ma_k & \textit{prefix config} \\
-%     rc   &::=& t_1 \rightarrow {pc}_1, ~\dots,~ t_k \rightarrow {pc}_k & \textit{router config} \\
-%     abgp &::=& l_1 \rightarrow {rc}_1, ~\dots,~ l_k \rightarrow {rc}_k & \textit{abgp policy} \\%
-
-%  \end{array} \]%%
-
-%  \end{minipage}
-%  %
-%  %
-%  \begin{minipage}[t]{.5\linewidth}
-%  \hdr{Compilation}{}
-%  \vspace*{-1\baselineskip}
-%  %
-%  \[ \begin{array}{l}
-%     \text{compile}_\text{ABGP}( (t_1,PG_1,ord_1), \dots, (t_k,PG_k,ord_k), G ) = \\
-%     ~~~~~ [~ l \rightarrow rc ~\vert~ \\
-%     ~~~~~~~~~ l \in internal(G.V), \\
-%     ~~~~~~~~~ rc = \mathit{append}_i~  \\
-%     ~~~~~~~~~~~~~~~ [~ t_i \rightarrow ma_1, \dots, ma_k ~\vert~ \\
-%     ~~~~~~~~~~~~~~~~~~~~~ m = (l,q_m) \in PG_i, \\
-%     ~~~~~~~~~~~~~~~~~~~~~ pin = \text{adjIn}(PG_i,m), \\
-%     ~~~~~~~~~~~~~~~~~~~~~ (in,q_n) = \{ (bs,q_n) ~\vert~ (\_,q_n) \in pin, bs=\{b ~\vert~ (b,q_n) \in pin \} \} \\
-%     ~~~~~~~~~~~~~~~~~~~~~ out = \{ c ~\vert~ (c,\_) \in \text{adjOut}(PG_i,m) \} \\
-%     ~~~~~~~~~~~~~~~~~~~~~ ma_j = ord_i(m) : (in,q_n) \rightarrow (out,q_m) ~] ~] \\
-%     \\
-%     \text{compile}( p_1, \dots, p_k, G) = \\
-%     ~~~~~~ \text{compile}_\text{ABGP}(\text{compile}_\text{PG}(p_1,G), \dots, \text{compile}_\text{PG}(p_k,G), G) \\
-%  \end{array} \]%
-%  \end{minipage}%
-
-%  \vspace{1em}
-%  \vspace{1em}%
-
-%  \vspace*{-2\baselineskip}
-%  \begin{minipage}[t]{1.01\linewidth}
-%  \hdr{Policy Concretization}{}
-%  \vspace*{-2\baselineskip}
-%  %
-%  \[ \begin{array}{lcl}
-%     \\
-%     \Con(\emptyset, \Gamma, f)      &=& \emptyset \\
-%     \Con(l, \Gamma, f)              &=& \Sigma_i ~ f_i^{-1}(l) \\
-%     \Con(r_1 \cup r_2, \Gamma, f)   &=& \Con(r_1,\Gamma,f) \cup \Con(r_2,\Gamma,f) \\
-%     \Con(r_1 \cap r_2, \Gamma, f)   &=& \Con(r_1,\Gamma,f) \cap \Con(r_2,\Gamma,f) \\
-%     \Con(!r, \Gamma, f)             &=& !\Con(r,\Gamma,f) \\
-%     \Con(r^*, \Gamma, f)            &=& \Con(r,\Gamma,f)^* \\%
-
-%     \Con(\Pfx ~\Path~ r_1, ~\dots~, r_k, \Gamma, f) &=&
-%          \Pfx ~\Path~ \Con(r_1,\Gamma,f), ~\dots~, \Con(r_k,\Gamma,f)  \\%
-
-%     \Con(\$x ~\Path~ r_1, ~\dots~, r_k, \Gamma, f) &=&%
-
-%         [~ \Pfx ~\Path~ \Con(r_1,\Gamma,f) \cap \text{end}(l), ~\dots~, \\%
-
-%         & & ~~~~~~~~~~~~~~~ \Con(r_k,\Gamma,f) \cap \text{end}(l) ~\vert~ (\Pfx,l) \in \Gamma(x) ~]  \\%
-
-%     \Con(p_1, \dots, p_n, \Gamma,f) &=& \Con(p_1, \Gamma,f), \dots, \Con(p_n, \Gamma,f) \\%
-
-%  \end{array} \]%
-%  \end{minipage}%
-
-%  \vspace{1em}
-%  \vspace{1em}%
-
-%  \begin{minipage}[t]{\linewidth}
-%  \hdr{ABGP Concretization}{}
-%  \vspace*{-2\baselineskip}
-%  %
-%  \[ \begin{array}{lcl}
-%     \\
-%     \Con(l_1 \rightarrow {rc}_1, ~\dots,~ l_k \rightarrow {rc}_k,\Gamma,f,G)
-%        & = &
-%        \mathit{append}_i~ [~ \ell \rightarrow con(rc_i,\ell,\Gamma,f,G)  ~\vert~ \ell \in f^{-1}(l_i) ~]
-%        \\
-%     \Con(t_1 \rightarrow {pc}_1, ~\dots,~ t_k \rightarrow {pc}_k,\ell,\Gamma,f,G)
-%        & = &
-%        \Con(t_1 \rightarrow {pc}_1,\ell,\Gamma,f,G), \dots, \Con(t_k \rightarrow {pc}_k,\ell,\Gamma,f,G)
-%        \\
-%     \Con(\Pfx \rightarrow {pc},\ell,\Gamma,f,G)
-%        & = &
-%        \Pfx \rightarrow \Con(pc,\text{true},\ell,\Gamma,f,G)
-%        \\
-%     \Con(\$x \rightarrow {pc},\ell,\Gamma,f,G)
-%        & = &
-%        [~ \Pfx \rightarrow \Con(pc, l=\ell, \ell,\Gamma,f,G) ~\vert~ (\Pfx, l) \in \Gamma(x) ~]
-%        \\
-%     \Con(ma_1, \dots, ma_k,o,\ell,\Gamma,f,G)
-%        & = &
-%        \Con(ma_1,o,\ell,\Gamma,f,G), \dots, \Con(ma_k,o,\ell,\Gamma,f,G)
-%        \\%
-
-%     \Con(n_1 : ({ns}_1, n_2) \rightarrow ({ns}_2, n_3),o,\ell,\Gamma,f,G)
-%        & = & \textbf{if}~ ns_1 = \{\text{start}\} ~\text{and}~ o = \text{false} ~\textbf{then}~ \bullet \\
-%        &   & \textbf{else}~ n_1 : ( \Con({ns}_1,\ell,\Gamma,f,G), n_2) \rightarrow (\Con({ns}_2,\ell,\Gamma,f,G),n_3)%
-
-%        \\
-%     \Con(\{ l_1, ~\dots,~ l_k \}, \ell, \Gamma,f,G)
-%        & = &
-%        \bigcup_i ~ \{ x ~\vert~ x \in f^{-1}(l_i),~ (x,\ell) \in G.E \}
-%        \\
-%  \end{array} \]%
-%  \end{minipage}%
-
-%  \vspace{1em}
-%  \hrulefill%
-%  \vspace{1em}%
-
-%  \caption{ABGP syntax, compilation from product graphs, policy concretization, and ABGP concretization.}
-%  \label{fig:concretization}
-%\end{figure*}%
 
 \para{Concretization}
-Observe that the spine template and concrete configurations are structured similarly. We formalize this observation by defining a simple, vendor-neutral language for BGP configurations called \mbgp and formally define compilation for policies over both concrete and abstract topologies to \mbgp. In addition we define two concretization ($con$) functions that translate an abstract \sysname policy and \mbgp configuration to a concrete \sysname policy and concrete \mbgp configuration respectively. Concretization takes a context $\Gamma : \mathit{Var} \rightarrow 2^{\mathit{Prefix} \times V}$ that maps each template variable to a set of pairs of a concrete prefix and topology location where the prefix is owned. Intuitively, the spine template is concretized by replacing each abstract role with the set of all concrete routers that map to that role and each prefix template variable with a new entry in the configuration for each individual prefix provided by the context $\Gamma$.
+The similar structure between the spine template and concrete configurations is not a coincidence.  We formalize this observation by defining a two concretization function ($con$), one for \sysname policies and another for \mbgp policies. 
+%
+Concretization takes a context $\Gamma : \mathit{Var} \rightarrow 2^{\mathit{Prefix} \times V}$ that maps each template variable to a set of pairs of a concrete prefix and topology location where the prefix is owned.
+
+Both concretization functions traverse the policy and substitute each instance of a topology loction $l$ in the template policy with the set of all concrete locations that map to $l$, given by the inverse homomorphism $f^{-1}(l) = \{l' ~\vert~ f(l') = l \}$. Additionally, whenver a pair $(pfx,l) \in \Gamma(x)$, then a new entry is added to the concretized policy where $pfx$ replaces $\$\mathrm{x}$ and adds the constraint that traffic ends at $l$ ($\CD{\End(l)}$).
+%
+For example, the spine template in Figure~\ref{fig:bgp-configs}, is obtained by substituting $\{ A1,A2 \}$ for $AG$ and $\{ A3,A4 \}$ for $AL$ and by also replacing the entry for {\small \$GP} with entries for {\small GP1} and {\small GP2} given by the context (\EG, a database).
+
 Our main theoretical result is that the compilation and concretization functions commute:
 
 
@@ -1616,13 +1431,19 @@ Our main theoretical result is that the compilation and concretization functions
 \end{thm}
 %
 \vspace{-.6em}
-Full definitions of compilation and concretization, as well as the proof of Theorem~\ref{thm:concretization} are included in the appendix. 
+Full definitions of concretization, as well as the proof of Theorem~\ref{thm:concretization} are included in the appendix. 
 
 \para{Incrementality}
 
 Suppose an operator wants to expand the concrete data center from Figure~\ref{fig:example} by adding an additional ToR router to the TG role. Per the network routing policy, the new ToR router will advertise any owned prefixes provided by looking up {\small \$GP} in $\Gamma$. Because the new topology matches the abstraction, the compiled templates will remain the same. However, in the spine router configurations, the match on the global prefix template variable {\small \$GP} must be expanded when concretizing the template to include the new prefixes added by the ToR. Unfortunately, this small change to the topology results in a change to every single spine router configuration.
 
-However, template variables tell us exactly where this kind of change can happen. The only way in which the spine routers depend on anything non-local is in the match on prefix template variables. Therefore, we can prevent modifications to the spine routers' configurations by associating a new unique community tag for template variable {\small \$GP} and then replacing each match on {\small \$GP} with a test on the new community tag. The new ToR must now simply attach the new community tag to advertisements for its prefixes so downstream routers can match against it. Figure~\ref{fig:bgp-configs} (right) shows several templates after the transformation.
+More generally, each configuration template depends on two things: the routing policy and the abstract topology. If the policy remains fixed and a change to the concrete topology preserves the topology abstraction, then the generated templates will not change. Further, each template has policy only in terms of its immediate neighbors. Because abstract neighbors are substituted for concrete neighbors during concretization, it would seem as though the generated configurations will also only depend on their concrete neighbors. However, prefix template variables allow for the possibility of introducing new prefixes in the context $\Gamma$ after a change. For example, when adding a new ToR router with its own unique prefix, the spine configurations would need to know about this new prefix.
+%
+In fact, the only way in which the concrete configurations can depend on anything non-local is when instantiating prefix template variables. 
+
+To prevent the non-local changes induced by template variables, we modify compilation in the following ways. First, we associate a new unique community tag for each template variable (\EG, {\small \$GP}), and add this tag where the route is originated (\EG, role TG). Then, template variable tests elsewhere in the policy are replaced with a new test on this tag. Finally, during template instantiation the tags are left unmodified.
+%Therefore, we can prevent modifications to the spine routers' configurations by associating a new unique community tag for template variable {\small \$GP} and then replacing each match on {\small \$GP} with a test on the new community tag. The new ToR must now simply attach the new community tag to advertisements for its prefixes so downstream routers can match against it. 
+Figure~\ref{fig:bgp-configs} (right) shows the spine and ToR templates after this transformation.
 
 
 
@@ -1699,7 +1520,7 @@ We evaluate \sysname by applying it on policies for backbone and data center net
 \end{figure}
 
 
-We evaluate the expressiveness of \sysname's topology abstractions and the precision of its fault-tolerance analysis on a range of network topologies found in production networks and in the networking literature. We characterize expressiveness by checking if our abstractions allow the topologies to evolve arbitrarily or certain aspects must be fixed (i.e., cannot be symbolic). We measure precision by checking if we find a tight lower-bound on fault-tolerance (\IE, there exists a concrete network with that fault-tolerance level).
+We evaluate the expressiveness of \sysname's topology abstractions and the precision of its fault-tolerance analysis on a range of network topologies found in production networks and in the networking literature. We characterize expressiveness by checking if the abstractions allow the topologies to evolve arbitrarily or certain aspects must be fixed (\IE, cannot be symbolic). We measure precision by checking if we find a tight lower-bound on fault-tolerance (\IE, there is a concrete network with that fault-tolerance).
 
 The top part of Figure~\ref{fig:analysis-precision} shows the results for common real-world settings: tree-based topologies coupled with valley-free routing.
 We consider four variants of tree topologies: a standard fat tree~\cite{fattree}, the Facebook fat tree~\cite{facebook-fattree}, the F10 fault-tolerant fat tree~\cite{f10-fattree}, and VL2~\cite{vl2-fattree}. These variants differ in the number of tiers and the connectivity pattern between roles. For each, we use a tiered abstraction similar to that in our example (\S\ref{sec:overview}) and parameterize over the number of pods, which can be scaled to allow expansion. We report precision of both analyzing reachability and computing the number of disjoint paths, and we report if \sysname is precise for all pairs of abstract nodes or only some of them. We record a check when the analysis is precise and a \Conserv{} when the analysis is conservative. %"All pairs" precision implies "some pairs" precision, but not the other way around.
@@ -1720,10 +1541,10 @@ Our results are encouraging for these realistic settings. Our abstractions are p
     \includegraphics[width=\linewidth]{figures/hyperx}
   \end{minipage}%
 
-  \vspace{1.4em}
+  \vspace{1em}
   \begin{minipage}[t]{\linewidth}
     \hdr{BCube}{}
-    \vspace{.3em}
+    \vspace{.1em}
     \includegraphics[width=\linewidth]{figures/bcube}
   \end{minipage}%
 
@@ -1781,7 +1602,7 @@ For both recursive topologies, the analysis can accurately determine reachabilit
 \end{figure}
 
 
-We evaluate generation time in \sysname both with and without abstraction using routing policy for backbone and data center networks inspired by configurations obtained from a large cloud provider. For both types networks, we fix the routing policy and scale the size of the underlying topology.
+We evaluate generation time in \sysname both with and without abstraction using routing policy for backbone and data center networks inspired by configurations obtained from a large cloud provider. For both types networks, we fix the routing policy and scale the size of the topology.
 
 
 \para{Data center}
@@ -1809,7 +1630,7 @@ Figure~\ref{fig:abstract-breakdown} shows the relative time taken by each phase 
 \subsection{Incrementality}
 \label{sec:incrementality}
 
-\sysname's compilation strategy guarantees that network evolution requires configuration changes only for nodes that acquire or lose a neighbor. We experimentally confirmed that our implementation provides this guarantee. For the networks we studied above, we made a range of changes, including adding and removing routers and pods and changing prefixes that routers originate. In each case, we found the guarantee to hold; for prefix changes, only the originator's configuration changed. In contrast, all router configurations were modified with \Propane because it heavily uses prefix lists which are sensitive to such changes. While \Propane may be made friendlier to network evolution (e.g., prefix lists are unnecessary at aggregation routers), its fundamental limitation will remain because it does not understand roles and the network's underlying structure that \sysname leverages.
+\sysname's compilation strategy guarantees that network evolution requires configuration changes only for nodes that acquire or lose a neighbor. We experimentally confirmed that our implementation provides this guarantee. For the networks we studied above, we made a range of changes, including adding and removing routers and pods and changing prefixes that routers originate. In each case, we found the guarantee to hold; for prefix changes, only the originator's configuration changed. In contrast, all router configurations were modified with \Propane because it heavily uses prefix lists which are sensitive to such changes. While \Propane may be made friendlier to network evolution (e.g., prefix lists are unnecessary at aggregation routers), its fundamental limitation will remain because it does not understand roles and the network's structure that \sysname leverages.
 
 
 
