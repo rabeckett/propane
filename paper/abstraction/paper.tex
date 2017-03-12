@@ -125,7 +125,7 @@
 
 \authorinfo{Ryan Beckett}{Princeton University}{rbeckett@cs.princeton.edu}
 \authorinfo{Ratul Mahajan}{Microsoft Research}{ratul@microsoft.com}
-\authorinfo{Todd Millstein}{University of California, Los Angeles}{todd@cs.ucla.edu}
+\authorinfo{Todd Millstein}{UCLA}{todd@cs.ucla.edu}
 \authorinfo{Jitendra Padhye}{Microsoft Research}{jpadhye@microsoft.com} 
 \authorinfo{David Walker}{Princeton University}{dpw@cs.princeton.edu} 
 
@@ -455,14 +455,6 @@ When announcing destinations to certain neighbors, a BGP router may perform {\em
   \vspace{-1em}
 \end{figure}
 
-\begin{figure}[t!]
-  \centering
-  \includegraphics[width=\columnwidth]{figures/templates}
-  \caption{Idealized small configuration component for the data center spine role based on router templates from a large cloud provider (\IE, macros over gobbledygook).}
-  \label{fig:templates}
-  \vspace{-.8em}
-\end{figure}
-
 We demonstrate the difficulty of configuring networks today using the data center example in Figure~\ref{fig:example}. The boxes denote routers. Using terminology for fat tree networks~\cite{fattree}, S[1--2] are spine routers, A[1--8] are aggregation routers,\footnote{This term is not related to BGP route aggregation.} and T[1--8] are top-of-rack (ToR) routers. The spine routers connect to the Internet through neighbors N[1--2].
 %The aggregation routers bridge the spine to the ToR routers.
 The ToR routers attach to a set of servers (``a rack'') that host services with address prefixes P[1--8].
@@ -486,6 +478,15 @@ $(5)$ traffic paths should be valley-free, \IE, not go down then back up.
 $(6)$ prefer neighbor N1 over N2, \IE, when both neighbors announce a prefix, send traffic through N1;
 $(7)$ routers should not transit traffic between N1 and N2; and
 $(8)$ no loss in connectivity after any single-link failure.
+
+\begin{figure}[t!]
+  \centering
+  \includegraphics[width=\columnwidth]{figures/templates}
+  \caption{Idealized small configuration component for the data center spine based on templates from a cloud provider.}
+  \label{fig:templates}
+  \vspace{-1em}
+\end{figure}
+
 
 To correctly configure this policy, operators must generate configurations for each router, which implies ensuring, for instance, that all routing adjacencies are correctly configured (\EG, T1's configuration includes A1 as neighbor and vice-versa); the ToRs announce the correct prefixes for their services; all routers  forward the prefix announcements that they should to each neighbor and not forward others (\EG, the spines should forward prefixes for local services to internal neighbors but not to external neighbors); and the spines announce externally only the covering global prefix. Such configuration tasks are highly complex~\cite{juniper-study,bgpmon,batfish,propane}.
 
@@ -1333,8 +1334,9 @@ For example, in the concrete PG in Figure~\ref{fig:example-compilation}, router 
   \hrulefill%
   %\vspace{1em}%
 
-  \caption{Abstract BGP syntax (left), and compilation from product graphs (right).}
+  \caption{mBGP syntax (left), and compilation from product graphs (right).}
   \label{fig:concretization}
+  \vspace{-.8em}
 \end{figure*}%
 
 
