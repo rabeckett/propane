@@ -90,7 +90,7 @@
 \newcommand{\chdr}[2]{\textbf{#1} {#2} \\ \centering}%
 
 \newcommand{\Topo}[1]{\ensuremath{{\mathrm{topo}}(#1)}}
-\newcommand{\Pref}{\ensuremath{\mathrm{pref}}}
+\newcommand{\Pref}{\ensuremath{\mathrm{rank}}}
 
 \newcommand{\Conserv}{\cal{C}}
 
@@ -442,17 +442,19 @@ When announcing destinations to certain neighbors, a BGP router may perform {\em
 \begin{figure}[t!]
   \centering
   \includegraphics[width=2.5in]{figures/example}
+  \vspace{-.8em}
   \caption{An example data center network.}
   \label{fig:example}
-  \vspace{-1em}
+  \vspace{-.8em}
 \end{figure}
 
 \begin{figure}[t!]
   \centering
   \includegraphics[width=2.5in]{figures/example2}
+  \vspace{-.8em}
   \caption{A modified version of the example in Figure~\ref{fig:example}.}
   \label{fig:example2}
-  \vspace{-1em}
+  \vspace{-.8em}
 \end{figure}
 
 We demonstrate the difficulty of configuring networks today using the data center example in Figure~\ref{fig:example}. The boxes denote routers. Using terminology for fat tree networks~\cite{fattree}, S[1--2] are spine routers, A[1--8] are aggregation routers,\footnote{This term is not related to BGP route aggregation.} and T[1--8] are top-of-rack (ToR) routers. The spine routers connect to the Internet through neighbors N[1--2].
@@ -484,7 +486,7 @@ $(8)$ no loss in connectivity after any single-link failure.
   \includegraphics[width=\columnwidth]{figures/templates}
   \caption{Idealized small configuration component for the data center spine based on templates from a cloud provider.}
   \label{fig:templates}
-  \vspace{-1em}
+  \vspace{-.8em}
 \end{figure}
 
 
@@ -497,7 +499,7 @@ A {\em role} is a specific function that is served by one or more routers.
 %
 For example, the network in Figure~\ref{fig:example} might have five roles: spine, global aggregator, global ToR, local aggregator, and local ToR.
 %
-Figure~\ref{fig:templates} shows an example of what a small component of a template for the spine role in the two data centers might look like. The template has parameters for various aspects of the configuration (\EG, neighbor list, local prefixes) and are compiled to low-level device configurations by instantiating the parameters using the network topology and a database of network information.
+Figure~\ref{fig:templates} shows an example of what a small component of a template for the spine role in the two data centers might look like. The template has parameters for various aspects of the configuration (\EG, neighbor list, local prefixes) and is compiled to low-level device configurations by instantiating the parameters using the network topology and a database of network information.
 
 %Templates provide two key advantages. First, they help eliminate a class of configuration errors that stem from typos and inconsistencies, e.g., using the wrong address for a router, having inconsistent addresses for the two ends of a link, and failing to configure one side of a routing adjacency.  Second, templates have the potential for re-use when the topology changes while maintaining its basic structure (e.g., adding a new pod to the data center) or multiple networks with similar structures need to be instantiated (e.g., in an organization that runs multiple data centers).
 
@@ -634,10 +636,10 @@ The primary one is a role-based abstraction that allows an operator to map route
 \begin{figure}[t!]
   \centering
   \includegraphics[width=\columnwidth]{figures/example3}
-  \vspace{-2em}
+  \vspace{-2.2em}
   \caption{An abstraction for the network in Figure~\ref{fig:example}.}
   \label{fig:example3}
-  \vspace{-1em}
+  \vspace{-.8em}
 \end{figure}
 
 More specifically, a network topology is a graph $G$ = ($V, E$), which consists of a set of vertices $V$ and a set of directed edges $E \colon V \times V$. A role-based abstraction is a graph homomorphism from $G$ to an abstract graph $G^A$ = ($V^A$,$E^A$). A graph homomorphism $f : G \rightarrow G^A$ maps each node in the concrete graph to a node in the abstract graph such that, whenever $(u,v) \in E$, then $(f(u),f(v)) \in E^A$. The role-based abstraction therefore over-approximates the connectivity of the underlying concrete graphs.
@@ -657,7 +659,7 @@ The constraint $e3 \geq 2$ says that, in each pod, each aggregator node has at l
 
 A final concept is the $\Mincut(1)$ constraint between the spine role S and N[1--2]. It says that any spine router has at least one path to any node in the neighbor N1 (and N2) role. Such annotations are useful for a ``one big switch" abstraction \cite{Casado:2010} in which a complex, unstructured network is represented as a single node. As another use case, an ISP backbone can be modeled by dividing the network into separate geographic regions with two roles per region---one for the border routers and another for the network core. Mincut annotations can describe the degree of fault tolerance both within regional cores and across regions.
 
-Our topology abstractions can also capture concrete topologies; there will be a one-to-one correspondence between abstract and concrete nodes (and edges). This ability enables operators to define complex networks in which they expect some (e.g., legacy) parts of the network to not evolve and others to evolve.
+Our topology abstractions can also capture concrete topologies; there will be a one-to-one correspondence between abstract and concrete nodes/edges. This allows operators to define complex networks in which some (e.g., legacy) parts of the network can not evolve while others can.
 %It also means that our compiler subsumes those that operate only over concrete topologies.
 
 %All the guarantees provided by \sysname hold for any instantiation of the abstract network. This means that operators can safely expand their network in the future so long as the new network also satisfies these logical constraints.
@@ -690,9 +692,9 @@ Let us see how to express the routing policy of the networks in \S\ref{sec:motiv
 \end{code}
 \noindent%
 
-The second line introduces a prefix \emph{template} variable $\CD{\$GP}$. It says that traffic for each global prefix associated with the variable should follow a path that ends at its corresponding destination router in the $\CD{TG}$ role. As we will see in \S\ref{sec:language}, constraints like $\CD{\End(TG)}$ are just syntactic sugar for regular expressions describing network paths. The second line has a similar policy for local prefixes.
+The second line introduces a prefix \emph{template} variable $\CD{\$GP}$. Template variables represent multiple instances of a rule for different concrete prefixes that can be provided by an external source (\EG, a database). The line says that traffic for each global prefix associated with the variable should follow a path that ends at its corresponding destination router in the $\CD{TG}$ role. As we will see in \S\ref{sec:language}, constraints like $\CD{\End(TG)}$ are just syntactic sugar for regular expressions describing network paths. The second line has a similar policy for local prefixes.
 %
-The final rule matches all other IP prefix destinations and allows traffic to follow a path that leaves the data center, ending at some outside location, through neighbors $\CD{N1}$ or $\CD{N2}$ with a preference for leaving through $\CD{N1}$. The $\CD{\Prefer}$~symbol indicates that traffic should satisfy the constraint on the left and resort to the backup (right) only when that is not possible due to network failures.%
+The final rule matches all other IP prefix destinations and allows traffic to follow a path that leaves the data center, ending at some external role ($\CD{\Out}$), through neighbors $\CD{N1}$ or $\CD{N2}$ with a preference for leaving through $\CD{N1}$. The $\CD{\Prefer}$~symbol indicates that traffic should satisfy the constraint on the left and resort to the backup (right) only when that is not possible due to network failures.%
 
 Next we can capture constraint (4) that traffic for local prefixes must stay within in the data center:
 %
@@ -702,7 +704,7 @@ Next we can capture constraint (4) that traffic for local prefixes must stay wit
 \end{code}
 \noindent%
 %
-The Local policy adds the $\CD{\Always(\In)}$ constraint for each local prefix described by the template variable $\CD{\$LP}$. This constraint ensures that traffic follows a path that matches an internal location (\IE, in the data center) at each hop of the path.
+The Local policy adds the $\CD{\Always(\In)}$ constraint for each local prefix described by the template variable $\CD{\$LP}$. This constraint ensures that traffic follows a path that matches an internal role (\IE, in the data center) at each hop of the path.
 %
 The constraint to prevent ``valleys" (5) is written as:
 %
@@ -729,10 +731,10 @@ Finally, we can combine these constraints together as:
 
 \begin{code}
 Routing & Local & NoTransit &
-NoValley & \Agg(PG, \In -> \Out)
+NoValley & \Agg(GP_AGG, \In -> \Out)
 \end{code}
 \noindent
-This instructs \sysname to satisfy the conjunction of all the constraints. It also declares that we want to perform route aggregation, as covering prefix PG, for global prefixes at the border of the data center (\IE, along any edge that connects the inside of the data center to the outside).
+This instructs \sysname to satisfy the conjunction of all the constraints. It also declares that we want to perform route aggregation, with covering prefix {\small GP\_AGG}, for global prefixes at the border of the data center (\IE, along any edge that connects the inside of the data center to the outside). In this case, {\small GP\_AGG} is declared as a concrete prefix rather than a template because a single aggregate prefix will be used to summarize all less-specific prefixes.
 
 \para{Fault-tolerance policy} This policy specifies how many link failures the network should be able to withstand before traffic experiences connectivity loss. Operators can specify different tolerance levels for different pairs of abstract nodes. For instance, they may say that ToR to spine connectivity should be robust to 2 failures, \IE, no ToR-spine pair should lose connectivity as long as the number of simultaneous link failures is 2 or fewer; and ToR-to-ToR connectivity should be robust to 1 failure.
 
@@ -814,6 +816,7 @@ The following sections detail each of the three phases.
   \[ \begin{array}{rclr}
      d       &\in& \textit{Integers} \\
      x       &\in& \textit{Variables} \\
+     l       &\in& \textit{Topology Locations} \\
      pol     &::=& p_1, \dots, p_n & \text{Policy} \\
      p       &::=& t \hspace{.3em} \Path \hspace{.3em} r_1 \Prefer \dots \Prefer r_m \BNFALT a & \text{Path Preferences}  \\
      t       &::=& \$x \BNFALT d.d.d.d/[d..d] \hspace{1.5em} & \text{Predicate} \\
@@ -823,10 +826,10 @@ The following sections detail each of the three phases.
   \end{array} \]%
 
   \end{minipage}
-  \vspace{-.3em}
+  \vspace{-.4em}
   \caption{\sysname core syntax.}
   \label{fig:syntax}
-  %\vspace{-0.8em}
+  \vspace{-0.8em}
 \end{figure}%
 
 
@@ -863,32 +866,31 @@ The following sections detail each of the three phases.
   \begin{minipage}[t]{.3\linewidth}
     \hdr{Concrete Topology}{}
     \vspace{1em}
-    \includegraphics[width=.7\columnwidth]{figures/topology-con}
+    \includegraphics[width=.62\columnwidth]{figures/topology-con}
   \end{minipage}%
   %
   \begin{minipage}[t]{.3\linewidth}
     \hdr{Abstract Topology}{}
     \vspace{1em}
-    \includegraphics[width=.57\columnwidth]{figures/topology-abs}
+    \includegraphics[width=.505\columnwidth]{figures/topology-abs}
   \end{minipage}%
 
   \vspace{1em}
   \begin{minipage}[t]{.6\linewidth}
     \hdr{Concrete Product Graph}{}
-    \includegraphics[width=.9\columnwidth]{figures/pg-con}
+    \includegraphics[width=.8\columnwidth]{figures/pg-con}
   \end{minipage}%
   \begin{minipage}[t]{.4\linewidth}
   \hdr{Abstract Product Graph}{}
-    \includegraphics[width=.88\columnwidth]{figures/pg-abs}
+    \includegraphics[width=.795\columnwidth]{figures/pg-abs}
 
   \end{minipage}%
 
   \hrulefill
-  \vspace*{.4em}%
-
+  \vspace*{-.4em}%
   \caption{Product Graph construction for policy $\True ~\Path~ \CD{\Exit(\text{N1}} ~\Prefer~ \CD{\text{N2})}$.}
   \label{fig:example-compilation}
-  %\vspace{-1em}
+  \vspace{-.8em}
 \end{figure*}
 
 
@@ -918,24 +920,24 @@ We are now ready to generate the PG. Intuitively, the PG captures topology and r
 %
 %Although \sysname policies describe the routes that traffic should take through the network, network protocols (including BGP) typically disseminate router information in the opposite direction. For example, a router Y will tell its neighbor X that it has a route to the destination meaning that X can send traffic through Y. For this reason, we start by compiling
 %
-Because there can be a separate routing policy for each predicate matching traffic, we construct one PG for each predicate.
+Because there can be a separate routing policy for each predicate $t$ in the policy, we construct one PG for each predicate.
 
 
-For each regular path constraint $r_i$ from $r_1 ~\Prefer~ .. ~\Prefer~ r_k$, we construct a DFA for the reverse of $r_i$. A DFA for $r_i$ is defined as a tuple ($\Sigma, Q_i, F_i, q_{0_i}, \sigma_i$). The alphabet $\Sigma$ is the set of topology locations, $Q_i$ is the set of states for automaton i, $F_i$ is the set of final states, $q_{0_i}$ is the initial state, and $\sigma_i \colon Q_i \times \Sigma \rightarrow Q_i$ is the state transition function.
+For each regular path constraint $r_i$ from $r_1 ~\Prefer~ ... ~\Prefer~ r_k$, we construct a DFA for the reverse of $r_i$. A DFA for $r_i$ is defined as a tuple ($\Sigma, Q_i, F_i, q_{0_i}, \sigma_i$). The alphabet $\Sigma$ is the set of topology locations (\IE, routers or roles), $Q_i$ is the set of states for automaton i, $F_i$ is the set of final states, $q_{0_i}$ is the initial state, and $\sigma_i \colon Q_i \times \Sigma \rightarrow Q_i$ is the state transition function.
 %
-The PG is a tuple ($G'$, $start$, \Pref) where $G' = (V',E')$ has
+The PG for a graph $G=(V,E)$ is a tuple ($G'$, $start$, \Pref) where $G' = (V',E')$ has
 vertices $V' \colon V \times Q_1 \times \dots \times Q_j$,
 edges $E' \colon V' \times V'$,
 a unique starting vertex $start$,
-and a preference function $\Pref \colon V' \rightarrow 2^{\set{1, \dots, j}}$, mapping nodes in the PG to a set of path ranks.
+and a ranking function $\Pref \colon V' \rightarrow 2^{\set{1, \dots, j}}$, mapping nodes in the PG to a set of path ranks.
 
 The PG is constructed by adding an edge from state $m = (l_m, q_{m_1}, \dots, q_{m_k})$ to $n = (l_n, q_{n_1}, \dots, q_{n_k})$ whenever $\sigma_i(q_{m_i}, l_n) = q_{n_i}$ for each $i$ and $(l_m,l_n) \in E$.
 %
 We add edges from the $\mathit{start}$ node to any $m = (l, q_{m_1}, \dots, q_{m_k})$ when $\sigma_i(q_{0_i}, l) = q_{m_i}$ for each $i$.
 %
-The preference function $\Pref(m)$ denotes the rank of paths through the PG ending at node $m$ and is defined as $\Pref(m) = \set{i~\vert~q_{m_i} \in F_i}$.
+The ranking function $\Pref(m)$ denotes the rank of paths through the PG ending at node $m$ and is defined as $\Pref(m) = \set{i~\vert~q_{m_i} \in F_i}$.
 %
-Finally, we write $\Topo{m} = l$ to extract the topology location from a PG node, when $m = (l, q_{m_1}, \dots, q_{m_k}) \in V'$.
+Finally, we write $\Topo{m} = l$ to extract the topology location from a PG node, when $m = (l, q_{m_1}, \dots, q_{m_k}) \in V'$. For the remainder of the paper, we use the term location to refer to both a router in the case of a concrete topology/PG, or a role in the case of an abstract topology/PG.
 
 Figure~\ref{fig:example-compilation} shows the PG for the data center policy that applies to all external traffic ($\CD{\True \Path \Exit(N1~\Prefer~N2)}$).
 %
@@ -980,6 +982,39 @@ As shown in \S\ref{sec:generation}, our generation strategy commutes with templa
 
 %In practice, operators would often like to reason about a variety of properties for, not only their current network topology, but also future versions of it.
 %% The Product Graph provides a convenient representation to capture the joint impact of both topology and routing policy. In this section we present an analysis that operates over the abstract Product Graph to find a lower bound on the number of disjoint paths between pairs of concrete nodes. Answering questions about the number of disjoint paths between nodes allows operators to reason about many useful network properties such as reachability (\IE, is there at least one path) and fault tolerance (\EG, how many failures will disconnect certain routers).
+
+
+%\subsection{Abstract k-disjoint paths}
+%\label{sec:property-checking}
+
+The possibility of network failures exacerbates the difficulty of constructing correct configurations.
+Link failures in networks occur frequently; it is not uncommon for a large network to experience dozens of failures in any given day~\cite{dc-failure-study}. However, existing tools~\cite{condor,propane} reason about fault-tolerance only for concrete topologies. \sysname provides stronger guarantees: all possible concrete instantiations of an abstract topology satisfy the fault-tolerance policy.
+
+%The problem for \sysname is harder because it must verify that all possible concrete instantiations of an abstract topology satisfy the fault-tolerance policy, which requires a fundamentally different approach.
+
+%
+We frame satisfying the fault-tolerance requirements as an analysis problem over the structure of the PG. In particular, we develop an analysis that uses information embedded in the abstract topology to infer bounds on the number of edge-disjoint paths between pairs of concrete nodes.
+
+%
+For each node in the abstract PG,
+the idea is to infer facts learned about the number of disjoint paths
+to groups of concrete routers in the node's role.
+More specifically, we maintain fact of the form:
+%
+\[ \begin{array}{c}
+  L_{X_1}, \ldots, L_{X_n}(j,k)
+\end{array} \]
+\noindent
+%
+where each label $L \in \{S,A\}$ is either $S$, which stands for ``some" or is $A$, which stands for ``all". There is one label for each pod in the abstraction pod hierarchy under which the abstract node appears. For a given node, $L_{X_1}$ corresponds to the outermost pod, $L_{X_{n-1}}$ corresponds to the innermost pod, and $L_{X_n}$ to the node itself.
+Semantically, $L_{X_1}, \ldots, L_{X_n}(j,k)$ means that starting from some concrete source node, for some/all pods $X_1, \ldots, X_{n-1}$
+and for some/all groups of nodes in the role $X_n$ of size $j$,
+%, $L_{X_2}, \ldots, L_{X_n}(j,k)$ holds. The base case $L_{X_n}(j,k)$ means that for "some"/``all" groups of size $j$ concrete routers,
+there are $k$ paths to each such that all $j*k$ paths are edge-disjoint.
+
+For example,
+an inference of the form $A_{Q} A_{TL}(2,3)$ states that, from the given source location, for \emph{all} pods Q, and \emph{all} groups of 2 nodes in the TL role, there are 6 disjoint paths to the group---3 for each of the 2 nodes.
+
 
 
 \newcommand{\inference}[7]{
@@ -1083,50 +1118,19 @@ As shown in \S\ref{sec:generation}, our generation strategy commutes with templa
   \end{minipage}
 
   \hrule
-  \vspace*{1em}
+  \vspace*{.4em}
   \caption{Abstract k-disjoint path analysis inference rules.}
   \label{fig:inference-rules}
-  \vspace{-1em}
+  \vspace{-.8em}
 \end{figure*}
 
-
-%\subsection{Abstract k-disjoint paths}
-%\label{sec:property-checking}
-
-The possibility of network failures exacerbates the difficulty of constructing correct configurations.
-Link failures in networks occur frequently; it is not uncommon for a large network to experience dozens of failures in any given day~\cite{dc-failure-study}. However, existing tools~\cite{condor,propane} reason about fault-tolerance only for concrete topologies. \sysname provides stronger guarantees: all possible concrete instantiations of an abstract topology satisfy the fault-tolerance policy.
-
-%The problem for \sysname is harder because it must verify that all possible concrete instantiations of an abstract topology satisfy the fault-tolerance policy, which requires a fundamentally different approach.
-
-%
-We frame satisfying the fault-tolerance requirements as an analysis problem over the structure of the PG. In particular, we develop an analysis that uses information embedded in the abstract topology to infer bounds on the number of edge-disjoint paths between pairs of concrete nodes.
-
-%
-For each node in the abstract PG,
-the idea is to infer facts learned about the number of disjoint paths
-to groups of concrete routers in the node's role.
-More specifically, we maintain fact of the form:
-%
-\[ \begin{array}{c}
-  L_{X_1}, \ldots, L_{X_n}(j,k)
-\end{array} \]
-\noindent
-%
-where each label $L \in \{S,A\}$ is either $S$, which stands for ``some" or is $A$, which stands for ``all". There is one label for each pod in the abstraction pod hierarchy under which the abstract node appears. For a given node, $L_{X_1}$ corresponds to the outermost pod, $L_{X_{n-1}}$ corresponds to the innermost pod, and $L_{X_n}$ to the node itself.
-Semantically, $L_{X_1}, \ldots, L_{X_n}(j,k)$ means that starting from some concrete source node, for some/all pods $X_1, \ldots, X_{n-1}$
-and for some/all groups of nodes in the role $X_n$ of size $j$,
-%, $L_{X_2}, \ldots, L_{X_n}(j,k)$ holds. The base case $L_{X_n}(j,k)$ means that for "some"/``all" groups of size $j$ concrete routers,
-there are $k$ paths to each such that all $j*k$ paths are edge-disjoint.
-
-For example,
-an inference of the form $A_{Q} A_{TL}(2,3)$ states that, from the given source location, for \emph{all} pods Q, and \emph{all} groups of 2 nodes in the TL role, there are 6 disjoint paths to the group---3 for each of the 2 nodes.
 
 \subsection{Inference rules}
 
 \newcommand{\infrule}[1]{{\small \sf #1}\xspace}
 
 Figure~\ref{fig:inference-rules} displays the collection of rules used to infer facts about disjoint paths.
-Each rule is read from bottom to top. The label on the bottom left is a known fact. We use $L$ to represent a rule that is parametric over the label ($S$ or $A$). The labels on other nodes correspond to facts learned after applying the inference rule. The adjacent box shows the conditions that must be valid, given the abstraction constraints, for the rule to apply. 
+Each rule is read from bottom to top. The label on the bottom left is a known fact. We use $L$ to represent a rule that is parametric over the label ($S$ or $A$). Labels on other nodes correspond to facts learned after applying the rule. The box shows the conditions that must be valid, given the abstraction constraints, for the rule to apply. 
 %Validity ensures that the condition holds for all concrete instantiations of the topology.
 
 Some of the inference rules (\EG, \infrule{I-out2} and \infrule{I-mesh2}) try to learn about the largest number of disjoint paths to any single node in an abstract role, while others (\EG, \infrule{I-out1} and \infrule{I-mesh1}) try to learn about the largest reachable group in a particular role with at least one disjoint path to each node in that group. Both kinds of rules are useful. 
@@ -1162,20 +1166,12 @@ The second part of the rule uses a similar idea to reason about the overlap betw
 Finally, rules \infrule{I-local} and \infrule{I-global} reason across pod hierarchies. \infrule{I-local} says that if there is an inference from $X$ to $Y$, then the derivation can be used inside pod P by leaving the P-label unchanged. \infrule{I-global} says that when the edge goes across pods, we can infer the fact for all pods Q since the multiplicities apply uniformly for each pod.
 
 
-\begin{figure}
-  \begin{center}
-    \includegraphics[width=\columnwidth]{figures/analysis}
-  \end{center}
-  \vspace{-1.4em}
-  \caption{Abstract disjoint path analysis for global prefixes. \label{fig:compilation-times}}
-  \label{fig:example-inference}
-  \vspace{0em}
-\end{figure}
-
 \subsection{Inference algorithm}
 
 
-The abstract disjoint path analysis starts from a fixed source location $src$ and repeatedly tries to apply every inference rule from Figure~\ref{fig:inference-rules} until it reaches a fixed point. The algorithm applies an inference rule when the rule's condition is valid given the abstract topology constraints. Because the inference rules may continue to yield larger and larger symbolic expressions, we make the following observation to ensure termination: for any invariant learned of the form $L(j,k)$, it is sound to instead infer $L(j',k')$ if $j' \leq j$ and $k' \leq k$. Therefore, for each inference $L(j,k)$ we minimize the symbolic expressions for $j$ and $k$ subject to the topology constraints using the optimizing SMT solver $\nu$Z~\cite{z3opt}. Facts learned with $j=0$ or $k=0$ are discarded.
+The abstract disjoint path analysis starts from a fixed source location $src$ and repeatedly tries to apply every inference rule from Figure~\ref{fig:inference-rules} until it reaches a fixed point. The algorithm applies an inference rule when the rule's condition is valid given the abstract topology constraints. Because the inference rules may continue to yield larger and larger symbolic expressions, we make the following observation to ensure termination: for any invariant learned of the form $L(j,k)$, it is sound to instead infer $L(j',k')$ if $j' \leq j$ and $k' \leq k$. Therefore, for each inference $L(j,k)$ we minimize the symbolic expressions for $j$ and $k$ subject to the topology constraints using the optimizing SMT solver $\nu$Z~\cite{z3opt}. 
+
+At a higher level, what is happening is that each inference rule is attempting to learn the maximum possible fault tolerance information possible as a function of the symbolic inputs, and $\nu$Z~\cite{z3opt} will minimize this maximum by accounting for all possible topologies that meet the abstraction. Facts learned with $j=0$ or $k=0$ are discarded.
 
 %The algorithm associates with each inference, the set of abstract locations used to derive the inference, \IE, an overapproximation of set of concrete locations used for the edge-disjoint paths. When applying an inference rule between an invariant at role $m$, with a set of abstract locations $C$, to learn an invariant at role $n$, we associate the new invariant with the set $C \cup \{ n \}$.
 %
@@ -1185,6 +1181,16 @@ The abstract disjoint path analysis starts from a fixed source location $src$ an
 %
 %\noindent
 %The idea is that, because non-overlapping abstract paths can never contain overlapping concrete paths, due to the graph homomorphism property, we can merge inferences about these disjoint paths in the abstraction.
+
+\begin{figure}
+  \begin{center}
+    \includegraphics[width=\columnwidth]{figures/analysis}
+  \end{center}
+  \vspace{-1em}
+  \caption{Abstract disjoint path analysis for global prefixes. \label{fig:compilation-times}}
+  \label{fig:example-inference}
+  \vspace{-.8em}
+\end{figure}
 
 Recall the policy for global prefixes in the data center.
 %
@@ -1235,22 +1241,20 @@ The algorithm was able to infer that there is at least 1 disjoint path to any sp
 \section{Template Generation}
 \label{sec:generation}
 
-At a high level, the translation from the PG representation to per-device templates that run the distributed BGP protocol involves the following steps: (1) Every BGP message is tagged to record the state of the product graph as messages are passed between routers. The tags allow BGP to only search for valid paths by dropping messages that do not correspond to any edge in the PG. (2) To ensure that BGP always converges to the \emph{most preferred} paths in the network, we must rank route advertisements for each router by giving them a preference such that, under those preferences, the network as a whole satisfies the \sysname policy's end-to-end network preferences. 
+At a high level, the translation from the PG representation to per-device templates that run the distributed BGP protocol involves the following steps: (1) Every BGP message is tagged to record the state of the product graph as messages are passed between routers. The tags allow BGP to only search for valid paths by dropping messages that do not correspond to any edge in the PG. (2) To ensure that BGP always finds the \emph{best} paths in the network, we must rank route advertisements for each router locally such that, under this ranking function, the network as a whole satisfies the \sysname policy's end-to-end network preferences. 
 
-We introduce a simple, vendor-independent BGP configuration language called \mbgp and describe a compilation function that uses the inferred preference ordering to generate concrete configurations from a concrete topology, or templates from an abstract topology. Templates can then be soundly instantiated for a concrete network by replacing instances of abstract neighbors with the union of all concrete neighbors under the inverse homomorphism. We prove that concretization and compilation commute. By modifying compilation slightly we can further ensure that every configuration depends only on its immediate neighbors. This guarantees that any change made to the concrete topology will result in a minimal number of changes to the configurations.
+We introduce a simple, vendor-independent BGP configuration language called \mbgp and describe a compilation function that uses the inferred preference ordering to generate concrete configurations from a concrete topology, or templates from an abstract topology. Templates can then be soundly instantiated for a concrete network by replacing instances of abstract neighbors with the union of all concrete neighbors under the inverse homomorphism, and by replacing prefix template variables with separate entries for each concrete prefix provided by a context. We prove that concretization and compilation commute. By modifying compilation slightly we can further ensure that every configuration depends only on its immediate neighbors. This guarantees that any change made to the concrete topology will result in a minimal number of changes to the configurations.
 
 We now look at each of these steps in turn.
  
 \para{Tagging and Filtering}
 
 The BGP routing protocol standard allows for the use of \emph{community tags}, 32-bit integer tags that can be arbitrarily attached to, or removed from routing advertisements. 
-Community tags serve as a simple form of \emph{history}, and operators routinely use such tags to implement policy. For example, operators might record where an advertisment enters the network using community tags and then conditionally block the export of the advertisment later to other peers to prevent becoming a transit point between peers.
+Community tags serve as a simple form of \emph{history}, and operators routinely use such tags to implement policy. For example, operators might record where an advertisment enters the network using community tags and then conditionally block the export of the advertisment later to other peers to prevent becoming a transit point.
 
 The idea for template generation is to use community tags to record the state of the automata from the Product Graph in every BGP announcement and update these tags whenever messages are passed between routers. Such a tagging mechanism is used to ensure that BGP only considers paths that are allowed by the \sysname policy (\IE, paths in the PG). Routers will allow advertisments that correspond to an edge in the PG and block any advertisments that do not.
 
-For example, in the concrete PG in Figure~\ref{fig:example-compilation}, router S1 appears in two different PG nodes: $(S1,1,0)$ and $(S1,0,1)$. These nodes have two different peers that can send them messages in the PG: $(N1,0,0)$ and $(N2,0,0)$. Therefore, S1 will allow an advertisement from peer $N1$ and will also allow an advertisement from peer $N2$. If S1 uses the path advertised by neighbor N1, then it will add the tag $(1,0)$ to the advertisement before sending this to its neighbors A1 and A2. If S1 uses a path advertised from neighbor N2, then it will add the tag $(0,1)$ instead. Similarly, router A1 appears in two separate PG nodes. It will not block advertisements from S1 if they either have the $(1,0)$ tag or the $(0,1)$ tag attached. In either case, it will not modify the tag before exporting the route to its neighbors.
-
-%If A1 chooses a path with tag $(1,0)$ attached, then it will export the path to its neighbors without modifying the tag. If A1 chooses a path with tag $(0,1)$ attached, it will also export the path to its neighbors without modifying the tag.
+For example, in the concrete PG in Figure~\ref{fig:example-compilation}, router S1 appears in two PG nodes: $(S1,1,0)$ and $(S1,0,1)$. These nodes have two peers that can send them messages in the PG: $(N1,0,0)$ and $(N2,0,0)$. Therefore, S1 will allow advertisements from both peer $N1$ and peer $N2$. If S1 uses the path advertised by neighbor N1, then it will add the tag $(1,0)$ to the advertisement before sending this to its neighbors A1 and A2. If S1 uses a path advertised from neighbor N2, then it will add the tag $(0,1)$ instead. Similarly, router A1 appears in two separate PG nodes. It will allow advertisements from S1 if they either have the $(1,0)$ tag or the $(0,1)$ tag attached. In either case, it will not modify the tag before exporting the route to its neighbors.
 
 %\begin{algorithm}[t!]
 %\caption{Checking safe neighbor preferences}
@@ -1332,8 +1336,7 @@ For example, in the concrete PG in Figure~\ref{fig:example-compilation}, router 
 
   \vspace{1em}
   \hrulefill%
-  %\vspace{1em}%
-
+  \vspace{-.8em}
   \caption{mBGP syntax (left), and compilation from product graphs (right).}
   \label{fig:concretization}
   \vspace{-.8em}
@@ -1351,16 +1354,17 @@ Tagging and filtering according to the PG with community values in BGP forces th
   \vspace{-1em}
   \caption{Spine template and concrete configurations (left), and evolution-friendly templates (right).}
   \label{fig:bgp-configs}
+  \vspace{-.6em}
 \end{figure}
 
 To enforce correct network-wide preferences, we use the BGP local-preference attribute, which allows routers to prefer routes from one neighbor (or with some tag) over routers learned from another neighbor. The challenge is to find a collection of device-local preferences that correctly enforce the network-wide preferences from the policy for all failures.
 
-The idea then is to search for such a device-local preference function for each router that totally orders advertisements from different neighbors (possibly with different tags). For example, to satisfy the policy that leaving through N1 is preferred to leaving through N2, S1 should prefer a message it hears from N1 over N2. Similarly, A1 should prefer routes tagged with $(1,0)$ over those with $(0,1)$. Intuitively, S1 should prefer a message from N1 because it results in an accepting state for automata 1, which indicates a more preferred path. Further, it can result in downstream routers such as A1 obtaining a route that is accepting for automata 1 as well, \IE $(A1,1,0)$ instead of $(A1,0,1)$.
+The idea then is to search for such a device-local preference function for each router that totally orders advertisements from different neighbors (possibly with different tags). For example, to satisfy the policy that leaving through N1 is preferred to leaving through N2, S1 should prefer a message it hears from N1 over N2. Similarly, A1 should prefer routes tagged with $(1,0)$ over those with $(0,1)$. Intuitively, S1 should prefer a message from N1 because it results in an accepting state for automata 1, which indicates a better path. Further, it can result in downstream routers such as A1 using a path that is accepting for automata 1 as well.
 
 In general, because BGP is distributed, each router does not have a view of the entire network when choosing which path to use, and finding a collection of preferences to ensure correct end-to-end behavior for all failures is a hard problem. \Propane introduced a conservative search strategy for determining route preferences that works well in practice. To make it work for abstract topologies, we modify the search based on the following observation about the PG structure:
 
 \begin{defn}
-Let $m \geq_{rank} n$ be a relation over PG vertices that holds iff $\min (\Pref(m)) \geq \min (\Pref(n))$ or $\Pref(n) = \emptyset$. Intuitively $m \geq_{rank} n$ means that paths ending at node $m$ are no better than paths ending at $n$.
+Let $m \geq_{rank} n$ be a relation over PG vertices that holds iff $\min (\Pref(m)) \geq \min (\Pref(n))$ or $\Pref(n) = \emptyset$. Intuitively $m \geq_{rank} n$ means that paths ending at node $m$ have higher automata rank and are thus no better than paths ending at $n$.
 %
 \end{defn}
 \noindent
@@ -1406,9 +1410,9 @@ Figure~\ref{fig:concretization} (right) defines compilation from \sysname to \mb
 
 Figure~\ref{fig:bgp-configs} (left) shows part of the generated \mbgp configuration for spine routers for both the concrete and abstract policies. For brevity, we using the symbol ($*$) to denote the set of all neighbors and omit tags when irrelevant.
 %
-For prefix $\True$ ($0.0.0.0/[0..32]$), the spine routers will match advertisements from peer N1 and N2. The match for N1 is preferred since it has a higher BGP local-preference attribute (110). If an advertisement from N1 is available the spine uses this and attaches the community tag $(1,0)$ before sending the route to all its peers ($*$). If an advertisement is only available from the backup N2, then it attaches the tag $(0,1)$ instead.
+For prefix $\True$, the spine routers will match advertisements from peer N1 and N2. The match for N1 is preferred since it has a higher BGP local-preference attribute (110). If an advertisement from N1 is choosen, the spine attaches the community tag $(1,0)$ before sending the route to all its peers ($*$). If an advertisement is only available from the backup N2, then it attaches the tag $(0,1)$ instead.
 %
-The template configuration matches any global prefix $\CD{\$GP}$ from any internal peer and re-advertises the route to all of its peers. For any local prefix it will allow an advertisement from any internal peer, and re-advertise the route to only other internal peers. The concrete configurations for S1 and S2 obtained from compilation for the concerete PG from Figure~\ref{fig:example-compilation} have a similar structure for each local and global prefix where local routes are reflected downward, while global routes are advertised to all peers.
+The template configuration matches any global prefix {\small \$GP} from any internal peer and re-advertises the route to all of its peers. For any local prefix it will allow an advertisement from any internal peer, and re-advertise the route to only other internal peers. The concrete configurations for S1 and S2 obtained from compilation for the concerete PG from Figure~\ref{fig:example-compilation} have a similar structure for each local and global prefix where local routes are reflected downward, while global routes are advertised to all peers.
 
 
 \para{Concretization}
@@ -1437,7 +1441,7 @@ Full definitions of concretization, as well as the proof of Theorem~\ref{thm:con
 
 \para{Incrementality}
 
-Suppose an operator wants to expand the concrete data center from Figure~\ref{fig:example} by adding an additional ToR router to the TG role. Per the network routing policy, the new ToR router will advertise any owned prefixes provided by looking up {\small \$GP} in $\Gamma$. Because the new topology matches the abstraction, the compiled templates will remain the same. However, in the spine router configurations, the match on the global prefix template variable {\small \$GP} must be expanded when concretizing the template to include the new prefixes added by the ToR. Unfortunately, this small change to the topology results in a change to every single spine router configuration.
+Suppose an operator wants to expand the concrete data center from Figure~\ref{fig:example} by adding an additional ToR router to the TG role. Per the network routing policy, the new router will advertise any owned prefixes provided by looking up {\small \$GP} in $\Gamma$. Because the new topology matches the abstraction, the compiled templates will remain the same. However, in the spine configurations, the match on the global prefix template variable {\small \$GP} must be expanded when concretizing the template to include the new prefixes added by the ToR. Unfortunately, this small change to the topology results in a change to every single spine configuration.
 
 More generally, each configuration template depends on two things: the routing policy and the abstract topology. If the policy remains fixed and a change to the concrete topology preserves the topology abstraction, then the generated templates will not change. Further, each template has policy only in terms of its immediate neighbors. Because abstract neighbors are substituted for concrete neighbors during concretization, it would seem as though the generated configurations will also only depend on their concrete neighbors. However, prefix template variables allow for the possibility of introducing new prefixes in the context $\Gamma$ after a change. For example, when adding a new ToR router with its own unique prefix, the spine configurations would need to know about this new prefix.
 %
@@ -1461,9 +1465,9 @@ Figure~\ref{fig:bgp-configs} (right) shows the spine and ToR templates after thi
 \section{Implementation}
 \label{sec:implementation}
 
-\sysname is implemented in approximately 9500 lines of F\# code. The compiler accepts both concrete and abstract topologies and will generate configurations for open-source Quagga~\cite{quagga} routers by default. The fault-tolerance analysis uses $\nu$Z~\cite{z3opt} to both test validity and minimize variables subject to the topology constraints. Since the analysis typically calls the SMT solver many times with relatively small optimization problems, we use a timeout of 200ms.
+\sysname is implemented in around 9500 lines of F\# code. The compiler accepts both concrete and abstract topologies and will generate evolution-friendly configurations for Cisco and Quagga~\cite{quagga} routers by default. The fault-tolerance analysis uses $\nu$Z~\cite{z3opt} to both test validity and minimize variables subject to the topology constraints. Since the analysis typically calls the SMT solver many times with relatively small optimization problems, we use a timeout of 200ms.
 
-Although the disjoint path analysis takes place over the PG, each application of the inference rules from Figure~\ref{fig:inference-rules} depends only on the topology. Therefore, we lazily apply the rules and cache the satisfiability and minimization calls to $\nu$Z after their first use. Furthermore, the cached results are shared across different prefixes, each of which may have a unique PG representation.
+Although the disjoint path analysis takes place over the PG, each application of the inference rules from Figure~\ref{fig:inference-rules} depends on the topology locations, but not the automata states. Therefore, we lazily apply the rules and cache the satisfiability and minimization calls to $\nu$Z after their first use. Furthermore, the cached results are shared across different prefixes, each of which may have a unique PG representation.
 
 \section{Evaluation}
 \label{sec:evaluation}
@@ -1515,10 +1519,10 @@ We evaluate \sysname by applying it on policies for backbone and data center net
       HyperX~\cite{hyperx} & $L$ & \cmark & \cmark & \cmark & \cmark \\ \hline
       \end{tabular}
   \end{center}
-  \vspace{-.6em}
+  \vspace{-.8em}
   \caption{Expressiveness and precision of \sysname.}
   \label{fig:analysis-precision}
-  %\vspace{-1em}
+  \vspace{-.8em}
 \end{figure}
 
 
@@ -1552,8 +1556,8 @@ Our results are encouraging for these realistic settings. Our abstractions are p
 
 
   \caption{Example abstractions for HyperX and BCube.}
-  \vspace*{-1em}%
   \label{fig:example-abstractions}
+  \vspace{-.8em}%
 \end{figure}
 
 To stress our abstractions and analysis, we consider additional topologies from the literature.
@@ -1590,7 +1594,7 @@ For both recursive topologies, the analysis can accurately determine reachabilit
     {\includegraphics[width=.49\columnwidth]{figures/backbone-time.png}} \\
   \vspace{-.6em}
   \caption{Concrete vs. Abstract Synthesis Time. \label{fig:compilation-times}}
-  \vspace{-1em}
+  \vspace{-1.2em}
 \end{figure}
 
 \begin{figure}[t!]
@@ -1619,7 +1623,7 @@ We use a fat tree~\cite{fattree} and scale it by increasing the number of pods. 
 
 The backbone policy classifies neighbors into several categories based on commercial relationship~\cite{gao-rexford} and prefers paths through them in order. Similar to the datacenter, it blocks private destinations from neighbors, drops transit traffic between certain neighbors but not others, and aggregates internal prefixes at the border of the network.
 
-We scale the backbone network from 10 to 250 routers. To abstract it, we split it into two parts: border routers that connect to external neighbors and an internal core. We use one abstract node for the border routers and one for the network core with mincut annotations both within the core and between the core and border roles. For neighbors, there is one abstract role per commercial category.
+We scale the backbone network from 10 to 240 routers. To abstract it, we split it into two parts: border routers that connect to external neighbors and an internal core. We use one abstract node for the border routers and one for the network core with mincut annotations both within the core and between the core and border roles. For neighbors, there is one abstract role per commercial category.
 
 \para{Results}
 
