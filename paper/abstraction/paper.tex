@@ -620,7 +620,7 @@ Such patches reintroduce the complexity and errors that templates were meant to 
 
 %\subsection{Inputs}
 
-\sysname takes as input the network's abstract topology and its policy. The policy has two components: the routing policy describes how traffic should flow, and the fault-tolerance policy describes how many simultaneous failures the network can withstand without losing connectivity.
+\sysname takes as input the network's abstract topology and its policy. The policy has two components: the routing policy describes how traffic should flow, and the fault-tolerance policy describes how many simultaneous link failures the network can withstand without losing connectivity.
 
 \para{Abstract topology}
 Abstract topologies in \sysname define structural and role-based invariants that compactly describe all concrete networks that can emerge as the network evolves. They are encoded in the form of a graph homomorphism annotated with logical constraints about node and edge multiplicities.
@@ -636,10 +636,10 @@ The primary one is a role-based abstraction that allows an operator to map route
 \begin{figure}[t!]
   \centering
   \includegraphics[width=\columnwidth]{figures/example3}
-  \vspace{-2.2em}
+  \vspace{-1.3em}
   \caption{An abstraction for the network in Figure~\ref{fig:example}.}
   \label{fig:example3}
-  \vspace{-.8em}
+  \vspace{-.6em}
 \end{figure}
 
 More specifically, a network topology is a graph $G$ = ($V, E$), which consists of a set of vertices $V$ and a set of directed edges $E \colon V \times V$. A role-based abstraction is a graph homomorphism from $G$ to an abstract graph $G^A$ = ($V^A$,$E^A$). A graph homomorphism $f : G \rightarrow G^A$ maps each node in the concrete graph to a node in the abstract graph such that, whenever $(u,v) \in E$, then $(f(u),f(v)) \in E^A$. The role-based abstraction therefore over-approximates the connectivity of the underlying concrete graphs.
@@ -659,7 +659,7 @@ The constraint $e3 \geq 2$ says that, in each pod, each aggregator node has at l
 
 A final concept is the $\Mincut(1)$ constraint between the spine role S and N[1--2]. It says that any spine router has at least one path to any node in the neighbor N1 (and N2) role. Such annotations are useful for a ``one big switch" abstraction \cite{Casado:2010} in which a complex, unstructured network is represented as a single node. As another use case, an ISP backbone can be modeled by dividing the network into separate geographic regions with two roles per region---one for the border routers and another for the network core. Mincut annotations can describe the degree of fault tolerance both within regional cores and across regions.
 
-Our topology abstractions can also capture concrete topologies; there will be a one-to-one correspondence between abstract and concrete nodes/edges. This allows operators to define complex networks in which some (e.g., legacy) parts of the network can not evolve while others can.
+Our topology abstractions can also capture concrete topologies by using a one-to-one correspondence between abstract and concrete nodes/edges. This allows operators to define complex networks in which some (e.g., legacy) parts of the network can not evolve while others can.
 %It also means that our compiler subsumes those that operate only over concrete topologies.
 
 %All the guarantees provided by \sysname hold for any instantiation of the abstract network. This means that operators can safely expand their network in the future so long as the new network also satisfies these logical constraints.
@@ -997,7 +997,7 @@ We frame satisfying the fault-tolerance requirements as an analysis problem over
 
 %
 For each node in the abstract PG,
-the idea is to infer facts learned about the number of disjoint paths
+the idea is to infer facts learned about the number of edge-disjoint paths
 to groups of concrete routers in the node's role.
 More specifically, we maintain fact of the form:
 %

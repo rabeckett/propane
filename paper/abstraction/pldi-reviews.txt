@@ -337,13 +337,23 @@ Fixed.
 >   networks. Do the inference rules and facts generalize to
 >   node-disjointness? If so how, if not why?
 
-
+Clarified that we are focusing on link failures only, which are much
+more common than node failures.
 
 > * How far away from the real value can the lower bound computed by the
 >   inference rules be? Can you bound it somehow? In general, I think it
 >   would help the reader to illustrate a situation in which Methane’s
 >   inferred lower-bound is conservative instead of being precise,
 >   e.g. could be the case that you mention in Section 9.1.
+
+> * How far off was Methane when it generated conservative bound instead
+>   of precise ones? The Evaluation only gives binary information right
+>   now. Please add these numbers to the paper. Also, and this goes back
+>   to my point above, the fact that you start to have conservative
+>   results instead of precise ones when switching from valley-free
+>   routing to shortest-path routing makes the reader wonder how would the
+>   result change should you use more complex routing policies. This goes
+>   back to my point above
 
 > * I think the paper is quite thin on incrementality. While the
 >   intuition presented in Section 7 is nice (I see a parallel with
@@ -353,6 +363,10 @@ Fixed.
 >   requires to be changed upon change in the concrete topology. If
 >   that's the case, it requires more backing on why it is the case.
 
+Expanded on incrementality a bit by stating more explicitly what 
+can change and what does not. This hopefully makes it easier to 
+follow the reasoning.
+
 > * Another point regarding incrementality. Would you also have it
 >   considering other protocols? In particular, my intuition is that
 >   incrementality is possible in your case because you’re considering
@@ -361,14 +375,7 @@ Fixed.
 >   network-wide changes are required to implement a requirement (e.g.,
 >   weight changes in multiple locations).
 
-> * How far off was Methane when it generated conservative bound instead
-> of precise ones? The Evaluation only gives binary information right
-> now. Please add these numbers to the paper. Also, and this goes back
-> to my point above, the fact that you start to have conservative
-> results instead of precise ones when switching from valley-free
-> routing to shortest-path routing makes the reader wonder how would the
-> result change should you use more complex routing policies. This goes
-> back to my point above
+We discuss explicitly now that we are mostly just focused on BGP in this work.
 
 > > Please comment on what Methane precision depends on.
 
@@ -392,6 +399,8 @@ Fixed.
 > - blackhoes > blackholes.
 > - It would be nice to have a legend in Figure 4 describing 
 >   what TL, TG, AL,  G, and S are.
+
+Added a legend for Figure 4.
 
 > ===========================================================================
 >                            PLDI '17 Review #187C
@@ -434,11 +443,16 @@ Fixed.
 > - Your main theoretical result (Theorem 7.2) applies only to a network
 >   running the BGP protocol. Is this correct?
 
+This is correct, we have clarified that this work applies to 
+the BGP routing protocol in a number of places now.
+
 > - I found the proof in the appendix almost impossible to follow. It
 >   needs to first be explained at a high level (enumerating all the
 >   auxiliary lemmas) and you should describe concretely where the hard
 >   parts are. As it stands it looks like a routine induction proof
 >   (which is long, messy and poorly typeset in LaTeX).
+
+
 
 > - I was expecting (since you are doing fault tolerance analysis) that
 >   you would compile your language into a probabilistic automaton
@@ -469,9 +483,15 @@ Fixed.
 > to name the abstract graph, etc, but since you re also talking about 
 > homomorphisms I thought for a while this was a real exponential. Others 
 > might be confused too.
+
+TODO: what should we do about this.
+
 > - on page 4 you say there will be a one to one correspondence between 
 > the concrete and abstract nodes. are you sure you mean one to one? I would 
 > expect to have less abstract nodes...
+
+Clarified this in the section, we are talking about how abstract
+topologies are strictly more expressive than concrete topologies.
 
 > ===========================================================================
 >                            PLDI '17 Review #187D
@@ -546,4 +566,3 @@ Fixed.
 > Propane system. However, the paper doesn't discuss the effort required
 > in defining the specification (in particular the abstract topology),
 > and this is a flaw.
-
