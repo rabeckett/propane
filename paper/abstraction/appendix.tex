@@ -89,7 +89,8 @@
 \newcommand{\Compile}{\ensuremath{\mathrm{compile}}}
 \newcommand{\Append}{\ensuremath{\mathrm{append}}}
 \newcommand{\Pref}{\ensuremath{\mathrm{pref}}}
-
+\newcommand{\Topo}{\ensuremath{\mathrm{topo}}}
+\newcommand{\EndR}{\ensuremath{\mathrm{end}}}
 
 \renewcommand{\path}[2]{ #1 \mapsto \ensuremath{#2} }
 
@@ -322,53 +323,61 @@ Throughout the remainder of the appendix, we use the following convention for me
   \text{Automata} & M, M^A \\
 \end{array} \]
 
-We use capital letters for abstract topology/product graph nodes and we use lower case letters for concrete topology nodes. By default, product graph nodes with different subscripts refer to nodes that share the same topology location (\IE, $n_1 \approx n_2$). A superscript $G^A$ refers to the abstract version (in this case of the topology), while the non-superscripted value refers to the concrete version. Given a path as a sequence of locations $p = l_1, \dots, l_k$ we often apply the graph homomorphism $f$ to the path by writing: $f(p) = f(l_1), \dots, f(l_k)$.
+We use capital letters for abstract topology/product graph nodes and we use lower case letters for concrete topology nodes. By default, product graph nodes with different subscripts refer to nodes that share the same topology location (\IE, $\Topo(n_1) = \Topo(n_2)$). A superscript $G^A$ refers to the abstract version (in this case of the topology), while the non-superscripted value refers to the concrete version. Given a path as a sequence of locations $path = l_1, \dots, l_k$ we often apply the graph homomorphism $f$ to the path by writing: $f(path) = f(l_1), \dots, f(l_k)$.
 
-\section{Proof Overview}
 
-The goal of the proof is to show that the concretization and compilation functions commute:
+\newpage
+
+\section{Proof Sketch}
+\vspace{1em}
+
+The goal of the proof is to show that the concretization and compilation functions commute. In particular, we are interested in establishing the following theorem:
+
+\begin{thm}
+  for all \sysname policies pol, contexts $\Gamma$, and topologies G and $G^A$ related by the homomorphism $f$, 
+  $$\Con(\Compile(pol,G^A),\Gamma,f,G) = \Compile(\Con(pol,\Gamma,f), G)$$
+\end{thm}
+
+The proof proceeds in the following steps. 
+
+\para{Product Graphs (Step 1)} First, we establish several facts about the relationship of the concrete and abstract product graphs given the definition for building the product graph. We start by assuming that both an abstract constraint and its concretized form are compiled to product graphs and preference functions: 
 %
-$$\Con(\Compile(pol,G^A),\Gamma,f,G) = \Compile(\Con(pol,\Gamma,f), G)$$ 
+\[
+\begin{array}{lll}
+  \CompilePg(t_1 \Path~ \Con(r_1,\Gamma,f) ~\Prefer~ \ldots ~\Prefer~ \Con(r_n,\Gamma,f), G) &=& (t_1, PG, \Pref) \\
+  \CompilePg(t_2 \Path~ r_1 ~\Prefer~ \ldots ~\Prefer~ r_n, G^A) &=& (t_2, PG^A, \Pref^A) \\
+\end{array}
+\]
 %
-The proof proceeds in the following fashion. First, we establish several facts about the relationship of the concrete and abstract product graphs given the definition for building the product graph. Assumming ...
-%
-$$t = \$x \implies pfx \in \Gamma(x)$$
-$$\CompilePg(t \Path r_1 \Prefer \ldots \Prefer r_n, G) = (t, PG, \Pref)$$
-$$\CompilePg(pfx \Path r_1 \Prefer \ldots \Prefer r_n, G^A) = (pfx, PG^A, \Pref^A)$$
-%
-Then several relationships hold between $PG$ and $PG^A$ as well as between $\Pref$ and $\Pref^A$. Using these facts, we then establish that concretization and compilation commute for an individual constraint p:
+Using this assumption, we show that several relationships hold between $PG$ and $PG^A$ as well as between $\Pref$ and $\Pref^A$. 
+
+\para{Substitution of Constraints (Step 2)} The next step is to use the relationships established in step 1 to show that concretization and compilation commute for an individual constraint \sysname p:
 %
 $$\Con(\Compile(p, G^A), \Gamma, f, G) = \Compile(\Con(p,\Gamma,f), G)$$
 %
-This proof proceeds by cases on the constraint p. Finally, this theorem is lifted to policies $pol = p_1, \ldots, p_n$ using the previous proof to obtain the final theorem.
+This proof proceeds by cases on the constraint p.
 
-
-
-
+\para{Substitution of Policies (Step 3)} Finally, this theorem is lifted to \sysname policies $pol = p_1, \ldots, p_n$ using the previous proof for individual constraints to obtain the final theorem:
 %
-%$$t = \$x \implies pfx \in \Gamma(x)$$
-%$$\CompilePred((t,PG,\Pref), G) = t \rightarrow xs $$
-%$$\CompilePred((pfx,PG^A,\Pref^A), G^A) = pfx \rightarrow ys$$
-%$$xs = ys$$
-
-
-
-
-\section{Substitution Theorem}
-
-The goal of this section is to prove that the concretization and compilation functions commute: 
 $$\Con(\Compile(pol,G^A),\Gamma,f,G) = \Compile(\Con(pol,\Gamma,f), G)$$ 
-That is -- we can perform compilation directly over the abstraction and only substitute for the concrete values on after compilation is complete. Note that the theorem states that the resulting mBGP policies are actually syntactically equivalent and not semantically equivalent. First we need a few helper theorems about compilation.
 
-\subsection{Automata}
+\newpage
+
+
+\section{Substitution Proof}
+
+\subsection{Product Graphs (Step 1)}
+In this section, we will establish several relationships between the product graph and preference functions for abstract and concretized \sysname policies. First we relate the languages denoted by regular expressions under concretization. Then we lift this observation to automata, and finally to product graphs.
+
 
 \newcommand{\Lang}{\ensuremath{\mathcal{L}}}
 
-We compile regular expressions to automata. As a side condition, we ensure that there are no transitions from some state $q$ to the initial state: $\sigma(q,x) = q_0$. This is done by creating another state $q_0'$ with the same transition function as $q_0$ and all other states transition to $q_0'$ instead of $q_0$.
+%We compile regular expressions to automata. As a side condition, we ensure that there are no transitions from some state $q$ to the initial state: $\sigma(q,x) = q_0$. This is done by creating another state $q_0'$ with the same transition function as $q_0$ and all other states transition to $q_0'$ instead of $q_0$.
 
 \vspace{1em}
 \begin{lem}
-  For any $\Gamma$, $f$, and $r$, path $p \in \Lang(con(r,\Gamma,f)) \iff f(p) \in \Lang(r)$.
+  For any context $\Gamma$, homomorphism $f$, and regular expression $r$, 
+  path $p \in \Lang(con(r,\Gamma,f)) \iff f(p) \in \Lang(r)$.
 \end{lem}
 \begin{proof}
 By induction on the structure of $r$
@@ -467,80 +476,74 @@ By induction on the structure of $r$
 %  \end{proof}
 %\end{lem}
 
+\vspace{2em}
+For the proof, we assume regular expressions are translated to finite automata in a particular way as defined below
 
-\begin{lem}
-  Consider the PG created from compiling the constraint $p = (t ~\Path~ r_1 ~\Prefer~,\dots, ~\Prefer~ r_k)$ with state machine $M^A_i$ for each $r_i$. We know that, for each $(pfx ~\Path~ r'_1 ~\Prefer~,\dots, ~\Prefer~ r'_k) \in con(p,\Gamma,f)$ where $r'_i$ is of the form $r \cap \text{end}(L)$ we can constuct state machine $M_i$ for $r'_i$ over the same states in the following way:
-    
+\begin{defn}
+Given a regular expression $r$ over abstract locations, homomorphism $f$, a nonempty set of locations $L$, and a finite state machine $M^A = (\Sigma,Q^A,q_0,\sigma^A,F^A)$, we create a concrete state machine $M = (\Sigma, Q, q_0, \sigma, F)$ for the concretized policy $con(r,\Gamma, f) \cap \EndR(L)$ in the following way: 
+
     \[ \begin{array}{lll}
       1. & \sigma(q_0,l) = q' \iff \sigma^A(q,f(l)) = q' & \textbf{for each}~~ l \in L \\
       2. & \sigma(q,l) = q' \iff \sigma^A(q,f(l)) = q' & \textbf{for each}~~ l \in \Sigma \\
       3. & q \in F \iff q \in F^A & \\
     \end{array} \]
+\end{defn}
 
-  then $M_i$ matches $p$ $\iff$ $p \in \Lang(r_i')$
-  
-  \vspace{1em}
-  \begin{proof} by cases on $t$
 
+Next, we show that the construction is correct. That is, the machine recognizes exactly the language $con(r,\Gamma, f) \cap \EndR(L)$.
+
+\begin{lem}
+  for any path $p$, $M$ matches $p$ $\iff$ $p \in \Lang(con(r,\Gamma, f) \cap \EndR(L))$
+  %\vspace{1em}
+  \begin{proof} 
+    $ $
     \vspace{1em}
 
-    \textbf{Case} $(\$x ~\Path~ r_1 ~\Prefer~,\dots, ~\Prefer~ r_k)$
+    \textbf{Case} ($\Rightarrow$)
 
-    \[ \begin{array}{lcl}
-      con(p) &=& pfx_1 ~\Path~ con(r_1,\Gamma,f) \cap \text{end}(l_1), ~\Prefer~ \dots ~\Prefer~ con(r_k,\Gamma,f) \cap \text{end}(l_1)  \\
-             & & \dots, \\
-             & & pfx_n ~\Path~ con(r_1,\Gamma,f) \cap \text{end}(l_n), ~\Prefer~ \dots ~\Prefer~ con(r_k,\Gamma,f) \cap \text{end}(l_n)
-    \end{array} \]
-
-    Case ($\Rightarrow$)
-
-    Assume $M_i$ matches $p$. Then this means that $M^A_i$ matches $f(p)$. If we have a trace of string of the form $ p = x_1 \cdot \dots \cdot x_n$, then $f(p) = f(x_1) \cdot \dots \cdot f(x_n)$. For each transition $\sigma(q,l) = q'$ in the concrete automaton, we have transition $\sigma(q,f(l)) = q'$ in the abstract automaton, and they have the same final states, so this trace is accepting for $M^A_i$. Because $M^A_i$ matches $f(p)$, this means that $f(p) \in \Lang(r_i)$. From our above lemma, this means that $p \in \Lang(con(r_i,\Gamma,f))$. We also know that, since $L = \{ l_i \}$, the first transition $\sigma(q_0,l_i)$ is the only transition allowed from the initial state for $M_i$. So this means that $p \in \Lang(\text{end}(l_i))$. Since we know that $p \in \Lang(con(r_i,\Gamma,f))$ and $p \in \Lang(\text{end}(l_i))$, we know that $p \in \Lang(con(r_i,\Gamma,f) \cap \text{end}(l_i))$ and thus $p \in \Lang(r'_i)$.
+    Assume $M$ matches $p$. Then this means that $M^A$ matches $f(p)$. If we have a trace of string of the form $ p = x_1 \cdot \dots \cdot x_n$, then $f(p) = f(x_1) \cdot \dots \cdot f(x_n)$. For each transition $\sigma(q,l) = q'$ in the concrete automaton, we have transition $\sigma(q,f(l)) = q'$ in the abstract automaton, and they have the same final states, so this trace is accepting for $M^A$. Because $M^A$ matches $f(p)$, this means that $f(p) \in \Lang(r)$. From Lemma 1, this means that $p \in \Lang(con(r,\Gamma,f))$. We also know that, since there is only a transition from the initial state $\sigma(q_0,l)$ defined for $l \in L$ by construction, it means that $p \in \Lang(\text{end}(L))$. Since we know that $p \in \Lang(con(r_i,\Gamma,f))$ and $p \in \Lang(\text{end}(L))$, we know that $p \in \Lang(con(r,\Gamma,f) \cap \text{end}(l))$ and thus $p \in \Lang(con(r,\Gamma, f) \cap \EndR(L))$.
 
     \vspace{1em}
-    Case ($\Leftarrow$)
+    \textbf{Case} ($\Leftarrow$)
 
-    Assume $p \in \Lang(r'_i)$. This means that $p \in \Lang(con(r_i) \cap \text{end}(l_i))$. In turn, this means that $p \in \Lang(con(r_i))$ and $p \in \Lang(\text{end}(l_i))$. From the above lemma, we know that $f(p) \in \Lang(r_i)$, which means that $M^A_i$ matches $f(p)$. 
+    Assume $p \in \Lang(con(r,\Gamma, f) \cap \EndR(L))$. This means that $p \in \Lang(con(r,\Gamma,f))$ and $p \in \Lang(\text{end}(L))$. Lemma 1, we know that $f(p) \in \Lang(r)$, which means that $M^A$ matches $f(p)$. 
     %
-    Consider any string of the form $p = l_i \cdot x_2 \cdot \dots \cdot x_n$ such that $p \in \Lang(con(r_i) \cap \text{end}(l_i))$. Clearly there is a transition defined for $\sigma(q_0,l_i) = q_1$.
+    Consider any string of the form $p = l \cdot x_2 \cdot \dots \cdot x_n$ such that $p \in \Lang(con(r,\Gamma,f) \cap \text{end}(L))$. Clearly $l \in L$ and there is a transition defined for $\sigma(q_0,l) = q_1$.
     %
-    This means that $M^A_i$ matches $f(l_i) \cdot f(x_2) \cdot \dots \cdot f(x_n)$
+    This means that $M^A$ matches $f(l) \cdot f(x_2) \cdot \dots \cdot f(x_n)$.
     %
-    For each transition $\sigma^A(q,f(x_i)) = q'$, we have $\sigma(q,x_i) = q'$ in $M_i$.
+    For each transition $\sigma^A(q,f(x_i)) = q'$, we have $\sigma(q,x_i) = q'$ in $M$.
     %
-    Thus the string $l_i \cdot x_2 \cdot \dots \cdot x_n$ is accepted along the same path of automaton states.
-
-  \vspace{1em}
-
-  \textbf{Case} $(pfx ~\Path~ r_1 ~\Prefer~,\dots, ~\Prefer~ r_k)$
-
-    \[ \begin{array}{lcl}
-      con(p,\Gamma,f) &=& pfx_1 ~\Path~ con(r_1,\Gamma,f) \cap \text{end}(\Sigma^*), ~\Prefer~ \dots ~\Prefer~ con(r_k,\Gamma,f) \cap \text{end}(\Sigma^*) \\
-    \end{array} \]
-
-    First we observe that: $M^A_i$ matches $f(p)$ $\iff$ $M_i$ matches $p$.
-    %
-    Suppose $M^A_i$ matches $f(p) = A_1, \dots, A_k$, then there exists a trace through $M^A_i$ of the form:%
-    %
-    $q_0, q_1, \dots, q_{k+1}$
-    %
-    where $\sigma^A_i(q_i, A_i) = q_{i+1}$ and $q_{k+1} \in F^A$. We must show that $M_i$ matches $p = a_1, \dots, a_k$. %
-    %
-    From the construction of the automaton, we know that $\sigma_i(q_i, a_i) = q_{i+1}$ and $q_{k+1} \in F \iff q_{k+1} \in F^A_i$. Therefore, the trace $q_0, q_1, \dots, q_{k+1}$ is accepted by $M_i$. 
-    %
-    The same proof is symmetric for the other direction. It follows that:
-
-    \[ \begin{array}{lll}
-      M ~\text{matches}~ p &\iff& M^A ~\text{matches}~ f(p) \\
-                         &\iff& f(p) \in \Lang(r) \\
-                         &\iff& p \in \Lang(con(r,\Gamma,f)) \\
-    \end{array} \]%
-
+    Thus the string $l \cdot x_2 \cdot \dots \cdot x_n$ is accepted along the same path of automaton states.
   \end{proof}
 
 \end{lem}
 
+
+\begin{lem} $M$ and $M^A$ have the same set of states. That is, $Q = Q^A$.
+    $ $
+    \vspace{1em}
+    \begin{proof}
+      This follows trivially from the construction of $M$.
+    \end{proof}
+\end{lem}
+
+\vspace{3em}
+For the remainder of this section, we will consider propositions assuming the following: 
+%
+\[
+\begin{array}{lll}
+  \CompilePg(t_1 \Path~ \Con(r_1,\Gamma,f) \cap \EndR(L) ~\Prefer~ \ldots ~\Prefer~ \Con(r_n,\Gamma,f) \cap \EndR(L), G) &=& (t_1, PG, \Pref) \\
+  \CompilePg(t_2 \Path~ r_1 ~\Prefer~ \ldots ~\Prefer~ r_n, G^A) &=& (t_2, PG^A, \Pref^A) \\
+\end{array}
+\]
+%
+where either $L = \Sigma$, or $L = \{ l \}$ with
+
+
 \vspace{1em}
-\subsection{Product Graph}
+
+
 
 \begin{defn}
   Because compilation guarantees that the automata states are the same under the concretization function, we can lift the graph homomorphism $f$ to a new homomorphism $f_{pg}$ over the product graph in the following way:
