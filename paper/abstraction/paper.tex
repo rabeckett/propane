@@ -870,13 +870,13 @@ The following sections detail each of the three phases.
   \begin{minipage}[t]{.3\linewidth}
     \hdr{Concrete Topology}{}
     \vspace{1em}
-    \includegraphics[width=.62\columnwidth]{figures/topology-con}
+    \includegraphics[width=.60\columnwidth]{figures/topology-con}
   \end{minipage}%
   %
   \begin{minipage}[t]{.3\linewidth}
     \hdr{Abstract Topology}{}
     \vspace{1em}
-    \includegraphics[width=.505\columnwidth]{figures/topology-abs}
+    \includegraphics[width=.49\columnwidth]{figures/topology-abs}
   \end{minipage}%
 
   \vspace{1em}
@@ -1058,19 +1058,19 @@ an inference of the form $A_{Q} A_{TL}(2,3)$ states that, from the given source 
 \newcommand{\inferencetwo}[1]{
     \node[draw, anchor=west] at (#1 + 2, 1.25) {$e_i > 0$};
     \node[] at (#1 + .46, 1.25 + 2.5) {\textbf{I-striping}};
-    \node at (#1 - 1 - .11, .6) {$e_1$};
-    \node at (#1 + .11, 1.5) {$e_2$};
-    \node at (#1 + 2 + .11, .6) {$e_3$};
-    \node at (#1 + .11 + .8, 1.5) {$e_4$};
-    \node at (#1 - 1, -.8) {L$_m(j,k)$};
-    \node at (#1 +. 5, 2.9) {S$_n(min(j*k,g),1)$};
-    \node at (#1 + 2, -.8) {S$_o\big( min(j, g *\frac{e_4}{e_3}),1\big)$};
-    \node at (#1, 3.3) {};
-    \draw [] (#1 + .5, 2.01) circle [radius=0.4] node {$n$};
-    \draw [] (#1 - 1, 0) circle [radius=0.4] node {$m$};
-    \draw [] (#1 + 2, 0) circle [radius=0.4] node {$o$};
-    \draw [->] (#1 - 1, .4) -- (#1 + .5, 2 - .4);
-    \draw [<-] (#1 + 2, .4) -- (#1 + .5, 2 - .4);
+    \node at (#1 - 1 - .11, .6 + .2) {$e_1$};
+    \node at (#1 + .11, 1.5 + .2) {$e_2$};
+    \node at (#1 + 2 + .11, .6 + .2) {$e_3$};
+    \node at (#1 + .11 + .8, 1.5 + .2) {$e_4$};
+    \node at (#1 - 1, -.8 + .2) {L$_m(j,k)$};
+    \node at (#1 +. 5, 2.9 + .2) {S$_n(min(j*k,g),1)$};
+    \node at (#1 + 2, -.8 + .2) {S$_o\big( min(j, g *\frac{e_4}{e_3}),1\big)$};
+    \node at (#1, 3.3 + .2) {};
+    \draw [] (#1 + .5, 2.01 + .2) circle [radius=0.4] node {$n$};
+    \draw [] (#1 - 1, 0 + .2) circle [radius=0.4] node {$m$};
+    \draw [] (#1 + 2, 0 + .2) circle [radius=0.4] node {$o$};
+    \draw [->] (#1 - 1, .4 + .2) -- (#1 + .5, 2 - .4 + .2);
+    \draw [<-] (#1 + 2, .4 + .2) -- (#1 + .5, 2 - .4 + .2);
 }
 
 \newcommand{\inferencelocal}[2]{
@@ -1110,7 +1110,7 @@ an inference of the form $A_{Q} A_{TL}(2,3)$ states that, from the given source 
   \end{tikzpicture}
   \end{minipage}
 
-  \vspace*{1em}
+  \vspace*{.2em}
   \begin{minipage}[t]{\linewidth}%
   \begin{tikzpicture}
     % \inference{0}{L$(j,k)$}{$e_i > 0$}{S$(min(j*k,g),1)$}{I-out3}{$e_1$}{$e_2$}
@@ -1251,6 +1251,7 @@ We introduce a simple, vendor-independent BGP configuration language called \mbg
 
 We now look at each of these steps in turn.
  
+
 \para{Tagging and Filtering}
 
 The BGP routing protocol standard allows for the use of \emph{community tags}, 32-bit integer tags that can be arbitrarily attached to, or removed from routing advertisements. 
@@ -1258,7 +1259,7 @@ Community tags serve as a simple form of \emph{history}, and operators routinely
 
 The idea for template generation is to use community tags to record the state of the automata from the Product Graph in every BGP announcement and update these tags whenever messages are passed between routers. Such a tagging mechanism is used to ensure that BGP only considers paths that are allowed by the \sysname policy (\IE, paths in the PG). Routers will allow advertisments that correspond to an edge in the PG and block any advertisments that do not.
 
-For example, in the concrete PG in Figure~\ref{fig:example-compilation}, router S1 appears in two PG nodes: $(S1,1,0)$ and $(S1,0,1)$. These nodes have two peers that can send them messages in the PG: $(N1,0,0)$ and $(N2,0,0)$. Therefore, S1 will allow advertisements from both peer $N1$ and peer $N2$. If S1 uses the path advertised by neighbor N1, then it will add the tag $(1,0)$ to the advertisement before sending this to its neighbors A1 and A2. If S1 uses a path advertised from neighbor N2, then it will add the tag $(0,1)$ instead. Similarly, router A1 appears in two separate PG nodes. It will allow advertisements from S1 if they either have the $(1,0)$ tag or the $(0,1)$ tag attached. In either case, it will not modify the tag before exporting the route to its neighbors.
+For example, in the concrete PG in Figure~\ref{fig:example-compilation}, router S1 appears in two PG nodes: $(S1,1,0)$ and $(S1,0,1)$. These nodes have two peers that can send them messages: $(N1,0,0)$ and $(N2,0,0)$. Therefore, S1 will allow advertisements from both peer $N1$ and peer $N2$. If S1 uses the path advertised by neighbor N1, then it will add the tag $(1,0)$ to the advertisement before sending this to its neighbors A1 and A2. If S1 uses a path advertised from neighbor N2, then it will add the tag $(0,1)$ instead. Similarly, router A1 appears in two separate PG nodes. It will allow advertisements from S1 if they either have the $(1,0)$ tag or the $(0,1)$ tag attached. In either case, it will not modify the tag before exporting the route to its neighbors.
 
 %\begin{algorithm}[t!]
 %\caption{Checking safe neighbor preferences}
@@ -1305,9 +1306,9 @@ For example, in the concrete PG in Figure~\ref{fig:example-compilation}, router 
   \vspace*{-1\baselineskip}
   %
   \[ \begin{array}{rclr}
-     d    &   & & \textit{integer} \\
-     c    &   & & \textit{community} \\
-     l    &   & & \textit{location} \\
+     d    &\in& \textit{Integers} & \\
+     c    &\in& \textit{Communities} & \\
+     l    &\in& \textit{Topology Locations} & \\
      t    &::=& \$x \BNFALT d.d.d.d/[d..d] & \textit{predicate} \\
      ns   &::=& \{ l_1, ~\dots,~ l_k \} & \textit{peers} \\
      ma   &::=& d : ({ns}_1, c_1) \rightarrow ({ns}_2, c_2) & \textit{match action} \\
@@ -1343,23 +1344,13 @@ For example, in the concrete PG in Figure~\ref{fig:example-compilation}, router 
   \vspace{-.8em}
   \caption{mBGP syntax (left), and compilation from product graphs (right).}
   \label{fig:concretization}
-  \vspace{-.8em}
+  \vspace{-.4em}
 \end{figure*}%
 
 
 \para{Preference Search}
 
 Tagging and filtering according to the PG with community values in BGP forces the protocol to only consider paths to the destination that are allowed by the policy. However, finding \emph{some} path to the destination is not enough. We must ensure that each router uses its \emph{best} available path to the destination according to the policy. Further, this must continue to hold as additional elements of the network fail. In the example from Figure~\ref{fig:example-compilation}, the policy was $\True ~\Path~ \CD{\Exit(N1\Prefer N2)}$, which indicates that paths through N1 should be used whenever possible, and paths through N2 should only be used as a backup. If router S1 allows advertisements from both N1 and N2 but does not prefer one advertisement over another, it might end up choosing to use a path through N2 even though a more preferred path through N1 exists and is available\footnote{ties between equally preferred paths can be broken nondeterministically}. On the other hand, if the S1-N1 link fails, then the best available path is through N2.
-
-\begin{figure}[t!]
-  \begin{center}
-    \includegraphics[width=\columnwidth]{figures/configs}
-  \end{center}
-  \vspace{-1em}
-  \caption{Spine template and concrete configurations (left), and evolution-friendly templates (right).}
-  \label{fig:bgp-configs}
-  \vspace{-.6em}
-\end{figure}
 
 To enforce correct network-wide preferences, we use the BGP local-preference attribute, which allows routers to prefer routes from one neighbor (or with some tag) over routers learned from another neighbor. The challenge is to find a collection of device-local preferences that correctly enforce the network-wide preferences from the policy for all failures.
 
@@ -1368,17 +1359,17 @@ The idea then is to search for such a device-local preference function for each 
 In general, because BGP is distributed, each router does not have a view of the entire network when choosing which path to use, and finding a collection of preferences to ensure correct end-to-end behavior for all failures is a hard problem. \Propane introduced a conservative search strategy for determining route preferences that works well in practice. To make it work for abstract topologies, we modify the search based on the following observation about the PG structure:
 
 \begin{defn}
-Let $m \geq_{rank} n$ be a relation over PG vertices that holds iff $\min (\Pref(m)) \geq \min (\Pref(n))$ or $\Pref(n) = \emptyset$. Intuitively $m \geq_{rank} n$ means that paths ending at node $m$ have higher automata rank and are thus no better than paths ending at $n$.
+Let $m \geq_{rank} n$ be a relation over PG vertices that holds iff $\Topo{m} = \Topo{n}$ and either $\min (\Pref(m)) \geq \min (\Pref(n))$ or $\Pref(n) = \emptyset$.
 %
 \end{defn}
 \noindent
 %
-
+Intuitively $m \geq_{rank} n$ means that paths ending at node $n$ have lower automata rank and are thus better than paths ending at $m$.
 %\begin{defn}
 The PG can be viewed as a labelled transition system by pushing the location from each directed edge's target node onto the edge. That is, $m\overset{l}{\rightarrow}n$ if there is an edge $(m,n)$ in the PG and $\Topo{n} = l$.
 %\end{defn}
 %
-For example, in the concrete PG we would have the transition $(S1,1,0)\overset{A2}{\rightarrow}(A2,1,0)$.
+For example, in the concrete PG we have the transition $(S1,1,0)\overset{A2}{\rightarrow}(A2,1,0)$.
 
 \begin{defn}
 We write $m \leq n$ if the subgraph reachable from $m$ and $n$ respectively form a simulation relation with respect to $\geq_{rank}$.
@@ -1386,7 +1377,7 @@ We write $m \leq n$ if the subgraph reachable from $m$ and $n$ respectively form
 
 More specifically, we say that $m \leq n$ if $m \geq_{rank} n$ and for every transition $n\overset{l}{\rightarrow}n'$ from PG node $n$ there exists a transition $m\overset{l}{\rightarrow}m'$ from $m$ and $m' \leq n'$.
 %
-Intuitively, the $m \leq n$ relation means advertisements received for node $m$ can safely be preferred over those received for node $n$ after accounting for the network-wide impact of the choice. For example in Figure~\ref{fig:example-compilation}, S1 can receive advertisements in two different contexts ($(S1,1,0)$ and $(S1,0,1)$) and must choose between messages received in these different contexts. Advertisements are preferred in state $(S1,1,0)$ because it results in a better path for S1 ($(S1,0,1) \geq_{rank} (S1,1,0)$) and downstream routers such as A1 will also obtain paths no worse than if S1 had choosen $(S1,1,0)$ instead. The policy is guaranteed to be safe from failures because if a link fails in the topology, then $m \leq n$ will still hold since any transition that becomes unusable for $m$ also becomes unusable for $n$. That is $m \leq n$ before the failure implies $m \leq n$ after the failure.
+If $m \leq n$, then advertisements received for node $m$ can safely be preferred over those received for node $n$ after accounting for the network-wide impact of the choice. For example in Figure~\ref{fig:example-compilation}, S1 can receive advertisements in two different contexts ($(S1,1,0)$ and $(S1,0,1)$) and must choose between messages received in these different contexts. Advertisements are preferred in state $(S1,1,0)$ because it results in a better path for S1 ($(S1,0,1) \geq_{rank} (S1,1,0)$) and downstream routers such as A1 will also obtain paths no worse than if S1 had choosen $(S1,1,0)$ instead. The policy is guaranteed to be safe from failures because if a link fails in the topology, then $m \leq n$ will still hold since any transition that becomes unusable for $m$ also becomes unusable for $n$. That is $m \leq n$ before the failure implies $m \leq n$ after the failure.
 
 For each router, its corresponding PG nodes are then sorted according the the $\leq$ operator. If the operator defines a total order on PG nodes, then the compiler can simply prefer advertisements from peers of node $m$ over those of $n$ whenever $n \leq m$. However, if $\leq$ does not form a total order, then the policy is rejected as being potentially unsafe under some failure conditions.
 
@@ -1404,13 +1395,23 @@ $m \leq n$ in the concrete PG iff $f_{pg}(m) \leq f_{pg}(n)$ in the abstract PG.
 Lemma~\ref{lem:preference} tells us that inferring preferences for the abstract PG before template instantiation is equivalent to inferring preferences for an already-instantiated concrete PG.
 
 
+\begin{figure}[t!]
+  \begin{center}
+    \includegraphics[width=\columnwidth]{figures/configs}
+  \end{center}
+  \vspace{-1em}
+  \caption{Spine template and concrete configurations (left), and evolution-friendly templates (right).}
+  \label{fig:bgp-configs}
+  \vspace{-.6em}
+\end{figure}
+
 \para{mBGP}
 To characterize compilation we first introduce a simple, vendor independent configuration language for the BGP protocol called \mbgp. The syntax for \mbgp is shown in Figure~\ref{fig:concretization} (left). An \mbgp policy consists of a sequence of router configurations (one for each internal topology location $l$). A router configuration is an ordered sequence of a predicate describing the traffic, and a predicate configuration. A predicate is either a template variable $\$\mathrm{x}$ or a prefix. A predicate configuration is a collection of match action statements, where each match action indicates that the router will match advertisements from any of a set of peers $ns_1$ with a particular community tag $c_1$ with local preference $d$, before exporting the route to another set of peers $ns_2$ with a new community tag $c_2$.
 
 
 \para{Compilation}
 
-Figure~\ref{fig:concretization} (right) defines compilation from \sysname to \mbgp. It proceeds by compiling constraints $p_i$ in the original \sysname policy to a tuple of: the predicate $t_i$, the product graph $PG_i$, and the preference function $pref_i$. These tuples are passed the the $\mathrm{compile}_\mathrm{mBGP}$ function, along with the network topology $G$. For each internal router in the topology $l$, and each predicate $t_i$ in the \sysname policy, compilation goes through each node $m$ for $l$ in $PG_i$, and groups the inbound neighbors of $m$ by tag ($q_n$) into sets ($in$). It allows imports from these neighbors before exporting to the outbound neighbors of $m$. The local preference for these imports is given by $\mathrm{pref}_i(m)$.
+Figure~\ref{fig:concretization} (right) defines compilation from \sysname to \mbgp. It proceeds by compiling constraints $p_i$ in the original \sysname policy to a tuple of: the predicate $t_i$, the product graph $PG_i$, and the preference function $pref_i$. These tuples are passed the the $\mathrm{compile}_\mathrm{mBGP}$ function, along with the network topology $G$. For each internal router in the topology $l$, and each predicate $t_i$ in the \sysname policy, compilation goes through each node $m$ for $l$ in $PG_i$, and groups the inbound neighbors of $m$ by tag ($q_n$) into sets ($in$). It allows imports from these neighbors before exporting to the outbound neighbors of $m$. The local preference for these imports is given by $\mathrm{pref}_i(m)$. We build configs using list-comprehension notation. For instance, $[~ l \rightarrow rc ~\vert~ l \in V, p(l,rc) ~]$ denotes the \mbgp policy $l_1 \rightarrow rc_{1},...,l_k \rightarrow rc_{k}$ where each $rc_{i}$ satisfies $p(l_i,rc_{i})$. We also use $\mathit{append}$ to denote sequence concatenation.%
 
 Figure~\ref{fig:bgp-configs} (left) shows part of the generated \mbgp configuration for spine routers for both the concrete and abstract policies. For brevity, we using the symbol ($*$) to denote the set of all neighbors and omit tags when irrelevant.
 %
@@ -1533,7 +1534,7 @@ We evaluate \sysname by applying it on policies for backbone and data center net
 We evaluate the expressiveness of \sysname's topology abstractions and the precision of its fault-tolerance analysis on a range of network topologies found in production networks and in the networking literature. We characterize expressiveness by checking if the abstractions allow the topologies to evolve arbitrarily or certain aspects must be fixed (\IE, cannot be symbolic). We measure precision by checking if we find a tight lower-bound on fault-tolerance (\IE, there is a concrete network with that fault-tolerance).
 
 The top part of Figure~\ref{fig:analysis-precision} shows the results for common real-world settings: tree-based topologies coupled with valley-free routing.
-We consider four variants of tree topologies: a standard fat tree~\cite{fattree}, the Facebook fat tree~\cite{facebook-fattree}, the F10 fault-tolerant fat tree~\cite{f10-fattree}, and VL2~\cite{vl2-fattree}. These variants differ in the number of tiers and the connectivity pattern between roles. For each, we use a tiered abstraction similar to that in our example (\S\ref{sec:overview}) and parameterize over the number of pods, which can be scaled to allow expansion. We report precision of both analyzing reachability and computing the number of disjoint paths, and we report if \sysname is precise for all pairs of abstract nodes or only some of them. We record a check when the analysis is precise and a \Conserv{} when the analysis is conservative. %"All pairs" precision implies "some pairs" precision, but not the other way around.
+We consider four variants of tree topologies: a standard fat tree~\cite{fattree}, the Facebook fat tree~\cite{facebook-fattree}, the F10 fault-tolerant fat tree~\cite{f10-fattree}, and VL2~\cite{vl2-fattree}. These variants differ in the number of tiers and the connectivity pattern between roles. For each, we use a tiered abstraction similar to that in our example (\S\ref{sec:overview}) and parameterize over the number of pods, which can be scaled for expansion. We report precision of both analyzing reachability and disjoint paths, and we report if \sysname is precise for all pairs of abstract nodes or only some of them. We record a check when the analysis is precise and a \Conserv{} when the analysis is conservative.
 
 Our results are encouraging for these realistic settings. Our abstractions are perfectly expressive for all tree-based topologies---we did not have to fix any aspect of their structure---and the analysis is precise in all cases.
 
@@ -1608,7 +1609,7 @@ For both recursive topologies, the analysis can accurately determine reachabilit
     {\includegraphics[width=.49\columnwidth]{figures/backbone-analysis-time.png}} \\
   \vspace{-.6em}
   \caption{Abstract Synthesis Time by Phase. \label{fig:abstract-breakdown}}
-  \vspace{-1em}
+  \vspace{-.4em}
 \end{figure}
 
 
