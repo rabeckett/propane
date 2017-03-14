@@ -63,14 +63,24 @@ on concrete topologies."
 - While we are in complete agreement with the reviewers comments
 concerning our abstract and introduction and have done our best to
 address those comments, we do rather like the existing title and
-believe it is quite a good title for the paper.  It is concise and it
-emphasizes the most novel element of the paper (analysis of abstract
-topologies).  The title does not make any specific technical claim
-that is false -- it doesn't make any claim at all in fact.  It merely
-suggests a general area of work, like many titles do.  The choice of
-title is a highly subjective, artistic choice and depends largely on
-aesthetics.  We hope that you will simply grant us poetic license to
-choose our own title.
+believe it is quite a good title for the paper.  We were a bit surprised
+by the request to change the title as no problem with the title was mentioned 
+in any reviews that we saw.  We like the title because it is concise and it
+emphasizes what, in our opinion, is the most novel element of the paper (analysis of abstract
+topologies).  We also think the title is appropriate because the most
+closely related work is our own previous work on Propane.  That paper,
+published in SIGCOMM 2016 was titled "Don't Mind the Gap: Bridging
+Network-wide Objectives and Device-level Configurations."  The main
+difference between the two pieces of work is the abstract topologies and 
+the analysis over those topologies.  Hence, to distinguish the paper from
+past work, it makes sense to highlight that element.
+
+The title does not make any specific technical claim that is false --
+it doesn't make any claim at all in fact.  It merely suggests a
+general area of work, like many titles do.  The choice of title is a
+highly subjective, artistic choice and depends largely on aesthetics.
+We hope that you will simply grant us poetic license to choose our own
+title.
 
 
 > 
