@@ -88,10 +88,17 @@ title.
 > explain clearly how you would generalise the results.
 > 
 > - Section on template generation: please improve the explanations (see reviews).
+
+We expanded section 7 significantly to give a more comprehensive explanation of the compiler
+algorithms.
+
 > 
 > - Theorem 7.2 - make clear what the proof covers and improve proof.
 
-
+We revised our presentation of the proof in the appendix substantially
+(there is no room in the paper).  We were not completely sure what is meant by
+"make clear what the proof covers" --- the proof covers theorem 7.2.
+We hope our revisions to section 7 will have clarified any confusion here.
 
 
 
