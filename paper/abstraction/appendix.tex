@@ -81,8 +81,15 @@
 \newcommand{\PathKW}{\KW{path}}
 \newcommand{\Novalley}{\KW{novalley}}
 
-\newcommand{\Con}{\text{con}}
-\newcommand{\Pfx}{\mathit{pfx}}%
+\newcommand{\Con}{\mathrm{con}}
+\newcommand{\Pfx}{\mathrm{pfx}}%
+\newcommand{\CompilePred}{\ensuremath{\mathrm{compile}_\mathrm{pred}}}
+\newcommand{\CompilePg}{\ensuremath{\mathrm{compile}_\mathrm{PG}}}
+\newcommand{\CompileMbgp}{\ensuremath{\mathrm{compile}_\mathrm{mBGP}}}
+\newcommand{\Compile}{\ensuremath{\mathrm{compile}}}
+\newcommand{\Append}{\ensuremath{\mathrm{append}}}
+\newcommand{\Pref}{\ensuremath{\mathrm{pref}}}
+
 
 \renewcommand{\path}[2]{ #1 \mapsto \ensuremath{#2} }
 
@@ -184,20 +191,23 @@
   \vspace*{-1\baselineskip}
   %
   \[ \begin{array}{l}
-     \text{compile}_\text{mBGP}( (t_1,PG_1,ord_1), \dots, (t_k,PG_k,ord_k), G ) = \\
+     \CompileMbgp( [x_1, \dots, x_k], G ) = \\
      ~~~~~ [~ l \rightarrow rc ~\vert~ \\
-     ~~~~~~~~~ l \in internal(G.V), \\
-     ~~~~~~~~~ rc = \mathit{append}_i~  \\
-     ~~~~~~~~~~~~~~~ [~ t_i \rightarrow ma_1, \dots, ma_k ~\vert~ \\
-     ~~~~~~~~~~~~~~~~~~~~~ m \leftarrow (l,q_m) \in PG_i, \\
-     ~~~~~~~~~~~~~~~~~~~~~ pin \leftarrow \text{adjIn}(PG_i,m), \\
-     ~~~~~~~~~~~~~~~~~~~~~ (in,q_n) \leftarrow \{ (bs,q_n) ~\vert~ (\_,q_n) \in pin, bs=\{b ~\vert~ (b,q_n) \in pin \} \}, \\
-     ~~~~~~~~~~~~~~~~~~~~~ out \leftarrow \{ c ~\vert~ (c,\_) \in \text{adjOut}(PG_i,m) \}, \\
-     ~~~~~~~~~~~~~~~~~~~~~ in \neq \emptyset, \\
-     ~~~~~~~~~~~~~~~~~~~~~ ma_h = ord_i(m) : (in,q_n) \rightarrow (out,q_m) ~] ~] \\
+     ~~~~~~~~~~~~ l \in internal(G.V), \\
+     ~~~~~~~~~~~~ rc = \Append_i (\CompilePred( x_i, G )) ~]  \\
      \\
-     \text{compile}( p_1, \dots, p_k, G) = \\
-     ~~~~~~ \text{compile}_\text{mBGP}(\text{compile}_\text{PG}(p_1,G), \dots, \text{compile}_\text{PG}(p_k,G), G) \\
+     \CompilePred( (t,PG,pref), G ) = \\
+     ~~~~~~~~~~~~~~~ [~ t \rightarrow [~ ma ~\vert~ \\
+     ~~~~~~~~~~~~~~~~~~~~~ m \leftarrow (l,q_m) \in PG, \\
+     ~~~~~~~~~~~~~~~~~~~~~ pin \leftarrow \text{adjIn}(PG,m), \\
+     ~~~~~~~~~~~~~~~~~~~~~ (in,q_n) \leftarrow \{ (bs,q_n) ~\vert~ bs=\{b ~\vert~ (b,q_n) \in pin \}, bs \neq \emptyset \}, \\
+     ~~~~~~~~~~~~~~~~~~~~~ out \leftarrow \{ c ~\vert~ (c,\_) \in \text{adjOut}(PG_i,m) \}, \\
+     ~~~~~~~~~~~~~~~~~~~~~ ma = \Pref(m) : (in,q_n) \rightarrow (out,q_m) ~] ~] \\
+     \\
+
+
+     \Compile( p_1, \dots, p_k, G) = \\
+     ~~~~~~ \text{compile}_\text{mBGP}([\text{compile}_\text{PG}(p_1,G), \dots, \text{compile}_\text{PG}(p_k,G)], G) \\
   \end{array} \]%
   \end{minipage}%
 
@@ -270,7 +280,7 @@
   \hrulefill%
   \vspace{1em}%
 
-  \caption{\sysname syntax and expansions.}
+  \caption{\sysname syntax, expansions and concretization, as well as mBGP syntax and concretization.}
   \label{fig:syntax}
   %\vspace{-1em}
 \end{figure*}%
@@ -278,45 +288,25 @@
 \newpage
 
 
-\section{Definitions}
+\section{Preliminaries}
 
-For reference, the full \sysname syntax as well as expansions from constraints into regular expressions are shown in Figure~\ref{fig:syntax}. The language includes constraints of the form $\CD{\Agg(pfx, \ensuremath{r_1 \rightarrow r_2})}$ that say that aggregation for summary prefix $\CD{pfx}$ will occur from any single location matching $\CD{\ensuremath{r_1}}$ to any location matching $\CD{\ensuremath{r_2}}$. For simplicity, we prove the substitution property for \sysname for the fragment without aggregation. mBGP syntax and compilation, as described in the paper, as well as concretization functions ($con$) are shown in Figure~\ref{fig:concretization}.
+For reference, the full \sysname syntax as well as expansions from constraints into regular expressions are shown in Figure~\ref{fig:syntax}. mBGP syntax and compilation, as described in the paper, as well as concretization functions ($\Con$) are shown in Figure~\ref{fig:syntax}.
 
+\subsection{Definition of Compilation}
 
+We present the definition of compilation slighty differently here by factoring a separate $\CompilePred$ function, to make the proof clearer. This is a simple rewriting of the compilation function defined in the body of the paper.
 
-\subsection{Compilation}
+\subsection{Definition of Concretization}
 
-We assume a particular router $l$ appears at most once in any mBGP specification.
-We build configs using list-comprehension notation. For instance,
-$[~ l \rightarrow rc ~\vert~ l \in V \wedge p(l,rc) ~]$ denotes the mBGP policy
-%
-\[ \begin{array}{c}
-  l_1 \rightarrow rc_{1},... \\
-  ...           \\
-  l_k \rightarrow rc_{k},... \\
-\end{array} \]
-
-where $l_1, ..., l_k$ are the nodes in the topology
-and each $rc_{i}$ satisfies $p(l_i,rc_{i})$. We also use the $\mathit{append}$ operator to denote sequence concatenation.%
-
-
-\subsection{Concretization}
-
-Concretization for a \sysname policy takes as input, the policy and a context
+Definitions for concretization are shown in Figure~\ref{fig:syntax}. Concretization for a \sysname policy takes as input, the policy and a context
 $\Gamma : Var \rightarrow 2^{Prefix \times V}$,
-which maps from a template prefix to a set of pairs of a concrete prefix and a concrete location that "owns" the prefix.
+which maps from a template prefix to a set of pairs of a concrete prefix and a concrete location that ``owns" the prefix.
 %
 For each regular expression $r$, we replace each abstract location with the sum over its corresponding concrete locations under the inverse homomorphism $f^{-1}$. For each template variable, we replace it with a new entry for each of its corresponding concrete prefixes under the supplied mapping $\Gamma$. We also intersect the resulting concretized regular expression with $\text{end}(l)$ to capture the fact that this traffic is owned by the concrete location $l$.%
 
 We also define concretization over the mBGP policy in a similar manner. We replace each abstract router configuration $l \rightarrow rc$ a new entry for each concrete location $\ell \in f^{-1}(l)$. The concrete location $\ell$ is passed as a parameter to $con$ to remember the current router.
 %
 To concretize a prefix policy with a template ($\$x \rightarrow pc$) we replace it with a sequence of policies, one for each prefix in context ($(pfx,l) \in \Gamma(x)$). Match action statements where the set of import neighbors is the singleton set containing the product graph start node $\{ start \}$ and we are not currently at looking at the router configuration for the location specified in the context $l$, then we drop the match action. This is denoted with the $\bullet$ symbol. Finally, to concretize a set of neighbors, we again use $f^{-1}$ to find the set of concrete neighbors under the inverse homomorphism, but then restrict it to those that are actually connected in the underlying concrete topology with $G.E$.
-
-
-
-\subsection{Abstraction}
-
-A network topology is a graph $G$ = ($V, E$), where $V$ is a set of vertices and $E \colon V \times V$ a set of directed edges. A role-based abstraction is a graph homomorphism from $G$ to an abstract graph $G^A$ = ($V^A$,$E^A$). A graph homorphism $f : G \rightarrow G^A$ is a function that maps each node in the concrete graph to a node in the abstract graph such that, whenever $(u,v) \in E$, then $(f(u),f(v)) \in E^A$. We write $f^{-1}(v)$ to denote the set of concrete nodes mapping to the abstract node $v$. Given a path as a sequence of locations $p = l_1, \dots, l_k$ we define $f(p) = f(l_1), \dots, f(l_k)$.
 
 
 \subsection{Notation}
@@ -332,13 +322,42 @@ Throughout the remainder of the appendix, we use the following convention for me
   \text{Automata} & M, M^A \\
 \end{array} \]
 
-We use capital letters for abstract topology/product graph nodes and we use lower case letters for concrete topology nodes. By default, product graph nodes with different subscripts refer to nodes that share the same topology location (\IE, $n_1 \approx n_2$). A superscript $G^A$ refers to the abstract version (in this case of the topology), while the non-superscripted value refers to the concrete version.
+We use capital letters for abstract topology/product graph nodes and we use lower case letters for concrete topology nodes. By default, product graph nodes with different subscripts refer to nodes that share the same topology location (\IE, $n_1 \approx n_2$). A superscript $G^A$ refers to the abstract version (in this case of the topology), while the non-superscripted value refers to the concrete version. Given a path as a sequence of locations $p = l_1, \dots, l_k$ we often apply the graph homomorphism $f$ to the path by writing: $f(p) = f(l_1), \dots, f(l_k)$.
+
+\section{Proof Overview}
+
+The goal of the proof is to show that the concretization and compilation functions commute:
+%
+$$\Con(\Compile(pol,G^A),\Gamma,f,G) = \Compile(\Con(pol,\Gamma,f), G)$$ 
+%
+The proof proceeds in the following fashion. First, we establish several facts about the relationship of the concrete and abstract product graphs given the definition for building the product graph. Assumming ...
+%
+$$t = \$x \implies pfx \in \Gamma(x)$$
+$$\CompilePg(t \Path r_1 \Prefer \ldots \Prefer r_n, G) = (t, PG, \Pref)$$
+$$\CompilePg(pfx \Path r_1 \Prefer \ldots \Prefer r_n, G^A) = (pfx, PG^A, \Pref^A)$$
+%
+Then several relationships hold between $PG$ and $PG^A$ as well as between $\Pref$ and $\Pref^A$. Using these facts, we then establish that concretization and compilation commute for an individual constraint p:
+%
+$$\Con(\Compile(p, G^A), \Gamma, f, G) = \Compile(\Con(p,\Gamma,f), G)$$
+%
+This proof proceeds by cases on the constraint p. Finally, this theorem is lifted to policies $pol = p_1, \ldots, p_n$ using the previous proof to obtain the final theorem.
+
+
+
+
+%
+%$$t = \$x \implies pfx \in \Gamma(x)$$
+%$$\CompilePred((t,PG,\Pref), G) = t \rightarrow xs $$
+%$$\CompilePred((pfx,PG^A,\Pref^A), G^A) = pfx \rightarrow ys$$
+%$$xs = ys$$
+
+
 
 
 \section{Substitution Theorem}
 
 The goal of this section is to prove that the concretization and compilation functions commute: 
-$$con(compile(pol,G^A),\Gamma,f,G) = compile(con(pol,\Gamma,f), G)$$ 
+$$\Con(\Compile(pol,G^A),\Gamma,f,G) = \Compile(\Con(pol,\Gamma,f), G)$$ 
 That is -- we can perform compilation directly over the abstraction and only substitute for the concrete values on after compilation is complete. Note that the theorem states that the resulting mBGP policies are actually syntactically equivalent and not semantically equivalent. First we need a few helper theorems about compilation.
 
 \subsection{Automata}
