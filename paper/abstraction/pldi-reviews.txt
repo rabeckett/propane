@@ -86,7 +86,20 @@ title.
 > 
 > - In places where you feel can say more than just about BGP make an explicit remark and 
 > explain clearly how you would generalise the results.
-> 
+
+In the introduction, we added a few remarks.  (Broadly speaking, an
+interesting open question is how to obtain similar kinds of results
+for link-state protocols.  We do not have an answer to that at the
+moment.)
+
+We achieve this guarantee in part by relying on the ability of BGP to
+tag announcements with abstract values. These abstract values make it
+possible to change the source of an announcement without the target
+being aware of a change happening. Other control plane protocols that
+do not provide such tagging mechanisms or that implement link-state
+protocols as opposed to path-vector protocols would not be able to
+avail themselves of these techniques. 
+
 > - Section on template generation: please improve the explanations (see reviews).
 
 We expanded section 7 significantly to give a more comprehensive explanation of the compiler
