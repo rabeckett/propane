@@ -39,8 +39,8 @@
 \newcommand{\ETC}{\emph{etc.}}
 \newcommand{\ETAL}{\emph{et al.}}
 
-\newcommand{\sysname}{{\small \sf Methane}\xspace}
-\newcommand{\sysnamesec}{{\sf Methane}\xspace}
+\newcommand{\sysname}{{\small \sf Propane/AT}\xspace}
+\newcommand{\sysnamesec}{{\sf Propane/AT}\xspace}
 \newcommand{\propane}{{\small \sf Propane}\xspace}
 
 \newcommand{\para}[1]{\paragraph*{\textbf{#1}}}
@@ -81,6 +81,9 @@
 \newcommand{\PathKW}{\KW{path}}
 \newcommand{\Novalley}{\KW{novalley}}
 
+\newcommand{\Con}{\text{con}}
+\newcommand{\Pfx}{\mathit{pfx}}%
+
 \renewcommand{\path}[2]{ #1 \mapsto \ensuremath{#2} }
 
 %% grammar
@@ -104,21 +107,15 @@
 
 \appendix
 
-\section{Definitions}
-
-\subsection{Methane}
-
-The full \sysname syntax as well as expansions from constraints into regular expressions are shown in Figure~\ref{fig:syntax}. The language includes constraints of the form $\CD{\Agg(pfx, \ensuremath{r_1 \rightarrow r_2})}$ that say that aggregation for summary prefix $\CD{pfx}$ will occur from any single location matching $\CD{\ensuremath{r_1}}$ to any location matching $\CD{\ensuremath{r_2}}$. For simplicity, we prove the substitution property for \sysname for the fragment without aggregation.
-
+\vspace{2em}
+\section{Definitions Reference}
 
 \begin{figure*}[h!]\small
   \begin{minipage}[t]{.45\linewidth}
-  \hdr{Syntax}{}
+  \hdr{Propane/AT Syntax}{}
   \vspace*{-1\baselineskip}
   %
   \[ \begin{array}{rclr}
-    \hline%
-
      pol     &::=& p_1, \dots, p_n & \textit{policies} \\
      p       &::=& t \hspace{.3em} \Path \hspace{.3em} r_1 \Prefer \dots \Prefer r_m \BNFALT cc & \textit{constraints} \\
      pfx     &::=& d.d.d.d/[d..d] & \textit{prefix} \\
@@ -138,16 +135,11 @@ The full \sysname syntax as well as expansions from constraints into regular exp
 
   \end{minipage}
   %
-  ~~
-  \vrule
-  ~~
-  %
   \begin{minipage}[t]{.5\linewidth}\small
-  \hdr{Expansions}{}
+  \hdr{Propane/AT Expansions}{}
   \vspace*{-1\baselineskip}
   %
-  \[\begin{array}{rcl}
-    \hline
+  \[\begin{array}{lcl}
     \Any               & = & \Sigma^* \\
     \None              & = & \emptyset \\
     \Internal          & = & \In^+ \\
@@ -168,30 +160,9 @@ The full \sysname syntax as well as expansions from constraints into regular exp
 
   \end{minipage}%
 
-  \hrulefill%
   \vspace{1em}
-
-  \caption{Methane syntax and expansions.}
-  \label{fig:syntax}
-  %\vspace{-1em}
-\end{figure*}%
-
-
-
-\subsection{BGP Configuration}
-
-
-\newcommand{\Con}{\text{con}}
-\newcommand{\Pfx}{\mathit{pfx}}%
-
-\vspace{2em}
-\begin{figure*}[t!]\small%
-  
-  \hrulefill%
-
-  \vspace{1em}%
   \begin{minipage}[t]{.46\linewidth}
-  \hdr{ABGP Syntax}{}
+  \hdr{mBGP Syntax}{}
   \vspace*{-1\baselineskip}
   %
   \[ \begin{array}{rclr}
@@ -202,7 +173,7 @@ The full \sysname syntax as well as expansions from constraints into regular exp
      ma   &::=& d : ({ns}_1, c_1) \rightarrow ({ns}_2, c_2) & \textit{match action} \\
      pc   &::=& ma_1, \dots, ma_k & \textit{prefix config} \\
      rc   &::=& t_1 \rightarrow {pc}_1, ~\dots,~ t_k \rightarrow {pc}_k & \textit{router config} \\
-     abgp &::=& l_1 \rightarrow {rc}_1, ~\dots,~ l_k \rightarrow {rc}_k & \textit{abgp policy} \\%
+     mbgp &::=& l_1 \rightarrow {rc}_1, ~\dots,~ l_k \rightarrow {rc}_k & \textit{mBGP policy} \\%
   \end{array} \]%%
 
   \end{minipage}
@@ -213,7 +184,7 @@ The full \sysname syntax as well as expansions from constraints into regular exp
   \vspace*{-1\baselineskip}
   %
   \[ \begin{array}{l}
-     \text{compile}_\text{ABGP}( (t_1,PG_1,ord_1), \dots, (t_k,PG_k,ord_k), G ) = \\
+     \text{compile}_\text{mBGP}( (t_1,PG_1,ord_1), \dots, (t_k,PG_k,ord_k), G ) = \\
      ~~~~~ [~ l \rightarrow rc ~\vert~ \\
      ~~~~~~~~~ l \in internal(G.V), \\
      ~~~~~~~~~ rc = \mathit{append}_i~  \\
@@ -226,16 +197,15 @@ The full \sysname syntax as well as expansions from constraints into regular exp
      ~~~~~~~~~~~~~~~~~~~~~ ma_h = ord_i(m) : (in,q_n) \rightarrow (out,q_m) ~] ~] \\
      \\
      \text{compile}( p_1, \dots, p_k, G) = \\
-     ~~~~~~ \text{compile}_\text{ABGP}(\text{compile}_\text{PG}(p_1,G), \dots, \text{compile}_\text{PG}(p_k,G), G) \\
+     ~~~~~~ \text{compile}_\text{mBGP}(\text{compile}_\text{PG}(p_1,G), \dots, \text{compile}_\text{PG}(p_k,G), G) \\
   \end{array} \]%
   \end{minipage}%
 
-  \vspace{1em}
-  \vspace{1em}%
+  \vspace{3em}
 
   \vspace*{-2\baselineskip}
   \begin{minipage}[t]{1.01\linewidth}
-  \hdr{Policy Concretization}{}
+  \hdr{Propane/AT Concretization}{}
   \vspace*{-2\baselineskip}
   %
   \[ \begin{array}{lcl}
@@ -256,11 +226,10 @@ The full \sysname syntax as well as expansions from constraints into regular exp
   \end{array} \]%
   \end{minipage}%
 
-  \vspace{1em}
-  \vspace{1em}%
+  \vspace{2em}
 
   \begin{minipage}[t]{\linewidth}
-  \hdr{ABGP Concretization}{}
+  \hdr{mBGP Concretization}{}
   \vspace*{-2\baselineskip}
   %
   \[ \begin{array}{lcl}
@@ -301,25 +270,25 @@ The full \sysname syntax as well as expansions from constraints into regular exp
   \hrulefill%
   \vspace{1em}%
 
-  \caption{ABGP syntax, compilation from product graphs, policy concretization, and ABGP concretization.}
-  \label{fig:concretization}
+  \caption{\sysname syntax and expansions.}
+  \label{fig:syntax}
+  %\vspace{-1em}
 \end{figure*}%
 
-
-\para{ABGP language}
-
-We introduct a simple language for BGP configurations called ABGP. Figure~\ref{fig:concretization} shows the syntax for an ABGP policy. An ABGP policy maps topology locations $l$ to router configurations $rc$. Each router configuration $rc$ is a sequence of predicates $t$ and their corresponding configuration $pc$. A prefix configuration $pc$ is a sequence of match actions. Each match action $ma$ consists of a preference value $d$, followed by a set of imports from neighbors $ns_1$ and community value (\IE, state of the product graph) $c_1$ expected from those neighbors, as well as export neighbors $ns_2$ and the community value $c_2$ to attach before sending to those neighbors.%
+\newpage
 
 
-\para{Compilation}
+\section{Definitions}
 
-Figure~\ref{fig:concretization} defines compilation from a \sysname policy to an ABGP policy. It starts by compiling ($\text{compile}_\text{PG}$) separately each constraint of the form $p_i = (t_i ~\Path~ r_{i1} ~\Prefer~ r_{ik})$ to a product graph $PG = (G', s, P)$. The function $\text{compile}_\text{PG}$ returns the test $t_i$, product graph $PG_i$, and the preference ordering $ord_i$.
-%
-The function $\text{compile}_\text{ABGP}$ then takes a sequence of tuples $(t_i, PG_i, ord_i)$ and returns an ABGP policy. For each internal router, it looks at each set of neighbor with the same community state $q_n$ and matches any of those neighbors with the preference provided by the ordering $ord$. It then exports this advertisement to each adjacent peer along an outgoing edge and adds the community value for the current state $q_m$.%
+For reference, the full \sysname syntax as well as expansions from constraints into regular expressions are shown in Figure~\ref{fig:syntax}. The language includes constraints of the form $\CD{\Agg(pfx, \ensuremath{r_1 \rightarrow r_2})}$ that say that aggregation for summary prefix $\CD{pfx}$ will occur from any single location matching $\CD{\ensuremath{r_1}}$ to any location matching $\CD{\ensuremath{r_2}}$. For simplicity, we prove the substitution property for \sysname for the fragment without aggregation. mBGP syntax and compilation, as described in the paper, as well as concretization functions ($con$) are shown in Figure~\ref{fig:concretization}.
 
-We assume a particular router $l$ appears at most once in any abgp specification.
+
+
+\subsection{Compilation}
+
+We assume a particular router $l$ appears at most once in any mBGP specification.
 We build configs using list-comprehension notation. For instance,
-$[~ l \rightarrow rc ~\vert~ l \in V \wedge p(l,rc) ~]$ denotes the abgp policy
+$[~ l \rightarrow rc ~\vert~ l \in V \wedge p(l,rc) ~]$ denotes the mBGP policy
 %
 \[ \begin{array}{c}
   l_1 \rightarrow rc_{1},... \\
@@ -339,7 +308,7 @@ which maps from a template prefix to a set of pairs of a concrete prefix and a c
 %
 For each regular expression $r$, we replace each abstract location with the sum over its corresponding concrete locations under the inverse homomorphism $f^{-1}$. For each template variable, we replace it with a new entry for each of its corresponding concrete prefixes under the supplied mapping $\Gamma$. We also intersect the resulting concretized regular expression with $\text{end}(l)$ to capture the fact that this traffic is owned by the concrete location $l$.%
 
-We also define concretization over the ABGP policy in a similar manner. We replace each abstract router configuration $l \rightarrow rc$ a new entry for each concrete location $\ell \in f^{-1}(l)$. The concrete location $\ell$ is passed as a parameter to $con$ to remember the current router.
+We also define concretization over the mBGP policy in a similar manner. We replace each abstract router configuration $l \rightarrow rc$ a new entry for each concrete location $\ell \in f^{-1}(l)$. The concrete location $\ell$ is passed as a parameter to $con$ to remember the current router.
 %
 To concretize a prefix policy with a template ($\$x \rightarrow pc$) we replace it with a sequence of policies, one for each prefix in context ($(pfx,l) \in \Gamma(x)$). Match action statements where the set of import neighbors is the singleton set containing the product graph start node $\{ start \}$ and we are not currently at looking at the router configuration for the location specified in the context $l$, then we drop the match action. This is denoted with the $\bullet$ symbol. Finally, to concretize a set of neighbors, we again use $f^{-1}$ to find the set of concrete neighbors under the inverse homomorphism, but then restrict it to those that are actually connected in the underlying concrete topology with $G.E$.
 
@@ -370,7 +339,7 @@ We use capital letters for abstract topology/product graph nodes and we use lowe
 
 The goal of this section is to prove that the concretization and compilation functions commute: 
 $$con(compile(pol,G^A),\Gamma,f,G) = compile(con(pol,\Gamma,f), G)$$ 
-That is -- we can perform compilation directly over the abstraction and only substitute for the concrete values on after compilation is complete. Note that the theorem states that the resulting ABGP policies are actually syntactically equivalent and not semantically equivalent. First we need a few helper theorems about compilation.
+That is -- we can perform compilation directly over the abstraction and only substitute for the concrete values on after compilation is complete. Note that the theorem states that the resulting mBGP policies are actually syntactically equivalent and not semantically equivalent. First we need a few helper theorems about compilation.
 
 \subsection{Automata}
 
@@ -754,7 +723,7 @@ By induction on the structure of $r$
     \[ \begin{array}{ll}
         & compile(con(pol,\Gamma,f), G)  \\
                           & \\
-                         =& compile_{ABGP}( \\
+                         =& compile_{mBGP}( \\
                           &  ~~~~ compile_{PG}(pfx_{11} ~\Path~ r'_{111} ~\Prefer~,\dots, ~\Prefer~ r'_{11k},G ), \\
                           &  ~~~~ \dots, \\
                           &  ~~~~ compile_{PG}(pfx_{1j} ~\Path~ r'_{1j1} ~\Prefer~,\dots, ~\Prefer~ r'_{1jk},G ), \\
@@ -774,7 +743,7 @@ By induction on the structure of $r$
     \[ \begin{array}{ll}
         & compile(pol,G^A)  \\
                       & \\
-                     =& compile_{ABGP}( \\
+                     =& compile_{mBGP}( \\
                       & ~~~~ compile_{PG}(t_1 ~\Path~ r_{11} ~\Prefer~,\dots, ~\Prefer~ r_{1k}, G^A ), \\
                       & ~~~~ \dots, \\
                       & ~~~~ compile_{PG}(t_i ~\Path~ r_{i1} ~\Prefer~,\dots, ~\Prefer~ r'_{ik}, G^A ), \\
@@ -794,10 +763,10 @@ By induction on the structure of $r$
 
 
   \[ \begin{array}{l}
-     con(\textbf{compile}_\textbf{ABGP}( (t_1,PG^A_1,ord^A_1), \dots, (t^A_i,PG^A_i,ord^A_i) ), \Gamma,f,G) \\
+     con(\textbf{compile}_\textbf{mBGP}( (t_1,PG^A_1,ord^A_1), \dots, (t^A_i,PG^A_i,ord^A_i) ), \Gamma,f,G) \\
   \end{array} \]%
 
-Unfold definition of $\text{compile}_\text{ABGP}$
+Unfold definition of $\text{compile}_\text{mBGP}$
 
   \[ \begin{array}{l}
      ~~~~~ con([~ l \rightarrow rc ~\vert~ \\
@@ -1139,7 +1108,7 @@ Unfold definition of $\text{compile}_\text{ABGP}$
   This is exactly the definition of compilation for the concretized policy
 
   \[ \begin{array}{l}
-     = \textbf{compile}_\textbf{ABGP}( (pfx_{11},PG_{11},ord_{11}), \dots, (pfx_{ij},PG_{ij},ord_{ij}) ) \\
+     = \textbf{compile}_\textbf{mBGP}( (pfx_{11},PG_{11},ord_{11}), \dots, (pfx_{ij},PG_{ij},ord_{ij}) ) \\
   \end{array} \]%
 
 
