@@ -21,8 +21,6 @@
 \usepackage{pifont}
 \newcommand{\cmark}{\ding{51}}
 \newcommand{\xmark}{\ding{55}}
-\usepackage{algorithm}
-\usepackage[noend]{algpseudocode}
 
 \definecolor{princetonorange}{RGB}{255,143,0}
 \definecolor{tmlblue}{RGB}{0,58,120}  % tmlblue == Toronto Maple Leafs Blue!
@@ -123,12 +121,17 @@
 
 %\author{Paper \#324, 14 pages}
 
-\authorinfo{Ryan Beckett}{Princeton University}{rbeckett@cs.princeton.edu}
-\authorinfo{Ratul Mahajan}{Microsoft Research}{ratul@microsoft.com}
-\authorinfo{Todd Millstein\thanks{Supported in part by National Science Foundation award
-CNS-1161595.}}{UCLA}{todd@cs.ucla.edu}
-\authorinfo{Jitendra Padhye}{Microsoft Research}{jpadhye@microsoft.com} 
-\authorinfo{David Walker}{Princeton University}{dpw@cs.princeton.edu} 
+%\authorinfo{Ryan Beckett}{Princeton University}{rbeckett@cs.princeton.edu}
+%\authorinfo{Ratul Mahajan}{Microsoft Research}{ratul@microsoft.com}
+%\authorinfo{Todd Millstein}{UCLA}{todd@cs.ucla.edu}
+%\authorinfo{Jitendra Padhye}{Microsoft Research}{jpadhye@microsoft.com} 
+%\authorinfo{David Walker}{Princeton University}{dpw@cs.princeton.edu} 
+
+%\numberofauthors{1}
+
+\authorinfo{Ryan Beckett$^*$\and Ratul Mahajan$^\dagger$\and Todd Millstein$^\S$\and Jitendra Padhye$^\dagger$\and David Walker$^*$}
+{Princeton University$^*$, Microsoft Research$^\dagger$, University of California Los Angeles$^\S$}
+{\{rbeckett,dpw\}@cs.princeton.edu, \{ratul,padhye\}@microsoft.com, todd@cs.ucla.edu}
 
 \maketitle
 
@@ -1690,7 +1693,6 @@ A complementary approach to reducing configuration errors is to analyze the forw
 %as opposed to using logic programming and SAT-based model-finding.
 
 
-
 %=====================================================
 %
 %
@@ -1703,6 +1705,9 @@ A complementary approach to reducing configuration errors is to analyze the forw
 \label{sec:conclusions}
 
 To help configure large networks correctly, we develop \sysname, the first system that can generate role templates from high-level specifications of network topology and policy. \sysname is based on new abstractions for capturing network topologies, and their evolution, and algorithms to analyze the combined impact of topology and routing policy on the network's fault tolerance. Our analysis operates entirely in the abstract domain and guarantees correctness for all concrete instantiations of the topology. Experiments with many types of real-world topologies and policies show that our abstractions and analysis are effective and that, for large networks, configuration synthesis is two orders of magnitude faster than systems that operate over concrete topologies.
+
+\para{Acknowledgments}
+We thank the PLDI reviewers for comments on the paper. This work is supported in part by the National Science Foundation award CNS-1161595 as well as Cisco award 677002.
 
 
 %=====================================================
