@@ -478,12 +478,12 @@ Next, we show that the construction is correct. That is, the machine recognizes 
 
 \end{lem}
 
-
+\vspace{.5em}
 \begin{lem} $M$ and $M^A$ have the same set of states. That is, $Q = Q^A$.
     $ $
     \vspace{1em}
     \begin{proof}
-      This follows trivially from the construction of $M$.
+      This follows trivially from the construction of $M$. States in $M$ are copied over from states in $M^A$.
     \end{proof}
 \end{lem}
 
@@ -509,7 +509,7 @@ We will also assume that $PG = (G',start,rank)$ and $PG^A = (G'^A,start^A,rank^A
     f_{pg}( (l,q_1,\ldots,q_n) ) & = & (f(l),q_1,\ldots,q_n) \\
   \end{array} \]
 
-  We prove that $f_{pg}: G' \rightarrow G'^A$ is a valid homomorphism
+  Now we prove that $f_{pg}: G' \rightarrow G'^A$ is a valid homomorphism
   \begin{proof}
     From Lemma 4, we know that $(f(l),q_1,\ldots,q_n)$ is a valid node in $PG^A$ since each automata
     shares the same states. Assume there is an edge in $PG$ from $x=(l,q_1,\ldots,q_n)$
@@ -532,21 +532,20 @@ We will also assume that $PG = (G',start,rank)$ and $PG^A = (G'^A,start^A,rank^A
 \end{lem}
 
 
-\begin{lem}
-  For every state $N = (L, q_1, \dots, q_n)$ in $PG^A$, there exists a state $n = (l,q_1, \ldots, q_n)$ in $PG$
-  such that $f_{pg}(n) = N$.
+%\begin{lem}
+%  For every state $N = (L, q_1, \dots, q_n)$ in $PG^A$, there exists a state $n = (l,q_1, \ldots, q_n)$ in $PG$
+%  such that $f_{pg}(n) = N$.%
 
-  \begin{proof}
-    By assumption, we assumed that $f$ is surjective. That is, every location $L$ in the original abstract topology $G^A$ is mapped to by at least one location $l$ in the concrete topology $G$: $f(l) = L$. 
-  \end{proof}
+%  \begin{proof}
+%    By assumption, we assumed that $f$ is surjective. That is, every location $L$ in the original abstract topology $G^A$ is mapped to by at least one location $l$ in the concrete topology $G$: $f(l) = L$. 
+%  \end{proof}
+%\end{lem}
 
-  \todo{re evaluate this}
+\todo{re evaluate this}
 
-  \todo{make explicit the fact that we can't anycast}
+\todo{make explicit the fact that we can't anycast}
 
-  \todo{tie back to existing lemmas}
-
-\end{lem}
+\todo{tie back to existing lemmas}
 
 \vspace{1em}
 
@@ -590,70 +589,86 @@ Next, we show that whenever there is a transition in $PG^A$, there is a correspo
   \end{proof}
 \end{lem}
 
+
+\newcommand{\trans}[3]{\ensuremath{#1 \overset{#3}{\rightarrow} #2}}
+
+
 \begin{lem}
-  $m \leq m'$ in the concrete product graph iff $f_{pg}(m) \leq f_{pg}(m')$ in the abstract product graph under the lifted graph homomorphism $f_{pg}$.
-
+  For any transition $\trans{m}{m'}{l}$ in $PG$, there is a corresponding transition $\trans{f(m)}{f(m')}{f(l)}$ in $PG^A$.
   \begin{proof}
-    $(\Leftarrow)$
+    if $m' = (l, q_1, \ldots, q_n)$, then $f(m') = (f(l), q_1, \ldots, q_n)$. Since there is the edge $(m,m')$ in $PG$, then there is the edge $(f(m),f(m'))$ in $PG^A$. Finally, because $\Topo(f(m')) = f(l)$, there must be a transition $\trans{f(m)}{f(m')}{f(l)}$.
+  \end{proof}
+\end{lem}
 
-    Suppose we have a simulation relation from the subgraphs rooted at nodes $M$ and $M'$ with $M' \geq_{rank} M$ in the abstract product graph. Assume that $\tilde{M} = f(a)$ and $\tilde{N} = f(b)$. For each neighbor $N'$, if we can make a move from $M'$:
+% n --> m'
+% m' --> n
 
-    $$M' \overset{\tilde{N'}}{\rightarrow} N'$$
+\vspace{.4em}
+\begin{lem}
+  In the concrete product graph, $m \leq m' \iff f_{pg}(m) \leq f_{pg}(m')$ in the abstract product graph.
+  \begin{proof}
+    $ $
 
-    then we also make a similar move for $M$ for some $N$ where $N \approx N'$ and $N' \geq_{rank} N$:
+    \vspace{1em}
+    We show that $\leq$ forms a simulation relation for the subgraph reachable from $m$ and $m'$ in $PG$ iff $\leq$ forms a simulation relation for the subgraph reachable from $f(m)$ and $f(m')$ for $PG^A$. This involves showing that $m \geq_{rank} m' \iff f(m) \geq_{rank} f(m')$, and that 
+    for every transition $\trans{m}{n}{l}$ in $PG$ there is a transition $\trans{m'}{n'}{l}$ iff for every transition $\trans{f(m)}{f(n)}{f(l)}$ in $PG^A$ there is a transition $\trans{f(m')}{f(n')}{f(l)}$.
 
-    $$M \overset{\tilde{N}}{\rightarrow} N$$
+    \vspace{1em}
+    \textbf{Case} $(\Rightarrow)$
 
-    We must show that the same relation holds for $m$ and $m'$. 
+    Consider the subgraph of $PG$ reachable from $m$ and $m'$. From $m \leq m'$ and the definition of ($\leq$), we know that $m' \geq_{rank} m$. 
 
-    Now assume $m'$ has a neighbor $n'$ where $\tilde{m} = a$ and $\tilde{n} = b$. Then clearly $(a,b)$ is a valid topology edge since it is a transition in the product graph. We now apply the previous lemma with the following facts:
+    %
+    From Lemma 6, and $m' \geq_{rank} m$ we know that $f_{pg}(m') \geq_{rank} f_{pg}(m)$. 
+    From Lemma 8, there is a transition $\trans{f(n)}{f(n')}{f(l)}$.
+
+    \vspace{1.2em}
+    \textbf{Case} $(\Leftarrow)$
+
+    Let $M = f(m)$ and let $M' = f(m')$.
+    Suppose that $M \leq M'$, which means that with $M' \geq_{rank} M$ in the abstract product graph. It also means that, for each neighbor $N'$, if we have the transition: $\trans{M'}{N'}{L}$ then we also have a transition: $\trans{M}{N}{L}$ where $N' \geq_{rank} N$. We must show that the same relation holds for $m$ and $m'$. 
+
+    \vspace{1em}
+    Assume that $\Topo(M) = f(a)$ and $\Topo(N) = f(b)$. \todo{This can be done because $f$ is surjective}. Also assume that $m'$ has a neighbor $n'$. We know that $\Topo(m) = a$ and $\Topo(m') = b$. Clearly $(a,b)$ is a valid concrete topology edge since it is a transition in the product graph between $m$ and $m'$. We now apply Lemma 7 with the following facts:
 
     \[ \begin{array}{ll}
-      1. & (a,b) ~\text{is a topology edge} \\
-      2. & \tilde{m} = a \\
+      1. & (a,b) ~\text{is a concrete topology edge} \\
+      2. & \Topo(m) = a \\
       3. & f_{pg}(m) = M \\
       4. & (M,N) ~\text{is an edge in}~ PG^A \\
-      5. & \tilde{N} = f(b) \\
+      5. & \Topo(N) = f(b) \\
     \end{array} \]
 
-    This lets us conclude that there exists a node $n'$ such that:
+    Lemma 7 lets us conclude that there exists a node $n'$ such that:
 
     \[ \begin{array}{ll}
-      1. & \tilde{n} = b \\
+      1. & \Topo(n) = b \\
       2. & f_{pg}(n) = N \\
       3. & (m,n) ~\text{is an edge in}~ PG \\
-      4. & P(n) = P(N) \\
+      4. & \Rank(n) = \Rank(N) \\
     \end{array} \] 
 
-    Thus if we have $m' \overset{b}{\rightarrow} n'$, then we also have $m \overset{b}{\rightarrow} n$. The previous lemma can also be used to show that $P(n') = P(N')$ in a symmetric fashion, so we are guaranteed that $n' \geq_{rank} n$ from the fact that $N' \geq_{rank} N$.
+    Thus if there is transition $\trans{m'}{n'}{b}$, then there is also a transition $\trans{m}{n}{b}$. Lemma 6 together with the assumption $N' \geq N$ shows that $n' \geq{rank} n$.
 
-  \end{proof}
-
-  \begin{proof}
-    $(\Rightarrow)$
-
-    This is the simpler case. We assume we have $m' \overset{b}{\rightarrow} n'$ implies $m \overset{b}{\rightarrow} n$.
-    Simply take $N = f_{pg}(n)$ and $N' = f_{pg}(n')$. If we know that $M' \overset{b}{\rightarrow} N'$ then we already know that $M \overset{b}{\rightarrow} N$ from the homomorphism. All that's required is to show that $N' \geq_{rank} N$. This follows trivially from the fact that $P(n) = P(N)$ and $P(n') = P(N')$.
   \end{proof}
 
 \end{lem}
 
-\vspace{1em}
+
+\vspace{3em}
+
+The previous lemma tells us that the total ordering between node preferences is preserved under the lifted graph homomorphism $f_{pg}$. 
+We use this fact to define an ordering ($ord : V \rightarrow \mathbb{N}$) that maps product graph nodes to numbers reflecting the total ordering such that $ord(m) = ord(f(m))$ for all product graph nodes $m$.
+
+
 \begin{defn}
-  Assign $ord(m) = ord^A(f_{pg}(m))$ as increasing integers according to the total ordering for $\leq$.
-  Clearly $ord(m) \leq ord(m') \iff m \leq m'$ and $ord(f_{pg}(m)) \leq ord(f_{pg}(m')) \iff f_{pg}(m) \leq f_{pg}(m')$
+  Assign $\Pref(m) = \Pref^A(f_{pg}(m))$ as increasing integers according to the total ordering for $\leq$.
+  Clearly $\Pref(m) \leq \Pref(m') \iff m \leq m'$ and $\Pref(f_{pg}(m)) \leq \Pref(f_{pg}(m')) \iff f_{pg}(m) \leq f_{pg}(m')$
 \end{defn}
 
-\vspace{1em}
-\begin{defn}
-  The previous theorem tells us that the total ordering between node preferences is preserved under the lifted graph homomorphism $f_{pg}$. 
-  We use this fact to define an ordering ($ord : V \rightarrow \mathbb{N}$) that maps product graph nodes to numbers reflecting the total ordering such that $ord(m) = ord(f(m))$ for all product graph nodes $m$.
-\end{defn} 
 
-
-\vspace{1em}
-\subsection{Substitution}
-
+\vspace{3em}
+\subsection{Constraint Substitution (Part 2)}
 
 \begin{lem}
 
