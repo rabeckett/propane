@@ -97,6 +97,8 @@
 \newtheorem{defn}{Definition}[section]
 \newtheorem{lem}[thm]{Lemma}
 
+\newcommand{\Appendix}{technical appendix\xspace}
+
 \begin{document}
 
 %\CopyrightYear{2016}
@@ -349,7 +351,7 @@ abstract topologies.
 %\item Design of a template generation strategy that supports network
 %evolution.
 \item Implementation and evaluation of a \sysname compiler that generates
-provably-correct BGP templates and is much faster
+BGP templates and is much faster
 than compilers based on concrete topologies.
 \end{itemize}
 
@@ -1247,19 +1249,21 @@ The algorithm was able to infer that there is at least 1 disjoint path to any sp
 
 At a high level, the translation from the PG representation to per-device templates that run the distributed BGP protocol involves the following steps: (1) Every BGP message is tagged to record the state of the product graph as messages are passed between routers. The tags allow BGP to only search for valid paths by dropping messages that do not correspond to any edge in the PG. (2) To ensure that BGP always finds the \emph{best} paths in the network, we must rank route advertisements for each router locally such that, under this ranking function, the network as a whole satisfies the \sysname policy's end-to-end network preferences. 
 
-We introduce a simple, vendor-independent BGP configuration language called \mbgp and describe a compilation function that uses the inferred preference ordering to generate concrete configurations from a concrete topology, or templates from an abstract topology. Templates can then be soundly instantiated for a concrete network by replacing instances of abstract neighbors with the union of all concrete neighbors under the inverse homomorphism, and by replacing prefix template variables with separate entries for each concrete prefix provided by a context. We prove that concretization and compilation commute. By modifying compilation slightly we can further ensure that every configuration depends only on its immediate neighbors. This guarantees that any change made to the concrete topology will result in a minimal number of changes to the configurations.
-
+We introduce a simple, vendor-independent BGP configuration language called \mbgp and describe a compilation function that uses the inferred preference ordering to generate concrete configurations from a concrete topology, or templates from an abstract topology. Given a concrete network, templates can be instantiated by replacing instances of abstract neighbors with the union of all concrete neighbors under the inverse homomorphism, and by replacing prefix template variables with separate entries for each concrete prefix provided by a context. 
+ We call this process of transforming templates into configurations \emph{concretization}.  We prove that concretization and compilation commute. Moreover, by modifying compilation slightly we can further ensure that every configuration depends only on its immediate neighbors. This guarantees that any change made to the concrete topology will result in a minimal number of changes to the configurations.
+%
 We now look at each of these steps in turn.
  
 
 \para{Tagging and Filtering}
 
-The BGP routing protocol standard allows for the use of \emph{community tags}, 32-bit integer tags that can be arbitrarily attached to, or removed from routing advertisements. 
-Community tags serve as a simple form of \emph{history}, and operators routinely use such tags to implement policy. For example, operators might record where an advertisment enters the network using community tags and then conditionally block the export of the advertisment later to other peers to prevent becoming a transit point.
+The BGP routing protocol standard allows for the use of \emph{community tags}---32-bit integer tags that can be arbitrarily attached to, or removed from, routing advertisements. 
+Community tags serve as a simple form of \emph{history}, and operators routinely use such tags to implement policy. For example, operators might tag advertisements at certain entry points and then block the export of tagged 
+advertisements to prevent their network from becoming a transit point.
 
-The idea for template generation is to use community tags to record the state of the automata from the Product Graph in every BGP announcement and update these tags whenever messages are passed between routers. Such a tagging mechanism is used to ensure that BGP only considers paths that are allowed by the \sysname policy (\IE, paths in the PG). Routers will allow advertisments that correspond to an edge in the PG and block any advertisments that do not.
+Template generation uses community tags to record the state of the automata from the Product Graph in every BGP announcement and updates these tags whenever messages are passed between routers. This mechanism ensures that BGP only considers paths that are allowed by the \sysname policy (\IE, paths in the PG). Routers will allow advertisments that correspond to an edge in the PG and will block any advertisments that do not.
 
-For example, in the concrete PG in Figure~\ref{fig:example-compilation}, router S1 appears in two PG nodes: $(S1,1,0)$ and $(S1,0,1)$. These nodes have two peers that can send them messages: $(N1,0,0)$ and $(N2,0,0)$. Therefore, S1 will allow advertisements from both peer $N1$ and peer $N2$. If S1 uses the path advertised by neighbor N1, then it will add the tag $(1,0)$ to the advertisement before sending this to its neighbors A1 and A2. If S1 uses a path advertised from neighbor N2, then it will add the tag $(0,1)$ instead. Similarly, router A1 appears in two PG nodes. It will allow advertisements from that have the $(1,0)$ or $(0,1)$ tag attached. In either case, it will not modify the tag before exporting the route to its neighbors.
+For example, in the concrete PG in Figure~\ref{fig:example-compilation}, router S1 appears in two PG nodes: $(S1,1,0)$ and $(S1,0,1)$. These nodes have two peers that can send them messages: $(N1,0,0)$ and $(N2,0,0)$. Therefore, S1 will allow advertisements from both peer $N1$ and peer $N2$. If S1 uses the path advertised by neighbor N1, then it will add the tag $(1,0)$ to the advertisement before sending this to its neighbors A1 and A2. If S1 uses a path advertised from neighbor N2, then it will add the tag $(0,1)$ instead. Similarly, router A1 appears in two PG nodes. It will admit advertisements that have the $(1,0)$ or $(0,1)$ tag attached (and drop all other advertisements). In either case, it will not modify the tag before exporting the route to its neighbors.
 
 %\begin{algorithm}[t!]
 %\caption{Checking safe neighbor preferences}
@@ -1350,13 +1354,18 @@ For example, in the concrete PG in Figure~\ref{fig:example-compilation}, router 
 
 \para{Preference Search}
 
-Tagging and filtering according to the PG with community values in BGP forces the protocol to only consider paths to the destination that are allowed by the policy. However, finding \emph{some} path to the destination is not enough. We must ensure that each router uses its \emph{best} available path to the destination according to the policy. Further, this must continue to hold as additional elements of the network fail. In the example from Figure~\ref{fig:example-compilation}, the policy was $\True ~\Path~ \CD{\Exit(N1\Prefer N2)}$, which indicates that paths through N1 should be used whenever possible, and paths through N2 should only be used as a backup. If router S1 allows advertisements from both N1 and N2 but does not prefer one advertisement over another, it might end up choosing to use a path through N2 even though a more preferred path through N1 exists and is available\footnote{ties between equally preferred paths can be broken nondeterministically}. On the other hand, if the S1-N1 link fails, then the best available path is through N2.
+Tagging and filtering according to the PG restricts the possible paths to those that are allowed by the policy. However, finding \emph{some} path to the destination is not enough. We must ensure that each router uses its \emph{best} available path to the destination according to the policy. Further, each router must continue to use its best available path as elements of the network fail. In the example from Figure~\ref{fig:example-compilation}, the policy was $\True ~\Path~ \CD{\Exit(N1\Prefer N2)}$, which indicates that paths through N1 should be used whenever possible, and paths through N2 should only be used as a backup. If router S1 allows advertisements from both N1 and N2, but does not prefer one advertisement over another, it might end up choosing to use a path through N2 even though a more preferred path through N1 exists and is available\footnote{Ties between equally preferred paths can be broken nondeterministically.}. On the other hand, if the S1-N1 link fails, then the best available path is through N2.
 
-To enforce correct network-wide preferences, we use the BGP local-preference attribute, which allows routers to prefer routes from one neighbor (or with some tag) over routers learned from another neighbor. The challenge is to find a collection of device-local preferences that correctly enforce the network-wide preferences from the policy for all failures.
+To enforce correct network-wide preferences, we use the BGP local-preference attribute, which allows routers to prefer routes from one neighbor (or with some tag) over routes learned from another neighbor. The challenge is to find a collection of device-local preferences that correctly enforce the policy's network-wide preferences in the face of any set of failures.
 
 The idea is to search for such a device-local preference function for each router that totally orders advertisements from different neighbors (possibly with different tags). For example, to satisfy the policy that leaving through N1 is preferred to leaving through N2, S1 should prefer a message it hears from N1 over N2. Similarly, A1 should prefer routes tagged with $(1,0)$ over those with $(0,1)$. Intuitively, S1 should prefer a message from N1 because it results in an accepting state for automata 1, which indicates a better path. Further, it can result in downstream routers such as A1 using a path that is accepting for automata 1 as well.
 
-In general, because BGP is distributed, each router does not have a view of the entire network when choosing which path to use, and finding a collection of preferences to ensure correct end-to-end behavior for all failures is a hard problem. \Propane introduced a conservative search strategy for determining route preferences that works well in practice. To make it work for abstract topologies, we modify the search based on the following observation about the PG structure:
+In general, because BGP is distributed, each router does not have a view of the entire network when choosing which path to use, and finding a collection of preferences to ensure correct end-to-end behavior for all failures is a hard problem. \Propane introduced a conservative search strategy for determining route preferences that works well in practice. To make it work for abstract topologies, we modify the search based on the following observation about the PG structure:\footnote{Recall that $\Pref(m)$ is a set of priorities --- the priorities of the
+automata whose final states include $m$.  
+For instance, if $\Pref(m)$ is \{1,3\} then
+automata 1 and automata 3 have $m$ as a final state.  Moreover, recall that
+the policy expressed by automata $i$ is preferred to the policy expressed
+by automata $j$ if $i < j$.}
 
 \begin{defn}
 Let $m \geq_{rank} n$ be a relation over PG vertices that holds iff $\Topo{m} = \Topo{n}$ and either $\min (\Pref(m)) \geq \min (\Pref(n))$ or $\Pref(n) = \emptyset$.
@@ -1391,7 +1400,7 @@ Notice that in the abstract PG $(S,0,1) \leq (S,1,0)$ also holds. This leads to 
 $m \leq n$ in the concrete PG iff $f_{pg}(m) \leq f_{pg}(n)$ in the abstract PG.
 \end{lem}
 
-Lemma~\ref{lem:preference} tells us that inferring preferences for the abstract PG before template instantiation is equivalent to inferring preferences for an already-instantiated concrete PG.
+Lemma~\ref{lem:preference} tells us that inferring preferences for the abstract PG before template instantiation is equivalent to inferring preferences for an already-instantiated concrete PG.  A proof appears in the \Appendix.
 
 
 \begin{figure}[t!]
@@ -1405,7 +1414,8 @@ Lemma~\ref{lem:preference} tells us that inferring preferences for the abstract 
 \end{figure}
 
 \para{mBGP}
-To characterize compilation we first introduce a simple, vendor independent configuration language for the BGP protocol called \mbgp. The syntax for \mbgp is shown in Figure~\ref{fig:concretization} (left). An \mbgp policy consists of a sequence of router configurations (one for each internal topology location $l$). A router configuration is an ordered sequence of a predicate describing the traffic, and a predicate configuration. A predicate is either a template variable $\$\mathrm{x}$ or a prefix. A predicate configuration is a collection of match action statements, where each match action indicates that the router will match advertisements from any of a set of peers $ns_1$ with a particular community tag $c_1$ with local preference $d$, before exporting the route to another set of peers $ns_2$ with a new community tag $c_2$.
+To characterize compilation we first introduce a simple, vendor independent configuration language for the BGP protocol called \mbgp. The syntax for \mbgp is shown in Figure~\ref{fig:concretization} (left). An \mbgp policy consists of a sequence of router configurations (one for each internal topology location $l$). A router configuration is an ordered sequence of pairs, where is pair contains
+a predicate describing the traffic, and a predicate configuration. A predicate is either a template variable $\$\mathrm{x}$ or a prefix. A predicate configuration is a collection of match action statements, where each match action indicates that the router will match advertisements from any of a set of peers $ns_1$ with a particular community tag $c_1$ with local preference $d$, before exporting the route to another set of peers $ns_2$ with a new community tag $c_2$.
 
 
 \para{Compilation}
@@ -1441,11 +1451,11 @@ Our main theoretical result is that the compilation and concretization functions
 \end{thm}
 %
 \vspace{-.6em}
-Full definitions of concretization, as well as the proof of Theorem~\ref{thm:concretization} are included in the appendix. 
+Full definitions of concretization as well as the proof of Theorem~\ref{thm:concretization} are included in the \Appendix. 
 
 \para{Incrementality}
 
-Suppose an operator wants to expand the concrete data center from Figure~\ref{fig:example} by adding an additional ToR router to the TG role. Per the network routing policy, the new router will advertise any owned prefixes provided by looking up {\small \$GP} in $\Gamma$. Because the new topology matches the abstraction, the compiled templates will remain the same. However, in the spine configurations, the match on the global prefix template variable {\small \$GP} must be expanded when concretizing the template to include the new prefixes added by the ToR. Unfortunately, this small change to the topology results in a change to every single spine configuration.
+Suppose an operator wants to expand the concrete data center from Figure~\ref{fig:example} by adding an additional ToR router to the TG role. Per the network routing policy, the new router will advertise any owned prefixes provided by looking up {\small \$GP} in $\Gamma$. Because the new topology matches the abstraction, the compiled templates will remain the same. However, in the spine configurations, the match on the global prefix template variable {\small \$GP} must be expanded when concretizing the template to include the new prefixes added by the ToR. Hence, this small change to the topology results in a change to every single spine configuration.
 
 More generally, each configuration template depends on two things: the routing policy and the abstract topology. If the policy remains fixed and a change to the concrete topology preserves the topology abstraction, then the generated templates will not change. Further, each template has policy only in terms of its immediate neighbors. Because abstract neighbors are substituted for concrete neighbors during concretization, it would seem as though the generated configurations will also only depend on their concrete neighbors. However, prefix template variables allow for the possibility of introducing new prefixes in the context $\Gamma$ after a change. For example, when adding a new ToR router with its own unique prefix, the spine configurations would need to know about this new prefix.
 %
