@@ -606,8 +606,7 @@ Next, we show that whenever there is a transition in $PG^A$, there is a correspo
   \end{proof}
 \end{lem}
 
-% n --> m'
-% m' --> n
+
 
 \vspace{.4em}
 \begin{lem}
@@ -616,25 +615,29 @@ Next, we show that whenever there is a transition in $PG^A$, there is a correspo
     $ $
 
     \vspace{1em}
+    \noindent
     We show that $\leq$ forms a simulation relation for the subgraph reachable from $m$ and $m'$ in $PG$ iff $\leq$ forms a simulation relation for the subgraph reachable from $f(m)$ and $f(m')$ for $PG^A$. This involves showing that $m \geq_{rank} m' \iff f(m) \geq_{rank} f(m')$, and that 
     for every transition $\trans{m}{n}{l}$ in $PG$ there is a transition $\trans{m'}{n'}{l}$ iff for every transition $\trans{f(m)}{f(n)}{f(l)}$ in $PG^A$ there is a transition $\trans{f(m')}{f(n')}{f(l)}$.
 
     \vspace{1em}
-    \textbf{Case} $(\Rightarrow)$
+    \noindent
+    \emph{Case} $(\Rightarrow)$
 
+    \vspace{.4em}
     Consider the subgraph of $PG$ reachable from $m$ and $m'$. From $m \leq m'$ and the definition of ($\leq$), we know that $m' \geq_{rank} m$. 
 
-    %
+    \noindent
     From Lemma 6, and $m' \geq_{rank} m$ we know that $f_{pg}(m') \geq_{rank} f_{pg}(m)$. 
     From Lemma 8, there is a transition $\trans{f(n)}{f(n')}{f(l)}$.
 
     \vspace{1.2em}
-    \textbf{Case} $(\Leftarrow)$
+    \noindent
+    \emph{Case} $(\Leftarrow)$
 
+    \vspace{.4em}
     Let $M = f(m)$ and let $M' = f(m')$.
     Suppose that $M \leq M'$, which means that with $M' \geq_{rank} M$ in the abstract product graph. It also means that, for each neighbor $N'$, if we have the transition: $\trans{M'}{N'}{L}$ then we also have a transition: $\trans{M}{N}{L}$ where $N' \geq_{rank} N$. We must show that the same relation holds for $m$ and $m'$. 
-
-    \vspace{1em}
+    %
     Assume that $\Topo(M) = f(a)$ and $\Topo(N) = f(b)$. Also assume that $m'$ has a neighbor $n'$. We know that $\Topo(m) = a$ and $\Topo(m') = b$. Clearly $(a,b)$ is a valid concrete topology edge since it is a transition in the product graph between $m$ and $m'$. We now apply Lemma 7 with the following facts:
 
     \[ \begin{array}{ll}
@@ -645,35 +648,34 @@ Next, we show that whenever there is a transition in $PG^A$, there is a correspo
       5. & \Topo(N) = f(b) \\
     \end{array} \]
 
-    Lemma 7 lets us conclude that there exists a node $n'$ such that:
+    \noindent
+    Lemma 7 lets us conclude that there exists a node $n$ such that:
 
     \[ \begin{array}{ll}
       1. & \Topo(n) = b \\
       2. & f_{pg}(n) = N \\
-      3. & (m,n) ~\text{is an edge in}~ PG \\
+      3. & (m,n) ~\text{is a concrete edge in}~ PG \\
       4. & \Rank(n) = \Rank(N) \\
     \end{array} \] 
 
-    Thus if there is transition $\trans{m'}{n'}{b}$, then there is also a transition $\trans{m}{n}{b}$. Lemma 6 together with the assumption $N' \geq N$ shows that $n' \geq{rank} n$.
+    \noindent
+    Thus if there is transition $\trans{m'}{n'}{b}$, then there is also a transition $\trans{m}{n}{b}$. 
+    Lemma 6 together with the assumption $N' \geq_{rank} N$ and the fact that $\Rank(n) = \Rank(N)$ lets us conclude that $n' \geq_{rank} n$.
 
   \end{proof}
 
 \end{lem}
 
 
-\vspace{3em}
+\vspace{1em}
+Lemma 9 tells us that the total ordering between node preferences is preserved under the lifted graph homomorphism $f_{pg}$. 
+We use this fact to define the local preference function ($\Pref : V \rightarrow \mathbb{N}$) that maps product graph nodes to numbers reflecting the total ordering such that $\Pref(m) = \Pref(f(m))$ for all product graph nodes $m$.
 
-The previous lemma tells us that the total ordering between node preferences is preserved under the lifted graph homomorphism $f_{pg}$. 
-We use this fact to define an ordering ($ord : V \rightarrow \mathbb{N}$) that maps product graph nodes to numbers reflecting the total ordering such that $ord(m) = ord(f(m))$ for all product graph nodes $m$.
-
-
+\vspace{1em}
 \begin{defn}
-  Assign $\Pref(m) = \Pref^A(f_{pg}(m))$ as increasing integers according to the total ordering for $\leq$.
-  Clearly from Lemma 9, $\Pref(m) \leq \Pref(m') \iff m \leq m'$ and $\Pref(f_{pg}(m)) \leq \Pref(f_{pg}(m')) \iff f_{pg}(m) \leq f_{pg}(m')$
+  Assign $\Pref(m) = \Pref^A(f_{pg}(m))$ as increasing integers starting from 0 according to the total ordering for $\leq$.
+  From Lemma 9, we know that $\Pref$ and $\Pref^A$ preserve the total ordering since: $\Pref(m) \leq \Pref(m') \iff m \leq m'$ and $\Pref(f_{pg}(m)) \leq \Pref(f_{pg}(m')) \iff f_{pg}(m) \leq f_{pg}(m')$.
 \end{defn}
-
-
-
 
 
 
@@ -690,14 +692,14 @@ The proof goes by case analysis on the test $t$ in the constraint $p$, and makes
 
 \begin{lem}
 
-  For concrete ($PG$) and abstract ($PG^A$) product graphs related by $f_{pg}$
+  For concrete ($PG$) and abstract ($PG^A$) product graphs related by $f_{pg}$, if $f(\ell) = \Topo(M)$, then
 
   \[ \begin{array}{l}
      ~~~~~~~~~ [~ pfx \rightarrow [~ ma~\vert~ \\
      ~~~~~~~~~~~~~~~~~~ M \leftarrow (l,q_M) \in PG^A, \\
-     ~~~~~~~~~~~~~~~~~~ pin = \mathit{adjIn}(PG^A,M), \\
+     ~~~~~~~~~~~~~~~~~~ pin = \mathrm{adjIn}(PG^A,M), \\
      ~~~~~~~~~~~~~~~~~~ (in,q_N) \in \{(BS,q_N) ~\vert~ BS=\{b ~\vert~ b \in f^{-1}(B),~ (b,\ell) \in G.E,~ (B,q_N) \in pin \}, BS \neq \emptyset  \}, \\
-     ~~~~~~~~~~~~~~~~~~ out \leftarrow \{ c ~\vert~ c \in f^{-1}(C), (c,\ell) \in G.E, (C,\_) \in \mathit{adjOut}(PG^A,M) \}, \\
+     ~~~~~~~~~~~~~~~~~~ out \leftarrow \{ c ~\vert~ c \in f^{-1}(C), (c,\ell) \in G.E, (C,\_) \in \mathrm{adjOut}(PG^A,M) \}, \\
      ~~~~~~~~~~~~~~~~~~ ma = ord^A(M) : (in,q_N) \rightarrow (out,q_M) ~] ~] \\
   \end{array} \]%
 
@@ -706,9 +708,9 @@ The proof goes by case analysis on the test $t$ in the constraint $p$, and makes
   \[ \begin{array}{l}
      ~~~~~~~~~ [~ pfx \rightarrow [~ ma ~\vert~ \\
      ~~~~~~~~~~~~~~~~~~ m \leftarrow (l,q_m) \in PG, \\
-     ~~~~~~~~~~~~~~~~~~ pin \leftarrow \text{adjIn}(PG,m), \\
+     ~~~~~~~~~~~~~~~~~~ pin \leftarrow \mathrm{adjIn}(PG,m), \\
      ~~~~~~~~~~~~~~~~~~ (in,q_n) \leftarrow \{ (bs,q_n) ~\vert~ bs=\{ b ~\vert~ (b,q_n) \in pin\}, bs \neq \emptyset \}), \\
-     ~~~~~~~~~~~~~~~~~~ out \leftarrow \{ c ~\vert~ (c,\_) \in \mathit{adjOut}(PG,m) \}, \\
+     ~~~~~~~~~~~~~~~~~~ out \leftarrow \{ c ~\vert~ (c,\_) \in \mathrm{adjOut}(PG,m) \}, \\
      ~~~~~~~~~~~~~~~~~~ ma = ord^A(f_{pg}(m)) : (in,q_n) \rightarrow (out,q_m) ~] ~] \\
   \end{array} \]%
 
@@ -717,22 +719,29 @@ The proof goes by case analysis on the test $t$ in the constraint $p$, and makes
     \vspace{.4em}
 
     Suppose for node $M$, there exists a node $m=(l,q_m)$ such that $f_{pg}(m) = M$. 
-    We observe the following superset relation:
+    We want to show the following:
     %
-    $$\{ b ~\vert~ (b,q_n) \in \text{adjIn}(PG,m)\} \subseteq \{ b ~\vert~ (b,l) \in G.E \}$$
+    %$$\{ b ~\vert~ (b,q_n) \in \text{adjIn}(PG,m)\} \subseteq \{ b ~\vert~ (b,l) \in G.E \}$$
     %
-    This is trivially true from the definition of the product graph. Any product graph edge will correspond to a topology edge. The following inequality will also hold:
+    %This is trivially true from the definition of the product graph. Any product graph edge will correspond to a topology edge. The following inequality will also hold:
     %
-    $$\{b ~\vert~ b \in f^{-1}(B),~ (B,q_N) \in \text{adjIn}(PG^A,f_{pg}(m)) \} \supseteq \{ b ~\vert~ (b,q_N) \in \text{adjIn}(PG,m)\}$$
+    %$$ \{ b ~\vert~ (b,q_N) \in \text{adjIn}(PG,m)\} \subseteq \{b ~\vert~ b \in f^{-1}(B),~ (B,q_N) \in \text{adjIn}(PG^A,f_{pg}(m)) \}$$
     %
-    Since whenever $(b,q_N) \in adjIn(PG,m)$ it must be the case that $(B,q_N) \in adjIn(PG^A, f_{pg}(m))$ by the homomorphism, and because $f^{-1}(B) \supseteq \{ b \}$. By combining these observations, we can conclude the following:
+    %Since whenever $(b,q_N) \in adjIn(PG,m)$ it must be the case that $(B,q_N) \in adjIn(PG^A, f_{pg}(m))$ by the homomorphism, and because $f^{-1}(B) \supseteq \{ b \}$. By combining these observations, we can conclude the following:
     %
-    $$\{b ~\vert~ b \in f^{-1}(B),~ (b,\ell) \in G.E,~ (B,q_N) \in \text{adjIn}(PG^A,f_{pg}(m)) \}$$
+    $$\{b ~\vert~ b \in f^{-1}(B),~ (b,\ell) \in G.E,~ (B,q_N) \in \mathrm{adjIn}(PG^A,f_{pg}(m)) \}$$
     is equivalent to
-    $$\{ b ~\vert~ (b,q_N) \in \text{adjIn}(PG,m)\}$$
+    $$\{ b ~\vert~ (b,q_N) \in \mathrm{adjIn}(PG,m)\}$$
     %
-    The same reasoning can be applied to adjOut as well. 
-    Further, note that because we are looking at a particular location $l$, there can only be at most one such $m = (l,q_N)$ such that $f_{pg}(m) = M = (f(l), q_N)$ since the automata are deterministic. 
+    Suppose that an element $x \in \{ b ~\vert~ (b,q_N) \in \mathrm{adjIn}(PG,m)\}$. Then $(b,q_N) \in \mathrm{adjIn}(PG,m)$ and there is an edge $(b,\ell)$ in the topology between $b$ and $\Topo(m)$. From the homomorphism, this means $(f(b),q_N) \in \mathrm{adjIn}(PG^A,f(m))$. It follows that $x \in \{b ~\vert~ b \in f^{-1}(B),~ (b,\ell) \in G.E,~ (B,q_N) \in \mathrm{adjIn}(PG^A,f_{pg}(m)) \}$. 
+
+    \vspace{1em}
+    \noindent
+    Now suppose the other direction. There is an element $x \in \{b ~\vert~ b \in f^{-1}(B),~ (b,\ell) \in G.E,~ (B,q_N) \in \mathrm{adjIn}(PG^A,f_{pg}(m)) \}$. We know that $f(x) = B$, and that there is a topology edge between $b$ and $\ell$. Lemma 7 together with the fact that $f(\ell) = \Topo(m)$ lets us conclude that there is an edge in the concrete $PG$ between $(b,q_N)$ and $m$. It follows then that $x \in \{ b ~\vert~ (b,q_N) \in \mathrm{adjIn}(PG,m)\}$.
+
+    \vspace{1em}
+    \noindent
+    The same reasoning can be applied to adjOut as well. Further, note that because we are looking at a particular location $l$, there can only be at most one such $m = (l,q_N)$ such that $f_{pg}(m) = M = (f(l), q_N)$ since the automata are deterministic. 
     %
     This means that $M \leftarrow (l,q_M) \in PG^A$ can be replaced with $m \leftarrow (l,q_m) \in PG$ since for each $M$ we will either have some $m$ such that $f_{pg}(m) = M$ and the above equivalence holds, or else there is no such $M$, in which case the set is filtered by the condition: $BS \neq \emptyset$.
 
@@ -751,6 +760,7 @@ The proof goes by case analysis on the test $t$ in the constraint $p$, and makes
   \begin{proof} From the grammar, we know that $p = (t \Path~ r_1 ~\Prefer~ \ldots ~\Prefer~ r_n)$. The proof proceeds by cases on $t$. In each case, we expand the definition of $\Compile$ and $\Con$ until they no longer appear in the term. We then appeal to graph properties of $PG$ and $PG^A$ to rewrite the terms into equivalent forms.
 
   \vspace{.4em}
+  \noindent
   \textbf{Case} ($t = pfx$)
   \vspace{.4em}
 
@@ -792,6 +802,10 @@ The proof goes by case analysis on the test $t$ in the constraint $p$, and makes
     This allows us to relate $PG$ and $PG^A$ as well as $\Pref$ and $\Pref^A$.
     Continuing to expand the right side by substituting the definition of $\CompileMbgp$ we get: 
 
+    \vspace{1em}
+    \noindent
+    \textbf{(Right-hand side)}
+
   \[ \begin{array}{l}
      ~~~~~ [~ l \rightarrow rc ~\vert~ \\
      ~~~~~~~~~~~~ l \in internal(G.V), ~rc =  \\
@@ -804,6 +818,10 @@ The proof goes by case analysis on the test $t$ in the constraint $p$, and makes
   \end{array} \]%
 
   Next we further expand on the left side for the abstract topology to show it is equivalent:
+
+    \vspace{1em}
+    \noindent
+    \textbf{(Left-hand side)}
 
   \[ \begin{array}{l}
      ~~~~~ \Con([~ l \rightarrow rc ~\vert~ \\
@@ -869,7 +887,7 @@ The proof goes by case analysis on the test $t$ in the constraint $p$, and makes
      ~~~~~~~~~~~~~~~~~~~~~ pin \leftarrow \text{adjIn}(PG^A,M), \\
      ~~~~~~~~~~~~~~~~~~~~~ (\Con(in,\ell,\Gamma,f,G),q_N) \leftarrow \{ (BS,q_N) ~\vert~ BS=\{B ~\vert~ (B,q_N) \in pin \}, BS \neq \emptyset \}, \\
      ~~~~~~~~~~~~~~~~~~~~~ out \leftarrow \Con(\{ C ~\vert~ (C,\_) \in \text{adjOut}(PG^A,M) \}, \ell,\Gamma,f,G), \\
-     ~~~~~~~~~~~~~~~~~~~~~ ma = \Con(\Pref^A(M) : (in,q_N) \rightarrow (out,q_M), true, \ell, \Gamma, f, G) ~] ~] ~] \\
+     ~~~~~~~~~~~~~~~~~~~~~ ma = \Pref^A(M) : (in,q_N) \rightarrow (out,q_M) ~] ~] ~] \\
   \end{array} \]%
 
   Rewrite $\Con$ in the set $in$:
@@ -883,7 +901,7 @@ The proof goes by case analysis on the test $t$ in the constraint $p$, and makes
      ~~~~~~~~~~~~~~~~~~~~~ pin \leftarrow \text{adjIn}(PG^A,M), \\
      ~~~~~~~~~~~~~~~~~~~~~ (in,q_N) \leftarrow \{ (BS,q_N) ~\vert~ BS=\Con(\{B ~\vert~ (B,q_N) \in pin \}, \ell, \Gamma, f, G), BS \neq \emptyset \}, \\
      ~~~~~~~~~~~~~~~~~~~~~ out \leftarrow \Con(\{ C ~\vert~ (C,\_) \in \text{adjOut}(PG^A,M) \}, \ell,\Gamma,f,G), \\
-     ~~~~~~~~~~~~~~~~~~~~~ ma = \Con(\Pref^A(M) : (in,q_N) \rightarrow (out,q_M), true, \ell, \Gamma, f, G) ~] ~] ~] \\
+     ~~~~~~~~~~~~~~~~~~~~~ ma = \Pref^A(M) : (in,q_N) \rightarrow (out,q_M) ~] ~] ~] \\
   \end{array} \]%
 
   Apply the definition of $\Con$ on the inner set of $in$ and $out$:
@@ -900,7 +918,7 @@ The proof goes by case analysis on the test $t$ in the constraint $p$, and makes
      ~~~~~~~~~~~~~~~~~~~~~ ma = \Con(\Pref^A(M) : (in,q_N) \rightarrow (out,q_M), true, \ell, \Gamma, f, G) ~] ~] ~] \\
   \end{array} \]%
 
-  From Lemma 10, this is equivalent to the following:
+  Applying Lemma 10 with the fact that $f(\ell) = l = \Topo(M)$ this is equivalent to the following:
 
     \[ \begin{array}{l}
      ~~~~~ [~ l \rightarrow rc ~\vert~ \\
@@ -936,6 +954,10 @@ The proof goes by case analysis on the test $t$ in the constraint $p$, and makes
     \noindent
     The case for $t = \$x$ follows a similar line of reasoning. We start by evaluating the right-hand side:
 
+    \vspace{1em}
+    \noindent
+    \textbf{(Right-hand side)}
+    %
     \[
     \begin{array}{llll}
       & & \Compile(\Con(p,\Gamma,f),G) \\
@@ -970,9 +992,13 @@ The proof goes by case analysis on the test $t$ in the constraint $p$, and makes
   \end{array} \]%
 
     \noindent
-    As before, we now show that the right hand side is equivalent by applying the definitions of $\Con$ and $\Compile$:
+    As before, we now show that the left hand side is equivalent by applying the definitions of $\Con$ and $\Compile$:
 
-        \[
+    \vspace{1em}
+    \noindent
+    \textbf{(Left-hand side)}
+    %
+    \[
     \begin{array}{llll}
       & & \Con(\Compile(p,G^A),\Gamma,f,G) \\
       &=& \Con(\Compile(\$x \Path~ r_1 ~\Prefer~ \ldots ~\Prefer~ r_n,G^A),\Gamma,f,G)
@@ -1036,7 +1062,7 @@ The proof goes by case analysis on the test $t$ in the constraint $p$, and makes
      ~~~~~~~~~~~~ \ell \in f^{-1}(l), \\
      ~~~~~~~~~~~~ l \in internal(G^A.V), ~rc = append_i \\
      ~~~~~~~~~~~~~~~ [~ pfx_i \rightarrow [~ ma ~\vert~ \\
-     ~~~~~~~~~~~~~~~~~~~~~ (pfx_i, l') \in \Gamma(x),
+     ~~~~~~~~~~~~~~~~~~~~~ (pfx_i, l') \in \Gamma(x), \\
      ~~~~~~~~~~~~~~~~~~~~~ M \leftarrow (l,q_M) \in PG^A, \\
      ~~~~~~~~~~~~~~~~~~~~~ pin \leftarrow \text{adjIn}(PG^A,M), \\
      ~~~~~~~~~~~~~~~~~~~~~ (in,q_N) \leftarrow \{ (BS,q_N) ~\vert~ BS=\{B ~\vert~ (B,q_N) \in pin \}, BS \neq \emptyset \}, \\
@@ -1061,8 +1087,8 @@ The proof goes by case analysis on the test $t$ in the constraint $p$, and makes
      ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ \textbf{else } \Pref^A(M) : (\Con(in, \ell, \Gamma, f, G),q_N) \rightarrow (\Con(out, \ell, \Gamma, f, G), q_M) ~] ~] ~]\\
   \end{array} \]%
 
-  After filtering the cases where $in = \{ start \}$ and $l' \neq \ell$, we have the same situation as the previous case. 
-  This works because each $PG_{i}$ was constructed from $con(r_{i}, \ell, \Gamma, f, G) \cap end(l_{i})$. This means that the only state in $PG_{i}$ connected to the start node ($\mathit{start}$) is a node for $l_{i}$. This was ensured by the fact that the transition function for each regular expression $\sigma_{i}(q_0,l) = q$ is defined only for locations $l \in L$ where $L = \{ l_{i} \}$ from the construction of the automata.
+  After filtering the cases where $in = \{ G.start \}$ and $l' \neq \ell$, we have the same situation as the previous case. 
+  However, we know that each $PG_{i}$ was constructed from $con(r_{i}, \ell, \Gamma, f, G) \cap end(l_{i})$. This means that the only state in $PG_{i}$ connected to the start node ($\mathit{start}$) is a node for $l_{i}$. This was ensured by the fact that the transition function for each regular expression $\sigma_{i}(q_0,l) = q$ is defined only for locations $l \in L$ where $L = \{ l_{i} \}$ from the construction of the automata. We apply Lemma 10 with the fact that $f(\ell) = \Topo(M)$:
 
     \[ \begin{array}{l}
      ~~~~~ [~ \ell \rightarrow rc ~\vert~ \\
@@ -1093,12 +1119,13 @@ The proof goes by case analysis on the test $t$ in the constraint $p$, and makes
 
     \vspace{.5em}
     \noindent
+    The proof simply uses Theorem 11 after rewriting the policy according to $\Con$ and $\Compile$.
     Given a policy $pol = p_1, \ldots, p_n$ we apply Theorem 11 after rewriting the policy. For the left side:
     \[
     \begin{array}{llll}
       & & \Con(\Compile(pol,G^A),\Gamma,f,G) \\
       &=& \Con(\Compile(p_1, \ldots, p_n, G^A),\Gamma,f,G) & \text{Substitution} \\
-      &=& \Con(\CompileMbgp([\CompilePg(p_1), \ldots, \CompilePg(p_n)]),\Gamma,f,G)
+      &=& \Con(\CompileMbgp([\CompilePg(p_1, G^A), \ldots, \CompilePg(p_n, G^A)]),\Gamma,f,G)
             & \text{Definition of Compile} \\
       &=& \Con(\CompileMbgp([(t_1,PG^A_1,\Pref^A_1), \ldots, (t_n,PG^A_n,\Pref^A_n)]),\Gamma,f,G)
             & \text{Assumption}\\
@@ -1124,41 +1151,65 @@ The proof goes by case analysis on the test $t$ in the constraint $p$, and makes
     \end{array}
     \]
 
+
+    \vspace{1em}
+    \noindent
+    \textbf{(Given)}
+
     \noindent
     First, we observe that, for each $p_i$, Theorem 11 and $\CompilePg$ give us that, for each $i$:
+
+    \[
+    \begin{array}{lll}
+    &   \Con([~ l \rightarrow rc ~\vert~ l \in internal(G^A.V), rc = 
+        [\CompilePred((t_i, PG^A_i, \Pref^A_i))] ~~], \Gamma,f,G)     & \text{Left side} \\
+    = & [~ l \rightarrow rc ~\vert~ l \in internal(G.V), rc = 
+        [\Con(\CompilePred((t_i, PG^A_i, \Pref^A_i)), \Gamma,f,G)] ~~] & \text{Definition of con} \\
+    = & [~ l \rightarrow rc ~\vert~ l \in internal(G.V), rc = [\CompilePred((t'_i, PG_i, \Pref_i))] ~~]
+        & \text{Right side} \\
+    \end{array}
+    \]
+ 
+    \vspace{1em}
+    \noindent
+    \textbf{(To Show)}
+
+    \vspace{.4em}
+    \noindent
+    By applying the definition of $\CompileMbgp$, we start with the left hand side:
+
     \[ \begin{array}{l}
-     ~~~~~ [~ \ell \rightarrow rc ~\vert~ \\
-     ~~~~~~~~~~~~ l \in internal(G^A.V), \\ 
-     ~~~~~~~~~~~~ rc = [\CompilePred((t_i, PG^A_i, \Pref^A_i))] ~~] \\
+     ~~~~~ \Con([~ l \rightarrow rc ~\vert~ \\
+     ~~~~~~~~~~~~~~~~ l \in internal(G^A.V), \\ 
+     ~~~~~~~~~~~~~~~~ rc = append_{i \in \{1..n\}}(\CompilePred((t_i, PG^A_i, \Pref^A_i))) ~], \Gamma,f,G) \\
     \end{array} \]%
 
     \noindent
-    Is equivalent to:
+    By applying the definition of $\Con$ to the left-hand side, we get:
 
     \[ \begin{array}{l}
-     ~~~~~ [~ \ell \rightarrow rc ~\vert~ \\
+     ~~~~~ [~ l \rightarrow rc ~\vert~ \\
      ~~~~~~~~~~~~ l \in internal(G.V), \\ 
-     ~~~~~~~~~~~~ rc = [\CompilePred((t'_i, PG_i, \Pref_i))] ~~] \\
+     ~~~~~~~~~~~~ rc = \Con(append_{i \in \{1..n\}}(\CompilePred((t_i, PG^A_i, \Pref^A_i))), \Gamma,f,G)  ~]\\
     \end{array} \]%
-
 
     \noindent
-    By applying the definition of $\CompileMbgp$, we need to show:
+    Applying the definition of $\Con$ one more time:
 
     \[ \begin{array}{l}
-     ~~~~~ [~ \ell \rightarrow rc ~\vert~ \\
-     ~~~~~~~~~~~~ l \in internal(G^A.V), \\ 
-     ~~~~~~~~~~~~ rc = append_{i \in \{1..n\}}(\CompilePred((t_i, PG^A_i, \Pref^A_i))) ~] \\
+     ~~~~~ [~ l \rightarrow rc ~\vert~ \\
+     ~~~~~~~~~~~~ l \in internal(G.V), \\ 
+     ~~~~~~~~~~~~ rc = append_{i \in \{1..n\}}\Con((\CompilePred((t_i, PG^A_i, \Pref^A_i)), \Gamma,f,G) ) ~]\\
     \end{array} \]%
 
     \[ \begin{array}{l}
-     ~~~~~ [~ \ell \rightarrow rc ~\vert~ \\
+     ~~~~~ [~ l \rightarrow rc ~\vert~ \\
      ~~~~~~~~~~~~ l \in internal(G.V), \\ 
      ~~~~~~~~~~~~ rc = append_{i \in \{1..n\}}(\CompilePred((t'_i, PG_i, \Pref_i))) ~] \\
     \end{array} \]%
 
     \noindent
-    Clearly this follows by the definition of list $\mathrm{append}$
+    Clearly this follows by the definition of list $\mathrm{append}$ and the given equality from Theorem 11.
 
   \end{proof}
 
