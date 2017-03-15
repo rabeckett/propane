@@ -651,7 +651,7 @@ Next, we show that whenever there is a transition in $PG^A$, there is a correspo
     \end{array} \]
 
     \noindent
-    Lemma 7 lets us conclude that there exists a node $n$ such that:
+    Lemma 8 lets us conclude that there exists a node $n$ such that:
 
     \[ \begin{array}{ll}
       1. & \Topo(n) = b \\
@@ -673,16 +673,21 @@ Next, we show that whenever there is a transition in $PG^A$, there is a correspo
 Lemma 10 tells us that the total ordering between node preferences is preserved under the lifted graph homomorphism $f_{pg}$. 
 We use this fact to define the local preference function ($\Pref : V \rightarrow \mathbb{N}$) that maps product graph nodes to numbers reflecting the total ordering such that $\Pref(m) = \Pref(f(m))$ for all product graph nodes $m$. We do this to normalize policies so they refer to the exact same BGP local preferences. This is useful because we are proving syntactic equivalence of commutativity rather than semantic equivalence.
 %
-\begin{defn}
-  Assign $\Pref(m) = \Pref^A(f_{pg}(m))$ as increasing integers starting from 0 according to the total ordering for $\leq$.
-  From Lemma 10, we know that $\Pref$ and $\Pref^A$ preserve the total ordering since: $\Pref(m) \leq \Pref(m') \iff m \leq m'$ and $\Pref(f_{pg}(m)) \leq \Pref(f_{pg}(m')) \iff f_{pg}(m) \leq f_{pg}(m')$.
-\end{defn}
+
+\vspace{1em}
+\begin{lem}
+  For all node $m$, $\Pref(m) = \Pref^A(f_{pg}(m))$.
+  \begin{proof}
+    $\Pref$ and $\Pref^A$ assign values to PG nodes for each topology location as increasing integers starting from 0 according to the total ordering for $\leq$.
+    From Lemma 10, we know that $\Pref$ and $\Pref^A$ preserve the total ordering since: $\Pref(m) \leq \Pref(m') \iff m \leq m'$ and $\Pref(f_{pg}(m)) \leq \Pref(f_{pg}(m')) \iff f_{pg}(m) \leq f_{pg}(m')$. Also, because there can only be a single product graph node for a particular location and set of states (since automata are determinized), and from Lemma 5 we know that for each $m$ there exists a node $f(m)$ with the same states it must be the case that $\Pref(m) = \Pref^A(f_{pg}(m))$
+  \end{proof}
+\end{lem}
 
 
 
 
 
-\vspace{3em}
+\vspace{2em}
 \subsection{Constraint Substitution (Part 2)}
 
 In this section, we aim to prove that concretization and compilation commute for individual \sysname constraints. Since a policy is simply an ordered sequence of constraints, it is then straightfoward to show that compilation and concretization commute for entire policies. In particular, we are interested in showing that for all constraints $p$, contexts $\Gamma$, and graph homomorphisms $f: G \rightarrow G^A$ between $G$ and $G^A$:
@@ -919,7 +924,7 @@ The proof goes by case analysis on the test $t$ in the constraint $p$, and makes
      ~~~~~~~~~~~~~~~~~~~~~ ma = \Con(\Pref^A(M) : (in,q_N) \rightarrow (out,q_M), true, \ell, \Gamma, f, G) ~] ~] ~] \\
   \end{array} \]%
 
-  Applying Lemma 10 with the fact that $f(\ell) = l = \Topo(M)$ this is equivalent to the following:
+  Applying Lemma 12 with the fact that $f(\ell) = l = \Topo(M)$ this is equivalent to the following:
 
     \[ \begin{array}{l}
      ~~~~~ [~ l \rightarrow rc ~\vert~ \\
@@ -947,7 +952,7 @@ The proof goes by case analysis on the test $t$ in the constraint $p$, and makes
 
   This is exactly the result we obtained from expanding the right hand side of the equality.
 
-  \vspace{.4em}
+  \vspace{2em}
   \noindent
   \textbf{Case} ($t = \$x$)
   \vspace{.4em}
@@ -1084,12 +1089,12 @@ The proof goes by case analysis on the test $t$ in the constraint $p$, and makes
      ~~~~~~~~~~~~~~~~~~~~~ pin \leftarrow \text{adjIn}(PG^A,M), \\
      ~~~~~~~~~~~~~~~~~~~~~ (in,q_N) \leftarrow \{ (BS,q_N) ~\vert~ BS=\{B ~\vert~ (B,q_N) \in pin \}, BS \neq \emptyset \}, \\
      ~~~~~~~~~~~~~~~~~~~~~ out \leftarrow \{ C ~\vert~ (C,\_) \in \text{adjOut}(PG^A,M) \}, \\
-     ~~~~~~~~~~~~~~~~~~~~~ ma = \textbf{if } in = \{ G.start \} \text{ and } l'=\ell \textbf{ then } \bullet \\
-     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ \textbf{else } \Pref^A(M) : (\Con(in, \ell, \Gamma, f, G),q_N) \rightarrow (\Con(out, \ell, \Gamma, f, G), q_M) ~] ~] ~]\\
+     ~~~~~~~~~~~~~~~~~~~~~ ma = \text{if } in = \{ G.start \} \text{ and } l'=\ell \text{ then } \bullet \\
+     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ \text{else } \Pref^A(M) : (\Con(in, \ell, \Gamma, f, G),q_N) \rightarrow (\Con(out, \ell, \Gamma, f, G), q_M) ~] ~] ~]\\
   \end{array} \]%
 
-  After filtering the cases where $in = \{ G.start \}$ and $l' \neq \ell$, we have the same situation as the previous case. 
-  However, we know that each $PG_{i}$ was constructed from $con(r_{i}, \ell, \Gamma, f, G) \cap end(l_{i})$. This means that the only state in $PG_{i}$ connected to the start node ($\mathit{start}$) is a node for $l_{i}$. This was ensured by the fact that the transition function for each regular expression $\sigma_{i}(q_0,l) = q$ is defined only for locations $l \in L$ where $L = \{ l_{i} \}$ from the construction of the automata. We apply Lemma 10 with the fact that $f(\ell) = \Topo(M)$:
+  After filtering the cases where $in = \{ G.start \}$ and $l' = \ell$, we have the same situation as the previous case. 
+  However, we know that each $PG_{i}$ was constructed from $con(r_{i}, \ell, \Gamma, f, G) \cap end(l_{i})$. This means that the only state in $PG_{i}$ connected to the start node ($\mathit{start}$) is a node for $l_{i}$. This was ensured by the fact that the transition function for each regular expression $\sigma_{i}(q_0,l) = q$ is defined only for locations $l \in L$ where $L = \{ l_{i} \}$ from the construction of the automata. We apply Lemma 12 with the fact that $f(\ell) = \Topo(M)$:
 
     \[ \begin{array}{l}
      ~~~~~ [~ \ell \rightarrow rc ~\vert~ \\
@@ -1111,6 +1116,10 @@ The proof goes by case analysis on the test $t$ in the constraint $p$, and makes
 
 
 \vspace{2em}
+\subsection{Substitution of Policies (Step 3)}
+
+The final step is now to show the commutativity property for entire \sysname policies.
+
 \begin{thm}
   For all \sysname policies $pol$, contexts $\Gamma$, topologies $G$ and $G^A$ related by homomorphism $f : G \rightarrow G^A$:
   $$\Con(\Compile(pol,G^A),\Gamma,f,G) = \Compile(\Con(pol,\Gamma,f),G)$$
@@ -1120,8 +1129,8 @@ The proof goes by case analysis on the test $t$ in the constraint $p$, and makes
 
     \vspace{.5em}
     \noindent
-    The proof simply uses Theorem 11 after rewriting the policy according to $\Con$ and $\Compile$.
-    Given a policy $pol = p_1, \ldots, p_n$ we apply Theorem 11 after rewriting the policy. For the left side:
+    The proof simply uses Theorem 13 after rewriting the policy according to $\Con$ and $\Compile$.
+    Given a policy $pol = p_1, \ldots, p_n$, we compute the left-hand side:
     \[
     \begin{array}{llll}
       & & \Con(\Compile(pol,G^A),\Gamma,f,G) \\
