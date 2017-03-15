@@ -1175,7 +1175,7 @@ Finally, rules \infrule{I-local} and \infrule{I-global} reason across pod hierar
 
 The abstract disjoint path analysis starts from a fixed source location $src$ and repeatedly tries to apply every inference rule from Figure~\ref{fig:inference-rules} until it reaches a fixed point. The algorithm applies an inference rule when the rule's condition is valid given the abstract topology constraints. Because the inference rules may continue to yield larger and larger symbolic expressions, we make the following observation to ensure termination: for any invariant learned of the form $L(j,k)$, it is sound to instead infer $L(j',k')$ if $j' \leq j$ and $k' \leq k$. Therefore, for each inference $L(j,k)$ we minimize the symbolic expressions for $j$ and $k$ subject to the topology constraints using the optimizing SMT solver $\nu$Z~\cite{z3opt}. 
 
-At a higher level, what is happening is that each inference rule is attempting to learn the maximum possible fault tolerance information possible as a function of the symbolic inputs, and $\nu$Z~\cite{z3opt} will minimize this maximum by accounting for all possible topologies that meet the abstraction. Facts learned with $j=0$ or $k=0$ are discarded.
+At a higher level, what is happening is that each inference rule is attempting to learn the maximum fault tolerance information possible as a function of the symbolic inputs, and $\nu$Z~\cite{z3opt} will minimize this maximum by accounting for all possible topologies that meet the abstraction. Facts learned with $j=0$ or $k=0$ are discarded.
 
 %The algorithm associates with each inference, the set of abstract locations used to derive the inference, \IE, an overapproximation of set of concrete locations used for the edge-disjoint paths. When applying an inference rule between an invariant at role $m$, with a set of abstract locations $C$, to learn an invariant at role $n$, we associate the new invariant with the set $C \cup \{ n \}$.
 %
@@ -1259,7 +1259,7 @@ Community tags serve as a simple form of \emph{history}, and operators routinely
 
 The idea for template generation is to use community tags to record the state of the automata from the Product Graph in every BGP announcement and update these tags whenever messages are passed between routers. Such a tagging mechanism is used to ensure that BGP only considers paths that are allowed by the \sysname policy (\IE, paths in the PG). Routers will allow advertisments that correspond to an edge in the PG and block any advertisments that do not.
 
-For example, in the concrete PG in Figure~\ref{fig:example-compilation}, router S1 appears in two PG nodes: $(S1,1,0)$ and $(S1,0,1)$. These nodes have two peers that can send them messages: $(N1,0,0)$ and $(N2,0,0)$. Therefore, S1 will allow advertisements from both peer $N1$ and peer $N2$. If S1 uses the path advertised by neighbor N1, then it will add the tag $(1,0)$ to the advertisement before sending this to its neighbors A1 and A2. If S1 uses a path advertised from neighbor N2, then it will add the tag $(0,1)$ instead. Similarly, router A1 appears in two separate PG nodes. It will allow advertisements from S1 if they either have the $(1,0)$ tag or the $(0,1)$ tag attached. In either case, it will not modify the tag before exporting the route to its neighbors.
+For example, in the concrete PG in Figure~\ref{fig:example-compilation}, router S1 appears in two PG nodes: $(S1,1,0)$ and $(S1,0,1)$. These nodes have two peers that can send them messages: $(N1,0,0)$ and $(N2,0,0)$. Therefore, S1 will allow advertisements from both peer $N1$ and peer $N2$. If S1 uses the path advertised by neighbor N1, then it will add the tag $(1,0)$ to the advertisement before sending this to its neighbors A1 and A2. If S1 uses a path advertised from neighbor N2, then it will add the tag $(0,1)$ instead. Similarly, router A1 appears in two PG nodes. It will allow advertisements from that have the $(1,0)$ or $(0,1)$ tag attached. In either case, it will not modify the tag before exporting the route to its neighbors.
 
 %\begin{algorithm}[t!]
 %\caption{Checking safe neighbor preferences}
@@ -1312,7 +1312,7 @@ For example, in the concrete PG in Figure~\ref{fig:example-compilation}, router 
      t    &::=& \$x \BNFALT d.d.d.d/[d..d] & \textit{predicate} \\
      ns   &::=& \{ l_1, ~\dots,~ l_k \} & \textit{peers} \\
      ma   &::=& d : ({ns}_1, c_1) \rightarrow ({ns}_2, c_2) & \textit{match action} \\
-     pc   &::=& ma_1, \dots, ma_k & \textit{prefix config} \\
+     pc   &::=& ma_1, \dots, ma_k & \textit{predicate config} \\
      rc   &::=& t_1 \rightarrow {pc}_1, ~\dots,~ t_k \rightarrow {pc}_k & \textit{router config} \\
      mbgp &::=& l_1 \rightarrow {rc}_1, ~\dots,~ l_k \rightarrow {rc}_k & \textit{mbgp policy} \\%
   \end{array} \]%%
@@ -1354,7 +1354,7 @@ Tagging and filtering according to the PG with community values in BGP forces th
 
 To enforce correct network-wide preferences, we use the BGP local-preference attribute, which allows routers to prefer routes from one neighbor (or with some tag) over routers learned from another neighbor. The challenge is to find a collection of device-local preferences that correctly enforce the network-wide preferences from the policy for all failures.
 
-The idea then is to search for such a device-local preference function for each router that totally orders advertisements from different neighbors (possibly with different tags). For example, to satisfy the policy that leaving through N1 is preferred to leaving through N2, S1 should prefer a message it hears from N1 over N2. Similarly, A1 should prefer routes tagged with $(1,0)$ over those with $(0,1)$. Intuitively, S1 should prefer a message from N1 because it results in an accepting state for automata 1, which indicates a better path. Further, it can result in downstream routers such as A1 using a path that is accepting for automata 1 as well.
+The idea is to search for such a device-local preference function for each router that totally orders advertisements from different neighbors (possibly with different tags). For example, to satisfy the policy that leaving through N1 is preferred to leaving through N2, S1 should prefer a message it hears from N1 over N2. Similarly, A1 should prefer routes tagged with $(1,0)$ over those with $(0,1)$. Intuitively, S1 should prefer a message from N1 because it results in an accepting state for automata 1, which indicates a better path. Further, it can result in downstream routers such as A1 using a path that is accepting for automata 1 as well.
 
 In general, because BGP is distributed, each router does not have a view of the entire network when choosing which path to use, and finding a collection of preferences to ensure correct end-to-end behavior for all failures is a hard problem. \Propane introduced a conservative search strategy for determining route preferences that works well in practice. To make it work for abstract topologies, we modify the search based on the following observation about the PG structure:
 
@@ -1372,14 +1372,13 @@ The PG can be viewed as a labelled transition system by pushing the location fro
 For example, in the concrete PG we have the transition $(S1,1,0)\overset{A2}{\rightarrow}(A2,1,0)$.
 
 \begin{defn}
-We write $m \leq n$ if the subgraph reachable from $m$ and $n$ respectively form a simulation relation with respect to $\geq_{rank}$.
+We write $m \leq n$ if the subgraph reachable from $m$ and $n$ respectively form a simulation relation with respect to $\geq_{rank}$. More specifically, we say that $m \leq n$ if $n \geq_{rank} m$ and for every transition $n\overset{l}{\rightarrow}n'$ from PG node $n$ there exists a transition $m\overset{l}{\rightarrow}m'$ from $m$ and $m' \leq n'$.
 \end{defn}
 
-More specifically, we say that $m \leq n$ if $m \geq_{rank} n$ and for every transition $n\overset{l}{\rightarrow}n'$ from PG node $n$ there exists a transition $m\overset{l}{\rightarrow}m'$ from $m$ and $m' \leq n'$.
-%
-If $m \leq n$, then advertisements received for node $m$ can safely be preferred over those received for node $n$ after accounting for the network-wide impact of the choice. For example in Figure~\ref{fig:example-compilation}, S1 can receive advertisements in two different contexts ($(S1,1,0)$ and $(S1,0,1)$) and must choose between messages received in these different contexts. Advertisements are preferred in state $(S1,1,0)$ because it results in a better path for S1 ($(S1,0,1) \geq_{rank} (S1,1,0)$) and downstream routers such as A1 will also obtain paths no worse than if S1 had choosen $(S1,1,0)$ instead. The policy is guaranteed to be safe from failures because if a link fails in the topology, then $m \leq n$ will still hold since any transition that becomes unusable for $m$ also becomes unusable for $n$. That is $m \leq n$ before the failure implies $m \leq n$ after the failure.
 
-For each router, its corresponding PG nodes are then sorted according the the $\leq$ operator. If the operator defines a total order on PG nodes, then the compiler can simply prefer advertisements from peers of node $m$ over those of $n$ whenever $n \leq m$. However, if $\leq$ does not form a total order, then the policy is rejected as being potentially unsafe under some failure conditions.
+If $m \leq n$, then advertisements received for node $m$ can safely be preferred over those received for node $n$ after accounting for the network-wide impact of the choice. For example in Figure~\ref{fig:example-compilation}, S1 can receive advertisements in two different contexts $(S1,1,0)$ and $(S1,0,1)$ and must choose between messages received in these different contexts. Advertisements are preferred in state $(S1,1,0)$ because they result in a better path for S1 ($(S1,0,1) \geq_{rank} (S1,1,0)$) and downstream routers such as A1 will also obtain paths no worse than if S1 had choosen $(S1,1,0)$. The policy is guaranteed to be safe from failures because if a link fails in the topology, then $m \leq n$ will still hold since any transition that becomes unusable for $m$ also becomes unusable for $n$. That is $m \leq n$ before the failure implies $m \leq n$ after the failure.
+
+For each router, its corresponding PG nodes are then sorted according the the $\leq$ operator. If the operator defines a total order on PG nodes, then the compiler can simply prefer advertisements from peers of node $m$ over those of $n$ whenever $m \leq n$. However, if $\leq$ does not form a total order, then the policy is rejected as being potentially unsafe under some failure conditions.
 
 
 %
@@ -1411,7 +1410,7 @@ To characterize compilation we first introduce a simple, vendor independent conf
 
 \para{Compilation}
 
-Figure~\ref{fig:concretization} (right) defines compilation from \sysname to \mbgp. It proceeds by compiling constraints $p_i$ in the original \sysname policy to a tuple of: the predicate $t_i$, the product graph $PG_i$, and the preference function $pref_i$. These tuples are passed the the $\mathrm{compile}_\mathrm{mBGP}$ function, along with the network topology $G$. For each internal router in the topology $l$, and each predicate $t_i$ in the \sysname policy, compilation goes through each node $m$ for $l$ in $PG_i$, and groups the inbound neighbors of $m$ by tag ($q_n$) into sets ($in$). It allows imports from these neighbors before exporting to the outbound neighbors of $m$. The local preference for these imports is given by $\mathrm{pref}_i(m)$. We build configs using list-comprehension notation. For instance, $[~ l \rightarrow rc ~\vert~ l \in V, p(l,rc) ~]$ denotes the \mbgp policy $l_1 \rightarrow rc_{1},...,l_k \rightarrow rc_{k}$ where each $rc_{i}$ satisfies $p(l_i,rc_{i})$. We also use $\mathit{append}$ to denote sequence concatenation.%
+Figure~\ref{fig:concretization} (right) defines compilation from \sysname to \mbgp. It proceeds by compiling constraints $p_i$ in the original \sysname policy to a tuple of: the predicate $t_i$, the product graph $PG_i$, and the preference function $pref_i$. These tuples are passed the the $\mathrm{compile}_\mathrm{mBGP}$ function, along with the network topology $G$. For each internal router in the topology $l$, and each predicate $t_i$ in the \sysname policy, compilation goes through each node $m$ for $l$ in $PG_i$, and groups the inbound neighbors of $m$ by tag ($q_n$) into sets ($in$). It allows imports from these neighbors before exporting to the outbound neighbors of $m$. The local preference for these imports is given by $\mathrm{pref}_i(m)$, which represents an integer based on the total ordering of $(\leq)$. We build configurations using list-comprehension notation. For instance, $[~ l \rightarrow rc ~\vert~ l \in V, p(l,rc) ~]$ denotes the \mbgp policy $l_1 \rightarrow rc_{1},...,l_k \rightarrow rc_{k}$ where each $rc_{i}$ satisfies $p(l_i,rc_{i})$. We use $\mathrm{append}$ to denote sequence concatenation.%
 
 Figure~\ref{fig:bgp-configs} (left) shows part of the generated \mbgp configuration for spine routers for both the concrete and abstract policies. For brevity, we using the symbol ($*$) to denote the set of all neighbors and omit tags when irrelevant.
 %
@@ -1421,13 +1420,13 @@ The template configuration matches any global prefix {\small \$GP} from any inte
 
 
 \para{Concretization}
-The similar structure between the spine template and concrete configurations is not a coincidence.  We formalize this observation by defining a two concretization function ($con$), one for \sysname policies and another for \mbgp policies. 
+The similar structure between the spine template and concrete configurations is not a coincidence.  We formalize this observation by defining two concretization functions ($con$), one for \sysname policies and another for \mbgp policies. 
 %
 Concretization takes a context $\Gamma : \mathit{Var} \rightarrow 2^{\mathit{Prefix} \times V}$ that maps each template variable to a set of pairs of a concrete prefix and topology location where the prefix is owned.
-
-Both concretization functions traverse the policy and substitute each instance of a topology loction $l$ in the template policy with the set of all concrete locations that map to $l$, given by the inverse homomorphism $f^{-1}(l) = \{l' ~\vert~ f(l') = l \}$. Additionally, whenver a pair $(pfx,l) \in \Gamma(x)$, then a new entry is added to the concretized policy where $pfx$ replaces $\$\mathrm{x}$ and adds the constraint that traffic ends at $l$ ($\CD{\End(l)}$).
 %
-For example, the spine template in Figure~\ref{fig:bgp-configs}, is obtained by substituting $\{ A1,A2 \}$ for $AG$ and $\{ A3,A4 \}$ for $AL$ and by also replacing the entry for {\small \$GP} with entries for {\small GP1} and {\small GP2} given by the context (\EG, a database).
+Both concretization functions traverse the policy and substitute instances of a topology location $l$ in the template policy with the set of all concrete locations that map to $l$, given by the inverse homomorphism $f^{-1}(l) = \{l' ~\vert~ f(l') = l \}$. Additionally, whenever a pair $(pfx,l) \in \Gamma(x)$, then a new entry is added to the concretized policy where $pfx$ replaces $\$\mathrm{x}$ and adds the constraint that traffic ends at $l$ ($\CD{\End(l)}$).
+%
+For example, the spine template in Figure~\ref{fig:bgp-configs}, is obtained by substituting $\{ A1,A2 \}$ for $AG$ and $\{ A3,A4 \}$ for $AL$ and by also replacing the entry for {\small \$GP} with entries for {\small GP1} and {\small GP2} given by the context.
 
 Our main theoretical result is that the compilation and concretization functions commute:
 
