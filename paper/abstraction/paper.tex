@@ -1453,9 +1453,7 @@ In fact, the only way in which the concrete configurations can depend on anythin
 
 To prevent the non-local changes induced by template variables, we modify compilation in the following ways. First, we associate a new unique community tag for each template variable (\EG, {\small \$GP}), and add this tag where the route is originated (\EG, role TG). Then, template variable tests elsewhere in the policy are replaced with a new test on this tag. Finally, during template instantiation the tags are left unmodified.
 %Therefore, we can prevent modifications to the spine routers' configurations by associating a new unique community tag for template variable {\small \$GP} and then replacing each match on {\small \$GP} with a test on the new community tag. The new ToR must now simply attach the new community tag to advertisements for its prefixes so downstream routers can match against it. 
-Figure~\ref{fig:bgp-configs} (right) shows the spine and ToR templates after this transformation.
-
-
+Figure~\ref{fig:bgp-configs} (right) shows the spine and ToR templates after this transformation. Routers in the TG role will originate ($\{ \mathrm{start} \}$) global prefixes and tag them with a unique tag, while routers in the spine role match the tag.
 
 
 %=====================================================
