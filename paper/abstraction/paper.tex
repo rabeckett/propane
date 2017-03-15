@@ -1177,7 +1177,7 @@ Finally, rules \infrule{I-local} and \infrule{I-global} reason across pod hierar
 
 The abstract disjoint path analysis starts from a fixed source location $src$ and repeatedly tries to apply every inference rule from Figure~\ref{fig:inference-rules} until it reaches a fixed point. The algorithm applies an inference rule when the rule's condition is valid given the abstract topology constraints. Because the inference rules may continue to yield larger and larger symbolic expressions, we make the following observation to ensure termination: for any invariant learned of the form $L(j,k)$, it is sound to instead infer $L(j',k')$ if $j' \leq j$ and $k' \leq k$. Therefore, for each inference $L(j,k)$ we minimize the symbolic expressions for $j$ and $k$ subject to the topology constraints using the optimizing SMT solver $\nu$Z~\cite{z3opt}. 
 
-At a higher level, what is happening is that each inference rule is attempting to learn the maximum fault tolerance information possible as a function of the symbolic inputs, and $\nu$Z~\cite{z3opt} will minimize this maximum by accounting for all possible topologies that meet the abstraction. Facts learned with $j=0$ or $k=0$ are discarded.
+At a higher level, what is happening is that each inference rule is attempting to learn the maximum fault tolerance information possible as a function of the symbolic inputs. The $\nu$Z~\cite{z3opt} solver will then minimize this maximum by accounting for all possible topologies that meet the abstraction. Facts learned with $j=0$ or $k=0$ are discarded.
 
 %The algorithm associates with each inference, the set of abstract locations used to derive the inference, \IE, an overapproximation of set of concrete locations used for the edge-disjoint paths. When applying an inference rule between an invariant at role $m$, with a set of abstract locations $C$, to learn an invariant at role $n$, we associate the new invariant with the set $C \cup \{ n \}$.
 %
@@ -1479,7 +1479,7 @@ Figure~\ref{fig:bgp-configs} (right) shows the spine and ToR templates after thi
 
 \sysname is implemented in around 9500 lines of F\# code. The compiler accepts both concrete and abstract topologies and will generate evolution-friendly configurations for Cisco and Quagga~\cite{quagga} routers by default. The fault-tolerance analysis uses $\nu$Z~\cite{z3opt} to both test validity and minimize variables subject to the topology constraints. Since the analysis typically calls the SMT solver many times with relatively small optimization problems, we use a timeout of 200ms.
 
-Although the disjoint path analysis takes place over the PG, each application of the inference rules from Figure~\ref{fig:inference-rules} depends on the topology locations, but not the automata states. Therefore, we lazily apply the rules and cache the satisfiability and minimization calls to $\nu$Z after their first use. Furthermore, the cached results are shared across different prefixes, each of which may have a unique PG representation.
+Although the disjoint path analysis takes place over the PG, each application of the inference rules from Figure~\ref{fig:inference-rules} depends on the topology locations, but not the automata states, and can be reused accross multiple PG nodes with the same topology location. Therefore, we lazily apply the rules and cache the satisfiability and minimization calls to $\nu$Z after their first use. Furthermore, the cached results are shared across different prefixes, each of which may have a unique PG representation.
 
 \section{Evaluation}
 \label{sec:evaluation}
@@ -1587,8 +1587,11 @@ For a fixed number of dimensions $L$, we abstract each full mesh of $S_L$ nodes 
 
 \para{Results}
 The bottom part of Figure~\ref{fig:analysis-precision} shows the results for all types of topologies coupled with shortest-path routing. (Valley-free routing is not meaningful for non-tree-based topologies.) For all tree-based topologies, the analysis is precise for determining reachability, but for three of them, it does not compute a tight bound for disjoint paths for all router pairs. Specifically, it underestimates ToR-to-spine paths; it fails to account for some circuitous paths that traverse another spine because it could not disambiguate two concrete spines that map to the same abstract role.
+%
+For instance, for the fat tree topology~\cite{fattree}, it only finds 1 path between any ToR and any Spine when there should always be at least two. However, in this case the analysis computes the correct worst case connectivity between any source ToR and any other destination aggregation or ToR router. A similar pattern occurs with other tree-based topologies.
+%
 %For all fat tree variants, the analysis correctly computes the number of ToR to ToR disjoint paths, but can lose precision between ToR to spine routers due to valley paths. For a valley-free routing policy, the analysis is precise for ToR to spine connectivity.
-For both recursive topologies, the analysis can accurately determine reachability but is conservative in determining disjoint paths.
+For both recursive topologies, the analysis can only accurately determine reachability.
 %For the BCube topology, it is able to to determine the correct number of disjoint paths between some pairs of nodes, but not all. For all hypercube topologies, \sysname's fault-tolerance analysis is precise.
 
 

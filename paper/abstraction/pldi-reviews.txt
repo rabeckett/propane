@@ -10,7 +10,7 @@ Shepherd letter:
 >   by far the hardest to configure. The ability to automate its
 >   configuration is therefore useful.)
 
-As we wrote and rewrote the abstract and introduction, we did not notice that the fact that
+As we wrote and rewrote the abstract and introduction, we did notice that the fact that
 we rely on BGP was not mentioned.  We agree that having it first mentioned at the beginning of 
 section 2 is jarring and could lead a reader who only reads the abstract or introduction to
 our paper to come away misinformed.  We made the following changes:
@@ -92,13 +92,13 @@ interesting open question is how to obtain similar kinds of results
 for link-state protocols.  We do not have an answer to that at the
 moment.)
 
-We achieve this guarantee in part by relying on the ability of BGP to
+"We achieve this guarantee in part by relying on the ability of BGP to
 tag announcements with abstract values. These abstract values make it
 possible to change the source of an announcement without the target
 being aware of a change happening. Other control plane protocols that
 do not provide such tagging mechanisms or that implement link-state
 protocols as opposed to path-vector protocols would not be able to
-avail themselves of these techniques. 
+avail themselves of these techniques."
 
 > - Section on template generation: please improve the explanations (see reviews).
 
@@ -112,6 +112,17 @@ We revised our presentation of the proof in the appendix substantially
 (there is no room in the paper).  We were not completely sure what is meant by
 "make clear what the proof covers" --- the proof covers theorem 7.2.
 We hope our revisions to section 7 will have clarified any confusion here.
+
+In the appendix, we put significant effort into rewriting the proof.  In particular, we:
+1. Added a proof outline that explains the high-level 
+   ideas and important lemmas used to prove theorem 7.2
+2. Broke the proof into 3 parts, each of which has its own explanation 
+   for what we are proving, why we are proving it, and how we are proving it.
+3. Reformatted and refactored the proof to make it cleaner and clearer than before.
+
+
+
+
 
 
 
@@ -215,7 +226,7 @@ We hope our revisions to section 7 will have clarified any confusion here.
 > difficult to follow.
 
 We explained more precisely the role of template variables on page 4, 
-and also made the langauge clearer about locations and roles. This is
+and also made the language clearer about locations and roles. This is
 further clarified in section 5 to explicitly say that we use location
 to refer to either routers for concrete networks, or roles for abstract 
 networks.
@@ -234,29 +245,28 @@ variable in our particular example.
 > you mean that every inferred fact is correct for every
 > concretization of the abstract topology.
 
-
 > fig 5: please add "l" to the figure.
 
-Added this to the figure.
+We added this to the figure.
 
 > page 5 "for each predicate matching traffic" -- what are those?
 
-Clarified by using the metavariable in the grammar.
+We clarified by using the metavariable in the grammar.
 
 > page 6: you suddenly mention E which was defined in a completely
 > different section all the way back in page 3. Please clarify that
 > this is simply an edge of the topology.
 
-Reintroduced the definition of the graph G=(V,E) inline
+We briefly reintroduced the definition of the graph G=(V,E) inline
 so there is no need to look back at page 3.
 
 > page 8: I did not understand how \nu Z is used. It would help to
 > first explain what you are trying to find. You say that you
 > minimize j and k. Don't you want to maximize them?
 
-Clarified this point. The inference rules are trying to infer the 
-maximum path-disjointness information possible, and the solver is
-minimizing their inference after accounting for all possible topologies.
+We clarified this point by adding a paragraph to section 6: 
+
+"At a higher level, what is happening is that each inference rule is attempting to learn the maximum fault tolerance information possible as a function of the symbolic inputs. The νZ [6] solver will then minimize this maximum by accounting for all possible topologies that meet the abstraction. Facts learned with j = 0 or k = 0 are discarded."
 
 > Template generation: if I understand correctly, you add tags to the
 > BGP announcements. Is this acceptable by network operators? Doesn't
@@ -265,27 +275,16 @@ minimizing their inference after accounting for all possible topologies.
 > regarding the generality of the approach. Can a variant be used
 > with different protocols?
 
-Modified the compilation section heavily, and explained this in 
-great detail. This is a feature of the protocol standard and 
-is common practice. We give an example to clarify.
-
 > This section was especially difficult for me to understand. For
 > example:
 
 > page 9 "If we determine that each router..." -- what happens if you
 > don't?
 
-Rewrote this section to be more precise. If there is no ordering,
-then the compiler tells the operator the policy can not be compiled.
-
 > The part about instantiating the templates (explained in page 3) is
 > under-explained in the paper. A lot of it is deferred to the
 > appendix (as mentioned after theorem 7.2). I believe a better
 > explanation should be included in the paper.
-
-Again, this is covered in much more detail now. We moved the 
-compilation definitions to the main body of the paper, and 
-expanded significantly on the explanation.
 
 > Regarding the paragraph on "incrementality" -- please clarify
 > whether these optimizations are manual (my understanding is that
@@ -301,7 +300,7 @@ section now.
 > earlier you explained that it is important to perform the inference
 > on the product graph that also includes routing information.
 
-This is clarified now. The rules do not depend on the automata state, 
+We clarified this point. The rules do not depend on the automata state, 
 so even though we perform the analysis over the product graph, there
 might be multiple copies of edges between the same two locations in the
 product graph. These can be cached.
@@ -310,7 +309,9 @@ product graph. These can be cached.
 
 > - p3 "template has... and are..."
 
-Fixed.
+
+
+
 
 > ===========================================================================
 >                            PLDI '17 Review #187B
@@ -367,8 +368,11 @@ Fixed.
 >   networks. Do the inference rules and facts generalize to
 >   node-disjointness? If so how, if not why?
 
-Clarified that we are focusing on link failures only, which are much
-more common than node failures.
+We made sure to say that we are talking about link failures. In section 4,
+we added a sentence to say the fault-tolerance policy is for link failures:
+
+"This policy specifies how many link failures the network should be able 
+to withstand before traffic experiences connectivity loss."
 
 > * How far away from the real value can the lower bound computed by the
 >   inference rules be? Can you bound it somehow? In general, I think it
@@ -385,6 +389,11 @@ more common than node failures.
 >   result change should you use more complex routing policies. This goes
 >   back to my point above
 
+We extended the results paragraph in section 9.1 to discuss in 
+further detail, what was conservative and why.
+
+"For all tree-based topologies, the analysis is precise for determining reachability, but for three of them, it does not compute a tight bound for disjoint paths for all router pairs. Specifically, it underestimates ToR-to-spine paths; it fails to account for some circuitous paths that traverse another spine because it could not disambiguate two concrete spines that map to the same abstract role. For instance, for the fat tree topology [2], it only finds 1 path be- tween any ToR and any Spine when there should always be at least two. However, in this case the analysis computes the correct worst case connectivity between any source ToR and any other destination aggregation or ToR router. A similar pattern occurs with other tree-based topologies.""
+
 > * I think the paper is quite thin on incrementality. While the
 >   intuition presented in Section 7 is nice (I see a parallel with
 >   source routing in which the rules in the core of the network are
@@ -393,7 +402,7 @@ more common than node failures.
 >   requires to be changed upon change in the concrete topology. If
 >   that's the case, it requires more backing on why it is the case.
 
-Expanded on incrementality a bit by stating more explicitly what 
+We expanded on incrementality a bit by stating more explicitly what 
 can change and what does not. This hopefully makes it easier to 
 follow the reasoning.
 
@@ -404,8 +413,6 @@ follow the reasoning.
 >   say, link-state protocols where I would expect that more
 >   network-wide changes are required to implement a requirement (e.g.,
 >   weight changes in multiple locations).
-
-We discuss explicitly now that we are mostly just focused on BGP in this work.
 
 > > Please comment on what Methane precision depends on.
 
@@ -431,6 +438,8 @@ We discuss explicitly now that we are mostly just focused on BGP in this work.
 >   what TL, TG, AL,  G, and S are.
 
 Added a legend for Figure 4.
+
+
 
 > ===========================================================================
 >                            PLDI '17 Review #187C
@@ -473,16 +482,11 @@ Added a legend for Figure 4.
 > - Your main theoretical result (Theorem 7.2) applies only to a network
 >   running the BGP protocol. Is this correct?
 
-This is correct, we have clarified that this work applies to 
-the BGP routing protocol in a number of places now.
-
 > - I found the proof in the appendix almost impossible to follow. It
 >   needs to first be explained at a high level (enumerating all the
 >   auxiliary lemmas) and you should describe concretely where the hard
 >   parts are. As it stands it looks like a routine induction proof
 >   (which is long, messy and poorly typeset in LaTeX).
-
-
 
 > - I was expecting (since you are doing fault tolerance analysis) that
 >   you would compile your language into a probabilistic automaton
@@ -514,14 +518,15 @@ the BGP routing protocol in a number of places now.
 > homomorphisms I thought for a while this was a real exponential. Others 
 > might be confused too.
 
-TODO: what should we do about this.
-
 > - on page 4 you say there will be a one to one correspondence between 
 > the concrete and abstract nodes. are you sure you mean one to one? I would 
 > expect to have less abstract nodes...
 
-Clarified this in the section, we are talking about how abstract
+We clarified this point, we are talking about how abstract
 topologies are strictly more expressive than concrete topologies.
+
+
+
 
 > ===========================================================================
 >                            PLDI '17 Review #187D
