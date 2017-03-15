@@ -396,8 +396,8 @@ By induction on the structure of $r$
 \emph{Case $l$:}
   \[ \begin{array}{lll}
     p \in \Lang(con(l,\Gamma,f)) &\iff& f(p) \in \Lang(l) \\
-    p \in \Lang(\Sigma_i ~ f_i^{-1}(l)) &\iff& f(p) \in \Lang(l) \\
-    p \in \bigcup_i f_i^{-1}(l) &\iff& f(p) \in \Lang(l) \\
+    p \in \Lang(\Sigma ~ f^{-1}(l)) &\iff& f(p) \in \Lang(l) \\
+    p \in \bigcup f^{-1}(l) &\iff& f(p) \in \Lang(l) \\
     p \in f^{-1}(l) &\iff& f(p) \in \{ l \} \\
     p \in f^{-1}(l) &\iff& f(p) = l \\
     \text{by the homomorphism} & & \\
@@ -527,7 +527,7 @@ We will also assume that $PG = (G',start,rank)$ and $PG^A = (G'^A,start^A,rank^A
     to $y=(l',q_1',\ldots,q_n')$. We know that $f(x) = (f(l),q_1,\ldots,q_n)$ and $f(y) = (f(l'),q_1',\ldots,q_n')$.
     %
     From the construction of PG, we know that $\sigma_i(q_k, l) = q_k'$. 
-    Also from the construction of the abstract automata, we also know that $\sigma_i(q_k, l) = q_k' \iff \sigma^A_i(q_k, f(l)) = q_k'$. Therefore, we can conclude that $\sigma^A_i(q_k, f(l)) = q_k'$. However, from the definition of $PG^A$, this means that there must be an edge in $PG^A$ for ($f(x),f(y)$).
+    Also from the construction of the abstract automata, we also know that $\sigma_i(q_k, l) = q_k' \iff \sigma^A_i(q_k, f(l)) = q_k'$. Therefore, we can conclude that $\sigma^A_i(q_k, f(l)) = q_k'$. From the definition of $PG^A$, this means that there must be an edge in $PG^A$ for ($f(x),f(y)$).
   \end{proof}
 \end{lem}
 
@@ -676,7 +676,7 @@ We use this fact to define the local preference function ($\Pref : V \rightarrow
 
 \vspace{1em}
 \begin{lem}
-  For all node $m$, $\Pref(m) = \Pref^A(f_{pg}(m))$.
+  For all nodes $m$, $\Pref(m) = \Pref^A(f_{pg}(m))$.
   \begin{proof}
     $\Pref$ and $\Pref^A$ assign values to PG nodes for each topology location as increasing integers starting from 0 according to the total ordering for $\leq$.
     From Lemma 10, we know that $\Pref$ and $\Pref^A$ preserve the total ordering since: $\Pref(m) \leq \Pref(m') \iff m \leq m'$ and $\Pref(f_{pg}(m)) \leq \Pref(f_{pg}(m')) \iff f_{pg}(m) \leq f_{pg}(m')$. Also, because there can only be a single product graph node for a particular location and set of states (since automata are determinized), and from Lemma 5 we know that for each $m$ there exists a node $f(m)$ with the same states it must be the case that $\Pref(m) = \Pref^A(f_{pg}(m))$
@@ -743,7 +743,7 @@ The proof goes by case analysis on the test $t$ in the constraint $p$, and makes
 
     \vspace{1em}
     \noindent
-    Now suppose the other direction. There is an element $x \in \{b ~\vert~ b \in f^{-1}(B),~ (b,\ell) \in G.E,~ (B,q_N) \in \mathrm{adjIn}(PG^A,f_{pg}(m)) \}$. We know that $f(x) = B$, and that there is a topology edge between $b$ and $\ell$. Lemma 7 together with the fact that $f(\ell) = \Topo(m)$ lets us conclude that there is an edge in the concrete $PG$ between $(b,q_N)$ and $m$. It follows then that $x \in \{ b ~\vert~ (b,q_N) \in \mathrm{adjIn}(PG,m)\}$.
+    Now suppose the other direction. There is an element $x \in \{b ~\vert~ b \in f^{-1}(B),~ (b,\ell) \in G.E,~ (B,q_N) \in \mathrm{adjIn}(PG^A,f_{pg}(m)) \}$. We know that $f(x) = B$, and that there is a topology edge between $b$ and $\ell$. Lemma 8 together with the fact that $f(\ell) = \Topo(m)$ lets us conclude that there is an edge in $PG$ between $(b,q_N)$ and $m$. It follows then that $x \in \{ b ~\vert~ (b,q_N) \in \mathrm{adjIn}(PG,m)\}$.
 
     \vspace{1em}
     \noindent
