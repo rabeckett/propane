@@ -126,7 +126,7 @@
   %
   \[ \begin{array}{rclr}
      pol     &::=& p_1, \dots, p_n & \textit{policies} \\
-     p       &::=& t \hspace{.3em} \Path \hspace{.3em} r_1 \Prefer \dots \Prefer r_m \BNFALT cc & \textit{constraints} \\
+     p       &::=& t \hspace{.3em} \Path \hspace{.3em} r_1 \Prefer \dots \Prefer r_m & \textit{constraints} \\
      pfx     &::=& d.d.d.d/[d..d] & \textit{prefix} \\
      t       &::=& \$x & \textit{template variable} \\
          &\BNFALT& pfx & \textit{prefix test} \\
@@ -139,7 +139,6 @@
          &\BNFALT& r_1 \cdot r_2 & \textit{concatenation} \\
          &\BNFALT& \NOT r & \textit{path negation} \\
          &\BNFALT& r^* & \textit{iteration} \\
-     cc     &::=& agg(pfx, r_1 \rightarrow r_2)  & \textit{control constraints} \\
   \end{array} \]%
 
   \end{minipage}
@@ -533,11 +532,15 @@ We will also assume that $PG = (G',start,rank)$ and $PG^A = (G'^A,start^A,rank^A
 
 
 %\begin{lem}
-%  For every state $N = (L, q_1, \dots, q_n)$ in $PG^A$, there exists a state $n = (l,q_1, \ldots, q_n)$ in $PG$
-%  such that $f_{pg}(n) = N$.%
-
+%  For every state $N = (L, q_1, \dots, q_n)$ in $PG^A$ for which there is no edge $(start^A, N)$, there exists a state $n = (l,q_1, \ldots, q_n)$ in $PG$
+%  such that $f_{pg}(n) = N$.
 %  \begin{proof}
-%    By assumption, we assumed that $f$ is surjective. That is, every location $L$ in the original abstract topology $G^A$ is mapped to by at least one location $l$ in the concrete topology $G$: $f(l) = L$. 
+%    By assumption, we know that that $f$ is surjective. That is, every location $L$ in the original abstract topology $G^A$ is mapped to by at least one location $l$ in the concrete topology $G$: $f(l) = L$. %
+
+%    Since there exists an $l$ such that $f(l) = L$, there must be the concrete node $(l, q_1, \ldots, q_n)$ in $PG$.%
+%
+
+%    %If $N$ is a node in $PG^A$ that is is not connected to the $start^A$ node, then no automata state is the initial state $q_i \neq q_{0_i}$. This means that that N must have at least one inbound edge that is not $start^A$, otherwise the node would not exist. Without loss of generality, assume there is an edge $(M,N)$ for $M = (L', s_1, \ldots, s_n)$.
 %  \end{proof}
 %\end{lem}
 
@@ -546,6 +549,7 @@ We will also assume that $PG = (G',start,rank)$ and $PG^A = (G'^A,start^A,rank^A
 \todo{make explicit the fact that we can't anycast}
 
 \todo{tie back to existing lemmas}
+
 
 \vspace{1em}
 
@@ -667,42 +671,69 @@ We use this fact to define an ordering ($ord : V \rightarrow \mathbb{N}$) that m
 \end{defn}
 
 
+
+
+
+
+
+
 \vspace{3em}
 \subsection{Constraint Substitution (Part 2)}
 
+In this section, we aim to prove that concretization and compilation commute for individual \sysname constraints. Since a policy is simply an ordered sequence of constraints, it is then straightfoward to show that compilation and concretization commute for entire policies. In particular, we are interested in showing:
+%
+$$\Con(\Compile(p, G^A), \Gamma, f, G) = \Compile(\Con(p,\Gamma,f), G)$$
+%
+The proof goes by case analysis on the test $t$ in the constraint $p$, and makes heavy use of the lemmas about the product graphs from the previous section. We use one helper lemma here that relates sets of neighbors:
+
+\todo{re evaluate this. I believe we need the proof of an inverse here}
 \begin{lem}
 
   For concrete ($PG$) and abstract ($PG^A$) product graphs related by $f_{pg}$
 
   \[ \begin{array}{l}
-     ~~~~~~~~~ [~ pfx \rightarrow ma_1, \dots, ma_k ~\vert~ \\
+     ~~~~~~~~~ [~ pfx \rightarrow [~ ma~\vert~ \\
      ~~~~~~~~~~~~~~~~~~ M \leftarrow (l,q_M) \in PG^A, \\
      ~~~~~~~~~~~~~~~~~~ pin = \mathit{adjIn}(PG^A,M), \\
-     ~~~~~~~~~~~~~~~~~~ (in,q_N) \in \{(BS,q_N) ~\vert~ (\_,q_N) \in pin, BS=\{b ~\vert~ b \in f^{-1}(B),~ (b,\ell) \in G.E,~ (B,q_N) \in pin \} \}), \\
+     ~~~~~~~~~~~~~~~~~~ (in,q_N) \in \{(BS,q_N) ~\vert~ BS=\{b ~\vert~ b \in f^{-1}(B),~ (b,\ell) \in G.E,~ (B,q_N) \in pin \}, BS \neq \emptyset  \}, \\
      ~~~~~~~~~~~~~~~~~~ out \leftarrow \{ c ~\vert~ c \in f^{-1}(C), (c,\ell) \in G.E, (C,\_) \in \mathit{adjOut}(PG^A,M) \}, \\
-     ~~~~~~~~~~~~~~~~~~ in \neq \emptyset, \\
-     ~~~~~~~~~~~~~~~~~~ ma_h = ord^A(M) : (in,q_N) \rightarrow (out,q_M) ~] \\
+     ~~~~~~~~~~~~~~~~~~ ma = ord^A(M) : (in,q_N) \rightarrow (out,q_M) ~] ~] \\
   \end{array} \]%
 
   Is equivalent to
 
   \[ \begin{array}{l}
-     ~~~~~~~~~ [~ pfx \rightarrow ma_1, \dots, ma_k ~\vert~ \\
-     ~~~~~~~~~~~~~~~~~~ m \leftarrow (l,q_M) \in PG, \\
+     ~~~~~~~~~ [~ pfx \rightarrow [~ ma ~\vert~ \\
+     ~~~~~~~~~~~~~~~~~~ m \leftarrow (l,q_m) \in PG, \\
      ~~~~~~~~~~~~~~~~~~ pin \leftarrow \text{adjIn}(PG,m), \\
-     ~~~~~~~~~~~~~~~~~~ (in,q_N) \leftarrow \{ (bs,q_N) ~\vert~ (\_,q_N) \in I, bs=\{ b ~\vert~ (b,q_N) \in pin\} \}), \\
+     ~~~~~~~~~~~~~~~~~~ (in,q_n) \leftarrow \{ (bs,q_n) ~\vert~ bs=\{ b ~\vert~ (b,q_n) \in pin\}, bs \neq \emptyset \}), \\
      ~~~~~~~~~~~~~~~~~~ out \leftarrow \{ c ~\vert~ (c,\_) \in \mathit{adjOut}(PG,m) \}, \\
-     ~~~~~~~~~~~~~~~~~~ in \neq \emptyset, \\
-     ~~~~~~~~~~~~~~~~~~ ma_h = ord^A(f_{pg}(m)) : (in,q_N) \rightarrow (out,q_M) ~] \\
+     ~~~~~~~~~~~~~~~~~~ ma = ord^A(f_{pg}(m)) : (in,q_n) \rightarrow (out,q_m) ~] ~] \\
   \end{array} \]%
 
   \begin{proof}
-    For each $M$ there exists at least one $m$ such that $f_{pg}(m) = M$. Note that $f_{pg}$ overapproximates the connectivity of the product graph, by virtue of being a graph homomorphism. For each concrete node $n$ such that $n = (b,q_n) \in adjIn(PG,m)$ we know that if $f_{pg}(n) = N$ where $N = (f(b),q_N)$, then $N \in adjIn(PG^A,M)$ and $q_n = q_N$ from the homomorphism. Thus by taking $f^{-1}(B) = f^{-1}(f(b))$, for each such $f(b)$ for node $N$ that shares the same state $q_N$, we get a superset of the locations from the concrete graph. However, by restricting those locations to only those that appear in the topology $(b,\ell)$, we get exactly the set that appears in the concrete product graph. 
-    This is because we know $q_N \rightarrow q_M$ from the abstract product graph is a valid transition, which means that $q_n \rightarrow q_m$ is a valid concrete product graph transition, and if there is a topology edge $(b,\ell)$, then there must be a product graph edge $(n,m)$. Therefore:
+    $ $
+    \vspace{.4em}
+
+    Suppose for node $M$, there exists a node $m=(l,q_m)$ such that $f_{pg}(m) = M$. 
+    We observe the following superset relation:
+    %
+    $$\{ b ~\vert~ (b,q_n) \in \text{adjIn}(PG,m)\} \subseteq \{ b ~\vert~ (b,l) \in G.E \}$$
+    %
+    This is trivially true from the definition of the product graph. Any product graph edge will correspond to a topology edge. The following inequality will also hold:
+    %
+    $$\{b ~\vert~ b \in f^{-1}(B),~ (B,q_N) \in \text{adjIn}(PG^A,f_{pg}(m)) \} \supseteq \{ b ~\vert~ (b,q_N) \in \text{adjIn}(PG,m)\}$$
+    %
+    Since whenever $(b,q_N) \in adjIn(PG,m)$ it must be the case that $(B,q_N) \in adjIn(PG^A, f_{pg}(m))$ by the homomorphism, and because $f^{-1}(B) \supseteq \{ b \}$. By combining these observations, we can conclude the following:
+    %
     $$\{b ~\vert~ b \in f^{-1}(B),~ (b,\ell) \in G.E,~ (B,q_N) \in \text{adjIn}(PG^A,f_{pg}(m)) \}$$
     is equivalent to
     $$\{ b ~\vert~ (b,q_N) \in \text{adjIn}(PG,m)\}$$
-    This also holds for the case with adjOut. Further, note that because we are looking at a particular location $l$, there can only be at most one such $m = (l,q_N)$ such that $f_{pg}(m) = M = (f(l), q_N)$. If there is no such $m$ where $f_{pg}(m) = M$, then the above expression will produce the empty set after filtering with the topology. Going over each $M$ then is equivalent to going over each $m$ so long as we throw away imports $\mathit{in}$ that are empty.
+    %
+    The same reasoning can be applied to adjOut as well. 
+    Further, note that because we are looking at a particular location $l$, there can only be at most one such $m = (l,q_N)$ such that $f_{pg}(m) = M = (f(l), q_N)$ since the automata are deterministic. 
+    %
+    This means that $M \leftarrow (l,q_M) \in PG^A$ can be replaced with $m \leftarrow (l,q_m) \in PG$ since for each $M$ we will either have some $m$ such that $f_{pg}(m) = M$ and the above equivalence holds, or else there is no such $M$, in which case the set is filtered by the condition: $BS \neq \emptyset$.
 
   \end{proof}
 
@@ -710,6 +741,279 @@ We use this fact to define an ordering ($ord : V \rightarrow \mathbb{N}$) that m
 \end{lem}
 
 
+
+
+\begin{thm}
+  For all \sysname constraints $p$, contexts $\Gamma$, topologies $G$ and $G^A$ related by homomorphism $f : G \rightarrow G^A$:
+  $$\Con(\Compile(p,G^A),\Gamma,f,G) = \Compile(\Con(p,\Gamma,f),G)$$
+
+  \begin{proof} From the grammar, we know that $p = (t \Path~ r_1 ~\Prefer~ \ldots ~\Prefer~ r_n)$. The proof proceeds by cases on $t$. In each case, we expand the definition of $\Compile$ and $\Con$ until they no longer appear in the term. We then appeal to graph properties of $PG$ and $PG^A$ to rewrite the terms into equivalent forms.
+
+  \vspace{.4em}
+  \textbf{Case} ($t = pfx$)
+  \vspace{.4em}
+
+    For the right side:
+
+    \[
+    \begin{array}{llll}
+      & & \Compile(\Con(p,\Gamma,f),G) \\
+      &=& \Compile(\Con(pfx \Path~ r_1 ~\Prefer~ \ldots ~\Prefer~ r_n, \Gamma,f), G) 
+            & \text{Substitution} \\
+      &=& \Compile(pfx \Path~ \Con(r_1,\Gamma,f) ~\Prefer~ \ldots ~\Prefer~ \Con(r_n, \Gamma,f), G) 
+            & \text{Definition of con} \\
+      &=& \Compile(pfx \Path~ \Con(r_1,\Gamma,f) \cap \EndR(\Sigma) ~\Prefer~ \ldots ~\Prefer~ \Con(r_n, \Gamma,f) \cap \EndR(\Sigma), G) 
+            & \text{Regex Equivalence}\\
+      &=& \CompileMbgp([\CompilePg(pfx \Path~ \Con(r_1,\Gamma,f) \cap \EndR(\Sigma) ~\Prefer~ \ldots ~\Prefer~ \Con(r_n, \Gamma,f) \cap \EndR(\Sigma),G)]) 
+            & \text{Definition of compile} \\
+
+      &=& \CompileMbgp([(pfx, PG, \Pref)]) 
+            & \text{Assumption} \\
+
+    \end{array}
+    \]
+
+    Similarly, for the left side:
+
+        \[
+    \begin{array}{llll}
+      & & \Con(\Compile(p,G^A),\Gamma,f,G) \\
+      &=& \Con(\Compile(pfx \Path~ r_1 ~\Prefer~ \ldots ~\Prefer~ r_n,G^A),\Gamma,f,G)
+            & \text{Substitution} \\
+      &=& \Con(\CompileMbgp([\CompilePg(pfx \Path~ r_1 ~\Prefer~ \ldots ~\Prefer~ r_n,G^A)]),\Gamma,f,G)
+            & \text{Definition of Compile} \\
+      &=& \Con(\CompileMbgp([(pfx,PG^A,\Pref^A)]),\Gamma,f,G)
+            & \text{Assumption}\\
+    \end{array}
+    \]
+
+    Both sides of the equality are now in a form where we can apply the lemmas from the previous section.
+    This allows us to relate $PG$ and $PG^A$ as well as $\Pref$ and $\Pref^A$.
+    Continuing to expand the right side by substituting the definition of $\CompileMbgp$ we get: 
+
+  \[ \begin{array}{l}
+     ~~~~~ [~ l \rightarrow rc ~\vert~ \\
+     ~~~~~~~~~~~~ l \in internal(G.V), ~rc =  \\
+     ~~~~~~~~~~~~~~~ [~ pfx \rightarrow [~ ma ~\vert~ \\
+     ~~~~~~~~~~~~~~~~~~~~~ m \leftarrow (l,q_m) \in PG, \\
+     ~~~~~~~~~~~~~~~~~~~~~ pin \leftarrow \text{adjIn}(PG,m), \\
+     ~~~~~~~~~~~~~~~~~~~~~ (in,q_n) \leftarrow \{ (bs,q_n) ~\vert~ bs=\{b ~\vert~ (b,q_n) \in pin \}, bs \neq \emptyset \}, \\
+     ~~~~~~~~~~~~~~~~~~~~~ out \leftarrow \{ c ~\vert~ (c,\_) \in \text{adjOut}(PG_i,m) \}, \\
+     ~~~~~~~~~~~~~~~~~~~~~ ma = \Pref(m) : (in,q_n) \rightarrow (out,q_m) ~] ~] ~]\\
+  \end{array} \]%
+
+  Next we further expand on the left side for the abstract topology to show it is equivalent:
+
+  \[ \begin{array}{l}
+     ~~~~~ \Con([~ l \rightarrow rc ~\vert~ \\
+     ~~~~~~~~~~~~ l \in internal(G^A.V), ~rc =  \\
+     ~~~~~~~~~~~~~~~ [~ pfx \rightarrow [~ ma ~\vert~ \\
+     ~~~~~~~~~~~~~~~~~~~~~ M \leftarrow (l,q_M) \in PG^A, \\
+     ~~~~~~~~~~~~~~~~~~~~~ pin \leftarrow \text{adjIn}(PG^A,M), \\
+     ~~~~~~~~~~~~~~~~~~~~~ (in,q_N) \leftarrow \{ (BS,q_N) ~\vert~ BS=\{B ~\vert~ (B,q_N) \in pin \}, BS \neq \emptyset \}, \\
+     ~~~~~~~~~~~~~~~~~~~~~ out \leftarrow \{ C ~\vert~ (C,\_) \in \text{adjOut}(PG^A,M) \}, \\
+     ~~~~~~~~~~~~~~~~~~~~~ ma = \Pref^A(M) : (in,q_N) \rightarrow (out,q_M) ~] ~] ~], \Gamma, f, G) \\
+  \end{array} \]%
+
+  We apply the definition of $\Con$ to push it inside the list:
+
+    \[ \begin{array}{l}
+     ~~~~~ [~ \ell \rightarrow \Con(rc, \ell, \Gamma, f, G) ~\vert~ \\
+     ~~~~~~~~~~~~ \ell \in f^{-1}(l), \\
+     ~~~~~~~~~~~~ l \in internal(G^A.V), ~rc =  \\
+     ~~~~~~~~~~~~~~~ [~ pfx \rightarrow [~ ma ~\vert~ \\
+     ~~~~~~~~~~~~~~~~~~~~~ M \leftarrow (l,q_M) \in PG^A, \\
+     ~~~~~~~~~~~~~~~~~~~~~ pin \leftarrow \text{adjIn}(PG^A,M), \\
+     ~~~~~~~~~~~~~~~~~~~~~ (in,q_N) \leftarrow \{ (BS,q_N) ~\vert~ BS=\{B ~\vert~ (B,q_N) \in pin \}, BS \neq \emptyset \}, \\
+     ~~~~~~~~~~~~~~~~~~~~~ out \leftarrow \{ C ~\vert~ (C,\_) \in \text{adjOut}(PG^A,M) \}, \\
+     ~~~~~~~~~~~~~~~~~~~~~ ma = \Pref^A(M) : (in,q_N) \rightarrow (out,q_M) ~] ~] ~] \\
+  \end{array} \]%
+
+  We now apply the definition of $\Con$ to push it further inside:
+
+      \[ \begin{array}{l}
+     ~~~~~ [~ \ell \rightarrow rc ~\vert~ \\
+     ~~~~~~~~~~~~ \ell \in f^{-1}(l), \\
+     ~~~~~~~~~~~~ l \in internal(G^A.V), ~rc =  \\
+     ~~~~~~~~~~~~~~~ \Con([~ pfx \rightarrow [~ ma ~\vert~ \\
+     ~~~~~~~~~~~~~~~~~~~~~ M \leftarrow (l,q_M) \in PG^A, \\
+     ~~~~~~~~~~~~~~~~~~~~~ pin \leftarrow \text{adjIn}(PG^A,M), \\
+     ~~~~~~~~~~~~~~~~~~~~~ (in,q_N) \leftarrow \{ (BS,q_N) ~\vert~ BS=\{B ~\vert~ (B,q_N) \in pin \}, BS \neq \emptyset \}, \\
+     ~~~~~~~~~~~~~~~~~~~~~ out \leftarrow \{ C ~\vert~ (C,\_) \in \text{adjOut}(PG^A,M) \}, \\
+     ~~~~~~~~~~~~~~~~~~~~~ ma = \Pref^A(M) : (in,q_N) \rightarrow (out,q_M) ~] ~], \Gamma, f, G) ~] \\
+  \end{array} \]%
+
+  Once again, we apply the definition of $\Con$
+
+      \[ \begin{array}{l}
+     ~~~~~ [~ \ell \rightarrow rc ~\vert~ \\
+     ~~~~~~~~~~~~ \ell \in f^{-1}(l), \\
+     ~~~~~~~~~~~~ l \in internal(G^A.V), ~rc =  \\
+     ~~~~~~~~~~~~~~~ [~ pfx \rightarrow [~ ma ~\vert~ \\
+     ~~~~~~~~~~~~~~~~~~~~~ M \leftarrow (l,q_M) \in PG^A, \\
+     ~~~~~~~~~~~~~~~~~~~~~ pin \leftarrow \text{adjIn}(PG^A,M), \\
+     ~~~~~~~~~~~~~~~~~~~~~ (in,q_N) \leftarrow \{ (BS,q_N) ~\vert~ BS=\{B ~\vert~ (B,q_N) \in pin \}, BS \neq \emptyset \}, \\
+     ~~~~~~~~~~~~~~~~~~~~~ out \leftarrow \{ C ~\vert~ (C,\_) \in \text{adjOut}(PG^A,M) \}, \\
+     ~~~~~~~~~~~~~~~~~~~~~ ma = \Con(\Pref^A(M) : (in,q_N) \rightarrow (out,q_M), true, \ell, \Gamma, f, G) ~] ~] ~] \\
+    \end{array} \]% 
+
+    Next, we rewrite the sets $in$ and $out$ according to $\Con$:
+
+      \[ \begin{array}{l}
+     ~~~~~ [~ \ell \rightarrow rc ~\vert~ \\
+     ~~~~~~~~~~~~ \ell \in f^{-1}(l), \\
+     ~~~~~~~~~~~~ l \in internal(G^A.V), ~rc =  \\
+     ~~~~~~~~~~~~~~~ [~ pfx \rightarrow [~ ma ~\vert~ \\
+     ~~~~~~~~~~~~~~~~~~~~~ M \leftarrow (l,q_M) \in PG^A, \\
+     ~~~~~~~~~~~~~~~~~~~~~ pin \leftarrow \text{adjIn}(PG^A,M), \\
+     ~~~~~~~~~~~~~~~~~~~~~ (\Con(in,\ell,\Gamma,f,G),q_N) \leftarrow \{ (BS,q_N) ~\vert~ BS=\{B ~\vert~ (B,q_N) \in pin \}, BS \neq \emptyset \}, \\
+     ~~~~~~~~~~~~~~~~~~~~~ out \leftarrow \Con(\{ C ~\vert~ (C,\_) \in \text{adjOut}(PG^A,M) \}, \ell,\Gamma,f,G), \\
+     ~~~~~~~~~~~~~~~~~~~~~ ma = \Con(\Pref^A(M) : (in,q_N) \rightarrow (out,q_M), true, \ell, \Gamma, f, G) ~] ~] ~] \\
+  \end{array} \]%
+
+  Rewrite $\Con$ in the set $in$:
+
+    \[ \begin{array}{l}
+     ~~~~~ [~ \ell \rightarrow rc ~\vert~ \\
+     ~~~~~~~~~~~~ \ell \in f^{-1}(l), \\
+     ~~~~~~~~~~~~ l \in internal(G^A.V), ~rc =  \\
+     ~~~~~~~~~~~~~~~ [~ pfx \rightarrow [~ ma ~\vert~ \\
+     ~~~~~~~~~~~~~~~~~~~~~ M \leftarrow (l,q_M) \in PG^A, \\
+     ~~~~~~~~~~~~~~~~~~~~~ pin \leftarrow \text{adjIn}(PG^A,M), \\
+     ~~~~~~~~~~~~~~~~~~~~~ (in,q_N) \leftarrow \{ (BS,q_N) ~\vert~ BS=\Con(\{B ~\vert~ (B,q_N) \in pin \}, \ell, \Gamma, f, G), BS \neq \emptyset \}, \\
+     ~~~~~~~~~~~~~~~~~~~~~ out \leftarrow \Con(\{ C ~\vert~ (C,\_) \in \text{adjOut}(PG^A,M) \}, \ell,\Gamma,f,G), \\
+     ~~~~~~~~~~~~~~~~~~~~~ ma = \Con(\Pref^A(M) : (in,q_N) \rightarrow (out,q_M), true, \ell, \Gamma, f, G) ~] ~] ~] \\
+  \end{array} \]%
+
+  Apply the definition of $\Con$ on the inner set of $in$ and $out$:
+
+    \[ \begin{array}{l}
+     ~~~~~ [~ \ell \rightarrow rc ~\vert~ \\
+     ~~~~~~~~~~~~ \ell \in f^{-1}(l), \\
+     ~~~~~~~~~~~~ l \in internal(G^A.V), ~rc =  \\
+     ~~~~~~~~~~~~~~~ [~ pfx \rightarrow [~ ma ~\vert~ \\
+     ~~~~~~~~~~~~~~~~~~~~~ M \leftarrow (l,q_M) \in PG^A, \\
+     ~~~~~~~~~~~~~~~~~~~~~ pin \leftarrow \text{adjIn}(PG^A,M), \\
+     ~~~~~~~~~~~~~~~~~~~~~ (in,q_N) \leftarrow \{ (BS,q_N) ~\vert~ BS=\{b ~\vert~ b \in f^{-1}(B), (b,\ell)\in G.E, (B,q_N) \in pin \}, BS \neq \emptyset \}, \\
+     ~~~~~~~~~~~~~~~~~~~~~ out \leftarrow \{ c ~\vert~ c \in f^{-1}(C), (c,\ell)\in G.E, (C,\_) \in \text{adjOut}(PG^A,M) \}, \\
+     ~~~~~~~~~~~~~~~~~~~~~ ma = \Con(\Pref^A(M) : (in,q_N) \rightarrow (out,q_M), true, \ell, \Gamma, f, G) ~] ~] ~] \\
+  \end{array} \]%
+
+  From Lemma 10, this is equivalent to the following:
+
+    \[ \begin{array}{l}
+     ~~~~~ [~ l \rightarrow rc ~\vert~ \\
+     ~~~~~~~~~~~~ l \in internal(G.V), ~rc =  \\
+     ~~~~~~~~~~~~~~~ [~ pfx \rightarrow [~ ma ~\vert~ \\
+     ~~~~~~~~~~~~~~~~~~~~~ m \leftarrow (l,q_m) \in PG, \\
+     ~~~~~~~~~~~~~~~~~~~~~ pin \leftarrow \text{adjIn}(PG,m), \\
+     ~~~~~~~~~~~~~~~~~~~~~ (in,q_n) \leftarrow \{ (bs,q_n) ~\vert~ bs=\{b ~\vert~ (b,q_n) \in pin \}, bs \neq \emptyset \}, \\
+     ~~~~~~~~~~~~~~~~~~~~~ out \leftarrow \{ c ~\vert~ (c,\_) \in \text{adjOut}(PG,m) \}, \\
+     ~~~~~~~~~~~~~~~~~~~~~ ma = \Pref^A(f_{pg}(m)) : (in,q_) \rightarrow (out,q_m) ~] ~] ~]\\
+  \end{array} \]%
+
+  From Definition 2, we know that the $\Pref(m) = \Pref(f_{pg}(m))$:
+
+    \[ \begin{array}{l}
+     ~~~~~ [~ l \rightarrow rc ~\vert~ \\
+     ~~~~~~~~~~~~ l \in internal(G.V), ~rc =  \\
+     ~~~~~~~~~~~~~~~ [~ pfx \rightarrow [~ ma ~\vert~ \\
+     ~~~~~~~~~~~~~~~~~~~~~ m \leftarrow (l,q_m) \in PG, \\
+     ~~~~~~~~~~~~~~~~~~~~~ pin \leftarrow \text{adjIn}(PG,m), \\
+     ~~~~~~~~~~~~~~~~~~~~~ (in,q_n) \leftarrow \{ (bs,q_n) ~\vert~ bs=\{b ~\vert~ (b,q_n) \in pin \}, bs \neq \emptyset \}, \\
+     ~~~~~~~~~~~~~~~~~~~~~ out \leftarrow \{ c ~\vert~ (c,\_) \in \text{adjOut}(PG,m) \}, \\
+     ~~~~~~~~~~~~~~~~~~~~~ ma = \Pref(m) : (in,q_n) \rightarrow (out,q_m) ~] ~] ~]\\
+  \end{array} \]%
+
+  This is exactly the result we obtained from expanding the right hand side of the equality.
+
+  \vspace{.4em}
+  \textbf{Case} ($t = \$x$)
+  \vspace{.4em}
+
+    The case for $t = \$x$ follows a similar line of reasoning. We start by evaluating the right-hand side:
+
+    \[
+    \begin{array}{llll}
+      & & \Compile(\Con(p,\Gamma,f),G) \\
+      &=& \Compile(\Con(\$x \Path~ r_1 ~\Prefer~ \ldots ~\Prefer~ r_n, \Gamma,f), G) 
+            & \text{Substitution} \\
+      &=& \Compile([pfx \Path~ \Con(r_1,\Gamma,f) \cap \EndR(l) ~\Prefer~ \ldots ~\Prefer~ \Con(r_n, \Gamma,f) \cap \EndR(l) ~\vert~ (pfx,l) \in \Gamma(x)], G) 
+            & \text{Definition of con} \\
+      &=& \CompileMbgp([\CompilePg(pfx \Path~ \Con(r_1,\Gamma,f) \cap \EndR(l) ~\Prefer~ \\
+      & & ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ \ldots ~\Prefer~ \\ 
+      & & ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ \Con(r_n, \Gamma,f) \cap \EndR(l),G) ~\vert~ (pfx,l) \in \Gamma(x)]) 
+            & \text{Definition of compile} \\
+
+      &=& \CompileMbgp([(pfx_1, PG_1, \Pref_1), \ldots, (pfx_k, PG_k, \Pref_k)]) 
+            & \text{Assumption} \\
+
+    \end{array}
+    \]
+
+    Expanding further, this becomes:
+
+      \[ \begin{array}{l}
+     ~~~~~ [~ l \rightarrow rc ~\vert~ \\
+     ~~~~~~~~~~~~ l \in internal(G.V), ~rc = append_i \\
+     ~~~~~~~~~~~~~~~ [~ pfx_i \rightarrow [~ ma ~\vert~ \\
+     ~~~~~~~~~~~~~~~~~~~~~ m \leftarrow (l,q_m) \in PG_i, \\
+     ~~~~~~~~~~~~~~~~~~~~~ pin \leftarrow \text{adjIn}(PG_i,m), \\
+     ~~~~~~~~~~~~~~~~~~~~~ (in,q_n) \leftarrow \{ (bs,q_n) ~\vert~ bs=\{b ~\vert~ (b,q_n) \in pin \}, bs \neq \emptyset \}, \\
+     ~~~~~~~~~~~~~~~~~~~~~ out \leftarrow \{ c ~\vert~ (c,\_) \in \text{adjOut}(PG_i,m) \}, \\
+     ~~~~~~~~~~~~~~~~~~~~~ ma = \Pref(m) : (in,q_n) \rightarrow (out,q_m) ~] ~] ~]\\
+  \end{array} \]%
+
+
+
+    As before, we now show that the right hand side is equivalent by applying the definitions of $\Con$ and $\Compile$:
+
+        \[
+    \begin{array}{llll}
+      & & \Con(\Compile(p,G^A),\Gamma,f,G) \\
+      &=& \Con(\Compile(\$x \Path~ r_1 ~\Prefer~ \ldots ~\Prefer~ r_n,G^A),\Gamma,f,G)
+            & \text{Substitution} \\
+      &=& \Con(\CompileMbgp([\CompilePg(\$x \Path~ r_1 ~\Prefer~ \ldots ~\Prefer~ r_n,G^A)]),\Gamma,f,G)
+            & \text{Definition of Compile} \\
+      &=& \Con(\CompileMbgp([(pfx,PG^A,\Pref^A)]),\Gamma,f,G)
+            & \text{Assumption}\\
+    \end{array}
+    \]
+
+
+
+  Next we further expand on the left side for the abstract topology to show it is equivalent:
+
+  \[ \begin{array}{l}
+     ~~~~~ \Con([~ l \rightarrow rc ~\vert~ \\
+     ~~~~~~~~~~~~ l \in internal(G^A.V), ~rc =  \\
+     ~~~~~~~~~~~~~~~ [~ pfx \rightarrow [~ ma ~\vert~ \\
+     ~~~~~~~~~~~~~~~~~~~~~ M \leftarrow (l,q_M) \in PG^A, \\
+     ~~~~~~~~~~~~~~~~~~~~~ pin \leftarrow \text{adjIn}(PG^A,M), \\
+     ~~~~~~~~~~~~~~~~~~~~~ (in,q_N) \leftarrow \{ (BS,q_N) ~\vert~ BS=\{B ~\vert~ (B,q_N) \in pin \}, BS \neq \emptyset \}, \\
+     ~~~~~~~~~~~~~~~~~~~~~ out \leftarrow \{ C ~\vert~ (C,\_) \in \text{adjOut}(PG^A,M) \}, \\
+     ~~~~~~~~~~~~~~~~~~~~~ ma = \Pref^A(M) : (in,q_N) \rightarrow (out,q_M) ~] ~] ~], \Gamma, f, G) \\
+  \end{array} \]%
+
+
+
+
+
+  \end{proof}
+
+\end{thm}
+
+
+
+
+
+
+
+
+
+
+\vspace{5em}
+\todo{---------------- OLD STUFF -------------------}
 \begin{thm}
   For any context $\Gamma$, concrete topology $G$, abstract topology $G^A$, homomorphism $f : G \rightarrow G^A$:
 
