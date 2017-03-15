@@ -679,7 +679,7 @@ We use this fact to define the local preference function ($\Pref : V \rightarrow
   For all nodes $m$, $\Pref(m) = \Pref^A(f_{pg}(m))$.
   \begin{proof}
     $\Pref$ and $\Pref^A$ assign values to PG nodes for each topology location as increasing integers starting from 0 according to the total ordering for $\leq$.
-    From Lemma 10, we know that $\Pref$ and $\Pref^A$ preserve the total ordering since: $\Pref(m) \leq \Pref(m') \iff m \leq m'$ and $\Pref(f_{pg}(m)) \leq \Pref(f_{pg}(m')) \iff f_{pg}(m) \leq f_{pg}(m')$. Also, because there can only be a single product graph node for a particular location and set of states (since automata are determinized), and from Lemma 5 we know that for each $m$ there exists a node $f(m)$ with the same states it must be the case that $\Pref(m) = \Pref^A(f_{pg}(m))$
+    We know that $\Pref$ and $\Pref^A$ preserve the total ordering since: by construction $\Pref(m) \leq \Pref(m') \iff m \leq m'$ and $\Pref(f_{pg}(m)) \leq \Pref(f_{pg}(m')) \iff f_{pg}(m) \leq f_{pg}(m')$, and from Lemma 10 we know that $m \leq m' \iff f_{pg}(m) \leq f_{pg}(m')$ . Also, because there can only be a single product graph node for a particular location and set of states (since automata are determinized), and from Lemma 5 we know that for each $m$ there exists a node $f(m)$ with the same states it must be the case that $\Pref(m) = \Pref^A(f_{pg}(m))$
   \end{proof}
 \end{lem}
 
