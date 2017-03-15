@@ -544,12 +544,6 @@ We will also assume that $PG = (G',start,rank)$ and $PG^A = (G'^A,start^A,rank^A
 %  \end{proof}
 %\end{lem}
 
-\todo{re evaluate this}
-
-\todo{make explicit the fact that we can't anycast}
-
-\todo{tie back to existing lemmas}
-
 
 \vspace{1em}
 
@@ -633,7 +627,7 @@ Next, we show that whenever there is a transition in $PG^A$, there is a correspo
     Suppose that $M \leq M'$, which means that with $M' \geq_{rank} M$ in the abstract product graph. It also means that, for each neighbor $N'$, if we have the transition: $\trans{M'}{N'}{L}$ then we also have a transition: $\trans{M}{N}{L}$ where $N' \geq_{rank} N$. We must show that the same relation holds for $m$ and $m'$. 
 
     \vspace{1em}
-    Assume that $\Topo(M) = f(a)$ and $\Topo(N) = f(b)$. \todo{This can be done because $f$ is surjective}. Also assume that $m'$ has a neighbor $n'$. We know that $\Topo(m) = a$ and $\Topo(m') = b$. Clearly $(a,b)$ is a valid concrete topology edge since it is a transition in the product graph between $m$ and $m'$. We now apply Lemma 7 with the following facts:
+    Assume that $\Topo(M) = f(a)$ and $\Topo(N) = f(b)$. Also assume that $m'$ has a neighbor $n'$. We know that $\Topo(m) = a$ and $\Topo(m') = b$. Clearly $(a,b)$ is a valid concrete topology edge since it is a transition in the product graph between $m$ and $m'$. We now apply Lemma 7 with the following facts:
 
     \[ \begin{array}{ll}
       1. & (a,b) ~\text{is a concrete topology edge} \\
@@ -667,7 +661,7 @@ We use this fact to define an ordering ($ord : V \rightarrow \mathbb{N}$) that m
 
 \begin{defn}
   Assign $\Pref(m) = \Pref^A(f_{pg}(m))$ as increasing integers according to the total ordering for $\leq$.
-  Clearly $\Pref(m) \leq \Pref(m') \iff m \leq m'$ and $\Pref(f_{pg}(m)) \leq \Pref(f_{pg}(m')) \iff f_{pg}(m) \leq f_{pg}(m')$
+  Clearly from Lemma 9, $\Pref(m) \leq \Pref(m') \iff m \leq m'$ and $\Pref(f_{pg}(m)) \leq \Pref(f_{pg}(m')) \iff f_{pg}(m) \leq f_{pg}(m')$
 \end{defn}
 
 
@@ -686,7 +680,6 @@ $$\Con(\Compile(p, G^A), \Gamma, f, G) = \Compile(\Con(p,\Gamma,f), G)$$
 %
 The proof goes by case analysis on the test $t$ in the constraint $p$, and makes heavy use of the lemmas about the product graphs from the previous section. We use one helper lemma here that relates sets of neighbors:
 
-\todo{re evaluate this. I believe we need the proof of an inverse here}
 \begin{lem}
 
   For concrete ($PG$) and abstract ($PG^A$) product graphs related by $f_{pg}$
@@ -960,11 +953,12 @@ The proof goes by case analysis on the test $t$ in the constraint $p$, and makes
      ~~~~~ [~ l \rightarrow rc ~\vert~ \\
      ~~~~~~~~~~~~ l \in internal(G.V), ~rc = append_i \\
      ~~~~~~~~~~~~~~~ [~ pfx_i \rightarrow [~ ma ~\vert~ \\
+     ~~~~~~~~~~~~~~~~~~~~~ (pfx_i, \_) \in \Gamma(x), \\
      ~~~~~~~~~~~~~~~~~~~~~ m \leftarrow (l,q_m) \in PG_i, \\
      ~~~~~~~~~~~~~~~~~~~~~ pin \leftarrow \text{adjIn}(PG_i,m), \\
      ~~~~~~~~~~~~~~~~~~~~~ (in,q_n) \leftarrow \{ (bs,q_n) ~\vert~ bs=\{b ~\vert~ (b,q_n) \in pin \}, bs \neq \emptyset \}, \\
      ~~~~~~~~~~~~~~~~~~~~~ out \leftarrow \{ c ~\vert~ (c,\_) \in \text{adjOut}(PG_i,m) \}, \\
-     ~~~~~~~~~~~~~~~~~~~~~ ma = \Pref(m) : (in,q_n) \rightarrow (out,q_m) ~] ~] ~]\\
+     ~~~~~~~~~~~~~~~~~~~~~ ma = \Pref_i(m) : (in,q_n) \rightarrow (out,q_m) ~] ~] ~]\\
   \end{array} \]%
 
     \noindent
@@ -996,8 +990,7 @@ The proof goes by case analysis on the test $t$ in the constraint $p$, and makes
      ~~~~~~~~~~~~~~~~~~~~~ ma = \Pref^A(M) : (in,q_N) \rightarrow (out,q_M) ~] ~] ~], \Gamma, f, G) \\
   \end{array} \]%
 
-  Apply the definition of $\Con$:
-
+  \noindent
   We apply the definition of $\Con$ to push it inside the list:
 
   \[ \begin{array}{l}
@@ -1012,6 +1005,7 @@ The proof goes by case analysis on the test $t$ in the constraint $p$, and makes
      ~~~~~~~~~~~~~~~~~~~~~ ma = \Pref^A(M) : (in,q_N) \rightarrow (out,q_M) ~] ~] ~] \\
   \end{array} \]%
 
+  \noindent
   We now apply the definition of $\Con$ to push it further inside:
 
   \[ \begin{array}{l}
@@ -1026,6 +1020,7 @@ The proof goes by case analysis on the test $t$ in the constraint $p$, and makes
      ~~~~~~~~~~~~~~~~~~~~~ ma = \Pref^A(M) : (in,q_N) \rightarrow (out,q_M) ~] ~], \Gamma, f, G) ~] \\
   \end{array} \]%
 
+  \noindent
   Once again, we apply the definition of $\Con$
 
   \[ \begin{array}{l}
@@ -1041,6 +1036,7 @@ The proof goes by case analysis on the test $t$ in the constraint $p$, and makes
      ~~~~~~~~~~~~~~~~~~~~~ ma = \Con(\Pref^A(M) : (in,q_N) \rightarrow (out,q_M), \Gamma, f, G) ~] ~] ~] \\
   \end{array} \]%
 
+  \noindent
   Once again, we apply the definition of $\Con$
 
   \[ \begin{array}{l}
@@ -1053,28 +1049,12 @@ The proof goes by case analysis on the test $t$ in the constraint $p$, and makes
      ~~~~~~~~~~~~~~~~~~~~~ pin \leftarrow \text{adjIn}(PG^A,M), \\
      ~~~~~~~~~~~~~~~~~~~~~ (in,q_N) \leftarrow \{ (BS,q_N) ~\vert~ BS=\{B ~\vert~ (B,q_N) \in pin \}, BS \neq \emptyset \}, \\
      ~~~~~~~~~~~~~~~~~~~~~ out \leftarrow \{ C ~\vert~ (C,\_) \in \text{adjOut}(PG^A,M) \}, \\
-     ~~~~~~~~~~~~~~~~~~~~~ ma = \textbf{if } in = \{ G.start \} \textbf{ then } \bullet \\
-     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ \textbf{else } \Pref^A(M) : (\Con(in, \ell, \Gamma, f, G),q_N) \rightarrow (\Con(out, \ell, \Gamma, f, G), q_M) ~] ~] ~]\\
-  \end{array} \]%
-
-  \todo{magic happens here}
-
-    \[ \begin{array}{l}
-     ~~~~~ [~ \ell \rightarrow rc ~\vert~ \\
-     ~~~~~~~~~~~~ \ell \in f^{-1}(l), \\
-     ~~~~~~~~~~~~ l \in internal(G^A.V), ~rc = append_i \\
-     ~~~~~~~~~~~~~~~ [~ pfx_i \rightarrow [~ ma ~\vert~ \\
-     ~~~~~~~~~~~~~~~~~~~~~ (pfx_i, l') \in \Gamma(x), \\
-     ~~~~~~~~~~~~~~~~~~~~~ M \leftarrow (l,q_M) \in PG^A, \\
-     ~~~~~~~~~~~~~~~~~~~~~ pin \leftarrow \text{adjIn}(PG^A,M), \\
-     ~~~~~~~~~~~~~~~~~~~~~ (in,q_N) \leftarrow \{ (BS,q_N) ~\vert~ BS=\{B ~\vert~ (B,q_N) \in pin \}, BS \neq \emptyset \}, \\
-     ~~~~~~~~~~~~~~~~~~~~~ out \leftarrow \{ C ~\vert~ (C,\_) \in \text{adjOut}(PG^A,M) \}, \\
-     ~~~~~~~~~~~~~~~~~~~~~ ma = \textbf{if } in = \{ G.start \} \textbf{ then } \bullet \\
+     ~~~~~~~~~~~~~~~~~~~~~ ma = \textbf{if } in = \{ G.start \} \text{ and } l'=\ell \textbf{ then } \bullet \\
      ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ \textbf{else } \Pref^A(M) : (\Con(in, \ell, \Gamma, f, G),q_N) \rightarrow (\Con(out, \ell, \Gamma, f, G), q_M) ~] ~] ~]\\
   \end{array} \]%
 
   After filtering the cases where $in = \{ start \}$ and $l' \neq \ell$, we have the same situation as the previous case. 
-  This works because each $PG_{ij}$ was constructed from $con(r_{ijk}) \cap end(l_{ij})$. This means that the only state in $PG_{ij}$ connected to the start node ($\mathit{start}$) is a node for $l_{ij}$. This was ensured by the fact that the transition function for each regular expression $\sigma_{ijk}(q_0,l) = q$ is defined only for locations $l \in L$ where $L = \{ l_{ij} \}$ from the construction of the automata.
+  This works because each $PG_{i}$ was constructed from $con(r_{i}, \ell, \Gamma, f, G) \cap end(l_{i})$. This means that the only state in $PG_{i}$ connected to the start node ($\mathit{start}$) is a node for $l_{i}$. This was ensured by the fact that the transition function for each regular expression $\sigma_{i}(q_0,l) = q$ is defined only for locations $l \in L$ where $L = \{ l_{i} \}$ from the construction of the automata.
 
     \[ \begin{array}{l}
      ~~~~~ [~ \ell \rightarrow rc ~\vert~ \\
@@ -1085,8 +1065,92 @@ The proof goes by case analysis on the test $t$ in the constraint $p$, and makes
      ~~~~~~~~~~~~~~~~~~~~~ pin \leftarrow \text{adjIn}(PG_i,m), \\
      ~~~~~~~~~~~~~~~~~~~~~ (in,q_n) \leftarrow \{ (bs,q_n) ~\vert~ bs=\{b ~\vert~ (b,q_n) \in pin \}, bs \neq \emptyset \}, \\
      ~~~~~~~~~~~~~~~~~~~~~ out \leftarrow \{ C ~\vert~ (C,\_) \in \text{adjOut}(PG_i,m) \}, \\
-     ~~~~~~~~~~~~~~~~~~~~~ ma = \Pref(m) : (in,q_n) \rightarrow (out,q_m)  ~] ~] ~]\\
+     ~~~~~~~~~~~~~~~~~~~~~ ma = \Pref_i(m) : (in,q_n) \rightarrow (out,q_m)  ~] ~] ~]\\
   \end{array} \]%
+
+
+
+  \end{proof}
+
+\end{thm}
+
+
+\vspace{2em}
+\begin{thm}
+  For all \sysname policies $pol$, contexts $\Gamma$, topologies $G$ and $G^A$ related by homomorphism $f : G \rightarrow G^A$:
+  $$\Con(\Compile(pol,G^A),\Gamma,f,G) = \Compile(\Con(pol,\Gamma,f),G)$$
+
+  \begin{proof} 
+    $ $
+
+    \vspace{.5em}
+    \noindent
+    Given a policy $pol = p_1, \ldots, p_n$ we apply Theorem 11 after rewriting the policy. For the left side:
+    \[
+    \begin{array}{llll}
+      & & \Con(\Compile(pol,G^A),\Gamma,f,G) \\
+      &=& \Con(\Compile(p_1, \ldots, p_n, G^A),\Gamma,f,G) & \text{Substitution} \\
+      &=& \Con(\CompileMbgp([\CompilePg(p_1), \ldots, \CompilePg(p_n)]),\Gamma,f,G)
+            & \text{Definition of Compile} \\
+      &=& \Con(\CompileMbgp([(t_1,PG^A_1,\Pref^A_1), \ldots, (t_n,PG^A_n,\Pref^A_n)]),\Gamma,f,G)
+            & \text{Assumption}\\
+    \end{array}
+    \]
+
+    \vspace{.5em}
+    \noindent
+    For the right side of the equation:
+    \[
+    \begin{array}{llll}
+      & & \Compile(\Con(pol,\Gamma,f),G) \\
+      &=& \Compile(\Con(p1,\dots,p_n, \Gamma,f), G) 
+            & \text{Substitution} \\
+      &=& \Compile(\Con(p1, \Gamma, f),\dots, \Con(p_n, \Gamma,f), G) 
+            & \text{Definition of con} \\
+      &=& \CompileMbgp([\CompilePg(\Con(p1, \Gamma, f),G), \ldots, \CompilePg(\Con(p_n, \Gamma, f),G)]) 
+            & \text{Definition of compile} \\
+
+      &=& \CompileMbgp([(t'_1, PG_1, \Pref_1), \ldots, (t'_n, PG_n, \Pref_n)])
+            & \text{Assumption} \\
+
+    \end{array}
+    \]
+
+    \noindent
+    First, we observe that, for each $p_i$, Theorem 11 and $\CompilePg$ give us that, for each $i$:
+    \[ \begin{array}{l}
+     ~~~~~ [~ \ell \rightarrow rc ~\vert~ \\
+     ~~~~~~~~~~~~ l \in internal(G^A.V), \\ 
+     ~~~~~~~~~~~~ rc = [\CompilePred((t_i, PG^A_i, \Pref^A_i))] ~~] \\
+    \end{array} \]%
+
+    \noindent
+    Is equivalent to:
+
+    \[ \begin{array}{l}
+     ~~~~~ [~ \ell \rightarrow rc ~\vert~ \\
+     ~~~~~~~~~~~~ l \in internal(G.V), \\ 
+     ~~~~~~~~~~~~ rc = [\CompilePred((t'_i, PG_i, \Pref_i))] ~~] \\
+    \end{array} \]%
+
+
+    \noindent
+    By applying the definition of $\CompileMbgp$, we need to show:
+
+    \[ \begin{array}{l}
+     ~~~~~ [~ \ell \rightarrow rc ~\vert~ \\
+     ~~~~~~~~~~~~ l \in internal(G^A.V), \\ 
+     ~~~~~~~~~~~~ rc = append_{i \in \{1..n\}}(\CompilePred((t_i, PG^A_i, \Pref^A_i))) ~] \\
+    \end{array} \]%
+
+    \[ \begin{array}{l}
+     ~~~~~ [~ \ell \rightarrow rc ~\vert~ \\
+     ~~~~~~~~~~~~ l \in internal(G.V), \\ 
+     ~~~~~~~~~~~~ rc = append_{i \in \{1..n\}}(\CompilePred((t'_i, PG_i, \Pref_i))) ~] \\
+    \end{array} \]%
+
+    \noindent
+    Clearly this follows by the definition of list $\mathrm{append}$
 
   \end{proof}
 
