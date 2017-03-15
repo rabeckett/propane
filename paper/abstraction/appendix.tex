@@ -617,15 +617,11 @@ Next, we show that whenever there is a transition in $PG^A$, there is a correspo
 \vspace{.4em}
 \begin{lem}
   In the concrete product graph $PG$, $m \leq m' \iff f_{pg}(m) \leq f_{pg}(m')$ in the abstract product graph $PG^A$.
-  \begin{proof}
-    $ $
-
-    \vspace{1em}
-    \noindent
+  \begin{proof} 
     We show that $\leq$ forms a simulation relation for the subgraph reachable from $m$ and $m'$ in $PG$ iff $\leq$ forms a simulation relation for the subgraph reachable from $f(m)$ and $f(m')$ for $PG^A$. This involves showing that $m \geq_{rank} m' \iff f(m) \geq_{rank} f(m')$, and that 
     for every transition $\trans{m}{n}{l}$ in $PG$ there is a transition $\trans{m'}{n'}{l}$ iff for every transition $\trans{f(m)}{f(n)}{f(l)}$ in $PG^A$ there is a transition $\trans{f(m')}{f(n')}{f(l)}$.
 
-    \vspace{1em}
+    \vspace{1.4em}
     \noindent
     \emph{Case} $(\Rightarrow)$
 
@@ -644,7 +640,7 @@ Next, we show that whenever there is a transition in $PG^A$, there is a correspo
     Let $M = f(m)$ and let $M' = f(m')$.
     Suppose that $M \leq M'$, which means that with $M' \geq_{rank} M$ in the abstract product graph. It also means that, for each neighbor $N'$, if we have the transition: $\trans{M'}{N'}{L}$ then we also have a transition: $\trans{M}{N}{L}$ where $N' \geq_{rank} N$. We must show that the same relation holds for $m$ and $m'$. 
     %
-    Assume that $\Topo(M) = f(a)$ and $\Topo(N) = f(b)$. Also assume that $m'$ has a neighbor $n'$. We know that $\Topo(m) = a$ and $\Topo(m') = b$. Clearly $(a,b)$ is a valid concrete topology edge since it is a transition in the product graph between $m$ and $m'$. We now apply Lemma 7 with the following facts:
+    Assume that $\Topo(M) = f(a)$ and $\Topo(N) = f(b)$. Also assume that $m'$ has a neighbor $n'$. We know that $\Topo(m) = a$ and $\Topo(m') = b$. Clearly $(a,b)$ is a valid concrete topology edge since it is a transition in the product graph between $m$ and $m'$. We now apply Lemma 8 with the following facts:
 
     \[ \begin{array}{ll}
       1. & (a,b) ~\text{is a concrete topology edge} \\
@@ -671,13 +667,12 @@ Next, we show that whenever there is a transition in $PG^A$, there is a correspo
   \end{proof}
 
 \end{lem}
-
-
-\vspace{1em}
+%
+%
+\para{Note:}
 Lemma 10 tells us that the total ordering between node preferences is preserved under the lifted graph homomorphism $f_{pg}$. 
-We use this fact to define the local preference function ($\Pref : V \rightarrow \mathbb{N}$) that maps product graph nodes to numbers reflecting the total ordering such that $\Pref(m) = \Pref(f(m))$ for all product graph nodes $m$.
-
-\vspace{1em}
+We use this fact to define the local preference function ($\Pref : V \rightarrow \mathbb{N}$) that maps product graph nodes to numbers reflecting the total ordering such that $\Pref(m) = \Pref(f(m))$ for all product graph nodes $m$. We do this to normalize policies so they refer to the exact same BGP local preferences. This is useful because we are proving syntactic equivalence of commutativity rather than semantic equivalence.
+%
 \begin{defn}
   Assign $\Pref(m) = \Pref^A(f_{pg}(m))$ as increasing integers starting from 0 according to the total ordering for $\leq$.
   From Lemma 10, we know that $\Pref$ and $\Pref^A$ preserve the total ordering since: $\Pref(m) \leq \Pref(m') \iff m \leq m'$ and $\Pref(f_{pg}(m)) \leq \Pref(f_{pg}(m')) \iff f_{pg}(m) \leq f_{pg}(m')$.
@@ -690,11 +685,11 @@ We use this fact to define the local preference function ($\Pref : V \rightarrow
 \vspace{3em}
 \subsection{Constraint Substitution (Part 2)}
 
-In this section, we aim to prove that concretization and compilation commute for individual \sysname constraints. Since a policy is simply an ordered sequence of constraints, it is then straightfoward to show that compilation and concretization commute for entire policies. In particular, we are interested in showing:
+In this section, we aim to prove that concretization and compilation commute for individual \sysname constraints. Since a policy is simply an ordered sequence of constraints, it is then straightfoward to show that compilation and concretization commute for entire policies. In particular, we are interested in showing that for all constraints $p$, contexts $\Gamma$, and graph homomorphisms $f: G \rightarrow G^A$ between $G$ and $G^A$:
 %
 $$\Con(\Compile(p, G^A), \Gamma, f, G) = \Compile(\Con(p,\Gamma,f), G)$$
 %
-The proof goes by case analysis on the test $t$ in the constraint $p$, and makes heavy use of the lemmas about the product graphs from the previous section. We use one helper lemma here that relates sets of neighbors:
+The proof goes by case analysis on the test $t$ in the constraint $p$, and makes heavy use of the lemmas about the product graphs from the previous section. We first use one helper lemma here that relates sets of neighbors in the concrete and abstract product graphs under the inverse homomorphism $f^{-1}$:
 
 \begin{lem}
 
