@@ -443,7 +443,7 @@ By induction on the structure of $r$
 For the proof, we need to make sure that automata are constructed in a particular way to ensure a product graph homomorphism will exist. We assume an invariant that when regular expressions are translated to finite automata, there is no transition back to the initial state $q_0$. This can be done easily by introducing a second copy of $q_0$ that allows transitions. The reason is to distinguish if a state corresponds to a router ``owning" a prefix. We also compile automata in a particular way as defined below
 
 \begin{defn}
-Given a regular expression $r$ over abstract locations, homomorphism $f$, a nonempty set of locations $L$, and a finite state machine $M^A = (\Sigma,Q,q_0,\sigma^A,F^A)$, we construct a concrete state machine $M = (\Sigma, Q, q_0, \sigma, F)$ for the concretized policy $con(r,\Gamma, f) \cap \EndR(L)$ in the following way: 
+Given a regular expression $r$ over abstract locations, homomorphism $f$, a nonempty set of locations $L$, and a finite state machine $M^A = (\Sigma,Q^A,q_0,\sigma^A,F^A)$, we construct a concrete state machine $M = (\Sigma, Q, q_0, \sigma, F)$ for the concretized policy $con(r,\Gamma, f) \cap \EndR(L)$ in the following way: 
 
     \[ \begin{array}{lll}
       1. & \sigma(q_0,l) = q' \iff \sigma^A(q,f(l)) = q' & \textbf{for each}~~ l \in L \\
@@ -505,9 +505,15 @@ For the remainder of this section, we will prove a collection of lemmas assuming
 We will also assume that $PG = (G',start,rank)$ and $PG^A = (G'^A,start^A,rank^A)$ and that either $L = \Sigma$, or $L = \{ l \}$.
 \vspace{2em}
 
+\begin{lem}
+  For any node $n = (l,q_1,\ldots,q_k)$ in $PG$ there exists a node $f(n) = (f(l),q_1,\ldots,q_k)$ in $PG^A$.
+  \begin{proof}
+    Consider a path of length k in $PG$ to node $n$. The proof proceeds by induction on the path length $k$, if $n$ is connected to $start$, then $q_i = q_{0_i}$. Since there are no transitions back to the initial state, there must be a node $f(n) = (f(l), q_{0_1}, \ldots, q_{0_1})$ or else there is a contradiction for Lemma 1. For the inductive case, if $n$ is the kth hop along the path, then it has an inbound edge from neighbor $k-1$. Call this neighbor $m$. Then $(m,n)$ is an edge in $PG$, there is a node $f(m)$ with the same states. From the graph homomorphism, we know that $(f(m),f(n))$ must be an edge in $PG^A$ and since $f(m)$ has the same states as $m$, by the construction of the automata, $f(n)$ will have the same states as $n$.
+  \end{proof}
+\end{lem}
 
 \begin{lem}
-  The homomorphism $f$ is lifted to a new homomorphism $f_{pg}$ over the product graphs in the following way:
+  The homomorphism $f$ can be lifted to a new homomorphism $f_{pg}$ over the product graphs in the following way:
   \[ \begin{array}{rcl}
     f_{pg}( start ) & = & start^A  \\
     f_{pg}( (l,q_1,\ldots,q_n) ) & = & (f(l),q_1,\ldots,q_n) \\
@@ -515,7 +521,7 @@ We will also assume that $PG = (G',start,rank)$ and $PG^A = (G'^A,start^A,rank^A
 
   Now we prove that $f_{pg}: G' \rightarrow G'^A$ is a valid homomorphism
   \begin{proof}
-    From Lemma 4, $(f(l),q_1,\ldots,q_n)$ is a valid node in $PG^A$ since both automata share the same states. 
+    From Lemma 5, $(f(l),q_1,\ldots,q_n)$ is a valid node in $PG^A$. 
     %
     Assume there is an edge in $PG$ from $x=(l,q_1,\ldots,q_n)$
     to $y=(l',q_1',\ldots,q_n')$. We know that $f(x) = (f(l),q_1,\ldots,q_n)$ and $f(y) = (f(l'),q_1',\ldots,q_n')$.
@@ -530,7 +536,7 @@ We will also assume that $PG = (G',start,rank)$ and $PG^A = (G'^A,start^A,rank^A
   If $f_{pg}(n) = N$, then the product graph preference of these nodes is equal: $\Rank(n) = \Rank^A(N)$.
 
   \begin{proof}
-    Assume $n = (l,q_1,\dots,q_k)$. We know that $f_{pg}(n) = (f(l),q_1,\dots,q_k)$. 
+    Assume $n = (l,q_1,\dots,q_k)$. From Lemma 6, we know $f_{pg}(n) = (f(l),q_1,\dots,q_k)$. 
     We also know that $q_i \in F \iff q_i \in F^A$. 
     By the definition of the ranking function $\Rank$, then 
     $\Rank(n) = \{ i ~\vert~ q_i \in F \} = \{ i ~\vert~ q_i \in F^A \} = \Rank^A(N)$.
@@ -627,8 +633,8 @@ Next, we show that whenever there is a transition in $PG^A$, there is a correspo
     Consider the subgraph of $PG$ reachable from $m$ and $m'$. From $m \leq m'$ and the definition of ($\leq$), we know that $m' \geq_{rank} m$. 
 
     \noindent
-    From Lemma 6, and $m' \geq_{rank} m$ we know that $f_{pg}(m') \geq_{rank} f_{pg}(m)$. 
-    From Lemma 8, there is a transition $\trans{f(n)}{f(n')}{f(l)}$.
+    From Lemma 7, and $m' \geq_{rank} m$ we know that $f_{pg}(m') \geq_{rank} f_{pg}(m)$. 
+    From Lemma 9, there is a transition $\trans{f(n)}{f(n')}{f(l)}$.
 
     \vspace{1.2em}
     \noindent
@@ -660,7 +666,7 @@ Next, we show that whenever there is a transition in $PG^A$, there is a correspo
 
     \noindent
     Thus if there is transition $\trans{m'}{n'}{b}$, then there is also a transition $\trans{m}{n}{b}$. 
-    Lemma 6 together with the assumption $N' \geq_{rank} N$ and the fact that $\Rank(n) = \Rank(N)$ lets us conclude that $n' \geq_{rank} n$.
+    Lemma 7 together with the assumption $N' \geq_{rank} N$ and the fact that $\Rank(n) = \Rank(N)$ lets us conclude that $n' \geq_{rank} n$.
 
   \end{proof}
 
@@ -668,13 +674,13 @@ Next, we show that whenever there is a transition in $PG^A$, there is a correspo
 
 
 \vspace{1em}
-Lemma 9 tells us that the total ordering between node preferences is preserved under the lifted graph homomorphism $f_{pg}$. 
+Lemma 10 tells us that the total ordering between node preferences is preserved under the lifted graph homomorphism $f_{pg}$. 
 We use this fact to define the local preference function ($\Pref : V \rightarrow \mathbb{N}$) that maps product graph nodes to numbers reflecting the total ordering such that $\Pref(m) = \Pref(f(m))$ for all product graph nodes $m$.
 
 \vspace{1em}
 \begin{defn}
   Assign $\Pref(m) = \Pref^A(f_{pg}(m))$ as increasing integers starting from 0 according to the total ordering for $\leq$.
-  From Lemma 9, we know that $\Pref$ and $\Pref^A$ preserve the total ordering since: $\Pref(m) \leq \Pref(m') \iff m \leq m'$ and $\Pref(f_{pg}(m)) \leq \Pref(f_{pg}(m')) \iff f_{pg}(m) \leq f_{pg}(m')$.
+  From Lemma 10, we know that $\Pref$ and $\Pref^A$ preserve the total ordering since: $\Pref(m) \leq \Pref(m') \iff m \leq m'$ and $\Pref(f_{pg}(m)) \leq \Pref(f_{pg}(m')) \iff f_{pg}(m) \leq f_{pg}(m')$.
 \end{defn}
 
 
