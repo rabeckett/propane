@@ -130,6 +130,7 @@
      pfx     &::=& d.d.d.d/[d..d] & \textit{prefix} \\
      t       &::=& \$x & \textit{template variable} \\
          &\BNFALT& pfx & \textit{prefix test} \\
+     l   & & & \textit{topology location} \\
      r       &::=& l & \textit{location} \\
          &\BNFALT& \emptyset & \textit{empty set} \\
          &\BNFALT& \In & \textit{internal loc} \\
@@ -174,6 +175,7 @@
   \vspace*{-1\baselineskip}
   %
   \[ \begin{array}{rclr}
+     l    &   & & \textit{topology location} \\
      d    &   & & \textit{integer} \\
      c    &   & & \textit{community} \\
      t    &::=& \$x \BNFALT d.d.d.d/[d..d] & \textit{predicate} \\
@@ -222,7 +224,7 @@
   \[ \begin{array}{lcl}
      \\
      \Con(\emptyset, \Gamma, f)      &=& \emptyset \\
-     \Con(l, \Gamma, f)              &=& \Sigma_i ~ f_i^{-1}(l) \\
+     \Con(l, \Gamma, f)              &=& \Sigma ~ f^{-1}(l) \\
      \Con(r_1 \cup r_2, \Gamma, f)   &=& \Con(r_1,\Gamma,f) \cup \Con(r_2,\Gamma,f) \\
      \Con(r_1 \cap r_2, \Gamma, f)   &=& \Con(r_1,\Gamma,f) \cap \Con(r_2,\Gamma,f) \\
      \Con(!r, \Gamma, f)             &=& !\Con(r,\Gamma,f) \\
@@ -291,11 +293,11 @@
 
 \section{Preliminaries}
 
-For reference, the full \sysname syntax as well as expansions from constraints into regular expressions are shown in Figure~\ref{fig:syntax}. mBGP syntax and compilation, as described in the paper, as well as concretization functions ($\Con$) are shown in Figure~\ref{fig:syntax}.
+For reference, the full \sysname syntax, expansions from constraints into regular expressions, mBGP syntax and compilation, as described in the paper, as well as concretization functions ($\Con$) are shown in Figure~\ref{fig:syntax}.
 
 \subsection{Definition of Compilation}
 
-We present the definition of compilation slighty differently here by factoring a separate $\CompilePred$ function, to make the proof clearer. This is a simple rewriting of the compilation function defined in the body of the paper.
+We present the definition of compilation slighty differently here by factoring out a separate $\CompilePred$ function, to make the proof slightly cleaner. This is a very simple rewriting of the compilation function defined in the body of the paper where $\CompilePred$ is presented inline.
 
 \subsection{Definition of Concretization}
 
@@ -303,11 +305,11 @@ Definitions for concretization are shown in Figure~\ref{fig:syntax}. Concretizat
 $\Gamma : Var \rightarrow 2^{Prefix \times V}$,
 which maps from a template prefix to a set of pairs of a concrete prefix and a concrete location that ``owns" the prefix.
 %
-For each regular expression $r$, we replace each abstract location with the sum over its corresponding concrete locations under the inverse homomorphism $f^{-1}$. For each template variable, we replace it with a new entry for each of its corresponding concrete prefixes under the supplied mapping $\Gamma$. We also intersect the resulting concretized regular expression with $\text{end}(l)$ to capture the fact that this traffic is owned by the concrete location $l$.%
+For each regular expression $r$, the abstract location is replaced with the sum over its corresponding concrete locations under the inverse homomorphism $f^{-1}$. For each template variable, we replace it with a new entry for each of its corresponding concrete prefixes under the supplied mapping $\Gamma$. We also intersect the resulting concretized regular expression with $\text{end}(l)$ to capture the fact that this traffic is owned by the concrete location $l$.%
 
-We also define concretization over the mBGP policy in a similar manner. We replace each abstract router configuration $l \rightarrow rc$ a new entry for each concrete location $\ell \in f^{-1}(l)$. The concrete location $\ell$ is passed as a parameter to $con$ to remember the current router.
+Concretization is defined for mBGP policies in a similar manner. Each abstract router configuration $l \rightarrow rc$ is replaced with a new entry for each concrete location $\ell \in f^{-1}(l)$. The concrete location $\ell$ is passed as a parameter to $con$ to remember the current router.
 %
-To concretize a prefix policy with a template ($\$x \rightarrow pc$) we replace it with a sequence of policies, one for each prefix in context ($(pfx,l) \in \Gamma(x)$). Match action statements where the set of import neighbors is the singleton set containing the product graph start node $\{ start \}$ and we are not currently at looking at the router configuration for the location specified in the context $l$, then we drop the match action. This is denoted with the $\bullet$ symbol. Finally, to concretize a set of neighbors, we again use $f^{-1}$ to find the set of concrete neighbors under the inverse homomorphism, but then restrict it to those that are actually connected in the underlying concrete topology with $G.E$.
+To concretize a prefix policy with a template ($\$x \rightarrow pc$), the template is replaced with a sequence of policies, one for each prefix in context ($(pfx,l) \in \Gamma(x)$). Match action statements where the set of import neighbors is the singleton set containing the product graph start node $\{ start \}$ and we are not currently at looking at the router configuration for the location specified in the context $l$, then we drop the match action. This is denoted with the $\bullet$ symbol. Finally, to concretize a set of neighbors, $f^{-1}$ is used to find the set of concrete neighbors under the inverse homomorphism, but then it is restricted to those that are actually connected in the underlying concrete topology with $G.E$.
 
 
 \subsection{Notation}
@@ -320,10 +322,9 @@ Throughout the remainder of the appendix, we use the following convention for me
   \text{Automata states} & q_i \\
   \text{Topologies} & G, G^A \\
   \text{Product Graph} & PG, PG^A \\
-  \text{Automata} & M, M^A \\
 \end{array} \]
 
-We use capital letters for abstract topology/product graph nodes and we use lower case letters for concrete topology nodes. By default, product graph nodes with different subscripts refer to nodes that share the same topology location (\IE, $\Topo(n_1) = \Topo(n_2)$). A superscript $G^A$ refers to the abstract version (in this case of the topology), while the non-superscripted value refers to the concrete version. Given a path as a sequence of locations $path = l_1, \dots, l_k$ we often apply the graph homomorphism $f$ to the path by writing: $f(path) = f(l_1), \dots, f(l_k)$.
+Capital letters are used for abstract topology/product graph nodes and lower case letters for concrete topology nodes. A superscript $G^A$ refers to the abstract version (in this case of the topology), while the non-superscripted value refers to the concrete version. Given a path as a sequence of locations $path = l_1, \dots, l_k$ we often apply the graph homomorphism $f$ to the path by writing: $f(path) = f(l_1), \dots, f(l_k)$.
 
 
 \newpage
@@ -331,35 +332,39 @@ We use capital letters for abstract topology/product graph nodes and we use lowe
 \section{Proof Sketch}
 \vspace{1em}
 
-The goal of the proof is to show that the concretization and compilation functions commute. In particular, we are interested in establishing the following theorem:
+The goal of the proof is to show that the concretization and compilation functions commute. One can concretize an abstract policy and then compile the concrete result, or compile an abstract policy and the concretize the abstract result and know that the results are the same. In particular, we are interested in establishing the following theorem:
 
 \begin{thm}
   for all \sysname policies pol, contexts $\Gamma$, and topologies G and $G^A$ related by the homomorphism $f$, 
   $$\Con(\Compile(pol,G^A),\Gamma,f,G) = \Compile(\Con(pol,\Gamma,f), G)$$
 \end{thm}
 
+\noindent
 The proof proceeds in the following steps. 
 
 \para{Product Graphs (Step 1)} First, we establish several facts about the relationship of the concrete and abstract product graphs given the definition for building the product graph. We start by assuming that both an abstract constraint and its concretized form are compiled to product graphs and preference functions: 
 %
 \[
 \begin{array}{lll}
-  \CompilePg(t_1 \Path~ \Con(r_1,\Gamma,f) ~\Prefer~ \ldots ~\Prefer~ \Con(r_n,\Gamma,f), G) &=& (t_1, PG, \Pref) \\
+  \CompilePg(t_1 \Path~ \Con(r_1,\Gamma,f) \cap \EndR(L) ~\Prefer~ \ldots ~\Prefer~ \Con(r_n,\Gamma,f) \cap \EndR(L), G) &=& (t_1, PG, \Pref) \\
   \CompilePg(t_2 \Path~ r_1 ~\Prefer~ \ldots ~\Prefer~ r_n, G^A) &=& (t_2, PG^A, \Pref^A) \\
 \end{array}
 \]
 %
-Using this assumption, we show that several relationships hold between $PG$ and $PG^A$ as well as between $\Pref$ and $\Pref^A$. 
+$L$ can be thought of as a set of locations that ``own" the prefix. Using these assumptions, we show that several relationships hold between $PG$ and $PG^A$ as well as between $\Pref$ and $\Pref^A$. In particular, we show that there is a homomorphism $f_{pg}$ from $PG$ to $PG^A$, and then using this fact, we demonstrate that the inferred local preference functions $\Pref$ and $\Pref^A$ have the property that for all nodes $m$,  $\Pref(m) = \Pref^A(f_{pg}(m))$.
 
-\para{Substitution of Constraints (Step 2)} The next step is to use the relationships established in step 1 to show that concretization and compilation commute for an individual constraint \sysname p:
+\para{Substitution of Constraints (Step 2)} 
+The next step is to use the relationships between $PG$ and $PG^A$ established in step 1 to show that concretization and compilation commute for an individual \sysname constraint p:
 %
 $$\Con(\Compile(p, G^A), \Gamma, f, G) = \Compile(\Con(p,\Gamma,f), G)$$
 %
-This proof proceeds by cases on the constraint p.
+Constraints are of the form: $t \Path~ r_1 ~\Prefer~ \ldots ~\Prefer~ r_n$. The proof proceeds by case analysis on the predicate $t$. The proof is long, but mainly involves repeatedly applying the definition of concretization and compilation until all abstract sets of locations are written in terms of concrete sets of locations. The proofs from step 1 are then used to show that these sets are equivalent.
 
-\para{Substitution of Policies (Step 3)} Finally, this theorem is lifted to \sysname policies $pol = p_1, \ldots, p_n$ using the previous proof for individual constraints to obtain the final theorem:
+\para{Substitution of Policies (Step 3)} Finally, this theorem is lifted to \sysname policies $pol = p_1, \ldots, p_n$ using the proof from part 2 for individual constraints to obtain the final theorem:
 %
 $$\Con(\Compile(pol,G^A),\Gamma,f,G) = \Compile(\Con(pol,\Gamma,f), G)$$ 
+%
+The proof is obtained from a simple unfolding of the definition of compilation and concretization.
 
 \newpage
 
@@ -367,7 +372,7 @@ $$\Con(\Compile(pol,G^A),\Gamma,f,G) = \Compile(\Con(pol,\Gamma,f), G)$$
 \section{Substitution Proof}
 
 \subsection{Product Graphs (Step 1)}
-In this section, we will establish several relationships between the product graph and preference functions for abstract and concretized \sysname policies. First we relate the languages denoted by regular expressions under concretization. Then we lift this observation to automata, and finally to product graphs. We use these connections to left the notion of homomorphism to the product graphs and to relate the inferred BGP local preferences for abstract and concrete devices.
+In this section, we will establish several relationships between the product graph and preference functions for abstract and concretized \sysname policies. To do so, we first relate the languages denoted by regular expressions under concretization. Then we lift this observation to automata, and finally to product graphs. We use these connections to construct a homomorphism for the product graphs and to relate the inferred BGP local preferences for abstract and concrete devices.
 
 
 \newcommand{\Lang}{\ensuremath{\mathcal{L}}}
@@ -434,15 +439,15 @@ By induction on the structure of $r$
 
 
 
-\vspace{2em}
-For the proof, we assume an invariant that when regular expressions are translated to finite automata, there is no transition back to the initial state $q_0$. This is easily done by introducing a separate copy of $q_0$ that allows transitions. The reason is to distinguish if a state corresponds to a router originating a route. We also compile automata in a particular way as defined below
+\vspace{1em}
+For the proof, we need to make sure that automata are constructed in a particular way to ensure a product graph homomorphism will exist. We assume an invariant that when regular expressions are translated to finite automata, there is no transition back to the initial state $q_0$. This can be done easily by introducing a second copy of $q_0$ that allows transitions. The reason is to distinguish if a state corresponds to a router ``owning" a prefix. We also compile automata in a particular way as defined below
 
 \begin{defn}
-Given a regular expression $r$ over abstract locations, homomorphism $f$, a nonempty set of locations $L$, and a finite state machine $M^A = (\Sigma,Q^A,q_0,\sigma^A,F^A)$, we create a concrete state machine $M = (\Sigma, Q, q_0, \sigma, F)$ for the concretized policy $con(r,\Gamma, f) \cap \EndR(L)$ in the following way: 
+Given a regular expression $r$ over abstract locations, homomorphism $f$, a nonempty set of locations $L$, and a finite state machine $M^A = (\Sigma,Q^A,q_0,\sigma^A,F^A)$, we construct a concrete state machine $M = (\Sigma, Q, q_0, \sigma, F)$ for the concretized policy $con(r,\Gamma, f) \cap \EndR(L)$ in the following way: 
 
     \[ \begin{array}{lll}
       1. & \sigma(q_0,l) = q' \iff \sigma^A(q,f(l)) = q' & \textbf{for each}~~ l \in L \\
-      2. & \sigma(q,l) = q' \iff \sigma^A(q,f(l)) = q' & \textbf{for each}~~ l \in \Sigma \\
+      2. & \sigma(q,l) = q' \iff \sigma^A(q,f(l)) = q' & \textbf{for each}~~ l \in \Sigma - L \\
       3. & q \in F \iff q \in F^A & \\
     \end{array} \]
 \end{defn}
@@ -457,12 +462,12 @@ Next, we show that the construction is correct. That is, the machine recognizes 
     $ $
     \vspace{1em}
 
-    \textbf{Case} ($\Rightarrow$)
+    \emph{Case} ($\Rightarrow$)
 
     Assume $M$ matches $p$. Then this means that $M^A$ matches $f(p)$. If we have a trace of string of the form $ p = x_1 \cdot \dots \cdot x_n$, then $f(p) = f(x_1) \cdot \dots \cdot f(x_n)$. For each transition $\sigma(q,l) = q'$ in the concrete automaton, we have transition $\sigma(q,f(l)) = q'$ in the abstract automaton, and they have the same final states, so this trace is accepting for $M^A$. Because $M^A$ matches $f(p)$, this means that $f(p) \in \Lang(r)$. From Lemma 1, this means that $p \in \Lang(con(r,\Gamma,f))$. We also know that, since there is only a transition from the initial state $\sigma(q_0,l)$ defined for $l \in L$ by construction, it means that $p \in \Lang(\text{end}(L))$. Since we know that $p \in \Lang(con(r_i,\Gamma,f))$ and $p \in \Lang(\text{end}(L))$, we know that $p \in \Lang(con(r,\Gamma,f) \cap \text{end}(l))$ and thus $p \in \Lang(con(r,\Gamma, f) \cap \EndR(L))$.
 
     \vspace{1em}
-    \textbf{Case} ($\Leftarrow$)
+    \emph{Case} ($\Leftarrow$)
 
     Assume $p \in \Lang(con(r,\Gamma, f) \cap \EndR(L))$. This means that $p \in \Lang(con(r,\Gamma,f))$ and $p \in \Lang(\text{end}(L))$. Lemma 1, we know that $f(p) \in \Lang(r)$, which means that $M^A$ matches $f(p)$. 
     %
@@ -482,11 +487,12 @@ Next, we show that the construction is correct. That is, the machine recognizes 
     $ $
     \vspace{1em}
     \begin{proof}
-      This follows trivially from the construction of $M$. States in $M$ are copied over from states in $M^A$.
+      This follows from the construction of $M$. States in $M$ are copied over from states in $M^A$.
     \end{proof}
 \end{lem}
 
-\vspace{3em}
+\vspace{1em}
+\para{Note:}
 For the remainder of this section, we will prove a collection of lemmas assuming the following: 
 %
 \[
@@ -497,12 +503,11 @@ For the remainder of this section, we will prove a collection of lemmas assuming
 \]
 %
 We will also assume that $PG = (G',start,rank)$ and $PG^A = (G'^A,start^A,rank^A)$ and that either $L = \Sigma$, or $L = \{ l \}$.
-
-\vspace{3em}
+\vspace{2em}
 
 
 \begin{lem}
-  We can lift the homomorphism $f$ to a new homomorphism $f_{pg}$ over the product graphs in the following way:
+  The homomorphism $f$ is lifted to a new homomorphism $f_{pg}$ over the product graphs in the following way:
   \[ \begin{array}{rcl}
     f_{pg}( start ) & = & start^A  \\
     f_{pg}( (l,q_1,\ldots,q_n) ) & = & (f(l),q_1,\ldots,q_n) \\
@@ -510,10 +515,13 @@ We will also assume that $PG = (G',start,rank)$ and $PG^A = (G'^A,start^A,rank^A
 
   Now we prove that $f_{pg}: G' \rightarrow G'^A$ is a valid homomorphism
   \begin{proof}
-    From Lemma 4, we know that $(f(l),q_1,\ldots,q_n)$ is a valid node in $PG^A$ since each automata
-    shares the same states. Assume there is an edge in $PG$ from $x=(l,q_1,\ldots,q_n)$
+    From Lemma 4, $(f(l),q_1,\ldots,q_n)$ is a valid node in $PG^A$ since both automata share the same states. 
+    %
+    Assume there is an edge in $PG$ from $x=(l,q_1,\ldots,q_n)$
     to $y=(l',q_1',\ldots,q_n')$. We know that $f(x) = (f(l),q_1,\ldots,q_n)$ and $f(y) = (f(l'),q_1',\ldots,q_n')$.
-    From the construction of PG, we know that $\sigma_i(q_k, l) = q_k'$. However, from the construction of the abstract automata, we also know that $\sigma_i(q_k, l) = q_k' \iff \sigma^A_i(q_k, f(l)) = q_k'$. Therefore, we can conclude that $\sigma^A_i(q_k, f(l)) = q_k'$. However, from the definition of $PG^A$, this means that there must be an edge in $PG^A$ for ($f(x),f(y)$).
+    %
+    From the construction of PG, we know that $\sigma_i(q_k, l) = q_k'$. 
+    Also from the construction of the abstract automata, we also know that $\sigma_i(q_k, l) = q_k' \iff \sigma^A_i(q_k, f(l)) = q_k'$. Therefore, we can conclude that $\sigma^A_i(q_k, f(l)) = q_k'$. However, from the definition of $PG^A$, this means that there must be an edge in $PG^A$ for ($f(x),f(y)$).
   \end{proof}
 \end{lem}
 
@@ -555,10 +563,10 @@ Next, we show that whenever there is a transition in $PG^A$, there is a correspo
   If, for $PG$ and $PG^A$ we have the following:
 
   \[ \begin{array}{ll}
-    1. & (a,b) ~\text{is an edge in the concrete topology} \\
+    1. & (a,b) ~\text{is an edge in the concrete topology G} \\
     2. & \Topo(m) = a \\
     3. & f_{pg}(m) = M \\
-    4. & (M,N) ~ \text{is an edge in the product graph}~ PG^A \\
+    4. & (M,N) ~ \text{is an edge in}~ PG^A \\
     5. & \Topo(N) = f(b) \\
   \end{array} \]
 
@@ -592,9 +600,9 @@ Next, we show that whenever there is a transition in $PG^A$, there is a correspo
 
 
 \begin{lem}
-  For any transition $\trans{m}{m'}{l}$ in $PG$, there is a corresponding transition $\trans{f(m)}{f(m')}{f(l)}$ in $PG^A$.
+  For any labelled transition $\trans{m}{m'}{l}$ in $PG$, there is a corresponding transition $\trans{f(m)}{f(m')}{f(l)}$ in $PG^A$.
   \begin{proof}
-    if $m' = (l, q_1, \ldots, q_n)$, then $f(m') = (f(l), q_1, \ldots, q_n)$. Since there is the edge $(m,m')$ in $PG$, then there is the edge $(f(m),f(m'))$ in $PG^A$. Finally, because $\Topo(f(m')) = f(l)$, there must be a transition $\trans{f(m)}{f(m')}{f(l)}$.
+    if $m' = (l, q_1, \ldots, q_n)$, then $f(m') = (f(l), q_1, \ldots, q_n)$. Since there is the edge $(m,m')$ in $PG$, then there is the edge $(f(m),f(m'))$ in $PG^A$ by the homomorphism. Because $\Topo(f(m')) = f(l)$, there must be a transition $\trans{f(m)}{f(m')}{f(l)}$.
   \end{proof}
 \end{lem}
 
@@ -603,7 +611,7 @@ Next, we show that whenever there is a transition in $PG^A$, there is a correspo
 
 \vspace{.4em}
 \begin{lem}
-  In the concrete product graph, $m \leq m' \iff f_{pg}(m) \leq f_{pg}(m')$ in the abstract product graph.
+  In the concrete product graph $PG$, $m \leq m' \iff f_{pg}(m) \leq f_{pg}(m')$ in the abstract product graph $PG^A$.
   \begin{proof}
     $ $
 
