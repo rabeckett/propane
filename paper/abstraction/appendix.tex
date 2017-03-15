@@ -1202,14 +1202,15 @@ The proof goes by case analysis on the test $t$ in the constraint $p$, and makes
      ~~~~~~~~~~~~ rc = append_{i \in \{1..n\}}\Con((\CompilePred((t_i, PG^A_i, \Pref^A_i)), \Gamma,f,G) ) ~]\\
     \end{array} \]%
 
+    \noindent
+    From the definition of list $\mathrm{append}$ and the given equality from Theorem 11 shown above, we obtain the right hand side.
+
     \[ \begin{array}{l}
      ~~~~~ [~ l \rightarrow rc ~\vert~ \\
      ~~~~~~~~~~~~ l \in internal(G.V), \\ 
      ~~~~~~~~~~~~ rc = append_{i \in \{1..n\}}(\CompilePred((t'_i, PG_i, \Pref_i))) ~] \\
     \end{array} \]%
 
-    \noindent
-    Clearly this follows by the definition of list $\mathrm{append}$ and the given equality from Theorem 11.
 
   \end{proof}
 
