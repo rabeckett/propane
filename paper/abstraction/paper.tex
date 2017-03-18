@@ -131,9 +131,9 @@
 
 %\numberofauthors{1}
 
-\authorinfo{Ryan Beckett$^*$\and Ratul Mahajan$^\dagger$\and Todd Millstein$^\S$\and Jitendra Padhye$^\dagger$\and David Walker$^*$}
-{Princeton University$^*$, Microsoft Research$^\dagger$, University of California Los Angeles$^\S$}
-{\{rbeckett,dpw\}@cs.princeton.edu, \{ratul,padhye\}@microsoft.com, todd@cs.ucla.edu}
+\authorinfo{Ryan Beckett$^*$\and Ratul Mahajan$^{\dagger\ddagger}$\and Todd Millstein$^{\dagger\S}$\and Jitendra Padhye$^\ddagger$\and David Walker$^*$}
+{Princeton University$^*$ \hspace{0.2in} Intentionet$^\dagger$ \hspace{0.2in}  Microsoft$^\ddagger$ \hspace{0.2in}  University of California Los Angeles$^\S$}
+%{\{rbeckett,dpw\}@cs.princeton.edu, \{ratul,padhye\}@microsoft.com, todd@cs.ucla.edu}
 
 \maketitle
 
@@ -148,8 +148,8 @@
 
 \textbf{Abstract---}
 We develop \sysname, a system to synthesize provably-correct
-BGP configurations for large, evolving networks from high-level
-specifications of topology, routing policy, and fault-tolerance
+BGP (border gateway protocol) configurations for large, evolving networks from high-level
+specifications of topology, routing policy, and fault-tolerance.
 requirements. \sysname is based on new abstractions for capturing
 parameterized network topologies and their evolution, and algorithms
 to analyze the impact of topology and routing policy on fault
@@ -216,7 +216,7 @@ Operators author a configuration {\em template} for each role. Templates are
 macros that, given a network topology, can be instantiated with different concrete values to generate device configurations.
 
 Unfortunately, templates use the same low-level constructs as ordinary router configurations (\EG,
-add a tag to this particular announcement; remove a tag from that announcement).  In both templatized
+adding or removing tags from particular announcements).  In both templatized
 and non-templatized configurations, ensuring that a collection of low-level, local configurations
 achieves some important global, network-wide policy, such as a guarantee of connectivity in the face of 
 failures, is extremely challenging.
@@ -226,23 +226,23 @@ failures, is extremely challenging.
 %policies they implement and for which topologies---other than those of the configurations obtained from 
 %instantiating them.
 %
-In order to validate their templates, operators will typically first instantiate a template with appropriate
+In order to validate  their templates, operators will typically first instantiate a template with appropriate
 concrete parameters
-and then test it using various scenarios.  In general, like in any complex software system, such testing is 
-bound to be incomplete.
+and then test it under various scenarios.  In general, like in any complex software system, such testing is inherently incomplete.
 %Thus, operators validate templates by testing some concrete instantiations using
 %simulation or verification tools~\cite{feamster+:rcc, batfish, era, arc, bagpipe}. 
-Moreover, even if network operators were to instantiate their templates using their initial network 
-configuration and to verify key properties using a tool such as Bagpipe~\cite{bagpipe}, the guarantees
-provided would not hold as large networks evolve frequently over time.  In particular,
-devices and links are sometimes taken offline for maintenance and sometimes added to expand
-capacity.  Unfortunately, templates that
+
+Moreover, even if network operators were to instantiate their templates using the initial network 
+topology and verify key properties using tools such as Bagpipe~\cite{bagpipe}, the guarantees
+would not hold as the network topology evolves. Evolution of the topology is a frequent event for large networks, as  devices and links are taken offline for maintenance and  added to expand
+capacity.  
+Templates that
 work for the current topology may or may not work for future
-topologies. Problems that occur may cause operators to make small, non-uniform changes to particular router configurations,
-which defeats the purpose of a template system.  An even worse situation occurs when
-operators feel obligated to update many devices to extend or change their network.  
-Such network-wide configuration changes entail a great deal of risk and may be highly
-disruptive in production networks with live traffic.
+topologies. Ensuing problems may cause operators to make non-uniform changes to particular routers' configurations,
+which defeats the purpose of a template system.  An even worse situation is when
+operators have to update many devices to evolve their network.  
+Such network-wide configuration changes entail a great deal of risk and can be highly
+disruptive to live traffic.
 %Ideally, network engineers would like some guarantees about the future, namely that 
 %certain types of changes to the network topology may be (1) made \emph{locally}, and do not require
 %updates of routers far from the source of the change, and (2) do not violate key properties, such
@@ -262,20 +262,20 @@ provably-correct configurations from high-level policy
 specifications~\cite{narain+:configassure,propane,synet-synthesis}. However, our conversations
 with two major cloud providers reveal that operators of large networks are
 reluctant to use such systems. While they think of their network abstractly, in
-terms of roles, synthesis systems operate over concrete topologies.  
+terms of roles, current synthesis systems operate over concrete topologies.  
 Even if two devices play the same role, operators cannot specify policy in terms of
-this role and even if specifications for the two devices are similar,
+this role; and even if specifications for the two devices are similar,
 there is no guarantee that the systems will generate (syntactically) similar
 configurations.  Perhaps most importantly, if the operators want to debug or analyze system output, they
 will have to consider hundreds of device configurations instead of just a handful of
-role configurations. Finally, current synthesis systems are brittle in the face of network
-evolution: Any change in network topology requires re-execution of the engine,
-from scratch, on the new topology.  The result may be a completely different
-set of configurations.  No administrator of a large network is
-able to shut down a production network, upgrade policy on all devices and 
+role configurations. Current synthesis systems are also brittle in the face of network
+evolution. Any change in network topology requires re-execution of the engine,
+from scratch, on the new topology, and the result may be a completely different
+set of configurations.  No operator is
+able to shut down a large, production network, upgrade policy on all devices and 
 then restart their network.
 
-To address the challenge of configuration synthesis in the presence of abstract roles, we present \sysname. 
+To address the challenge of configuration synthesis in the presence of abstract roles, we develop \sysname. 
 %BGP, unlike link state protocols
 %such as OSPF, is also particularly
 %useful in our setting because it contains features that help us localize the effects of changes.
@@ -284,24 +284,34 @@ allows operators to input \emph{abstract topologies} in terms of roles
 and their connectivity. For instance, they may specify roles for ``top-of-rack''
 and ``aggregation" routers and specify that every top-of-rack router connects to
 at least two aggregation routers (to tolerate the failure of a link to an
-aggregation router). Other inputs to \sysname include the routing policy of the
-network and its fault-tolerance requirements (\EG, the number of simultaneous link failures
-to tolerate). For high-level specification of routing policy, we borrow notation from the original
-\Propane system~\cite{propane}.  However, while \Propane policies refer to concrete devices,
+aggregation router). \sysname takes two additional inputs. 
+The first is a  high-level specification of routing policy, for which we borrow notation from the original
+\Propane system~\cite{propane}.  While \Propane policies refer to concrete devices,
 \sysname policies refer to abstract roles.
+The final input to \sysname is the fault-tolerance requirements of the network, such as the number of simultaneous link failures it can tolerate without loss of connectivity for any traffic flow. 
+
 
 Based on these inputs, \sysname generates one template per role. 
-These templates specify routing policy using the Border Gateway Protocol (BGP).
-BGP is a useful target for synthesis, as it is the standard protocol
-for interdomain routing and it is also commonly used
-within data centers due to its scalability.  However, it is far from the only control
-plane protocol; synthesis of configurations for other protocols such as OSPF is beyond the 
-scope of this paper.
+These templates specify routing policy using BGP (border gateway protocol). 
+BGP is the standard protocol for interdomain routing and is also commonly used within data centers because of its scalability and support for rich policies.\footnote{However, BGP is not the only routing protocol used in existing networks. In the future, we will extend our work to  other protocols such as OSPF.}
+%
+Our templates are correct by design and evolution friendly. 
+When the network evolves from
+one concrete topology to another, both of which comply with the abstract
+topology, only the configurations of devices that acquire or lose a neighbor need to change. 
+This guarantee is the best that any system can give as neighbor relationships are explicitly 
+configured in devices.  We achieve it in part by leveraging BGP features that allow arbitrary tags on routing announcements and expressing policy using such tags (instead of router identifiers). 
+%These features makes it possible to change network topologies without reflecting those changes in the configurations of distant routers.  
+%Other control plane protocols that do not provide such tagging mechanisms or that implement link-state protocols as opposed to path-vector protocols would not be able to avail themselves of these techniques.
+%No other device in the network is impacted.
 
-During synthesis, our compiler performs an analysis over abstract topologies to determine
-the fault tolerance properties of the specified policy.  This analysis determines a worst-case 
-lower bound on the number of link failures require to disconnect one abstract location from another 
-given the constraints specified by the abstract topology. Any concrete instance of the abstract topology will adhere to the given fault tolerance property.
+
+During synthesis, our compiler analyzes abstract topologies to determine
+the fault tolerance properties of the specified routing policy.  This analysis yields a lower  
+bound on the number of link failures require to disconnect one abstract location from another. 
+%given the connectivity constraints of the abstract topology. 
+{\em Any} concrete instance of the abstract topology will adhere to the given fault tolerance property.
+
 %% first analysis determines whether a user policy can be implemented correctly using BGP in
 %% the face of failures (\ie, given any number of failures, will the traffic flow along one of the 
 %% specified paths if such a path is available).  The second analysis determines the number of failures
@@ -316,26 +326,27 @@ given the constraints specified by the abstract topology. Any concrete instance 
 %% We show how fault-tolerance analysis can be done in the abstract domain by using a set of sound inference rules to infer a lower bound on the number of edge-disjoint paths in any concrete topology.
 %% %Our analysis uses a set of sound inference rules and  using an optimizing SMT solver.
 
-\sysname provides two other benefits. First, its templates are evolution friendly. 
-When the network migrates from
-one concrete topology to another, both of which comply with the abstract
-topology, only the configurations of devices that acquire or lose a neighbor need to change. 
-This guarantee is the best that any system can give as neighbor relationships are explicitly 
-configured in devices.  We achieve this guarantee in part by relying on the ability of BGP
-to tag announcements with abstract values.  These abstract values make it possible to change
-the source of an announcement without the target being aware of a change happening.  Other control
-plane protocols that do not provide such tagging mechanisms or that implement link-state protocols as opposed to
-path-vector protocols would not be able to avail themselves of these techniques.
-%No other device in the network is impacted.
+%\sysname provides two other benefits. First, its templates are evolution friendly. 
+%When the network migrates from
+%one concrete topology to another, both of which comply with the abstract
+%topology, only the configurations of devices that acquire or lose a neighbor need to change. 
+%This guarantee is the best that any system can give as neighbor relationships are explicitly 
+%configured in devices.  We achieve this guarantee in part by relying on the ability of BGP
+%to tag announcements with abstract values.  These abstract values make it possible to change
+%the source of an announcement without the target being aware of a change happening.  Other control
+%plane protocols that do not provide such tagging mechanisms or that implement link-state protocols as opposed to
+%path-vector protocols would not be able to avail themselves of these techniques.
+%%No other device in the network is impacted.
 
-Second, \sysname can scale substantially better than its nearest competitor, the original \Propane system, 
+We use \sysname for a range of real-world topologies and routing policies. We find that it can effectively encode the topologies and their evolution, and the fault tolerance bounds that it computes are often precise. 
+We also find that \sysname scales substantially better than its nearest competitor, the original \Propane system, 
 which operates over concrete topologies. As the number of devices in a
 network grows, the number of distinct roles will often stay constant~\cite{surgery}.
 Consequently, \sysname can be two orders of magnitude
-faster than \Propane, taking less than 10 seconds to synthesize templates for large structured networks.
+faster than \Propane, taking less than 10 seconds to synthesize templates for large  networks.
 
 
-\vspace{1em}
+\vspace{0.5em}
 \noindent
 \textbf{Contributions}: To summarize, our contributions are:
 %
@@ -445,24 +456,6 @@ When announcing destinations to certain neighbors, a BGP router may perform {\em
 \label{sec:motivation}
 
 
-\begin{figure}[t!]
-  \centering
-  \includegraphics[width=2.5in]{figures/example}
-  \vspace{-.8em}
-  \caption{An example data center network.}
-  \label{fig:example}
-  \vspace{-.8em}
-\end{figure}
-
-\begin{figure}[t!]
-  \centering
-  \includegraphics[width=2.5in]{figures/example2}
-  \vspace{-.8em}
-  \caption{A modified version of the example in Figure~\ref{fig:example}.}
-  \label{fig:example2}
-  \vspace{-.8em}
-\end{figure}
-
 We demonstrate the difficulty of configuring networks today using the data center example in Figure~\ref{fig:example}. The boxes denote routers. Using terminology for fat tree networks~\cite{fattree}, S[1--2] are spine routers, A[1--8] are aggregation routers,\footnote{This term is not related to BGP route aggregation.} and T[1--8] are top-of-rack (ToR) routers. The spine routers connect to the Internet through neighbors N[1--2].
 %The aggregation routers bridge the spine to the ToR routers.
 The ToR routers attach to a set of servers (``a rack'') that host services with address prefixes P[1--8].
@@ -476,6 +469,15 @@ The ToR routers attach to a set of servers (``a rack'') that host services with 
 %% mechanics.}
 
 %Assume that all nodes are running the border gateway protocol (BGP), as is common in large data centers~\cite{x}. \todo{more detail on BGP?}
+
+\begin{figure}[t!]
+  \centering
+  \includegraphics[width=2.5in]{figures/example}
+  \vspace{-.8em}
+  \caption{An example data center network.}
+  \label{fig:example}
+  \vspace{-.8em}
+\end{figure}
 
 The intended policy for this network is:
 $(1)$ complete internal connectivity, \IE, all routers should be able to reach each other;
@@ -513,6 +515,16 @@ As described earlier (\S\ref{sec:introduction}), templates are hard to author an
 Consider the network in Figure~\ref{fig:example2}, which is similar to Figure~\ref{fig:example}: it has the same five roles, connected in a similar hierarchy. One might think that the same templates (with different database entries) can be used for both cases. However, if the templates are configured to disallow ``valley" paths (per policy (5) above), they will work for Figure~\ref{fig:example} but silently violate the fault tolerance policy $(8)$ when used for Figure~\ref{fig:example2}.  Specifically, in Figure~\ref{fig:example2}, an aggregation-based black hole (\S\ref{sec:background}) will occur when the link S1--A1 fails; after this failure, S1 has no valley-free path to P[1--2] even though it will continue to get traffic for these prefixes as it announces the covering prefix PG (because it gets routes for P[3--4]). No such black hole will occur in Figure~\ref{fig:example} after a single link failure because spine routers have two links to each pod.
 
 %Unfotunately, currently, there is no way to predict which variations will behave correctly for a given set of templates.
+
+\begin{figure}[t!]
+  \centering
+  \includegraphics[width=2.5in]{figures/example2}
+  \vspace{-.8em}
+  \caption{A modified version of the network in Figure~\ref{fig:example}.}
+  \label{fig:example2}
+  \vspace{-.8em}
+\end{figure}
+
 
 Today, if operators discover their old templates no longer work, changing a template will
 cause a change to all devices that use it---an unacceptable disruption in many cases.  When that happens, operators may abandon templates entirely and revert to hand-crafting configurations, using local patches to accommodate the change.
@@ -1718,7 +1730,8 @@ A complementary approach to reducing configuration errors is to analyze the forw
 To help configure large networks correctly, we develop \sysname, the first system that can generate role templates from high-level specifications of network topology and policy. \sysname is based on new abstractions for capturing network topologies, and their evolution, and algorithms to analyze the combined impact of topology and routing policy on the network's fault tolerance. Our analysis operates entirely in the abstract domain and guarantees correctness for all concrete instantiations of the topology. Experiments with many types of real-world topologies and policies show that our abstractions and analysis are effective and that, for large networks, configuration synthesis is two orders of magnitude faster than systems that operate over concrete topologies.
 
 \para{Acknowledgments}
-We thank the PLDI reviewers for comments on the paper. This work is supported in part by the National Science Foundation award CNS-1161595 as well as Cisco award 677002.
+We thank the many network engineers, especially George Chen and Lihua Yuan, who helped us understand the importance of working with abstract topologies and synthesizing templates. 
+We also thank the PLDI reviewers for comments on the paper. This work is supported in part by the National Science Foundation award CNS-1161595 as well as Cisco award 677002.
 
 
 %=====================================================
