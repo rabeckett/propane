@@ -26,7 +26,8 @@ let genTest (input: CGraph.T) (ctx : Context) : unit =
     // create edge map
     for i in 0 .. (Seq.length edges - 1) do
         Array.set eArray i (ctx.MkBoolConst ("e" + (string i)));
-        eMap <- Map.add (Seq.item i edges) i eMap;
+        let edge = Seq.item i edges in
+        eMap <- Map.add (edge.Source, edge.Target) i eMap;
 
     let mutable condSet = Set.empty in
     let src = Map.find input.Start vMap in
@@ -43,7 +44,7 @@ let genTest (input: CGraph.T) (ctx : Context) : unit =
         let ends = ctx.MkAnd arr in
         let exp = ctx.MkImplies (eArray.[i], ends) in
         condSet <- Set.add exp condSet;
-    
+
     // if a vertex is true, atleast one incoming edge is true, and atleast one outgoign edge
     for i in 0 .. (Seq.length vertices - 1) do
         // find vertices at the start and end of an edge for implication between edges and vertices for connectivity
@@ -54,9 +55,9 @@ let genTest (input: CGraph.T) (ctx : Context) : unit =
         let arr = Array.create (Seq.length incoming) eArray.[0] in
         for i in 0 .. (Seq.length incoming - 1) do
             let e = Seq.item i incoming in
-            let eVar = Map.find e eMap in
+            let eVar = Map.find (e.Source, e.Target) eMap in
             Array.set arr i (ctx.MkNot eArray.[eVar]);
-        let exp = ctx.MkAtMost(arr, (Seq.length incoming) - 1) in
+        let exp = ctx.MkAtMost(arr, ((uint32) (Seq.length incoming) - 1u)) in
         condSet <- Set.add exp condSet;
 
         // exactly one outgoing edge is true
@@ -64,9 +65,9 @@ let genTest (input: CGraph.T) (ctx : Context) : unit =
         let arr = Array.create (Seq.length outgoing) eArray.[0] in
         for i in 0 .. (Seq.length outgoing - 1) do
             let e = Seq.item i outgoing in
-            let eVar = Map.find e eMap in
+            let eVar = Map.find (e.Source, e.Target) eMap in
             Array.set arr i eArray.[eVar];
-        let exp = ctx.MkAtMost(arr, 1) in
+        let exp = ctx.MkAtMost(arr, 1u) in
         condSet <- Set.add exp condSet;
 
     // relationship between nodes with the same topological location
@@ -90,7 +91,7 @@ let genTest (input: CGraph.T) (ctx : Context) : unit =
 
     //iterate through this map, creating statements per set for topological Node 
     let prepCondition key value = 
-        let exp = ctx.MkAtMost((Set.toArray value), 1) in
+        let exp = ctx.MkAtMost((Set.toArray value), 1u) in
         condSet <- Set.add exp condSet;
     in
     Map.iter prepCondition topoNodeToVertexSet;
@@ -100,11 +101,14 @@ let genTest (input: CGraph.T) (ctx : Context) : unit =
     s.Assert(Set.toArray condSet);
     while (s.Check() = Status.SATISFIABLE) do
       let mutable solnSet = Set.empty in
+      System.IO.File.AppendAllText("solutions.txt", "New Solution\n")
       for i in 0 .. (Seq.length edges - 1) do
         if (s.Model.ConstInterp(eArray.[i]).IsTrue) then
             solnSet <- Set.add eArray.[i] solnSet;
+            System.IO.File.AppendAllText("solutions.txt", (string) (Seq.item i edges) + "\n")
         else
             ();
+      System.IO.File.AppendAllText("solutions.txt", "\n")
       let negSoln = ctx.MkNot(ctx.MkAnd(Set.toArray solnSet)) in
       condSet <- Set.add negSoln condSet;
       s.Assert(Set.toArray condSet);
