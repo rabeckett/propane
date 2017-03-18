@@ -9,7 +9,7 @@ type T =
         Model : Solver
     }
 
-let genTest (input: CGraph.T) (ctx : Context) : Solver =
+let genTest (input: CGraph.T) (ctx : Context) : unit =
     let vertices = input.Graph.Vertices in
     let edges = input.Graph.Edges in
     // array of boolExpr for vertices and edges respectively
@@ -96,14 +96,20 @@ let genTest (input: CGraph.T) (ctx : Context) : Solver =
     Map.iter prepCondition topoNodeToVertexSet;
 
     // make the solver and iterate through it
-
-
-
+    let s = ctx.MkSolver()  
+    s.Assert(Set.toArray condSet);
+    while (s.Check() = Status.SATISFIABLE) do
+      let mutable solnSet = Set.empty in
+      for i in 0 .. (Seq.length edges - 1) do
+        if (s.Model.ConstInterp(eArray.[i]).IsTrue) then
+            solnSet <- Set.add eArray.[i] solnSet;
+        else
+            ();
+      let negSoln = ctx.MkNot(ctx.MkAnd(Set.toArray solnSet)) in
+      condSet <- Set.add negSoln condSet;
+      s.Assert(Set.toArray condSet);
     
-
-
-    let finalExp = ctx.MkAnd (Set.toArray condSet) in
-    ctx.MkSolver ()
+    //done  
 
 let runTest =
     ()
