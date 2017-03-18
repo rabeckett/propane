@@ -295,10 +295,8 @@ Based on these inputs, \sysname generates one template per role.
 These templates specify routing policy using BGP (border gateway protocol). 
 BGP is the standard protocol for interdomain routing and is also commonly used within data centers because of its scalability and support for rich policies.\footnote{However, BGP is not the only routing protocol used in existing networks. In the future, we will extend our work to  other protocols such as OSPF.}
 %
-Our templates are correct by design and evolution friendly. 
-When the network evolves from
-one concrete topology to another, both of which comply with the abstract
-topology, only the configurations of devices that acquire or lose a neighbor need to change. 
+Our templates are correct for {\em any} concrete topology that complies with the abstract topology. They are also evolution friendly. 
+When the network evolves from one compliant concrete topology to another, only the configurations of devices that acquire or lose a neighbor need to change. 
 This guarantee is the best that any system can give as neighbor relationships are explicitly 
 configured in devices.  We achieve it in part by leveraging BGP features that allow arbitrary tags on routing announcements and expressing policy using such tags (instead of router identifiers). 
 %These features makes it possible to change network topologies without reflecting those changes in the configurations of distant routers.  
@@ -310,7 +308,7 @@ During synthesis, our compiler analyzes abstract topologies to determine
 the fault tolerance properties of the specified routing policy.  This analysis yields a lower  
 bound on the number of link failures require to disconnect one abstract location from another. 
 %given the connectivity constraints of the abstract topology. 
-{\em Any} concrete instance of the abstract topology will adhere to the given fault tolerance property.
+Any concrete instance of the abstract topology will adhere to the given fault tolerance property.
 
 %% first analysis determines whether a user policy can be implemented correctly using BGP in
 %% the face of failures (\ie, given any number of failures, will the traffic flow along one of the 
