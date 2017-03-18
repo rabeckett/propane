@@ -101,6 +101,8 @@
     <Compile Include="Input.fs" />
     <Compile Include="CGraph.fsi" />
     <Compile Include="CGraph.fs" />
+    <Compile Include="TestGenerator.fsi"/>
+    <Compile Include="TestGenerator.fs"/>
     <Compile Include="AbstractAnalysis.fs" />
     <Compile Include="Config.fs" />
     <Compile Include="Abgp.fsi" />
@@ -108,7 +110,6 @@
     <Compile Include="Generate.fs" />
     <Compile Include="Benchmark.fs" />
     <Compile Include="Stats.fs" />
-    <Compile Include="TestGenerator.fs"/>
     <Compile Include="Program.fs" />
     <None Include="App.config" />
     <None Include="packages.config" />

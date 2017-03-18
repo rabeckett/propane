@@ -7,4 +7,4 @@ open Topology
 type T
 
 val genTest : CGraph.T -> unit
-val runTest : T -> unit
+val runTest : unit

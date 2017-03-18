@@ -1,6 +1,7 @@
 ﻿module Abgp
 
 open CGraph
+open TestGenerator
 open System.Collections.Generic
 open Util
 open Util.Debug
@@ -1298,10 +1299,10 @@ let compileToIR idx pred (polInfo : Ast.PolInfo) aggInfo (reb : Regex.REBuilder)
    let dfas, dfaTime = Profile.time (buildDfas reb) res
    let dfas = Array.ofList dfas
    let cg, pgTime = Profile.time (CGraph.buildFromAutomata topo) dfas
-   let testTime = 
+   let temp, testTime = 
     if settings.GenTests then
-      Profile.time (TestGenerator.genTest cg) cg
-    else None
+      Profile.time TestGenerator.genTest cg
+    else (), (int64 0)
    let buildTime = dfaTime + pgTime
    debug (fun () -> CGraph.generatePNG cg polInfo debugName)
    // minimize PG and record time
