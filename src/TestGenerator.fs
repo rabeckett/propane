@@ -9,7 +9,8 @@ type T =
         Model : Solver
     }
 
-let genTest (input: CGraph.T) (ctx : Context) : unit =
+let genTest (input: CGraph.T) : unit =
+    let ctx = new Context() in
     let vertices = input.Graph.Vertices in
     let edges = input.Graph.Edges in
     // array of boolExpr for vertices and edges respectively

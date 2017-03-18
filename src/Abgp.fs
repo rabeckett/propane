@@ -697,6 +697,7 @@ type PredConfig = Route.Predicate * Map<string, Actions>
 type PrefixResult = 
    { K : AggregationSafety option
      BuildTime : int64
+     TestTime: int64
      MinimizeTime : int64
      AggAnalysisTime : int64
      OrderingTime : int64
@@ -1297,6 +1298,10 @@ let compileToIR idx pred (polInfo : Ast.PolInfo) aggInfo (reb : Regex.REBuilder)
    let dfas, dfaTime = Profile.time (buildDfas reb) res
    let dfas = Array.ofList dfas
    let cg, pgTime = Profile.time (CGraph.buildFromAutomata topo) dfas
+   let testTime = 
+    if settings.GenTests then
+      Profile.time (TestGenerator.genTest cg) cg
+    else None
    let buildTime = dfaTime + pgTime
    debug (fun () -> CGraph.generatePNG cg polInfo debugName)
    // minimize PG and record time
@@ -1345,6 +1350,7 @@ let compileToIR idx pred (polInfo : Ast.PolInfo) aggInfo (reb : Regex.REBuilder)
          let result = 
             { K = k
               BuildTime = buildTime
+              TestTime = testTime
               MinimizeTime = minTime
               AggAnalysisTime = aggAnalysisTime
               OrderingTime = orderTime

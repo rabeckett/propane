@@ -6,5 +6,5 @@ open Topology
 
 type T
 
-val genTest : CGraph.T -> Solver
+val genTest : CGraph.T -> unit
 val runTest : T -> unit
