@@ -3,6 +3,7 @@ module TestGenerator
 open CGraph
 open Microsoft.Z3
 open Topology
+open System
 
 type T = 
     {
@@ -19,12 +20,14 @@ let genTest (input: CGraph.T) : unit =
     let mutable eMap = Map.empty in
 
     //cretae vertex map
+    Console.Write("creating vertex map");
     for i in 0 .. (Seq.length vertices - 1) do
         Array.set vArray i (ctx.MkBoolConst ("v" + (string i)));
         vMap <- Map.add (Seq.item i vertices)  i vMap;
     let eArray = Array.zeroCreate (Seq.length edges) in
 
     // create edge map
+    Console.Write("creating edge map");
     for i in 0 .. (Seq.length edges - 1) do
         Array.set eArray i (ctx.MkBoolConst ("e" + (string i)));
         let edge = Seq.item i edges in
@@ -35,6 +38,7 @@ let genTest (input: CGraph.T) : unit =
     condSet <- Set.add (Array.get vArray src) condSet ;
     let target = Map.find input.End vMap in
     condSet <- Set.add (Array.get vArray target) condSet ;
+    Console.Write("if edge then ends");
     for i in 0 .. (Seq.length edges - 1) do
         // find vertices at the start and end of an edge for implication between edges and vertices for connectivity
         let edge = Seq.item i edges in
@@ -52,24 +56,37 @@ let genTest (input: CGraph.T) : unit =
         let vertex = Seq.item i vertices in   
 
         // atleast one incoming edge is true
+        Console.Write("ifvertex then incoming");
         let incoming = input.Graph.InEdges vertex in
         let arr = Array.create (Seq.length incoming) eArray.[0] in
         for i in 0 .. (Seq.length incoming - 1) do
             let e = Seq.item i incoming in
             let eVar = Map.find (e.Source, e.Target) eMap in
             Array.set arr i (ctx.MkNot eArray.[eVar]);
-        let exp = ctx.MkAtMost(arr, ((uint32) (Seq.length incoming) - 1u)) in
-        condSet <- Set.add exp condSet;
+        if Seq.length incoming > 0 then
+            let exp = ctx.MkAtMost(arr, ((uint32) (Seq.length incoming) - 1u)) in
+            condSet <- Set.add (ctx.MkImplies (vArray.[i], exp)) condSet;
+        else ();
 
         // exactly one outgoing edge is true
+        Console.Write("if vertex then one outgoing edge");
         let outgoing = input.Graph.OutEdges vertex in
         let arr = Array.create (Seq.length outgoing) eArray.[0] in
+        let notArr = Array.create (Seq.length outgoing) eArray.[0] in
         for i in 0 .. (Seq.length outgoing - 1) do
             let e = Seq.item i outgoing in
             let eVar = Map.find (e.Source, e.Target) eMap in
             Array.set arr i eArray.[eVar];
+            Array.set notArr i (ctx.MkNot eArray.[eVar]);
         let exp = ctx.MkAtMost(arr, 1u) in
-        condSet <- Set.add exp condSet;
+        let combArr = Array.create 2 exp in
+        let notexp =
+            if Seq.length outgoing > 0 then
+                ctx.MkAtMost(notArr, ((uint32) (Seq.length outgoing) - 1u))
+            else 
+                ctx.MkTrue() in
+        Array.set combArr 1 notexp;
+        condSet <- Set.add (ctx.MkImplies (vArray.[i], ctx.MkAnd(combArr))) condSet;
 
     // relationship between nodes with the same topological location
     // identify using CgState.Node field which gives the topo.node
@@ -77,7 +94,7 @@ let genTest (input: CGraph.T) : unit =
     //implication statement?
     //use Start and End in CGraph, map them to topological node and use
     // them for first connectivity constraint
-
+    Console.Write("loopfree");
     let mutable topoNodeToVertexSet = Map.empty in
     for i in 0 .. (Seq.length vertices - 1) do
         let vertex = Seq.item i vertices in
@@ -91,6 +108,7 @@ let genTest (input: CGraph.T) : unit =
             topoNodeToVertexSet <- Map.add topoNode newSet topoNodeToVertexSet;
 
     //iterate through this map, creating statements per set for topological Node 
+    Console.Write("actually adding loopfree condiitons");
     let prepCondition key value = 
         let exp = ctx.MkAtMost((Set.toArray value), 1u) in
         condSet <- Set.add exp condSet;
@@ -98,9 +116,11 @@ let genTest (input: CGraph.T) : unit =
     Map.iter prepCondition topoNodeToVertexSet;
 
     // make the solver and iterate through it
+    Console.Write("make solver and iterate");
     let s = ctx.MkSolver()  
     s.Assert(Set.toArray condSet);
     while (s.Check() = Status.SATISFIABLE) do
+      Console.Write("iterating once \n");
       let mutable solnSet = Set.empty in
       System.IO.File.AppendAllText("solutions.txt", "New Solution\n")
       for i in 0 .. (Seq.length edges - 1) do
@@ -113,7 +133,7 @@ let genTest (input: CGraph.T) : unit =
       let negSoln = ctx.MkNot(ctx.MkAnd(Set.toArray solnSet)) in
       condSet <- Set.add negSoln condSet;
       s.Assert(Set.toArray condSet);
-    
+    Console.Write("done");
     //done  
 
 let runTest =
