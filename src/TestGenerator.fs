@@ -51,9 +51,9 @@ let genTest (input: CGraph.T) : unit =
         condSet <- Set.add exp condSet;
 
     // if a vertex is true, atleast one incoming edge is true, and atleast one outgoign edge
-    for i in 0 .. (Seq.length vertices - 1) do
+    for j in 0 .. (Seq.length vertices - 1) do
         // find vertices at the start and end of an edge for implication between edges and vertices for connectivity
-        let vertex = Seq.item i vertices in   
+        let vertex = Seq.item j vertices in   
 
         // atleast one incoming edge is true
         Console.Write("ifvertex then incoming");
@@ -65,7 +65,7 @@ let genTest (input: CGraph.T) : unit =
             Array.set arr i (ctx.MkNot eArray.[eVar]);
         if Seq.length incoming > 0 then
             let exp = ctx.MkAtMost(arr, ((uint32) (Seq.length incoming) - 1u)) in
-            condSet <- Set.add (ctx.MkImplies (vArray.[i], exp)) condSet;
+            condSet <- Set.add (ctx.MkImplies (vArray.[j], exp)) condSet;
         else ();
 
         // exactly one outgoing edge is true
@@ -86,7 +86,7 @@ let genTest (input: CGraph.T) : unit =
             else 
                 ctx.MkTrue() in
         Array.set combArr 1 notexp;
-        condSet <- Set.add (ctx.MkImplies (vArray.[i], ctx.MkAnd(combArr))) condSet;
+        condSet <- Set.add (ctx.MkImplies (vArray.[j], ctx.MkAnd(combArr))) condSet;
 
     // relationship between nodes with the same topological location
     // identify using CgState.Node field which gives the topo.node
@@ -127,7 +127,9 @@ let genTest (input: CGraph.T) : unit =
       for i in 0 .. (Seq.length edges - 1) do
         if (s.Model.ConstInterp(eArray.[i]).IsTrue) then
             solnSet <- Set.add eArray.[i] solnSet;
-            System.IO.File.AppendAllText("solutions.txt", (string) (Seq.item i edges) + "\n")
+            System.IO.File.AppendAllText("solutions.txt", (string) (Seq.item i edges) + "\n");
+            //let edge = Seq.item i edges in
+            //System.IO.File.AppendAllText("solutions.txt", (string) (edge.Source.Node) + "->" + (string) (edge.Target.Node) + ")\n")
         else
             ();
       System.IO.File.AppendAllText("solutions.txt", "\n")
