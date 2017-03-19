@@ -20,14 +20,14 @@ let genTest (input: CGraph.T) : unit =
     let mutable eMap = Map.empty in
 
     //cretae vertex map
-    Console.Write("creating vertex map");
+    //Console.Write("creating vertex map");
     for i in 0 .. (Seq.length vertices - 1) do
         Array.set vArray i (ctx.MkBoolConst ("v" + (string i)));
         vMap <- Map.add (Seq.item i vertices)  i vMap;
     let eArray = Array.zeroCreate (Seq.length edges) in
 
     // create edge map
-    Console.Write("creating edge map");
+    //Console.Write("creating edge map");
     for i in 0 .. (Seq.length edges - 1) do
         Array.set eArray i (ctx.MkBoolConst ("e" + (string i)));
         let edge = Seq.item i edges in
@@ -38,7 +38,7 @@ let genTest (input: CGraph.T) : unit =
     condSet <- Set.add (Array.get vArray src) condSet ;
     let target = Map.find input.End vMap in
     condSet <- Set.add (Array.get vArray target) condSet ;
-    Console.Write("if edge then ends");
+    //Console.Write("if edge then ends");
     for i in 0 .. (Seq.length edges - 1) do
         // find vertices at the start and end of an edge for implication between edges and vertices for connectivity
         let edge = Seq.item i edges in
@@ -56,12 +56,14 @@ let genTest (input: CGraph.T) : unit =
         let vertex = Seq.item j vertices in   
 
         // atleast one incoming edge is true
-        Console.Write("ifvertex then incoming");
+        //Console.Write("ifvertex then incoming");
         let incoming = input.Graph.InEdges vertex in
-        let arr = Array.create (Seq.length incoming) eArray.[0] in
+        let arr = Array.create (Seq.length incoming) (ctx.MkTrue()) in
         for i in 0 .. (Seq.length incoming - 1) do
             let e = Seq.item i incoming in
+            //Console.Write("edge is " + (string) e + "\n");
             let eVar = Map.find (e.Source, e.Target) eMap in
+            //Console.Write("eVar is " + (string) eVar + "\n");
             Array.set arr i (ctx.MkNot eArray.[eVar]);
         if Seq.length incoming > 0 then
             let exp = ctx.MkAtMost(arr, ((uint32) (Seq.length incoming) - 1u)) in
@@ -69,10 +71,10 @@ let genTest (input: CGraph.T) : unit =
         else ();
 
         // exactly one outgoing edge is true
-        Console.Write("if vertex then one outgoing edge");
+        //Console.Write("if vertex then one outgoing edge");
         let outgoing = input.Graph.OutEdges vertex in
-        let arr = Array.create (Seq.length outgoing) eArray.[0] in
-        let notArr = Array.create (Seq.length outgoing) eArray.[0] in
+        let arr = Array.create (Seq.length outgoing) (ctx.MkTrue()) in
+        let notArr = Array.create (Seq.length outgoing) (ctx.MkTrue()) in
         for i in 0 .. (Seq.length outgoing - 1) do
             let e = Seq.item i outgoing in
             let eVar = Map.find (e.Source, e.Target) eMap in
@@ -94,7 +96,8 @@ let genTest (input: CGraph.T) : unit =
     //implication statement?
     //use Start and End in CGraph, map them to topological node and use
     // them for first connectivity constraint
-    Console.Write("loopfree");
+
+    //Console.Write("loopfree");
     let mutable topoNodeToVertexSet = Map.empty in
     for i in 0 .. (Seq.length vertices - 1) do
         let vertex = Seq.item i vertices in
@@ -108,7 +111,7 @@ let genTest (input: CGraph.T) : unit =
             topoNodeToVertexSet <- Map.add topoNode newSet topoNodeToVertexSet;
 
     //iterate through this map, creating statements per set for topological Node 
-    Console.Write("actually adding loopfree condiitons");
+    //Console.Write("actually adding loopfree condiitons");
     let prepCondition key value = 
         let exp = ctx.MkAtMost((Set.toArray value), 1u) in
         condSet <- Set.add exp condSet;
@@ -116,12 +119,12 @@ let genTest (input: CGraph.T) : unit =
     Map.iter prepCondition topoNodeToVertexSet;
 
     // make the solver and iterate through it
-    Console.Write("make solver and iterate");
+    //Console.Write("make solver and iterate");
     let s = ctx.MkSolver()  
     s.Assert(Set.toArray condSet);
-    System.IO.File.WriteAllText("solutions.txt", "New Set\n")
+    System.IO.File.WriteAllText("solutions.txt", "New Set for prefix \n")
     while (s.Check() = Status.SATISFIABLE) do
-      Console.Write("iterating once \n");
+      //Console.Write("iterating once \n");
       let mutable solnSet = Set.empty in
       System.IO.File.AppendAllText("solutions.txt", "New Solution\n")
       for i in 0 .. (Seq.length edges - 1) do
