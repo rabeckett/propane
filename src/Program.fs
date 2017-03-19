@@ -26,6 +26,7 @@ let main argv =
       | None -> errorLine "No topology file specified, use --help to see options"
       | Some f -> Util.Profile.time Topology.readTopology f
    if settings.IsAbstract then AbstractAnalysis.checkWellformedTopology topoInfo
+   if settings.GenTests then System.IO.File.WriteAllText("solutions.txt", "")
    match settings.PolFile with
    | None -> errorLine "No policy file specified, use --help to see options"
    | Some polFile -> 
@@ -34,8 +35,6 @@ let main argv =
       let ast, t2 = Util.Profile.time (Input.readFromFile topoInfo) polFile
       let polInfo, t3 = Util.Profile.time Ast.build ast
       let res = Abgp.compileAllPrefixes polInfo
-      if settings.GenTests then
-         Util.File.writeFileWithExtension (settings.OutDir + Util.File.sep + "test") "txt" "bblah balh"
       if settings.CheckFailures then 
          match res.AggSafety with
          | Some safetyInfo -> 
