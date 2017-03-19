@@ -391,12 +391,12 @@ than compilers based on concrete topologies.
 \section{Background}
 \label{sec:background}
 
-In this work, we focus on synthesizing configurations for a network that runs the Border Gateway Protocol (BGP), the standard for routing across independent organizations and inside large data centers. It scales effectively and allows operators to define flexible policies. We provide a brief background on BGP focused on aspects relevant to our work. 
+In this work, we focus on synthesizing configurations for a network that runs BGP, the standard for routing across independent organizations and inside large data centers. It scales effectively and allows operators to define flexible policies. We provide a brief background on BGP focused on aspects relevant to our work. 
 
 The way in which a BGP-based network forwards traffic depends on how the routers exchange and process \emph{routing announcements}. To invite traffic from a neighbor to a destination, routers announce the destination's address {\em prefix} (e.g., 10.1.1.0/24\footnote{An IP address
 such as 10.1.1.0 is 32 bits, with each of the four values representing 8 bits. The prefix 10.1.1.0/24 denotes the set of addresses that share the first 24 bits with 10.1.1.0, \IE, all addresses that begin with 10.1.1.}) to the neighbor. Traffic flows in the opposite direction to such route announcements.
 
-All route announcements carry an {\em AS path}, the sequence of BGP speakers (called Autonomous Systems) that will be traversed to reach the destination.
+All route announcements carry an {\em AS path}, the sequence of BGP networks, called autonomous systems (ASes), that will be traversed to reach the destination.
 %When BGP is used inside a data center, each router tends to be its own AS.
 Optionally, they may also include one or more {\em communities}, which are arbitrary tags whose semantics are agreed upon out of band.
 
@@ -498,7 +498,7 @@ $(8)$ no loss in connectivity after any single-link failure.
 
 To correctly configure this policy, operators must generate configurations for each router, which implies ensuring, for instance, that all routing adjacencies are correctly configured (\EG, T1's configuration includes A1 as neighbor and vice-versa); the ToRs announce the correct prefixes for their services; all routers  forward the prefix announcements that they should to each neighbor and not forward others (\EG, the spines should forward prefixes for local services to internal neighbors but not to external neighbors); and the spines announce externally only the covering global prefix. Such configuration tasks are highly complex~\cite{juniper-study,bgpmon,batfish,propane}.
 
-To simplify network configuration, operators are adopting a template-based approach~\cite{hatch,thwack}. Instead of authoring a configuration per router, operators author a template per role.
+To simplify them, operators are adopting a template-based approach~\cite{hatch,thwack}. Instead of authoring a configuration per router, operators author a template per role.
 %
 A {\em role} is a specific function that is served by one or more routers.
 %\footnote{If a role is played by devices from multiple vendors, there is one template per role-vendor combination because templates use vendor configuration languages.}
@@ -509,8 +509,8 @@ Figure~\ref{fig:templates} shows an example of what a small component of a templ
 
 %Templates provide two key advantages. First, they help eliminate a class of configuration errors that stem from typos and inconsistencies, e.g., using the wrong address for a router, having inconsistent addresses for the two ends of a link, and failing to configure one side of a routing adjacency.  Second, templates have the potential for re-use when the topology changes while maintaining its basic structure (e.g., adding a new pod to the data center) or multiple networks with similar structures need to be instantiated (e.g., in an organization that runs multiple data centers).
 
-As described earlier (\S\ref{sec:introduction}), templates are hard to author and hard to validate. Worse, templates that work for one topology may not work for seemingly-inconsequential variations (which may arise after the network evolves).
-Consider the network in Figure~\ref{fig:example2}, which is similar to Figure~\ref{fig:example}: it has the same five roles, connected in a similar hierarchy. One might think that the same templates (with different database entries) can be used for both cases. However, if the templates are configured to disallow ``valley" paths (per policy (5) above), they will work for Figure~\ref{fig:example} but silently violate the fault tolerance policy $(8)$ when used for Figure~\ref{fig:example2}.  Specifically, in Figure~\ref{fig:example2}, an aggregation-based black hole (\S\ref{sec:background}) will occur when the link S1--A1 fails; after this failure, S1 has no valley-free path to P[1--2] even though it will continue to get traffic for these prefixes as it announces the covering prefix PG (because it gets routes for P[3--4]). No such black hole will occur in Figure~\ref{fig:example} after a single link failure because spine routers have two links to each pod.
+As described earlier (\S\ref{sec:introduction}), templates are hard to author and hard to validate. Worse, templates that work for one topology may not work for seemingly-inconsequential variations which may arise after the network evolves.
+Consider the network in Figure~\ref{fig:example2}, which is similar to Figure~\ref{fig:example}; it has the same five roles, connected in a similar hierarchy. One might think that the same templates, with different database entries, can be used for both cases. However, if the templates are configured to disallow ``valley" paths (per policy (5) above), they will work for Figure~\ref{fig:example} but silently violate the fault tolerance policy $(8)$ when used for Figure~\ref{fig:example2}.  Specifically, in Figure~\ref{fig:example2}, an aggregation-based black hole (\S\ref{sec:background}) will occur when the link S1--A1 fails; after this failure, S1 has no valley-free path to P[1--2] even though it will continue to get traffic for these prefixes as it announces the covering prefix PG (because it gets routes for P[3--4]). Such a black hole will not occur in Figure~\ref{fig:example} because spine routers have two links to each pod.
 
 %Unfotunately, currently, there is no way to predict which variations will behave correctly for a given set of templates.
 
@@ -524,9 +524,8 @@ Consider the network in Figure~\ref{fig:example2}, which is similar to Figure~\r
 \end{figure}
 
 
-Today, if operators discover their old templates no longer work, changing a template will
-cause a change to all devices that use it---an unacceptable disruption in many cases.  When that happens, operators may abandon templates entirely and revert to hand-crafting configurations, using local patches to accommodate the change.
-Such patches reintroduce the complexity and errors that templates were meant to prevent.
+When operators discover that an old template no longer works, they may consider changing it, which may cause a change to all devices that use it---an unacceptable disruption in many cases.  As a result, operators may abandon the template entirely and revert to hand-crafting configuration patches to accommodate the change.
+Such patches reintroduce the complexity and the risk of errors that templates were meant to prevent.
 
 
 %they are difficult to author. Operators must manually decompose complex, network-wide routing policy into role templates such that the collective behavior of the configurations generated from them will correctly implement the policy, both when failures occur and as the network evolves.
@@ -636,7 +635,7 @@ Such patches reintroduce the complexity and errors that templates were meant to 
 
 %\subsection{Inputs}
 
-\sysname takes as input the network's abstract topology and its policy. The policy has two components: the routing policy describes how traffic should flow, and the fault-tolerance policy describes how many simultaneous link failures the network can withstand without losing connectivity.
+\sysname takes as input the network's abstract topology and its policy. The policy consists of the routing policy that describes how traffic should flow and the fault-tolerance policy that describes how many simultaneous link failures the network should withstand without losing connectivity.
 
 \para{Abstract topology}
 Abstract topologies in \sysname define structural and role-based invariants that compactly describe all concrete networks that can emerge as the network evolves. They are encoded in the form of a graph homomorphism annotated with logical constraints about node and edge multiplicities.
@@ -1267,7 +1266,7 @@ We now look at each of these steps in turn.
 
 \para{Tagging and Filtering}
 
-The BGP routing protocol standard allows for the use of \emph{community tags}---32-bit integer tags that can be arbitrarily attached to, or removed from, routing advertisements. 
+The BGP routing protocol allows \emph{community tags}---32-bit integer tags that can be arbitrarily attached to, or removed from, routing advertisements. 
 Community tags serve as a simple form of \emph{history}, and operators routinely use such tags to implement policy. For example, operators might tag advertisements at certain entry points and then block the export of tagged 
 advertisements to prevent their network from becoming a transit point.
 
@@ -1364,16 +1363,16 @@ For example, in the concrete PG in Figure~\ref{fig:example-compilation}, router 
 
 \para{Preference Search}
 
-Tagging and filtering according to the PG restricts the possible paths to those that are allowed by the policy. However, finding \emph{some} path to the destination is not enough. We must ensure that each router uses its \emph{best} available path to the destination according to the policy. Further, each router must continue to use its best available path as elements of the network fail. In the example from Figure~\ref{fig:example-compilation}, the policy was $\True ~\Path~ \CD{\Exit(N1\Prefer N2)}$, which indicates that paths through N1 should be used whenever possible, and paths through N2 should only be used as a backup. If router S1 allows advertisements from both N1 and N2, but does not prefer one advertisement over another, it might end up choosing to use a path through N2 even though a more preferred path through N1 exists and is available\footnote{Ties between equally preferred paths can be broken nondeterministically.}. On the other hand, if the S1-N1 link fails, then the best available path is through N2.
+Tagging and filtering based on the PG restricts the possible paths to those that are allowed by the policy. However, finding \emph{some} path to the destination is not enough. We must ensure that each router uses its \emph{best} available path according to the policy. Further, each router must continue to use its best available path as elements of the network fail. In the example from Figure~\ref{fig:example-compilation}, the policy was $\True ~\Path~ \CD{\Exit(N1\Prefer N2)}$, which indicates that paths through N1 should be used whenever possible, and paths through N2 should only be used as a backup. If router S1 allows advertisements from both N1 and N2, but does not prefer one advertisement over another, it might end up choosing to use a path through N2 even though a more preferred path through N1 exists and is available\footnote{Ties between equally preferred paths can be broken nondeterministically.}. On the other hand, if the S1-N1 link fails, then the best available path is through N2.
 
-To enforce correct network-wide preferences, we use the BGP local-preference attribute, which allows routers to prefer routes from one neighbor (or with some tag) over routes learned from another neighbor. The challenge is to find a collection of device-local preferences that correctly enforce the policy's network-wide preferences in the face of any set of failures.
+To enforce correct path preferences, we use the BGP local-preference attribute, which allows routers to prefer certain routes (e.g., those from a particular neighbor or with a tag) over other routes. The challenge is to find a collection of device-local preferences that correctly enforce the policy's network-wide preferences in the face of any set of failures.
 
 The idea is to search for such a device-local preference function for each router that totally orders advertisements from different neighbors (possibly with different tags). For example, to satisfy the policy that leaving through N1 is preferred to leaving through N2, S1 should prefer a message it hears from N1 over N2. Similarly, A1 should prefer routes tagged with $(1,0)$ over those with $(0,1)$. Intuitively, S1 should prefer a message from N1 because it results in an accepting state for automata 1, which indicates a better path. Further, it can result in downstream routers such as A1 using a path that is accepting for automata 1 as well.
 
-In general, because BGP is distributed, each router does not have a view of the entire network when choosing which path to use, and finding a collection of preferences to ensure correct end-to-end behavior for all failures is a hard problem. \Propane introduced a conservative search strategy for determining route preferences that works well in practice. To make it work for abstract topologies, we modify the search based on the following observation about the PG structure:\footnote{Recall that $\Pref(m)$ is a set of priorities --- the priorities of the
+In general, because BGP is distributed, each router does not have a view of the entire network when choosing which path to use, and finding a collection of preferences to ensure correct end-to-end behavior for all failures is a hard problem. \Propane introduced a conservative search strategy for determining route preferences that works well in practice. To make it work for abstract topologies, we modify the search based on the following observation about the PG structure:\footnote{Recall that $\Pref(m)$ is a set of priorities---those of the
 automata whose final states include $m$.  
 For instance, if $\Pref(m)$ is \{1,3\} then
-automata 1 and automata 3 have $m$ as a final state.  Moreover, recall that
+automata 1 and 3 have $m$ as a final state.  Moreover, recall that
 the policy expressed by automata $i$ is preferred to the policy expressed
 by automata $j$ if $i < j$.}
 
@@ -1401,7 +1400,7 @@ For each router, its corresponding PG nodes are then sorted according the the $\
 
 
 %
-For example, in the inequality $(S1,0,1) \leq (S1,1,0)$ holds since nodes on the left side of the PG can always match transitions made on the right hand side with respect to the $\geq_{rank}$ relation. This relation does not hold the other way around since $(S1,0,1) \ngeq_{rank} (S1,1,0)$. Therefore, advertisements received at $S1$ with tag $(1,0)$ must be preferred to those received at $S1$ with tag $(0,1)$.
+For example, in Figure~\ref{fig:example-compilation} the inequality $(S1,0,1) \leq (S1,1,0)$ holds since nodes on the left side of the PG can always match transitions made on the right hand side with respect to the $\geq_{rank}$ relation. This relation does not hold the other way around since $(S1,0,1) \ngeq_{rank} (S1,1,0)$. Therefore, advertisements received at $S1$ with tag $(1,0)$ must be preferred to those received at $S1$ with tag $(0,1)$.
 %
 Notice that in the abstract PG $(S,0,1) \leq (S,1,0)$ also holds. This leads to the following observation:
 
