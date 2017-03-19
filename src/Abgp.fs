@@ -1299,15 +1299,16 @@ let compileToIR idx pred (polInfo : Ast.PolInfo) aggInfo (reb : Regex.REBuilder)
    let dfas, dfaTime = Profile.time (buildDfas reb) res
    let dfas = Array.ofList dfas
    let cg, pgTime = Profile.time (CGraph.buildFromAutomata topo) dfas
-   let temp, testTime = 
-    if settings.GenTests then
-      Profile.time TestGenerator.genTest cg
-    else (), (int64 0)
    let buildTime = dfaTime + pgTime
    debug (fun () -> CGraph.generatePNG cg polInfo debugName)
    // minimize PG and record time
    let cg, minTime = Profile.time (CGraph.Minimize.minimize idx ti) cg
    debug (fun () -> CGraph.generatePNG cg polInfo (debugName + "-min"))
+   // generate tests for minimized PG
+   let temp, testTime = 
+    if settings.GenTests then
+      Profile.time TestGenerator.genTest cg
+    else (), (int64 0)
    // get the abstract reachability information
    let abstractPathInfo, at1 = 
       if settings.IsAbstract && not settings.Test (* && not (Map.isEmpty aggInfo) *) then 

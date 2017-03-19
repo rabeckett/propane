@@ -119,6 +119,7 @@ let genTest (input: CGraph.T) : unit =
     Console.Write("make solver and iterate");
     let s = ctx.MkSolver()  
     s.Assert(Set.toArray condSet);
+    System.IO.File.WriteAllText("solutions.txt", "New Set\n")
     while (s.Check() = Status.SATISFIABLE) do
       Console.Write("iterating once \n");
       let mutable solnSet = Set.empty in
