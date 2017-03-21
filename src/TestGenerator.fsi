@@ -6,5 +6,5 @@ open Topology
 
 type T
 
-val genTest : CGraph.T -> unit
+val genTest : CGraph.T -> Route.Predicate -> unit
 val runTest : unit

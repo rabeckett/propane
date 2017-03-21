@@ -7,10 +7,14 @@ open System
 open System.Net
 open System.IO
 
+// set of edges where each edge is a pair of vertices
+type Path = Set<CgState*CgState> 
+type TestCases = Set<Path>
+
 type T = 
     {
-        Model : Solver
         routerNameToIpMap: Map<String, String>
+        predToTestCases: Map<Route.Predicate, TestCases>
     }
 
 // take an integer value and convert it into an ipAddress
@@ -39,51 +43,28 @@ let writeTopoCBGP (input : Topology.T) (file : string) : unit =
         let srcIdx = Map.find src vMap in
         let targetIdx = Map.find target vMap in
         let toWrite = ipOfInt ((uint32) srcIdx) + " " + 
-            ipOfInt ((uint32) targetIdx) in
+        ipOfInt ((uint32) targetIdx) in
         File.AppendAllText(file, "net add link " + toWrite + "\n");
         // should i be adding the bGP router/igp stuff right here -rulelessly   
 
 
 // takes the abstract bgp from the .ir file and outputs the corresponding 
 // cBGP commands to run simulations on
-let writeABGPtoCBGP (inputFile : string) (outputFile : string) : unit = 
-    let lines = File.ReadLines inputFile
-    let mutable curNode = ipOfInt (1u) 
-    let mutable routerRules = "" 
-    for l in lines do
-        if (l.contains("Router")) then
-            File.AppendAllText(inputFile, "bgp router " + curNode 
-                 + "\n    " + routerRules
-            let words = l.split " "  |> Seq.toArray
-            curNode <- Map.find words.[1] routerNameToIpMap
-            routerRules <- ""
-        else if (l.contains("origin")) then // fix this
-            ();
-        else if (l.contains("allow")) then // fix this
-            let words = l.split " "  |> Seq.toArray
-            let prefixAndPeer = Seq.item 0 (words.[1].split "[")
-            let addOn = Seq.item 1 (words.[1].split "[")
-            let prefix = Seq.item 0 (prefixAndPeer.split "]")
-            let commPlus = Seq.item 1 (addOn.split ",")
-            let comm = comm.substring(7, 1)
-            routerRules <- routerRules + "add-rule\n    match "
-                 + "\"prefix in " + prefix + "\"\n"
-                 + "    action community add " + comm + "\n"
-                 // + accept?
-            ();
-        else if (l.contains("deny")) then 
-             let words = l.split " "  |> Seq.toArray
-             let prefixTemp = Seq.item 0 (words.[1].split "[")
-             let prefix = Seq.item 0 (prefixTemp.split "]")
-             routerRules <- routerRules + "add-rule\n    match "
-                 + "\"prefix in " + prefix + "\"\n"
-                 + "    action deny\n"
-            // what's the le?
-        else ();
-        //anything else
+let writeTests inputAbgp topo res : unit =
+    let createTest (pred: Route.Predicate) (tests : TestCases) = 
+        for i in 0.. Seq.length tests - 1 do
+            let t = Seq.item i tests
+            let outputFile = "test" + (Route.toString pred) + (string) i + ".cli"
+            writeTopoCBGP topo outputFile; // writes physical topology to all testfiles
+            // output cbgp router configuration instructions for routers in the path
+            for (src, dest) in t do
+                let s = Abgp.getCBGPConfig res src
+                File.AppendAllText(outputFile, s);
+            //TODO: traceroute command that would output the path that the traffic took
+    Map.iter createTest predToTestCases;
     ();
 
-let genTest (input: CGraph.T) : unit =
+let genTest (input: CGraph.T) (pred : Route.Predicate) : unit =
     let ctx = new Context() in
     let vertices = input.Graph.Vertices in
     let edges = input.Graph.Edges in
@@ -196,17 +177,28 @@ let genTest (input: CGraph.T) : unit =
     let s = ctx.MkSolver()  
     s.Assert(Set.toArray condSet);
     File.AppendAllText("solutions.txt", "New Set for prefix \n")
+    let mutable tests = Set.empty in
     while (s.Check() = Status.SATISFIABLE) do
       //Console.Write("iterating once \n");
       let mutable solnSet = Set.empty in
+      let mutable curPath = Set.empty in
       File.AppendAllText("solutions.txt", "New Solution\n")
       for i in 0 .. (Seq.length edges - 1) do
         if (s.Model.ConstInterp(eArray.[i]).IsTrue) then
             solnSet <- Set.add eArray.[i] solnSet;
+
+            //add current edge to the current Path
+            let edge = Seq.item i edges in
+            if Topology.isTopoNode edge.Source.Node then
+                curPath <- Set.add (edge.Source, edge.End) curPath;
+            else 
+                ();
+
             File.AppendAllText("solutions.txt", (string) (Seq.item i edges) + "\n");
             //bgp peer up? for cbgp file
         else
             ();
+      tests <- Set.add curPath tests;
       File.AppendAllText("solutions.txt", "\n")
       let negSoln = ctx.MkNot(ctx.MkAnd(Set.toArray solnSet)) in
       condSet <- Set.add negSoln condSet;
