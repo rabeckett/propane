@@ -39,18 +39,17 @@ let writeTopoCBGP (input : Topology.T) (file : string) : unit =
 
     //create links for the edges
     for e in Topology.edges input do
-        let (src, target) = e in
+        let (src, target) = e
         let srcIdx = Map.find src vMap in
         let targetIdx = Map.find target vMap in
-        let toWrite = ipOfInt ((uint32) srcIdx) + " " + 
-        ipOfInt ((uint32) targetIdx) in
+        let toWrite = ipOfInt ((uint32) srcIdx) + " " + ipOfInt ((uint32) targetIdx) in
         File.AppendAllText(file, "net add link " + toWrite + "\n");
         // should i be adding the bGP router/igp stuff right here -rulelessly   
 
 
 // takes the abstract bgp from the .ir file and outputs the corresponding 
 // cBGP commands to run simulations on
-let writeTests inputAbgp topo res : unit =
+let writeTests testobj inputAbgp topo res : unit =
     let createTest (pred: Route.Predicate) (tests : TestCases) = 
         for i in 0.. Seq.length tests - 1 do
             let t = Seq.item i tests
@@ -58,13 +57,13 @@ let writeTests inputAbgp topo res : unit =
             writeTopoCBGP topo outputFile; // writes physical topology to all testfiles
             // output cbgp router configuration instructions for routers in the path
             for (src, dest) in t do
-                let s = Abgp.getCBGPConfig res src
+                let s = Abgp.getCBGPConfig res.Abgp src
                 File.AppendAllText(outputFile, s);
             //TODO: traceroute command that would output the path that the traffic took
-    Map.iter createTest predToTestCases;
+    Map.iter createTest testobj.predToTestCases;
     ();
 
-let genTest (input: CGraph.T) (pred : Route.Predicate) : unit =
+let genTest (cbgpTests : T) (input: CGraph.T) (pred : Route.Predicate) : T =
     let ctx = new Context() in
     let vertices = input.Graph.Vertices in
     let edges = input.Graph.Edges in
@@ -190,7 +189,7 @@ let genTest (input: CGraph.T) (pred : Route.Predicate) : unit =
             //add current edge to the current Path
             let edge = Seq.item i edges in
             if Topology.isTopoNode edge.Source.Node then
-                curPath <- Set.add (edge.Source, edge.End) curPath;
+                curPath <- Set.add (edge.Source, edge.Target) curPath;
             else 
                 ();
 
@@ -204,6 +203,11 @@ let genTest (input: CGraph.T) (pred : Route.Predicate) : unit =
       condSet <- Set.add negSoln condSet;
       s.Assert(Set.toArray condSet);
     Console.Write("done");
+    let newPredToTestCases = Map.add pred tests cbgpTests.predToTestCases 
+    {
+        routerNameToIpMap = cbgpTests.routerNameToIpMap
+        predToTestCases = newPredToTestCases
+    } 
     //done  
 
 let runTest =

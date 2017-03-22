@@ -195,6 +195,65 @@ let format (config : T) =
       bprintf sb "\n\n"
    sb.ToString()
 
+// get the actions in cbgp format
+let getCBGPActions sb pi pred actions routerNameToIp router =
+   let mutable routerTosb = Map.empty //Map<string, System.Text.StringBuilder
+   let curRouterIp = Map.find routerNameToIp router
+   let origStr, predStr = 
+      match pred with
+      | Pred p -> 
+         let s = Route.toString p // get rid of brackets/
+         s, s
+      | Comm(p, c) -> Route.toString p, "comm=" + c // ??
+   match actions with
+   | Filters(o, fs) -> 
+      match o with
+      | None -> ()
+      | Some es -> 
+         bprintf sb "\nbgp router %s add network  %s" curRouterIp origStr
+         match es with
+         | [ (peer, acts) ] -> cbgpExport pi sb peer acts
+         | _ -> 
+            for (peer, acts) in es do
+               routerTosb <- cbgpExport pi routerTosb peer acts
+               //bprintf sb "\n             "
+               //cbgpExport pi sb peer acts
+      for f in fs do
+         match f with
+         | Deny -> 
+          let denystr = "\n        add-rule" +
+          "\n            match \"prefix in " + predStr + "\"" +
+          "\n            action deny" +
+          "\n            exit"
+          Map.map (fun k v -> bprintf v denystr) routerTosb
+         | Allow((m, lp), es) -> 
+            let allow = 
+               m
+               |> lookupMatch pi
+               |> string
+            bprintf sb "\n  allow:   %s, %s " predStr allow
+            match es with
+            | [ (peer, acts) ] -> 
+               formatExport pi sb peer acts
+               if lp <> 100 then bprintf sb " (lp=%d) " lp
+            | _ -> 
+               if lp <> 100 then bprintf sb "(lp=%d) " lp
+               for (peer, acts) in es do
+                  bprintf sb "\n             "
+                  formatExport pi sb peer acts
+
+let getCBGPConfig (config : T) (vertex: CGraph.CgState) =
+  let routerConfig = Map.find vertex.Node.loc config.RConfigs
+  let ti = config.PolInfo.Ast.TopoInfo
+  let routerName = Topology.router vertex.Node.loc ti
+  let sb = System.Text.StringBuilder()
+  // control code taken out from above - format
+  for (pred, actions) in routerConfig.Actions do
+    formatActions sb config.PolInfo pred actions
+  bprintf sb "\n\n"
+  sb.ToString()
+
+
 /// Helper functions to make changes to the configuration
 /// either by modifying or removing a part of the configuration.
 module Update = 
@@ -1307,7 +1366,7 @@ let compileToIR idx pred (polInfo : Ast.PolInfo) aggInfo (reb : Regex.REBuilder)
    // generate tests for minimized PG
    let temp, testTime = 
     if settings.GenTests then
-      Profile.time TestGenerator.genTest cg
+      (), (int64 0)//Profile.time (TestGenerator.genTest cg) pred 
     else (), (int64 0)
    // get the abstract reachability information
    let abstractPathInfo, at1 = 

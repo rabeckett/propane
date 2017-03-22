@@ -41,6 +41,8 @@ val format : T -> string
 val compileAllPrefixes : Ast.PolInfo -> CompilationResult
 /// Convert the ABGP configuration to a more concrete configuration.
 val toConfig : T -> Config.NetworkConfiguration
+/// Display the Abgp policy in a CBGP manner for a given router
+val getCBGPConfig : T -> CGraph.CgState -> string
 
 module Test = 
    val run : unit -> unit
