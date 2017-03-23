@@ -82,7 +82,6 @@ highly subjective, artistic choice and depends largely on aesthetics.
 We hope that you will simply grant us poetic license to choose our own
 title.
 
-
 > 
 > - In places where you feel can say more than just about BGP make an explicit remark and 
 > explain clearly how you would generalise the results.
@@ -119,7 +118,6 @@ In the appendix, we put significant effort into rewriting the proof.  In particu
 2. Broke the proof into 3 parts, each of which has its own explanation 
    for what we are proving, why we are proving it, and how we are proving it.
 3. Reformatted and refactored the proof to make it cleaner and clearer than before.
-
 
 
 
@@ -390,7 +388,7 @@ to withstand before traffic experiences connectivity loss."
 >   back to my point above
 
 We extended the results paragraph in section 9.1 to discuss in 
-further detail, what was conservative and why.
+further detail some of the examples that were conservative and why:
 
 "For all tree-based topologies, the analysis is precise for determining reachability, but for three of them, it does not compute a tight bound for disjoint paths for all router pairs. Specifically, it underestimates ToR-to-spine paths; it fails to account for some circuitous paths that traverse another spine because it could not disambiguate two concrete spines that map to the same abstract role. For instance, for the fat tree topology [2], it only finds 1 path be- tween any ToR and any Spine when there should always be at least two. However, in this case the analysis computes the correct worst case connectivity between any source ToR and any other destination aggregation or ToR router. A similar pattern occurs with other tree-based topologies.""
 
@@ -482,11 +480,15 @@ Added a legend for Figure 4.
 > - Your main theoretical result (Theorem 7.2) applies only to a network
 >   running the BGP protocol. Is this correct?
 
+Yes, this is stated more explicitly now.
+
 > - I found the proof in the appendix almost impossible to follow. It
 >   needs to first be explained at a high level (enumerating all the
 >   auxiliary lemmas) and you should describe concretely where the hard
 >   parts are. As it stands it looks like a routine induction proof
 >   (which is long, messy and poorly typeset in LaTeX).
+
+See the comments above about the appendix.
 
 > - I was expecting (since you are doing fault tolerance analysis) that
 >   you would compile your language into a probabilistic automaton
@@ -587,6 +589,8 @@ topologies are strictly more expressive than concrete topologies.
 > particular example of the BGP protocol. This makes it hard to tell the
 > scope of the method. Given that the paper positions itself as a
 > general method for configuration synthesis, this is not adequate.
+
+See the comments about section 7.
 
 > In many other circumstances, I would have requested the authors to
 > come up with a more abstract description of the algorithm in the final
