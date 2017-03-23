@@ -482,7 +482,9 @@ $(1)$ complete internal connectivity, \IE, all routers should be able to reach e
 $(2)$ services in Pods[1--2] should be accessible from outside;
 $(3)$ prefixes for global service should be aggregated into a covering prefix PG when announced outside;
 $(4)$ services in Pods[3--4] should not be externally accessible;
-$(5)$ traffic paths should be valley-free, \IE, not go down then back up.
+$(5)$ traffic paths should be valley-free (\EG, a path through S1 should
+not go down through Ai and then back up through S2, for instance, 
+creating an up-down-up path);
 $(6)$ prefer neighbor N1 over N2, \IE, when both neighbors announce a prefix, send traffic through N1;
 $(7)$ routers should not transit traffic between N1 and N2; and
 $(8)$ no loss in connectivity after any single-link failure.
@@ -668,7 +670,18 @@ we introduce additional concepts. The first is topology hierarchy, captured by P
 The second is node and edge \emph{multiplicity}. Each edge (and node) is labelled
 with a symbolic variable (\EG, $e1$) that denotes a constraint on the number of edges (and nodes) that may appear in any valid concrete network. Operators can capture concrete network invariants by adding constraints on the symbolic variables using logical formulas.
 
-For example, in Figure~\ref{fig:example3}, the first two constraints: $e1 = AG$ and $e2 = TG$ say that, within any pod P, the number of outgoing edges from a node in the $TG$ role to a node in the $AG$ role equals the number of nodes in the $AG$ role. Similarly, the number of outgoing edges from a node in the $AG$ role to a node in the $TG$ role equals the number of nodes in the $TG$ role. These constraints capture the fact that, within any pod, the global aggregators and ToRs are in a full mesh. Furthermore, the constraints $AG = AL$ and $AG \leq S$ ensure that, within pods P and Q, the $AG$ and $TG$ roles have the same number of routers, which is less than or equal to the number of routers in the spine role $S$.
+For example, in Figure~\ref{fig:example3}, the first constraint ($e1 = AG$) 
+%and
+states that, within any pod P, the number of outgoing edges from a node in the 
+$TG$ role (\IE, $e1$) to a node in the $AG$ role equals the number of nodes in the 
+$AG$ role. Similarly, the constraint ($e2 = TG$) states that the number of 
+outgoing edges from a node in the $AG$ role (\IE, $e2$) to a node in the $TG$ role 
+equals the number of nodes in the $TG$ role. Together these constraints capture 
+the fact that, within any pod, the global aggregators and ToRs are in 
+a full mesh. Furthermore, the constraints $AG = AL$ and $AG \leq S$ ensure 
+that, within pods P and Q, the $AG$ and $AL$ roles \dpw{This originally said $AG$ and $TG$ but I changed it.} have the same number of 
+routers, which is less than or equal to the number of routers in the spine 
+role $S$.
 %
 The constraint $e3 \geq 2$ says that, in each pod, each aggregator node has at least 2 outgoing edges to nodes in the spine role. Symmetrically, the constraint $e4 \geq 1$ says that, for each pod P, each node in the spine role has at least one outgoing edge to a node in the $AG$ role. Similar constraints appear for the local aggregator role. The constraint $2 \leq S \leq 4$ makes explicit the possibility for growth, for example, by growing the network from Figure~\ref{fig:example} to Figure~\ref{fig:example2}. In general, we need not bound the number of spine routers to admit more concrete topologies, potentially at the expense of analysis precision. We also include the constraints $(S \mod AG) = 0$, and $(S \mod AL) = 0$~simply to show that constraints do not have to be in the form of inequalities. Operators can use logical formulas from any theory supported by modern SMT solvers.
 
@@ -719,7 +732,7 @@ Next we can capture constraint (4) that traffic for local prefixes must stay wit
 \end{code}
 \noindent%
 %
-The Local policy adds the $\CD{\Always(\In)}$ constraint for each local prefix described by the template variable $\CD{\$LP}$. This constraint ensures that traffic follows a path that matches an internal role (\IE, in the data center) at each hop of the path.
+The \CD{Local} policy adds the $\CD{\Always(\In)}$ constraint for each local prefix described by the template variable $\CD{\$LP}$. This constraint ensures that traffic follows a path that matches an internal role (\IE, in the data center) at each hop of the path.
 %
 The constraint to prevent ``valleys" (5) is written as:
 %
@@ -940,7 +953,7 @@ Because there can be a separate routing policy for each predicate $t$ in the pol
 
 For each regular path constraint $r_i$ from $r_1 ~\Prefer~ ... ~\Prefer~ r_k$, we construct a DFA for the reverse of $r_i$. A DFA for $r_i$ is defined as a tuple ($\Sigma, Q_i, F_i, q_{0_i}, \sigma_i$). The alphabet $\Sigma$ is the set of topology locations (\IE, routers or roles), $Q_i$ is the set of states for automaton i, $F_i$ is the set of final states, $q_{0_i}$ is the initial state, and $\sigma_i \colon Q_i \times \Sigma \rightarrow Q_i$ is the state transition function.
 %
-The PG for a graph $G=(V,E)$ is a tuple ($G'$, $start$, \Pref) where $G' = (V',E')$ has
+The PG for a graph (\IE, a topology) $G=(V,E)$ is a tuple ($G'$, $start$, \Pref) where $G' = (V',E')$ has
 vertices $V' \colon V \times Q_1 \times \dots \times Q_j$,
 edges $E' \colon V' \times V'$,
 a unique starting vertex $start$,
@@ -952,7 +965,7 @@ We add edges from the $\mathit{start}$ node to any $m = (l, q_{m_1}, \dots, q_{m
 %
 The ranking function $\Pref(m)$ denotes the rank of paths through the PG ending at node $m$ and is defined as $\Pref(m) = \set{i~\vert~q_{m_i} \in F_i}$.
 %
-Finally, we write $\Topo{m} = l$ to extract the topology location from a PG node, when $m = (l, q_{m_1}, \dots, q_{m_k}) \in V'$. For the remainder of the paper, we use the term location to refer to both a router in the case of a concrete topology/PG, or a role in the case of an abstract topology/PG.
+Finally, we write $\Topo{m} = l$ to extract the topology location from a PG node, when $m = (l, q_{m_1}, \dots, q_{m_k}) \in V'$. For the remainder of the paper, we use the term \emph{location} to refer to a router in the case of a concrete topology/PG, or a role in the case of an abstract topology/PG.
 
 Figure~\ref{fig:example-compilation} shows the PG for the data center policy that applies to all external traffic ($\CD{\True \Path \Exit(N1~\Prefer~N2)}$).
 %
