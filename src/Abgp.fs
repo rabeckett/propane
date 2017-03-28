@@ -195,25 +195,26 @@ let format (config : T) =
       bprintf sb "\n\n"
    sb.ToString()
 
- let addRuleToPeer peer routerTosb actStr =
-   let updateRule k v = 
-    bprintf v actStr    
+ let addRuleToPeer peer routerTosb (actStr : string) = 
+  let updateRule k (v : System.Text.StringBuilder) = v.Append actStr 
 
-   // update dictionary
-   match peer with
-   | Any -> Map.map updateRule routerTosb
-   | In -> routerTosb// what is to be done
-   | Out -> routerTosb //what is to be done
-   | Router x -> 
+  // update dictionary
+  let newmap = 
+    match peer with
+    | Any -> Map.map updateRule routerTosb
+    | In -> routerTosb// what is to be done
+    | Out -> routerTosb //what is to be done
+    | Router x -> 
       let v = Map.find x routerTosb
-      Map.add x (bprintf v actStr) routerTosb 
+      Map.add x (v.Append actStr)  routerTosb
+  newmap
 
 let cbgpExport pi routerTosb peer acts = 
    let cbgpString a = 
     match a with 
-    | SetComm(is) -> sprintf "\n            action \"community add %d\"" is
+    | SetComm(is) -> sprintf "\n            action \"community add %s\"" is
     | SetMed i -> sprintf "\n            action \"metric %d\"" i
-    | PrependPath i -> "\n            action \"as-path prepend %d\"" i
+    | PrependPath i -> sprintf "\n            action \"as-path prepend %d\"" i
    let actStr = 
       if acts <> [] then Util.List.joinBy " " (List.map cbgpString acts)
       else "\n            allow"
@@ -221,7 +222,7 @@ let cbgpExport pi routerTosb peer acts =
    addRuleToPeer peer routerTosb actStr
 
 let cbgpImport pi routerToImportSb (m, lp) comm predStr =
-  let actStr = sprintf "\n            action \"community add %d\""
+  let actStr = sprintf "\n            action \"community add %s\"" comm 
   let lpStr = sprintf "\n            action \"local-pref %d\"" lp
   let matchStr = "\n        add-rule" +
           "\n            match \"prefix in " + predStr  + "\""
@@ -231,10 +232,10 @@ let cbgpImport pi routerToImportSb (m, lp) comm predStr =
       addRuleToPeer p routerToImportSb (matchStr + "\"")
       addRuleToPeer p routerToImportSb (actStr + lpStr)
   | State (c, p) -> 
-    let commMatch = sprintf "& community is %d\"" c
+    let commMatch = sprintf "& community is %s\"" c
     addRuleToPeer p routerToImportSb (matchStr + commMatch)
     addRuleToPeer p routerToImportSb (actStr + lpStr)
-  | PathRE r -> routerTosb //TODO for later
+  | PathRE r -> routerToImportSb //TODO for later
 
 
 // get the actions in cbgp format
@@ -248,7 +249,7 @@ let getCBGPActions sb pi pred actions routerNameToIp router =
          let s = Route.toString p // get rid of brackets/
          s, s
       | Comm(p, c) -> Route.toString p, "comm=" + c // ??
-  let exitStr = "\n            exit"
+   let exitStr = "\n            exit"
    match actions with
    | Filters(o, fs) -> 
       match o with
@@ -271,15 +272,14 @@ let getCBGPActions sb pi pred actions routerNameToIp router =
       for f in fs do
          i <- i + 1
          match f with
-         | Deny -> let denystr = "\n        add-rule" +
-          "\n            match \"prefix in " + predStr + "\"" +
-          "\n            action deny" + exitStr
-          Map.map (fun k v -> bprintf v denystr) routerToEsb
+         | Deny -> 
+            let denystr = "\n        add-rule" + "\n            match \"prefix in " + predStr + "\"" +    "\n            action deny" + exitStr
+            routerToEsb <- Map.map (fun k (v : System.Text.StringBuilder) -> v.Append denystr) routerToEsb 
          | Allow((m, lp), es) -> 
             let comm = 23768 - i
             routerToIsb <- cbgpImport pi routerToISb (m, lp) comm predStr
-            let matchStr = sprintf ("\n        add-rule" +
-          "\n            match \"community is %d\"") comm
+            let matchStr = sprintf ("\n        add-rule" + 
+                 "\n            match \"community is %d\"") comm
             match es with
             | [ (peer, acts) ] -> 
               routerToEsb <- addRuleToPeer peer routerToEsb matchStr
@@ -291,7 +291,7 @@ let getCBGPActions sb pi pred actions routerNameToIp router =
                   routerToEsb <- cbgpExport pi routerToEsb peer acts
                   routerToEsb <- addRuleToPeer peer routerToEsb exitStr
 
-let getCBGPConfig (config : T) (vertex: CGraph.CgState) (routerNameToIp : Map<String, String>) =
+let getCBGPConfig (config : T) (vertex: CGraph.CgState) (routerNameToIp : Map<string, string>) =
   let routerConfig = Map.find vertex.Node.Loc config.RConfigs
   let ti = config.PolInfo.Ast.TopoInfo
   let routerName = Topology.router vertex.Node.Loc ti
@@ -304,10 +304,10 @@ let getCBGPConfig (config : T) (vertex: CGraph.CgState) (routerNameToIp : Map<St
     getCBGPActions sb config.PolInfo pred actions routerNameToIp router
 
   for kv in routerToEsb do
-    let peer = kv.key 
-    bprintf sb ("\nbgp router " + routerIp + " peer " + peer)
+    let peer = kv.Key 
+    bprintf sb ("\n bgp router " + routerIp + " peer " + peer)
     bprintf sb "\n    filter out"
-    bprintf sb kv.value
+    bprintf sb kv.Value
     bprintf sb "\n    filter in"
     bprintf sb (Map.find routerToIsb peer)
   bprintf sb "\n\n"
