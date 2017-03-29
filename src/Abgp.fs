@@ -195,7 +195,7 @@ let format (config : T) =
       bprintf sb "\n\n"
    sb.ToString()
 
- let addRuleToPeer peer routerTosb (actStr : string) = 
+let addRuleToPeer peer routerTosb (actStr : string) = 
   let updateRule k (v : System.Text.StringBuilder) = v.Append actStr 
 
   // update dictionary
@@ -239,10 +239,10 @@ let cbgpImport pi routerToImportSb (m, lp) comm predStr =
 
 
 // get the actions in cbgp format
-let getCBGPActions sb pi pred actions routerNameToIp router =
+let getCBGPActions sb pi pred actions curRouterIp =
    let mutable routerToEsb = Map.empty //Map<string, System.Text.StringBuilder
    let mutable routerToIsb = Map.empty //Map<string, System.Text.StringBuilder
-   let curRouterIp = Map.find routerNameToIp router
+   //let curRouterIp = Map.find routerNameToIp router
    let origStr, predStr = 
       match pred with
       | Pred p -> 
@@ -277,9 +277,8 @@ let getCBGPActions sb pi pred actions routerNameToIp router =
             routerToEsb <- Map.map (fun k (v : System.Text.StringBuilder) -> v.Append denystr) routerToEsb 
          | Allow((m, lp), es) -> 
             let comm = 23768 - i
-            routerToIsb <- cbgpImport pi routerToISb (m, lp) comm predStr
-            let matchStr = sprintf ("\n        add-rule" + 
-                 "\n            match \"community is %d\"") comm
+            routerToIsb <- cbgpImport pi routerToIsb (m, lp) (string comm) predStr
+            let matchStr = sprintf "\n        add-rule \n            match \"community is %d\"" comm
             match es with
             | [ (peer, acts) ] -> 
               routerToEsb <- addRuleToPeer peer routerToEsb matchStr
@@ -296,20 +295,25 @@ let getCBGPConfig (config : T) (vertex: CGraph.CgState) (routerNameToIp : Map<st
   let ti = config.PolInfo.Ast.TopoInfo
   let routerName = Topology.router vertex.Node.Loc ti
   let routerIp = Map.find routerName routerNameToIp
-  let sb = System.Text.StringBuilder()
-  let mutable routerToEsb = Map.empty //Map<string, System.Text.StringBuilder - figure this out
-  let mutable routerToIsb = Map.empty //Map<string, System.Text.StringBuilder - figure this out
+  let mutable sb = System.Text.StringBuilder()
+  let mutable routerToEsb : Map<string, System.Text.StringBuilder> = Map.empty 
+  let mutable routerToIsb : Map<string, System.Text.StringBuilder> = Map.empty 
   // control code taken out from above - format, borrow back when needed
+
+  // figure out how to initialize the two maps with all the peers that are up for this vertex
+  //where do i call this code from? also to be figured out and bgp up/down code
   for (pred, actions) in routerConfig.Actions do
-    getCBGPActions sb config.PolInfo pred actions routerNameToIp router
+    getCBGPActions sb config.PolInfo pred actions routerIp
 
   for kv in routerToEsb do
     let peer = kv.Key 
-    bprintf sb ("\n bgp router " + routerIp + " peer " + peer)
+    let routerStr = ("\n bgp router " + routerIp + " peer " + peer)
+    sb <- sb.Append routerStr
     bprintf sb "\n    filter out"
-    bprintf sb kv.Value
+    sb <- sb.Append (kv.Value.ToString())
     bprintf sb "\n    filter in"
-    bprintf sb (Map.find routerToIsb peer)
+    let routerCBGP = Map.find peer routerToIsb
+    sb <- sb.Append routerCBGP
   bprintf sb "\n\n"
   sb.ToString()
 
@@ -1417,7 +1421,7 @@ let getMinAggregateFailures (cg : CGraph.T) (pred : Route.Predicate)
 
 let inline buildDfas (reb : Regex.REBuilder) res = List.map (fun r -> reb.MakeDFA(Regex.rev r)) res
 
-let compileToIR idx pred (polInfo : Ast.PolInfo) aggInfo (reb : Regex.REBuilder) res : PrefixCompileResult = 
+let compileToIR idx pred (polInfo : Ast.PolInfo) aggInfo (reb : Regex.REBuilder) res testObj: PrefixCompileResult = 
    let settings = Args.getSettings()
    let ti = polInfo.Ast.TopoInfo
    let name = sprintf "(%d)" idx
@@ -1434,7 +1438,7 @@ let compileToIR idx pred (polInfo : Ast.PolInfo) aggInfo (reb : Regex.REBuilder)
    // generate tests for minimized PG
    let temp, testTime = 
     if settings.GenTests then
-      (), (int64 0)//Profile.time (TestGenerator.genTest cg) pred 
+      Profile.time (TestGenerator.genTest testObj cg) pred 
     else (), (int64 0)
    // get the abstract reachability information
    let abstractPathInfo, at1 = 

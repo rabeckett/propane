@@ -25,6 +25,17 @@ let ipOfInt (d : uint32) =
     |> IPAddress
     |> string
 
+let newTest topo topoInfo : T =
+    let mutable routerToIpMap = Map.empty
+    for i in 0 .. (Seq.length vertices - 1) do
+        let vertex = Seq.item i vertices 
+        let routerName = Topology.router vertex.Node.Loc topoInfo
+        routerToIpMap <- Map.add name (ipOfInt i) routerToIpMap
+    {
+       routerNameToIpMap = routerToIpMap
+       predToTestCases = Map.empty
+    }
+
 // writes the physical topology in CBGP format 
 let writeTopoCBGP (input : Topology.T) (file : string) : unit = 
     let vertices = Topology.vertices input in
