@@ -35,21 +35,23 @@ let main argv =
       let ast, t2 = Util.Profile.time (Input.readFromFile topoInfo) polFile
       let polInfo, t3 = Util.Profile.time Ast.build ast
 
-      let tests = TestGenerator.newTest topoInfo
-      let res = Abgp.compileAllPrefixes polInfo tests
+      let res, predToTests = Abgp.compileAllPrefixes polInfo
 
-      let writeTests testobj inputAbgp topo res : unit =
+      // where can i get topo from
+      let routerNameToIp = TestGenerator.generateRouterIp topo topoInfo
+
+      // write the tests into CBGP file
+      let createTest (pred: Route.Predicate) (tests : TestCases) = 
         for i in 0.. Seq.length tests - 1 do
             let t = Seq.item i tests
             let outputFile = "test" + (Route.toString pred) + (string) i + ".cli"
-            writeTopoCBGP topo outputFile; // writes physical topology to all testfiles
+            TestGenerator.writeTopoCBGP topo outputFile; // writes physical topology to all testfiles
             // output cbgp router configuration instructions for routers in the path
             for (src, dest) in t do
-                let s = Abgp.getCBGPConfig res.Abgp src
-                File.AppendAllText(outputFile, s);
+            let s = Abgp.getCBGPConfig res.Abgp src routerNameToIp
+            File.AppendAllText(outputFile, s);
             //TODO: traceroute command that would output the path that the traffic took
-    Map.iter createTest testobj.predToTestCases;
-    ();
+      Map.iter createTest predToTests;
 
       if settings.CheckFailures then 
          match res.AggSafety with

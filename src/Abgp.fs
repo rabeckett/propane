@@ -20,6 +20,9 @@ exception UncontrollablePeerPreferenceException of string
 ///    - What they match - peer, community, regex filter
 ///    - The preference of the match (local-pref)
 ///    - A collection of exports for the match (updated local-pref, community, peer)
+type Path = Set<CgState*CgState> 
+type TestCases = Set<Path>
+
 type LocalPref = int
 
 type Community = string
@@ -228,13 +231,13 @@ let cbgpImport pi routerToImportSb (m, lp) comm predStr =
           "\n            match \"prefix in " + predStr  + "\""
 
   match m with
-  | Peer p -> 
-      addRuleToPeer p routerToImportSb (matchStr + "\"")
-      addRuleToPeer p routerToImportSb (actStr + lpStr)
+  | Peer p ->
+      let newSb = addRuleToPeer p routerToImportSb (matchStr + "\"")
+      addRuleToPeer p newSb (actStr + lpStr)
   | State (c, p) -> 
     let commMatch = sprintf "& community is %s\"" c
-    addRuleToPeer p routerToImportSb (matchStr + commMatch)
-    addRuleToPeer p routerToImportSb (actStr + lpStr)
+    let newSb = addRuleToPeer p routerToImportSb (matchStr + commMatch)
+    addRuleToPeer p newSb (actStr + lpStr)
   | PathRE r -> routerToImportSb //TODO for later
 
 
@@ -1421,7 +1424,7 @@ let getMinAggregateFailures (cg : CGraph.T) (pred : Route.Predicate)
 
 let inline buildDfas (reb : Regex.REBuilder) res = List.map (fun r -> reb.MakeDFA(Regex.rev r)) res
 
-let compileToIR idx pred (polInfo : Ast.PolInfo) aggInfo (reb : Regex.REBuilder) res testObj: PrefixCompileResult = 
+let compileToIR idx pred (polInfo : Ast.PolInfo) aggInfo (reb : Regex.REBuilder) res testObj: PrefixCompileResult * TestCases = 
    let settings = Args.getSettings()
    let ti = polInfo.Ast.TopoInfo
    let name = sprintf "(%d)" idx
@@ -1436,10 +1439,10 @@ let compileToIR idx pred (polInfo : Ast.PolInfo) aggInfo (reb : Regex.REBuilder)
    let cg, minTime = Profile.time (CGraph.Minimize.minimize idx ti) cg
    debug (fun () -> CGraph.generatePNG cg polInfo (debugName + "-min"))
    // generate tests for minimized PG
-   let temp, testTime = 
+   let tests, testTime = 
     if settings.GenTests then
-      Profile.time (TestGenerator.genTest testObj cg) pred 
-    else (), (int64 0)
+      Profile.time (TestGenerator.genTest cg) pred 
+    else Set.empty, (int64 0)
    // get the abstract reachability information
    let abstractPathInfo, at1 = 
       if settings.IsAbstract && not settings.Test (* && not (Map.isEmpty aggInfo) *) then 
@@ -1493,16 +1496,16 @@ let compileToIR idx pred (polInfo : Ast.PolInfo) aggInfo (reb : Regex.REBuilder)
          debug (fun () -> 
             let msg = formatPred polInfo (Pred pred) (snd config)
             System.IO.File.WriteAllText(sprintf "%s/%s.ir" settings.DebugDir name, msg))
-         Ok(result)
-      | Err((x, y, (ns, example))) -> Err(InconsistentPrefs(x, y, (ns, example)))
+         (Ok(result), tests)
+      | Err((x, y, (ns, example))) -> (Err(InconsistentPrefs(x, y, (ns, example))), tests)
    with
-      | UncontrollableEnterException s -> Err(UncontrollableEnter s)
-      | UncontrollablePeerPreferenceException s -> Err(UncontrollablePeerPreference s)
+      | UncontrollableEnterException s -> ((Err(UncontrollableEnter s)), tests))
+      | UncontrollablePeerPreferenceException s -> ((Err(UncontrollablePeerPreference s)), tests)
 
-let compileForSinglePrefix idx (polInfo : Ast.PolInfo) aggInfo (pred, reb, res) : PrefixResult = 
+let compileForSinglePrefix idx (polInfo : Ast.PolInfo) aggInfo (pred, reb, res) : PrefixResult * TestCases = 
    match compileToIR idx pred polInfo aggInfo reb res with
-   | Ok(config) -> config
-   | Err(x) -> 
+   | (Ok(config), tests) -> (config, tests)
+   | (Err(x), tests) -> 
       let ti = polInfo.Ast.TopoInfo
       match x with
       | InconsistentPrefs(x, y, (ns, example)) -> 
@@ -1538,7 +1541,7 @@ let compileForSinglePrefix idx (polInfo : Ast.PolInfo) aggInfo (pred, reb, res) 
                + (sprintf "However, %s might not be able to use " dst2) 
                + (sprintf "its preferred path %s, " path2) 
                + (sprintf "even though the path exists in the network.")
-         error msg
+         (error msg, tests)
       | UncontrollableEnter x -> 
          let l = Topology.router x ti
          let msg = 
@@ -1547,14 +1550,14 @@ let compileForSinglePrefix idx (polInfo : Ast.PolInfo) aggInfo (pred, reb, res) 
             + (sprintf 
                   "If you only want to allow traffic from neighbor %s (and not beyond), enable the --noexport flag." 
                   l)
-         error msg
+         (error msg, tests)
       | UncontrollablePeerPreference x -> 
          let l = Topology.router x ti
          let msg = 
             sprintf "Cannot control inbound preference from peer: %s for " l 
             + sprintf "predicate %s. Possibly enable prepending: --med or --prepending." 
                  (Route.toString pred)
-         error msg
+         (error msg, tests)
 
 let checkAggregateLocs ins _ prefix links = 
    if Set.contains "out" ins then 
@@ -1716,9 +1719,9 @@ let moveOriginationToTop (config : T) : T =
    let rcs = Map.map aux config.RConfigs
    { config with RConfigs = rcs }
 
-let compileAllPrefixes (polInfo : Ast.PolInfo) : CompilationResult = 
+let compileAllPrefixes (polInfo : Ast.PolInfo) : CompilationResult * Map<string, TestCases> = 
    let settings = Args.getSettings()
-   
+   let mutable tests = Map.empty
    let mapi = 
       if settings.Parallel then Array.Parallel.mapi
       else Array.mapi
@@ -1726,9 +1729,10 @@ let compileAllPrefixes (polInfo : Ast.PolInfo) : CompilationResult =
    let info = splitConstraints polInfo
    let (aggInfo, _, _) = info
    let pairs = Array.ofList polInfo.Policy
-   let timedConfigs, prefixTime = 
+   let timedConfigs, testPerPred, prefixTime = 
       Profile.time 
          (mapi (fun i x -> Profile.time (compileForSinglePrefix (i + 1) polInfo aggInfo) x)) pairs
+   mapi (fun i (pred, reb, res) -> tests <- Map.add pred testPerPred.[i]) 
    let nAggFails = Array.map (fun (res, _) -> res.K) timedConfigs
    let k = Array.fold minFails None nAggFails
    let configs, times = Array.unzip timedConfigs
@@ -1764,9 +1768,11 @@ let compileAllPrefixes (polInfo : Ast.PolInfo) : CompilationResult =
         PerPrefixGenTimes = genTimes
         JoinTime = joinTime
         MinTime = minTime }
-   { Abgp = minJoined
-     AggSafety = k
-     Stats = stats }
+   let res = 
+    { Abgp = minJoined
+      AggSafety = k
+      Stats = stats }
+   res, tests
 
 /// Conversion from Abstract BGP to a more low-level format
 /// specified in Config.fs. The low-level format includes features 

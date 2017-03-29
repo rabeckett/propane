@@ -7,6 +7,6 @@ open Abgp
 
 type T
 
-val genTest : T -> CGraph.T -> Route.Predicate -> unit
-val newTest : unit -> T
+val genTest : CGraph.T -> Route.Predicate -> Set<Set<CgState*CgState>>
+val generateRouterIp : Topology.T -> Topology.TopoInfo -> Map<string, string> 
 val runTest : unit
