@@ -35,14 +35,17 @@ type CompilationResult =
      AggSafety : AggregationSafety option
      Stats : Stats }
 
+type Path = Set<CgState*CgState> 
+type TestCases = Set<Path>
+
 /// Display the ABGP policy in a readable format
 val format : T -> string
 /// Compile the entire policy for all prefixes
-val compileAllPrefixes : Ast.PolInfo -> CompilationResult
+val compileAllPrefixes : Ast.PolInfo -> CompilationResult * Map<Route.Predicate, TestCases>
 /// Convert the ABGP configuration to a more concrete configuration.
 val toConfig : T -> Config.NetworkConfiguration
 /// Display the Abgp policy in a CBGP manner for a given router
-val getCBGPConfig : T -> CGraph.CgState -> string
+val getCBGPConfig : T -> CGraph.CgState -> Map<string, string> -> string
 
 module Test = 
    val run : unit -> unit

@@ -20,8 +20,9 @@ exception UncontrollablePeerPreferenceException of string
 ///    - What they match - peer, community, regex filter
 ///    - The preference of the match (local-pref)
 ///    - A collection of exports for the match (updated local-pref, community, peer)
-type Path = Set<CgState*CgState> 
-type TestCases = Set<Path>
+
+//type Path = Set<CgState*CgState> 
+//type TestCases = Set<Path>
 
 type LocalPref = int
 
@@ -1424,7 +1425,7 @@ let getMinAggregateFailures (cg : CGraph.T) (pred : Route.Predicate)
 
 let inline buildDfas (reb : Regex.REBuilder) res = List.map (fun r -> reb.MakeDFA(Regex.rev r)) res
 
-let compileToIR idx pred (polInfo : Ast.PolInfo) aggInfo (reb : Regex.REBuilder) res testObj: PrefixCompileResult * TestCases = 
+let compileToIR idx pred (polInfo : Ast.PolInfo) aggInfo (reb : Regex.REBuilder) res : PrefixCompileResult * TestCases = 
    let settings = Args.getSettings()
    let ti = polInfo.Ast.TopoInfo
    let name = sprintf "(%d)" idx
@@ -1499,7 +1500,7 @@ let compileToIR idx pred (polInfo : Ast.PolInfo) aggInfo (reb : Regex.REBuilder)
          (Ok(result), tests)
       | Err((x, y, (ns, example))) -> (Err(InconsistentPrefs(x, y, (ns, example))), tests)
    with
-      | UncontrollableEnterException s -> ((Err(UncontrollableEnter s)), tests))
+      | UncontrollableEnterException s -> ((Err(UncontrollableEnter s)), tests)
       | UncontrollablePeerPreferenceException s -> ((Err(UncontrollablePeerPreference s)), tests)
 
 let compileForSinglePrefix idx (polInfo : Ast.PolInfo) aggInfo (pred, reb, res) : PrefixResult * TestCases = 
@@ -1719,7 +1720,7 @@ let moveOriginationToTop (config : T) : T =
    let rcs = Map.map aux config.RConfigs
    { config with RConfigs = rcs }
 
-let compileAllPrefixes (polInfo : Ast.PolInfo) : CompilationResult * Map<string, TestCases> = 
+let compileAllPrefixes (polInfo : Ast.PolInfo) : CompilationResult * Map<Route.Predicate, TestCases> = 
    let settings = Args.getSettings()
    let mutable tests = Map.empty
    let mapi = 
@@ -1729,13 +1730,16 @@ let compileAllPrefixes (polInfo : Ast.PolInfo) : CompilationResult * Map<string,
    let info = splitConstraints polInfo
    let (aggInfo, _, _) = info
    let pairs = Array.ofList polInfo.Policy
-   let timedConfigs, testPerPred, prefixTime = 
+   let timedTestConfigs, prefixTime = 
       Profile.time 
          (mapi (fun i x -> Profile.time (compileForSinglePrefix (i + 1) polInfo aggInfo) x)) pairs
-   mapi (fun i (pred, reb, res) -> tests <- Map.add pred testPerPred.[i]) 
-   let nAggFails = Array.map (fun (res, _) -> res.K) timedConfigs
+   let testConfigs, times = Array.unzip timedTestConfigs
+   let configs, testPerPred = Array.unzip testConfigs
+   Array.iteri(fun i (pred, reb, res) -> tests <- Map.add pred testPerPred.[i] tests) pairs
+   //let nAggFails = Array.map (fun (res, _) -> res.K) timedConfigs
+   let nAggFails = Array.map (fun (res, _) -> res.K) (Array.zip configs times)
    let k = Array.fold minFails None nAggFails
-   let configs, times = Array.unzip timedConfigs
+   //let configs, times = Array.unzip timedConfigs
    let joined, joinTime = Profile.time (joinConfigs polInfo info) (Array.toList configs)
    let joined = moveOriginationToTop joined
    

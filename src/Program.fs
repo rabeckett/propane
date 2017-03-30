@@ -4,6 +4,9 @@ open System
 open Util.Debug
 open Util.Format
 
+type Path = Set<CgState*CgState> 
+type TestCases = Set<Path>
+
 let runUnitTests() = 
    writeFormatted (header "Running unit tests ")
    Topology.Test.run()
@@ -36,6 +39,9 @@ let main argv =
       let polInfo, t3 = Util.Profile.time Ast.build ast
 
       let res, predToTests = Abgp.compileAllPrefixes polInfo
+      let policy = polInfo.Policy 
+      let _, reb, _ = policy
+      let topo = reb.Topo()
 
       // where can i get topo from
       let routerNameToIp = TestGenerator.generateRouterIp topo topoInfo
@@ -48,9 +54,9 @@ let main argv =
             TestGenerator.writeTopoCBGP topo outputFile; // writes physical topology to all testfiles
             // output cbgp router configuration instructions for routers in the path
             for (src, dest) in t do
-            let s = Abgp.getCBGPConfig res.Abgp src routerNameToIp
-            File.AppendAllText(outputFile, s);
-            //TODO: traceroute command that would output the path that the traffic took
+                  let s = Abgp.getCBGPConfig res.Abgp src routerNameToIp
+                  System.IO.File.AppendAllText(outputFile, s);
+       //TODO: traceroute command that would output the path that the traffic took
       Map.iter createTest predToTests;
 
       if settings.CheckFailures then 

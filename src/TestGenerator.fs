@@ -55,23 +55,7 @@ let writeTopoCBGP (input : Topology.T) (file : string) : unit =
         File.AppendAllText(file, "net add link " + toWrite + "\n");
         // should i be adding the bGP router/igp stuff right here -rulelessly   
 
-
-// takes the abstract bgp from the .ir file and outputs the corresponding 
-// cBGP commands to run simulations on
-let writeTests testobj inputAbgp topo res : unit =
-    let createTest (pred: Route.Predicate) (tests : TestCases) = 
-        for i in 0.. Seq.length tests - 1 do
-            let t = Seq.item i tests
-            let outputFile = "test" + (Route.toString pred) + (string) i + ".cli"
-            writeTopoCBGP topo outputFile; // writes physical topology to all testfiles
-            // output cbgp router configuration instructions for routers in the path
-            for (src, dest) in t do
-                let s = Abgp.getCBGPConfig res.Abgp src
-                File.AppendAllText(outputFile, s);
-            //TODO: traceroute command that would output the path that the traffic took
-    Map.iter createTest testobj.predToTestCases;
-    ();
-
+// generates the link ocverage tests for the given predicate
 let genTest (input: CGraph.T) (pred : Route.Predicate) : TestCases =
     let ctx = new Context() in
     let vertices = input.Graph.Vertices in
