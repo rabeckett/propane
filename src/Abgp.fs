@@ -21,8 +21,8 @@ exception UncontrollablePeerPreferenceException of string
 ///    - The preference of the match (local-pref)
 ///    - A collection of exports for the match (updated local-pref, community, peer)
 
-//type Path = Set<CgState*CgState> 
-//type TestCases = Set<Path>
+type Path = Set<CgState*CgState> 
+type TestCases = Set<Path>
 
 type LocalPref = int
 
@@ -228,8 +228,7 @@ let cbgpExport pi routerTosb peer acts =
 let cbgpImport pi routerToImportSb (m, lp) comm predStr =
   let actStr = sprintf "\n            action \"community add %s\"" comm 
   let lpStr = sprintf "\n            action \"local-pref %d\"" lp
-  let matchStr = "\n        add-rule" +
-          "\n            match \"prefix in " + predStr  + "\""
+  let matchStr = "\n        add-rule\n            match \"prefix in " + predStr  + "\""
 
   match m with
   | Peer p ->
@@ -260,8 +259,7 @@ let getCBGPActions sb pi pred actions curRouterIp =
       | None -> ()
       | Some es -> 
          bprintf sb "\nbgp router %s add network  %s" curRouterIp origStr
-         let matchStr = "\n        add-rule" +
-          "\n            match \"prefix in " + origStr + "\"" 
+         let matchStr = "\n        add-rule\n            match \"prefix in " + origStr + "\"" 
          match es with
          | [ (peer, acts) ] -> 
             routerToEsb <- addRuleToPeer peer routerToEsb matchStr

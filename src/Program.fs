@@ -3,6 +3,7 @@
 open System
 open Util.Debug
 open Util.Format
+open CGraph
 
 type Path = Set<CgState*CgState> 
 type TestCases = Set<Path>
@@ -39,7 +40,7 @@ let main argv =
       let polInfo, t3 = Util.Profile.time Ast.build ast
 
       let res, predToTests = Abgp.compileAllPrefixes polInfo
-      let policy = polInfo.Policy 
+      let policy = polInfo.Policy.Head
       let _, reb, _ = policy
       let topo = reb.Topo()
 

@@ -1,5 +1,7 @@
 ﻿module Abgp
 
+open CGraph
+
 /// Abstract ABGP type T
 type T
 
