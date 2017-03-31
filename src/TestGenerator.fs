@@ -25,12 +25,13 @@ let ipOfInt (d : uint32) =
     |> IPAddress
     |> string
 
-let generateRouterIp topo topoInfo : Map<string, string> =
+let generateRouterIp topo : Map<string, string> =
     let mutable routerToIpMap = Map.empty
     let vertices = Topology.vertices topo in
     for i in 0 .. (Seq.length vertices - 1) do
         let vertex = Seq.item i vertices 
-        let routerName = Topology.router vertex.Loc topoInfo
+        let routerName = vertex.Loc 
+        //Topology.router vertex.Loc topoInfo |> ignore
         routerToIpMap <- Map.add routerName (ipOfInt (uint32 i)) routerToIpMap
     routerToIpMap
 
@@ -38,6 +39,7 @@ let generateRouterIp topo topoInfo : Map<string, string> =
 let writeTopoCBGP (input : Topology.T) (file : string) : unit = 
     let vertices = Topology.vertices input in
     let mutable vMap = Map.empty in
+    File.WriteAllText(file, ""); // empty the file
 
     // create nodes for the vertices
     for i in 0 .. (Seq.length vertices - 1) do

@@ -212,14 +212,8 @@ let addRuleToPeer peer routerTosb (actStr : string) routerNameToIp =
     | In -> routerTosb// what is to be done
     | Out -> routerTosb //what is to be done
     | Router x -> 
-      Console.Write("Router ")
-      Console.Write(x);
-
-      Map.iter (fun k v -> Console.Write("\nKey: " + k + "Value: " + v)) routerNameToIp
       let routerIp = Map.find x routerNameToIp 
-      Console.Write("\n RouterIp " + routerIp + "\n");
       let v = Map.find routerIp routerTosb
-      Console.Write("Current status of string builder: " + v.ToString());
       Map.add routerIp (v.Append actStr)  routerTosb
   newmap
 
@@ -238,16 +232,19 @@ let cbgpExport pi routerTosb peer acts routerNameToIp=
 let cbgpImport pi routerToImportSb (m, lp) comm predStr routerNameToIp =
   let actStr = sprintf "\n            action \"community add %s\"" comm 
   let lpStr = sprintf "\n            action \"local-pref %d\"" lp
-  let matchStr = "\n        add-rule\n            match \"prefix in " + predStr  + "\""
+  let matchStr = "\n        add-rule\n            match \"prefix in " + predStr
+  let exitStr = "\n            exit"
 
   match m with
   | Peer p ->
       let newSb = addRuleToPeer p routerToImportSb (matchStr + "\"") routerNameToIp
-      addRuleToPeer p newSb (actStr + lpStr) routerNameToIp
+      let preExit = addRuleToPeer p newSb (actStr + lpStr) routerNameToIp
+      addRuleToPeer p preExit exitStr routerNameToIp
   | State (c, p) -> 
-    let commMatch = sprintf "& community is %s\"" c
+    let commMatch = sprintf " & community is %s\"" c
     let newSb = addRuleToPeer p routerToImportSb (matchStr + commMatch) routerNameToIp
-    addRuleToPeer p newSb (actStr + lpStr) routerNameToIp
+    let preExit = addRuleToPeer p newSb (actStr + lpStr) routerNameToIp
+    addRuleToPeer p preExit exitStr routerNameToIp
   | PathRE r -> routerToImportSb //TODO for later
 
 
@@ -306,7 +303,7 @@ let getCBGPActions sb routerToExport routerToImport pi pred actions curRouterIp 
 let getCBGPConfig (config : T) (vertex: CGraph.CgState) (neighborIp : seq<string>) (routerNameToIp : Map<string, string>) =
   let routerConfig = Map.find vertex.Node.Loc config.RConfigs
   let ti = config.PolInfo.Ast.TopoInfo
-  let routerName = Topology.router vertex.Node.Loc ti
+  let routerName = vertex.Node.Loc //Topology.router vertex.Node.Loc ti
   let routerIp = Map.find routerName routerNameToIp
   let mutable sb = System.Text.StringBuilder()
   let mutable routerToEsb : Map<string, System.Text.StringBuilder> = Map.empty 
@@ -325,16 +322,20 @@ let getCBGPConfig (config : T) (vertex: CGraph.CgState) (neighborIp : seq<string
     routerToIsb <- tempIsb
     sb <- tempsb
 
+  let mutable flag = 0
   for kv in routerToEsb do
+    flag <- 1
     let peer = kv.Key 
-    let routerStr = ("\n bgp router " + routerIp + " peer " + peer)
+    let routerStr = ("\nbgp router " + routerIp + " peer " + peer)
     sb <- sb.Append routerStr
-    bprintf sb "\n    filter out"
-    sb <- sb.Append (kv.Value.ToString())
-    bprintf sb "\n    filter in"
+    if (String.Compare ((kv.Value.ToString ()),"") <> 0) then 
+      bprintf sb "\n    filter out"
+      sb <- sb.Append (kv.Value.ToString())
     let routerCBGP = Map.find peer routerToIsb
-    sb <- sb.Append routerCBGP
-  bprintf sb "\n\n"
+    if (String.Compare ((routerCBGP.ToString ()),"") <> 0) then 
+      bprintf sb "\n    filter in"
+      sb <- sb.Append (routerCBGP)
+  if (flag <> 0) then bprintf sb "\n\n"
   sb.ToString()
 
   // TODO: add this before this function is called

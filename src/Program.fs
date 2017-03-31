@@ -45,23 +45,26 @@ let main argv =
       let topo = reb.Topo()
 
       // where can i get topo from
-      let routerNameToIp = TestGenerator.generateRouterIp topo topoInfo
+      let routerNameToIp = TestGenerator.generateRouterIp topo
 
       // write the tests into CBGP file
+      let mutable j = 0
       let createTest (pred: Route.Predicate) (tests : TestCases) = 
         for i in 0.. Seq.length tests - 1 do
             let t = Seq.item i tests
-            let outputFile = "test" + (string) i + ".cli"
+            let outputFile = "test" + (string) i + (string) j + ".cli"
             //let outputFile = "test" + (Route.toString pred) + (string) i + ".cli"
-            TestGenerator.writeTopoCBGP topo outputFile; // writes physical topology to all testfiles
+            if (Seq.length t <> 0) then
+             TestGenerator.writeTopoCBGP topo outputFile // writes physical topology to all testfiles
             // output cbgp router configuration instructions for routers in the path
             let getIp (v : Topology.Node) =
-                  let routerName = Topology.router v.Loc topoInfo
+                  let routerName = v.Loc //Topology.router v.Loc topoInfo
                   Map.find routerName routerNameToIp
             for (src, dest) in t do
                   let neighbors = Seq.map getIp (Topology.neighbors topo src.Node)
                   let s = Abgp.getCBGPConfig res.Abgp src neighbors routerNameToIp
                   System.IO.File.AppendAllText(outputFile, s);
+        j <- j + 1
        //TODO: traceroute command that would output the path that the traffic took
       Map.iter createTest predToTests;
 
