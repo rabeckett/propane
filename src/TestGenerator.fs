@@ -35,6 +35,21 @@ let generateRouterIp topo : Map<string, string> =
         routerToIpMap <- Map.add routerName (ipOfInt (uint32 i)) routerToIpMap
     routerToIpMap
 
+let getCBGPpeerSessions (vertexToPeers : Map<CgState, Set<CgState>>) (routerNameToIp : Map<string, string>) file : unit =
+    let printSingleRouter router neighbors =
+        let routerIp = Map.find router.Node.Loc routerNameToIp
+        let routerStr = "\nbgp router " + routerIp
+        File.AppendAllText(file, routerStr);
+        for n in neighbors do
+            let peerNum = n.Node.Loc
+            let peerIp = Map.find peerNum routerNameToIp
+            let peerStr = "\n    add peer " + peerNum + " " + peerIp
+            let nextHopStr = "\n    peer " + peerIp + " next-hop-self"
+            let upStr = "\n    peer " + peerIp + " up"
+            File.AppendAllText(file, peerStr + nextHopStr + upStr);
+        File.AppendAllText(file, "\n    exit");               
+    Map.iter printSingleRouter vertexToPeers 
+
 // writes the physical topology in CBGP format 
 let writeTopoCBGP (input : Topology.T) (file : string) : unit = 
     let vertices = Topology.vertices input in

@@ -56,14 +56,30 @@ let main argv =
             //let outputFile = "test" + (Route.toString pred) + (string) i + ".cli"
             if (Seq.length t <> 0) then
              TestGenerator.writeTopoCBGP topo outputFile // writes physical topology to all testfiles
-            // output cbgp router configuration instructions for routers in the path
+            
+            // get Ipaddress for a given node in the testGraph
             let getIp (v : Topology.Node) =
-                  let routerName = v.Loc //Topology.router v.Loc topoInfo
+                  let routerName = v.Loc
                   Map.find routerName routerNameToIp
+
+            // create map with vertex to its peers in test topology
+            let mutable vertexToPeers = Map.empty
+            for (src, dest) in t do
+                  let neighbors =
+                        if (Map.containsKey src vertexToPeers) then Map.find src vertexToPeers
+                        else Set.empty
+                  let newneighbors = Set.add dest neighbors
+                  vertexToPeers <- Map.add src newneighbors vertexToPeers
+            //if (Seq.length t <> 0) then
+            //    TestGenerator.getCBGPpeerSessions vertexToPeers routerNameToIp outputFile
+            
+            // output cbgp router configuration instructions for routers in the path
             for (src, dest) in t do
                   let neighbors = Seq.map getIp (Topology.neighbors topo src.Node)
                   let s = Abgp.getCBGPConfig res.Abgp src neighbors routerNameToIp
                   System.IO.File.AppendAllText(outputFile, s);
+            if (Seq.length t <> 0) then
+                  System.IO.File.AppendAllText(outputFile, "sim run\n\n");
         j <- j + 1
        //TODO: traceroute command that would output the path that the traffic took
       Map.iter createTest predToTests;
