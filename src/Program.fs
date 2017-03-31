@@ -54,7 +54,7 @@ let main argv =
             let t = Seq.item i tests
             let outputFile = "test" + (string) i + (string) j + ".cli"
             //let outputFile = "test" + (Route.toString pred) + (string) i + ".cli"
-            if (Seq.length t <> 0) then
+            if not (Seq.isEmpty t) then
              TestGenerator.writeTopoCBGP topo outputFile // writes physical topology to all testfiles
             
             // get Ipaddress for a given node in the testGraph
@@ -62,23 +62,39 @@ let main argv =
                   let routerName = v.Loc
                   Map.find routerName routerNameToIp
 
+            Console.Write(outputFile + "\n");
             // create map with vertex to its peers in test topology
             let mutable vertexToPeers = Map.empty
             for (src, dest) in t do
+                  // add dest to src's neighbor list
                   let neighbors =
                         if (Map.containsKey src vertexToPeers) then Map.find src vertexToPeers
                         else Set.empty
-                  let newneighbors = Set.add dest neighbors
-                  vertexToPeers <- Map.add src newneighbors vertexToPeers
-            //if (Seq.length t <> 0) then
-            //    TestGenerator.getCBGPpeerSessions vertexToPeers routerNameToIp outputFile
+                  let newneighbors = 
+                        if (Topology.isTopoNode dest.Node) then Set.add dest neighbors
+                        else neighbors
+                  if (Topology.isTopoNode src.Node) then
+                        vertexToPeers <- Map.add src newneighbors vertexToPeers
+                  else ()                
+                  //add src to dest's neighbor list
+                  let destneighbors =
+                        if (Map.containsKey dest vertexToPeers) then Map.find dest vertexToPeers
+                        else Set.empty
+                  let destnewneighbors = 
+                        if (Topology.isTopoNode src.Node) then Set.add src destneighbors
+                        else destneighbors
+                  if (Topology.isTopoNode dest.Node) then
+                        vertexToPeers <- Map.add dest destnewneighbors vertexToPeers
+                  else ()
+            if not (Seq.isEmpty t) then
+                TestGenerator.getCBGPpeerSessions vertexToPeers routerNameToIp outputFile
             
             // output cbgp router configuration instructions for routers in the path
             for (src, dest) in t do
                   let neighbors = Seq.map getIp (Topology.neighbors topo src.Node)
                   let s = Abgp.getCBGPConfig res.Abgp src neighbors routerNameToIp
                   System.IO.File.AppendAllText(outputFile, s);
-            if (Seq.length t <> 0) then
+            if not (Seq.isEmpty t) then
                   System.IO.File.AppendAllText(outputFile, "sim run\n\n");
         j <- j + 1
        //TODO: traceroute command that would output the path that the traffic took

@@ -16,38 +16,58 @@ net add link 0.0.0.3 0.0.0.2
 net add link 0.0.0.4 0.0.0.4
 net add link 0.0.0.4 0.0.0.4
 
-bgp router 0.0.0.3 add network  [1.0.0.0/24]
+bgp router 0.0.0.4
+    add peer 65532 0.0.0.3
+    peer 0.0.0.3 next-hop-self
+    peer 0.0.0.3 up
+    exit
+bgp router 0.0.0.3
+    add peer 65531 0.0.0.4
+    peer 0.0.0.4 next-hop-self
+    peer 0.0.0.4 up
+    add peer 65534 0.0.0.1
+    peer 0.0.0.1 next-hop-self
+    peer 0.0.0.1 up
+    exit
+bgp router 0.0.0.1
+    add peer 65532 0.0.0.3
+    peer 0.0.0.3 next-hop-self
+    peer 0.0.0.3 up
+    exit
+
+
+bgp router 0.0.0.4 add network  [1.0.0.0/24]
+bgp router 0.0.0.4 peer 0.0.0.2
+    filter out
+        add-rule
+            match "prefix in [1.0.0.0/24]"
+            allow
+            exit
+        add-rule
+            match "prefix in [1.0.0.0/24]"
+            action deny
+            exit
+        add-rule
+            match "prefix in [0.0.0.0/0 le 32]"
+            action deny
+            exit
+bgp router 0.0.0.4 peer 0.0.0.3
+    filter out
+        add-rule
+            match "prefix in [1.0.0.0/24]"
+            allow
+            exit
+        add-rule
+            match "prefix in [1.0.0.0/24]"
+            action deny
+            exit
+        add-rule
+            match "prefix in [0.0.0.0/0 le 32]"
+            action deny
+            exit
+
+
 bgp router 0.0.0.3 peer 0.0.0.1
-    filter out
-        add-rule
-            match "prefix in [1.0.0.0/24]"
-            allow
-            exit
-        add-rule
-            match "prefix in [1.0.0.0/24]"
-            action deny
-            exit
-        add-rule
-            match "prefix in [0.0.0.0/0 le 32]"
-            action deny
-            exit
-bgp router 0.0.0.3 peer 0.0.0.2
-    filter out
-        add-rule
-            match "prefix in [1.0.0.0/24]"
-            allow
-            exit
-        add-rule
-            match "prefix in [1.0.0.0/24]"
-            action deny
-            exit
-        add-rule
-            match "prefix in [0.0.0.0/0 le 32]"
-            action deny
-            exit
-
-
-bgp router 0.0.0.2 peer 0.0.0.0
     filter out
         add-rule 
             match "community is 23767"
@@ -65,7 +85,7 @@ bgp router 0.0.0.2 peer 0.0.0.0
             match "prefix in [0.0.0.0/0 le 32]"
             action deny
             exit
-bgp router 0.0.0.2 peer 0.0.0.1
+bgp router 0.0.0.3 peer 0.0.0.2
     filter out
         add-rule 
             match "community is 23767"
@@ -89,7 +109,7 @@ bgp router 0.0.0.2 peer 0.0.0.1
             action "community add 23767"
             action "local-pref 100"
             exit
-bgp router 0.0.0.2 peer 0.0.0.3
+bgp router 0.0.0.3 peer 0.0.0.4
     filter out
         add-rule 
             match "community is 23767"
@@ -115,7 +135,7 @@ bgp router 0.0.0.2 peer 0.0.0.3
             exit
 
 
-bgp router 0.0.0.0 peer 0.0.0.1
+bgp router 0.0.0.1 peer 0.0.0.2
     filter out
         add-rule 
             match "community is 23767"
@@ -144,7 +164,7 @@ bgp router 0.0.0.0 peer 0.0.0.1
             action "community add 23766"
             action "local-pref 99"
             exit
-bgp router 0.0.0.0 peer 0.0.0.2
+bgp router 0.0.0.1 peer 0.0.0.3
     filter out
         add-rule 
             match "community is 23767"
