@@ -38,8 +38,6 @@ let generateRouterIp topo : Map<string, string> =
 let getCBGPpeerSessions (vertexToPeers : Map<CgState, Set<CgState>>) (routerNameToIp : Map<string, string>) file : unit =
     let printSingleRouter router neighbors =
         if not (Seq.isEmpty neighbors) then
-            Console.WriteLine("\nme:" + router.Node.Loc + " my neighbors:")
-            Seq.iter (fun n -> Console.Write(n.Node.Loc + " ")) neighbors
             let routerIp = Map.find router.Node.Loc routerNameToIp
             let routerStr = "\nbgp router " + routerIp
             File.AppendAllText(file, routerStr);

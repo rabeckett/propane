@@ -58,8 +58,8 @@ let main argv =
              TestGenerator.writeTopoCBGP topo outputFile // writes physical topology to all testfiles
             
             // get Ipaddress for a given node in the testGraph
-            let getIp (v : Topology.Node) =
-                  let routerName = v.Loc
+            let getIp (v : CgState) =
+                  let routerName = v.Node.Loc
                   Map.find routerName routerNameToIp
 
             Console.Write(outputFile + "\n");
@@ -91,7 +91,7 @@ let main argv =
             
             // output cbgp router configuration instructions for routers in the path
             for (src, dest) in t do
-                  let neighbors = Seq.map getIp (Topology.neighbors topo src.Node)
+                  let neighbors = Seq.map getIp (Map.find src vertexToPeers)
                   let s = Abgp.getCBGPConfig res.Abgp src neighbors routerNameToIp
                   System.IO.File.AppendAllText(outputFile, s);
             if not (Seq.isEmpty t) then

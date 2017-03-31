@@ -213,8 +213,10 @@ let addRuleToPeer peer routerTosb (actStr : string) routerNameToIp =
     | Out -> routerTosb //what is to be done
     | Router x -> 
       let routerIp = Map.find x routerNameToIp 
-      let v = Map.find routerIp routerTosb
-      Map.add routerIp (v.Append actStr)  routerTosb
+      if (Map.containsKey routerIp routerTosb) then
+        let v = Map.find routerIp routerTosb
+        Map.add routerIp (v.Append actStr)  routerTosb
+      else routerTosb
   newmap
 
 let cbgpExport pi routerTosb peer acts routerNameToIp= 
