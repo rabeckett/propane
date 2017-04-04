@@ -257,9 +257,10 @@ let getCBGPActions sb routerToExport routerToImport pi pred actions curRouterIp 
    //let curRouterIp = Map.find routerNameToIp router
    let origStr, predStr = 
       match pred with
-      | Pred p -> 
-         let s = Route.toString p // get rid of brackets/
-         s, s
+      | Pred p ->
+        let (Route.TrafficClassifier(pref, _)) = List.head (Route.trafficClassifiers p)
+        let s = (string) pref
+        s, s
       | Comm(p, c) -> Route.toString p, "comm=" + c // ??
    let exitStr = "\n            exit"
    match actions with
