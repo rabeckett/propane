@@ -80,11 +80,18 @@ let genLinkTest (input: CGraph.T) (pred : Route.Predicate) : TestCases =
     let ctx = new Context() in
     let vertices = input.Graph.Vertices in
     let edges = input.Graph.Edges in
+    let edgesToCover = Seq.filter (fun (n1,n2) -> (Topology.isTopoNode n1 && Topology.isTopoNode n2)) (Topology.edges input.Topo)
+
+    Console.Write("edges");
+    for (src, dst) in edgesToCover do
+        Console.Write("(" + src.Loc + "," + dst.Loc + ")");
+        Console.Write("\n");
+
     // array of boolExpr for vertices and edges respectively
     let vArray = Array.zeroCreate (Seq.length vertices) in
     let mutable vMap = Map.empty in
     let mutable eMap = Map.empty in
-    let mutable edgesSoFar = Set.empty
+    let mutable edgesSoFar : Set<Topology.Node * Topology.Node> = Set.empty
 
     //cretae vertex map
     //Console.Write("creating vertex map");
@@ -191,8 +198,14 @@ let genLinkTest (input: CGraph.T) (pred : Route.Predicate) : TestCases =
     s.Assert(Set.toArray condSet);
     File.AppendAllText("solutions.txt", "New Set for prefix \n")
     let mutable tests = Set.empty in
-    while (s.Check() = Status.SATISFIABLE && (Set.count edgesSoFar <> Seq.length edges)) do
-      //Console.Write("iterating once \n");
+    while (s.Check() = Status.SATISFIABLE && (Set.count edgesSoFar < Seq.length edgesToCover)) do
+      Console.Write("iterating once \n");
+      Console.Write("edges so far " + (string) (Set.count edgesSoFar) + "total edges " + (string) (Seq.length edgesToCover) + "\n");
+      Console.Write("edges covered so far");
+      for (src, dst) in edgesSoFar do
+        Console.Write("(" + src.Loc + "," + dst.Loc + ")");
+        Console.Write("\n");
+
       let mutable solnSet = Set.empty in
       let mutable curPath = Set.empty in
       File.AppendAllText("solutions.txt", "New Solution\n")
@@ -202,7 +215,9 @@ let genLinkTest (input: CGraph.T) (pred : Route.Predicate) : TestCases =
 
             //add current edge to the current Path
             let edge = Seq.item i edges in
-            edgesSoFar <- Set.add (edge.Source, edge.Target) edgesSoFar;
+            if (Topology.isTopoNode edge.Source.Node && Topology.isTopoNode edge.Target.Node) then
+                edgesSoFar <- Set.add (edge.Source.Node, edge.Target.Node) edgesSoFar;
+                edgesSoFar <- Set.add (edge.Target.Node, edge.Source.Node) edgesSoFar;
             if Topology.isTopoNode edge.Source.Node then
                 curPath <- Set.add (edge.Source, edge.Target) curPath;
             else 
