@@ -1462,7 +1462,7 @@ let compileToIR idx pred (polInfo : Ast.PolInfo) aggInfo (reb : Regex.REBuilder)
    // generate tests for minimized PG
    let tests, testTime = 
     if settings.GenTests then
-      Profile.time (TestGenerator.genTest cg) pred 
+      Profile.time (TestGenerator.genLinkTest cg) pred 
     else Set.empty, (int64 0)
    // get the abstract reachability information
    let abstractPathInfo, at1 = 

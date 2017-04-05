@@ -250,7 +250,7 @@ let getPrefIndividualProblems (input: CGraph.T) (ctx : Context) k vArray eArray:
         condSet <- Set.add (Array2D.get vArray src index) condSet ;
         let target = Map.find input.End vMap in
         condSet <- Set.add (Array2D.get vArray target index) condSet ;
-        condSet <- Set.add (Array2D.get index index]) condSet;
+        condSet <- Set.add (Array2D.get vArray index index) condSet;
     
         //Console.Write("if edge then ends");
         for i in 0 .. (Seq.length edges - 1) do
@@ -258,10 +258,10 @@ let getPrefIndividualProblems (input: CGraph.T) (ctx : Context) k vArray eArray:
             let edge = Seq.item i edges in
             let a = Map.find edge.Source vMap in
             let b = Map.find edge.Target vMap in
-            let arr = Array.create 2 vArray.[a] in
-            Array.set arr 1 vArray.[b];
+            let arr = Array.create 2 (Array2D.get vArray a index) in
+            Array.set arr 1 (Array2D.get vArray b index);
             let ends = ctx.MkAnd arr in
-            let exp = ctx.MkImplies (Array2D.get eArray i index, ends) in
+            let exp = ctx.MkImplies ((Array2D.get eArray i index), ends) in
             condSet <- Set.add exp condSet;
 
         // if a vertex is true, atleast one incoming edge is true, and atleast one outgoign edge
@@ -302,7 +302,7 @@ let getPrefIndividualProblems (input: CGraph.T) (ctx : Context) k vArray eArray:
                 else 
                     ctx.MkTrue() in
             Array.set combArr 1 notexp;
-            condSet <- Set.add (ctx.MkImplies (vArray.[j], ctx.MkAnd(combArr))) condSet;
+            condSet <- Set.add (ctx.MkImplies ((Array2D.get vArray j index), ctx.MkAnd(combArr))) condSet;
         
 
         // relationship between nodes with the same topological location
