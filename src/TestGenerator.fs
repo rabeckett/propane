@@ -84,6 +84,7 @@ let genLinkTest (input: CGraph.T) (pred : Route.Predicate) : TestCases =
     let vArray = Array.zeroCreate (Seq.length vertices) in
     let mutable vMap = Map.empty in
     let mutable eMap = Map.empty in
+    let mutable edgesSoFar = Set.empty
 
     //cretae vertex map
     //Console.Write("creating vertex map");
@@ -190,7 +191,7 @@ let genLinkTest (input: CGraph.T) (pred : Route.Predicate) : TestCases =
     s.Assert(Set.toArray condSet);
     File.AppendAllText("solutions.txt", "New Set for prefix \n")
     let mutable tests = Set.empty in
-    while (s.Check() = Status.SATISFIABLE) do
+    while (s.Check() = Status.SATISFIABLE && (Set.count edgesSoFar <> Seq.length edges)) do
       //Console.Write("iterating once \n");
       let mutable solnSet = Set.empty in
       let mutable curPath = Set.empty in
@@ -201,6 +202,7 @@ let genLinkTest (input: CGraph.T) (pred : Route.Predicate) : TestCases =
 
             //add current edge to the current Path
             let edge = Seq.item i edges in
+            edgesSoFar <- Set.add (edge.Source, edge.Target) edgesSoFar;
             if Topology.isTopoNode edge.Source.Node then
                 curPath <- Set.add (edge.Source, edge.Target) curPath;
             else 
@@ -217,14 +219,9 @@ let genLinkTest (input: CGraph.T) (pred : Route.Predicate) : TestCases =
       s.Assert(Set.toArray condSet);
     Console.Write("done");
     tests
-    //let newPredToTestCases = Map.add pred tests cbgpTests.predToTestCases 
-    //{
-    //    routerNameToIpMap = cbgpTests.routerNameToIpMap
-    //    predToTestCases = newPredToTestCases
-    //} 
 
-    //done  
 
+// generates the individual pref tests for all nodes that share a given topological node
 let getPrefIndividualProblems (input: CGraph.T) (ctx : Context) k vArray eArray: Set<Set<BoolExpr>> =
     let mutable sameTopoCond = Set.empty
     let vertices = input.Graph.Vertices in
@@ -337,6 +334,7 @@ let getPrefIndividualProblems (input: CGraph.T) (ctx : Context) k vArray eArray:
     sameTopoCond
     
 
+// generates test for preference coverage for this given predicate
 let genPrefTest (input: CGraph.T) (pred : Route.Predicate) : TestCases =
     let ctx = new Context() in
     let mutable tests = Set.empty
