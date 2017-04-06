@@ -80,7 +80,10 @@ let genLinkTest (input: CGraph.T) (pred : Route.Predicate) : TestCases =
     let ctx = new Context() in
     let vertices = input.Graph.Vertices in
     let edges = input.Graph.Edges in
-    let edgesToCover = Seq.filter (fun (n1,n2) -> (Topology.isTopoNode n1 && Topology.isTopoNode n2)) (Topology.edges input.Topo)
+    let filterf (n1,n2) = Topology.isTopoNode n1 && Topology.isTopoNode n2 
+                            && (not (Topology.isUnknown n1)) && (not (Topology.isUnknown n2))
+    let edgesToCover = Seq.filter filterf (Topology.edges input.Topo) 
+    
 
     Console.Write("edges");
     for (src, dst) in edgesToCover do
