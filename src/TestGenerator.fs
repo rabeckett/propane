@@ -94,6 +94,7 @@ let genLinkTest (input: CGraph.T) (pred : Route.Predicate) : TestCases =
 
     // array of boolExpr for vertices and edges respectively
     let vArray = Array.zeroCreate (Seq.length vertices) in
+    let vIntArray = Array.zeroCreate (Seq.length vertices) in
     let mutable vMap = Map.empty in
     let mutable eMap = Map.empty in
     let mutable edgesSoFar : Set<Topology.Node * Topology.Node> = Set.empty
@@ -102,6 +103,7 @@ let genLinkTest (input: CGraph.T) (pred : Route.Predicate) : TestCases =
     //Console.Write("creating vertex map");
     for i in 0 .. (Seq.length vertices - 1) do
         Array.set vArray i (ctx.MkBoolConst ("v" + (string i)));
+        Array.set vIntArray i (ctx.MkIntConst ("vI" + (string i)));
         vMap <- Map.add (Seq.item i vertices)  i vMap;
     let eArray = Array.zeroCreate (Seq.length edges) in
 
@@ -115,8 +117,11 @@ let genLinkTest (input: CGraph.T) (pred : Route.Predicate) : TestCases =
     let mutable condSet = Set.empty in
     let src = Map.find input.Start vMap in
     condSet <- Set.add (Array.get vArray src) condSet ;
+    condSet <- Set.add (ctx.MkEq (vIntArray.[src], ctx.MkInt(0))) condSet;
     let target = Map.find input.End vMap in
     condSet <- Set.add (Array.get vArray target) condSet ;
+
+    // if edge is true, both vertices are true, and int for source vertex is one less than dest
     //Console.Write("if edge then ends");
     for i in 0 .. (Seq.length edges - 1) do
         // find vertices at the start and end of an edge for implication between edges and vertices for connectivity
@@ -128,6 +133,9 @@ let genLinkTest (input: CGraph.T) (pred : Route.Predicate) : TestCases =
         let ends = ctx.MkAnd arr in
         let exp = ctx.MkImplies (eArray.[i], ends) in
         condSet <- Set.add exp condSet;
+        //let srcPlusOne = ctx.MkAdd(vIntArray.[a], ctx.MkInt(1)) in
+        //condSet <- Set.add (ctx.MkEq(vIntArray.[b], srcPlusOne)) condSet;
+        condSet <- Set.add (ctx.MkGt(vIntArray.[b], vIntArray.[a])) condSet;
 
     // if a vertex is true, atleast one incoming edge is true, and atleast one outgoign edge
     for j in 0 .. (Seq.length vertices - 1) do
@@ -228,7 +236,10 @@ let genLinkTest (input: CGraph.T) (pred : Route.Predicate) : TestCases =
             else 
                 ();
 
-            File.AppendAllText("solutions.txt", (string) (Seq.item i edges) + "\n");
+            let a = s.Model.Evaluate(vIntArray.[Map.find edge.Source vMap]) in
+            let b = s.Model.Evaluate(vIntArray.[Map.find edge.Target vMap]) in
+            File.AppendAllText("solutions.txt", (string) (Seq.item i edges) + " " + (string a) + " " + (string b) + "\n");
+            
             //bgp peer up? for cbgp file
         else
             ();
