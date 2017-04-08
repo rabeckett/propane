@@ -307,56 +307,64 @@ let getCBGPActions sb routerToExport routerToImport pi pred actions curRouterIp 
    (sb, routerToEsb, routerToIsb) 
 
 let getCBGPConfig (config : T) (vertex: CGraph.CgState) (neighbors : seq<string>) (routerNameToIp : Map<string, string>) =
-  let routerConfig = Map.find vertex.Node.Loc config.RConfigs
-  let ti = config.PolInfo.Ast.TopoInfo
-  let routerName = vertex.Node.Loc //Topology.router vertex.Node.Loc ti
-  let routerIp = Map.find routerName routerNameToIp
-  let mutable sb = System.Text.StringBuilder()
-  let mutable routerToEsb : Map<string, System.Text.StringBuilder> = Map.empty 
-  let mutable routerToIsb : Map<string, System.Text.StringBuilder> = Map.empty 
+  //Console.Write("router name is " + vertex.Node.Loc);
+  if (Map.containsKey vertex.Node.Loc config.RConfigs) then 
+    let routerConfig = Map.find vertex.Node.Loc config.RConfigs
+    let ti = config.PolInfo.Ast.TopoInfo
+    let routerName = vertex.Node.Loc //Topology.router vertex.Node.Loc ti
+    //Console.Write("router name is " + routerName);
+    let routerIp = Map.find routerName routerNameToIp
+    //Console.Write("router ip is " + routerIp);
+    let mutable sb = System.Text.StringBuilder()
+    let mutable routerToEsb : Map<string, System.Text.StringBuilder> = Map.empty 
+    let mutable routerToIsb : Map<string, System.Text.StringBuilder> = Map.empty 
 
-  let mutable flag = 0
-  for s in neighbors do
-    flag <- 1
-    routerToEsb <- Map.add s (System.Text.StringBuilder ()) routerToEsb
-    routerToIsb <- Map.add s (System.Text.StringBuilder ()) routerToIsb
-  // control code taken out from above - format, borrow back when needed
+    let mutable flag = 0
+    for s in neighbors do
+      flag <- 1
+      routerToEsb <- Map.add s (System.Text.StringBuilder ()) routerToEsb
+      routerToIsb <- Map.add s (System.Text.StringBuilder ()) routerToIsb
+    // control code taken out from above - format, borrow back when needed
 
-  // figure out how to initialize the two maps with all the peers that are up for this vertex
-  //where do i call this code from? also to be figured out and bgp up/down code
-  let myStr = "\nbgp add router " + routerName + " " + routerIp + "\nbgp router " + routerIp
-  sb <- sb.Append myStr
-  for (pred, actions) in routerConfig.Actions do
-    let (tempsb, tempEsb, tempIsb) = getCBGPActions sb routerToEsb routerToIsb config.PolInfo pred actions routerIp routerNameToIp
-    routerToEsb <- tempEsb
-    routerToIsb <- tempIsb
-    sb <- tempsb
+    // figure out how to initialize the two maps with all the peers that are up for this vertex
+    //where do i call this code from? also to be figured out and bgp up/down code
+    let myStr = "\nbgp add router " + routerName + " " + routerIp + "\nbgp router " + routerIp
+    sb <- sb.Append myStr
+    for (pred, actions) in routerConfig.Actions do
+      let (tempsb, tempEsb, tempIsb) = getCBGPActions sb routerToEsb routerToIsb config.PolInfo pred actions routerIp routerNameToIp
+      routerToEsb <- tempEsb
+      routerToIsb <- tempIsb
+      sb <- tempsb
 
-  for kv in routerToEsb do
-    flag <- 1
-    let peer = kv.Key 
-    let peerIp = Map.find peer routerNameToIp
-    let mutable isFiltered = false
-    let routerStr = ("\n        add peer " + peer + " " + peerIp)
-    sb <- sb.Append routerStr
-    if (String.Compare ((kv.Value.ToString ()),"") <> 0) then 
-      bprintf sb "\n        peer %s" peerIp
-      isFiltered <- true
-      bprintf sb "\n                filter out"
-      sb <- sb.Append (kv.Value.ToString())
-      bprintf sb "\n                exit"
-    let routerCBGP = Map.find peer routerToIsb
-    if (String.Compare ((routerCBGP.ToString ()),"") <> 0) then 
-      if (not isFiltered) then
+    for kv in routerToEsb do
+      flag <- 1
+      let peer = kv.Key 
+      //Console.Write("peer name is " + peer);
+      let peerIp = Map.find peer routerNameToIp
+      //Console.Write("peer Ip is " + peerIp);
+      let mutable isFiltered = false
+      let routerStr = ("\n        add peer " + peer + " " + peerIp)
+      sb <- sb.Append routerStr
+      if (String.Compare ((kv.Value.ToString ()),"") <> 0) then 
         bprintf sb "\n        peer %s" peerIp
-        isFiltered <- true        
-      bprintf sb "\n                filter in"
-      sb <- sb.Append (routerCBGP)
-      bprintf sb "\n                exit"
-    if (isFiltered) then bprintf sb "\n        exit"
-    bprintf sb "\n        peer %s up" peerIp
-  bprintf sb "\nexit"
-  sb.ToString()
+        isFiltered <- true
+        bprintf sb "\n                filter out"
+        sb <- sb.Append (kv.Value.ToString())
+        bprintf sb "\n                exit"
+      let routerCBGP = Map.find peer routerToIsb
+      if (String.Compare ((routerCBGP.ToString ()),"") <> 0) then 
+        if (not isFiltered) then
+          bprintf sb "\n        peer %s" peerIp
+          isFiltered <- true        
+        bprintf sb "\n                filter in"
+        sb <- sb.Append (routerCBGP)
+        bprintf sb "\n                exit"
+      if (isFiltered) then bprintf sb "\n        exit"
+      bprintf sb "\n        peer %s up" peerIp
+    bprintf sb "\nexit"
+    sb.ToString()
+  else
+    ""
 
   // TODO: add this before this function is called
   // bgp router routerIp 

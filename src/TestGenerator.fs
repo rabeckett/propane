@@ -87,10 +87,15 @@ let genLinkTest (input: CGraph.T) (pred : Route.Predicate) : TestCases =
     let edgesToCover = Seq.filter filterf (Topology.edges input.Topo) 
     
 
-    Console.Write("edges");
-    for (src, dst) in edgesToCover do
-        Console.Write("(" + src.Loc + "," + dst.Loc + ")");
-        Console.Write("\n");
+    //Console.Write("edges");
+    //for (src, dst) in edgesToCover do
+    //    Console.Write("(" + src.Loc + "," + dst.Loc + ")");
+    //    Console.Write("\n");
+
+    //Console.Write("PRoduct graph edges");
+    //for e in edges do
+    //    Console.Write("(" + e.Source.Node.Loc + "," + e.Target.Node.Loc + ")");
+    //    Console.Write("\n");
 
     // array of boolExpr for vertices and edges respectively
     let vArray = Array.zeroCreate (Seq.length vertices) in
@@ -133,9 +138,9 @@ let genLinkTest (input: CGraph.T) (pred : Route.Predicate) : TestCases =
         let ends = ctx.MkAnd arr in
         let exp = ctx.MkImplies (eArray.[i], ends) in
         condSet <- Set.add exp condSet;
-        //let srcPlusOne = ctx.MkAdd(vIntArray.[a], ctx.MkInt(1)) in
-        //condSet <- Set.add (ctx.MkEq(vIntArray.[b], srcPlusOne)) condSet;
-        condSet <- Set.add (ctx.MkGt(vIntArray.[b], vIntArray.[a])) condSet;
+        let srcPlusOne = ctx.MkAdd(vIntArray.[a], ctx.MkInt(1)) in
+        let incValueExp = ctx.MkEq(vIntArray.[b], srcPlusOne) in
+        condSet <- Set.add (ctx.MkImplies (eArray.[i], incValueExp)) condSet
 
     // if a vertex is true, atleast one incoming edge is true, and atleast one outgoign edge
     for j in 0 .. (Seq.length vertices - 1) do
@@ -214,10 +219,10 @@ let genLinkTest (input: CGraph.T) (pred : Route.Predicate) : TestCases =
     while (s.Check() = Status.SATISFIABLE && (Set.count edgesSoFar < Seq.length edgesToCover)) do
       Console.Write("iterating once \n");
       Console.Write("edges so far " + (string) (Set.count edgesSoFar) + "total edges " + (string) (Seq.length edgesToCover) + "\n");
-      Console.Write("edges covered so far");
-      for (src, dst) in edgesSoFar do
-        Console.Write("(" + src.Loc + "," + dst.Loc + ")");
-        Console.Write("\n");
+      //Console.Write("edges covered so far");
+      //for (src, dst) in edgesSoFar do
+      //  Console.Write("(" + src.Loc + "," + dst.Loc + ")");
+      //  Console.Write("\n");
 
       let mutable solnSet = Set.empty in
       let mutable curPath = Set.empty in
