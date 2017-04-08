@@ -50,6 +50,11 @@ let main argv =
       // write the tests into CBGP file
       let mutable j = 0
       let createTest (pred: Route.Predicate) (tests : TestCases) = 
+        let predStr = 
+            let (Route.TrafficClassifier(pref, _)) = List.head (Route.trafficClassifiers pred)
+            let s = (string) pref
+            if (String.exists (fun c -> c = 'l') s) then (s.Substring (0, 9)) 
+            else s
         for i in 0.. Seq.length tests - 1 do
             let t = Seq.item i tests
             let outputFile = "test" + (string) i + (string) j + ".cli"
@@ -93,12 +98,19 @@ let main argv =
             //    TestGenerator.getCBGPpeerSessions vertexToPeers routerNameToIp outputFile
             
             // output cbgp router configuration instructions for routers in the path
+            let mutable lastRouter = "0.0.0.0"
+            let mutable lastAsn = "0"
             for (src, dest) in t do
                   let neighbors = Seq.map getAsn (Map.find src vertexToPeers)
                   let s = Abgp.getCBGPConfig res.Abgp src neighbors routerNameToIp
                   System.IO.File.AppendAllText(outputFile, s);
+                  if (not (Topology.isTopoNode dest.Node)) then 
+                        lastRouter <- getIp src
+                        lastAsn <- src.Node.Loc
             if not (Seq.isEmpty t) then
+                  System.IO.File.AppendAllText(outputFile, "\nbgp router " + lastRouter + " record-route " + predStr)
                   System.IO.File.AppendAllText(outputFile, "\nsim run\n\n");
+                  System.IO.File.AppendAllText("solutions.txt", outputFile + " last router is " + lastAsn + "\n");
         j <- j + 1
        //TODO: traceroute command that would output the path that the traffic took
       Map.iter createTest predToTests;

@@ -30,6 +30,53 @@ bgp router 0.0.0.4
         exit
         peer 0.0.0.2 up
 exit
+bgp add router 65532 0.0.0.3
+bgp router 0.0.0.3
+        add peer 65533 0.0.0.2
+        peer 0.0.0.2
+                filter out
+                        add-rule 
+                                match "community is 23767"
+                                action "community add 1"
+                        exit
+                        add-rule 
+                                match "community is 23766"
+                                action "community add 1"
+                        exit
+                        add-rule
+                                match "prefix in 1.0.0.0/24"
+                                action deny
+                        exit
+                        add-rule
+                                match "prefix in 0.0.0.0/0"
+                                action deny
+                        exit
+                exit
+        exit
+        peer 0.0.0.2 up
+        add peer 65534 0.0.0.1
+        peer 0.0.0.1
+                filter out
+                        add-rule 
+                                match "community is 23767"
+                                action "community add 1"
+                        exit
+                        add-rule 
+                                match "community is 23766"
+                                action "community add 1"
+                        exit
+                        add-rule
+                                match "prefix in 1.0.0.0/24"
+                                action deny
+                        exit
+                        add-rule
+                                match "prefix in 0.0.0.0/0"
+                                action deny
+                        exit
+                exit
+        exit
+        peer 0.0.0.1 up
+exit
 bgp add router 65533 0.0.0.2
 bgp router 0.0.0.2
         add peer 65531 0.0.0.4
@@ -54,8 +101,8 @@ bgp router 0.0.0.2
                 exit
         exit
         peer 0.0.0.4 up
-        add peer 65534 0.0.0.1
-        peer 0.0.0.1
+        add peer 65532 0.0.0.3
+        peer 0.0.0.3
                 filter out
                         add-rule 
                                 match "community is 23767"
@@ -75,12 +122,12 @@ bgp router 0.0.0.2
                         exit
                 exit
         exit
-        peer 0.0.0.1 up
+        peer 0.0.0.3 up
 exit
 bgp add router 65534 0.0.0.1
 bgp router 0.0.0.1
-        add peer 65533 0.0.0.2
-        peer 0.0.0.2
+        add peer 65532 0.0.0.3
+        peer 0.0.0.3
                 filter out
                         add-rule 
                                 match "community is 23767"
@@ -107,7 +154,8 @@ bgp router 0.0.0.1
                         exit
                 exit
         exit
-        peer 0.0.0.2 up
+        peer 0.0.0.3 up
 exit
+bgp router 0.0.0.1 record-route 1.0.0.0/24
 sim run
 
