@@ -6,6 +6,11 @@ open Topology
 open System
 open System.Net
 open System.IO
+open System.Collections.Generic
+open Util
+open Util.Debug
+open Util.Error
+open Util.Format
 
 // set of edges where each edge is a pair of vertices
 type Path = Set<CgState*CgState> 
@@ -256,6 +261,10 @@ let getPrefIndividualProblems (input: CGraph.T) (ctx : Context) nodeSet vArray e
     let mutable vMap = Map.empty in
     let mutable eMap = Map.empty in
 
+    Console.Write("\nNew nodes sharing location");
+    for n in nodeSet do
+        Console.Write((string n) + " ");
+    
     //cretae vertex map
     //Console.Write("creating vertex map");
     for i in 0 .. (Seq.length vertices - 1) do
@@ -271,7 +280,7 @@ let getPrefIndividualProblems (input: CGraph.T) (ctx : Context) nodeSet vArray e
         // src target and current node is being set
         let src = Map.find input.Start vMap in
         condSet <- Set.add (Array2D.get vArray src index) condSet ;
-        condSet <- Set.add (ctx.MkEq ((Array2D.get vArray src index), ctx.MkInt(0))) condSet;
+        condSet <- Set.add (ctx.MkEq ((Array2D.get vIntArray src index), ctx.MkInt(0))) condSet;
         let target = Map.find input.End vMap in
         condSet <- Set.add (Array2D.get vArray target index) condSet ;
         let myIndex = Map.find (Seq.item index nodeSet) vMap in
@@ -372,24 +381,12 @@ let genPrefTest (input: CGraph.T) (pred : Route.Predicate) : TestCases =
     let vertices = input.Graph.Vertices
     let edges = input.Graph.Edges
 
-    // find map between topological node and all the cgraph nodes that have the same topo node
+    // find map between topological node and all the cgraph nodes that have the same topo node in order of preference
     //Console.Write("loopfree");
-    let mutable topoNodeToVertexSet = Map.empty in
-    for i in 0 .. (Seq.length vertices - 1) do
-        let vertex = Seq.item i vertices in
-        //let vertexExp = vArray.[Map.find (Seq.item i vertices) vMap] in
-        let topoNode = vertex.Node in
-        if (Map.containsKey topoNode topoNodeToVertexSet) then
-            let newSet = Set.add vertex (Map.find topoNode topoNodeToVertexSet) in
-            topoNodeToVertexSet <- Map.add topoNode newSet topoNodeToVertexSet;
-        else
-            let newSet = Set.add vertex Set.empty in
-            topoNodeToVertexSet <- Map.add topoNode newSet topoNodeToVertexSet;
-
-    let vertexToCGraphNodes =
-        match (Consistency.findOrderingConservative 1) with
-        | Ok (ord,_) -> ord
-        | _ -> new dict[];
+    let vertexToCGraphNodes : Dictionary<String, seq<CGraph.CgState>> =
+        match (Consistency.findOrderingConservative 1 input) with
+        | Ok ord -> ord
+        | _ -> Dictionary<String, seq<CgState>>();
 
     //cretae vertex map
     //Console.Write("creating vertex map");
@@ -399,11 +396,11 @@ let genPrefTest (input: CGraph.T) (pred : Route.Predicate) : TestCases =
         let vertexSet = kv.Value
 
         if (Seq.length vertexSet > 1) then 
-            let vArray = Array2D.zeroCreate (Seq.length vertices) (Set.count vertexSet)
-            let eArray = Array2D.zeroCreate (Seq.length edges) (Set.count vertexSet) 
-            let vIntArray = Array2D.zeroCreate (Seq.length vertices) (Set.count vertexSet)
+            let vArray = Array2D.zeroCreate (Seq.length vertices) (Seq.length vertexSet)
+            let eArray = Array2D.zeroCreate (Seq.length edges) (Seq.length vertexSet) 
+            let vIntArray = Array2D.zeroCreate (Seq.length vertices) (Seq.length vertexSet)
 
-            for j in 0 .. (Set.count vertexSet - 1) do
+            for j in 0 .. (Seq.length vertexSet - 1) do
                 for i in 0 .. (Seq.length vertices - 1) do
                     Array2D.set vArray i j (ctx.MkBoolConst ("v" + (string i)));
                     Array2D.set vIntArray i j (ctx.MkIntConst ("vI" + (string i)));
@@ -429,6 +426,7 @@ let genPrefTest (input: CGraph.T) (pred : Route.Predicate) : TestCases =
                 for j in 0 .. (Seq.length problemSet - 1) do
                     let curProblem = Seq.item j problemSet
                     if (j = i || j = (i + 1)) then 
+                        Console.Write("writing my own nodes");
                         condSet <- Set.add (ctx.MkAnd(Set.toArray curProblem)) condSet;
                     else
                         condSet <- Set.add (ctx.MkNot(ctx.MkAnd(Set.toArray curProblem))) condSet;
