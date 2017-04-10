@@ -156,6 +156,7 @@ bgp router 0.0.0.1
         exit
         peer 0.0.0.3 up
 exit
-bgp router 0.0.0.1 record-route 1.0.0.0/24
 sim run
 
+
+bgp router 0.0.0.1 record-route 1.0.0.0/24

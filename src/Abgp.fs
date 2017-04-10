@@ -1486,9 +1486,12 @@ let compileToIR idx pred (polInfo : Ast.PolInfo) aggInfo (reb : Regex.REBuilder)
    debug (fun () -> CGraph.generatePNG cg polInfo (debugName + "-min"))
    // generate tests for minimized PG
    let tests, testTime = 
-    if settings.GenTests then
-      Profile.time (TestGenerator.genLinkTest cg) pred 
-    else Set.empty, (int64 0)
+      if settings.GenLinkTests then
+        Profile.time (TestGenerator.genLinkTest cg) pred
+      else 
+        if settings.GenPrefTests then
+          Profile.time (TestGenerator.genPrefTest cg) pred 
+        else Set.empty, (int64 0)
    // get the abstract reachability information
    let abstractPathInfo, at1 = 
       if settings.IsAbstract && not settings.Test (* && not (Map.isEmpty aggInfo) *) then 

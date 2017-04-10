@@ -30,7 +30,7 @@ let main argv =
       | None -> errorLine "No topology file specified, use --help to see options"
       | Some f -> Util.Profile.time Topology.readTopology f
    if settings.IsAbstract then AbstractAnalysis.checkWellformedTopology topoInfo
-   if settings.GenTests then System.IO.File.WriteAllText("solutions.txt", "")
+   if (settings.GenLinkTests || settings.GenPrefTests) then System.IO.File.WriteAllText("solutions.txt", "")
    match settings.PolFile with
    | None -> errorLine "No policy file specified, use --help to see options"
    | Some polFile -> 
@@ -50,70 +50,77 @@ let main argv =
       // write the tests into CBGP file
       let mutable j = 0
       let createTest (pred: Route.Predicate) (tests : TestCases) = 
-        let predStr = 
-            let (Route.TrafficClassifier(pref, _)) = List.head (Route.trafficClassifiers pred)
-            let s = (string) pref
-            if (String.exists (fun c -> c = 'l') s) then (s.Substring (0, 9)) 
-            else s
-        for i in 0.. Seq.length tests - 1 do
-            let t = Seq.item i tests
-            let outputFile = "test" + (string) i + (string) j + ".cli"
-            //let outputFile = "test" + (Route.toString pred) + (string) i + ".cli"
-            if not (Seq.isEmpty t) then
-             TestGenerator.writeTopoCBGP topo outputFile // writes physical topology to all testfiles
-            
-            // get Ipaddress for a given node in the testGraph
-            let getIp (v : CgState) =
-                  let routerName = v.Node.Loc
-                  Map.find routerName routerNameToIp
+            let predStr = 
+                  let (Route.TrafficClassifier(pref, _)) = List.head (Route.trafficClassifiers pred)
+                  let s = (string) pref
+                  if (String.exists (fun c -> c = 'l') s) then (s.Substring (0, 9)) 
+                  else s
+            for i in 0.. Seq.length tests - 1 do
+                  let t = Seq.item i tests
+                  let outputFile = "test" + (string) i + (string) j + ".cli"
+                  //let outputFile = "test" + (Route.toString pred) + (string) i + ".cli"
+                  if not (Seq.isEmpty t) then
+                        TestGenerator.writeTopoCBGP topo outputFile // writes physical topology to all testfiles
+                  
+                  // get Ipaddress for a given node in the testGraph
+                  let getIp (v : CgState) =
+                        let routerName = v.Node.Loc
+                        Map.find routerName routerNameToIp
 
-            // get Ipaddress for a given node in the testGraph
-            let getAsn (v : CgState) = v.Node.Loc
+                  // get Ipaddress for a given node in the testGraph
+                  let getAsn (v : CgState) = v.Node.Loc
 
-            Console.Write(outputFile + "\n");
-            // create map with vertex to its peers in test topology
-            let mutable vertexToPeers = Map.empty
-            for (src, dest) in t do
-                  // add dest to src's neighbor list
-                  let neighbors =
-                        if (Map.containsKey src vertexToPeers) then Map.find src vertexToPeers
-                        else Set.empty
-                  let newneighbors = 
-                        if (Topology.isTopoNode dest.Node) then Set.add dest neighbors
-                        else neighbors
-                  if (Topology.isTopoNode src.Node) then
-                        vertexToPeers <- Map.add src newneighbors vertexToPeers
-                  else ()                
-                  //add src to dest's neighbor list
-                  let destneighbors =
-                        if (Map.containsKey dest vertexToPeers) then Map.find dest vertexToPeers
-                        else Set.empty
-                  let destnewneighbors = 
-                        if (Topology.isTopoNode src.Node) then Set.add src destneighbors
-                        else destneighbors
-                  if (Topology.isTopoNode dest.Node) then
-                        vertexToPeers <- Map.add dest destnewneighbors vertexToPeers
-                  else ()
-            //if not (Seq.isEmpty t) then
-            //    TestGenerator.getCBGPpeerSessions vertexToPeers routerNameToIp outputFile
-            
-            // output cbgp router configuration instructions for routers in the path
-            let mutable lastRouter = "0.0.0.0"
-            let mutable lastAsn = "0"
-            for (src, dest) in t do
-                  let neighbors = Seq.map getAsn (Map.find src vertexToPeers)
-                  let s = Abgp.getCBGPConfig res.Abgp src neighbors routerNameToIp
-                  System.IO.File.AppendAllText(outputFile, s);
-                  if (not (Topology.isTopoNode dest.Node)) then 
-                        lastRouter <- getIp src
-                        lastAsn <- src.Node.Loc
-            if not (Seq.isEmpty t) then
-                  System.IO.File.AppendAllText(outputFile, "\nbgp router " + lastRouter + " record-route " + predStr)
-                  System.IO.File.AppendAllText(outputFile, "\nsim run\n\n");
-                  System.IO.File.AppendAllText("solutions.txt", outputFile + " last router is " + lastAsn + "\n");
-        j <- j + 1
+                  Console.Write(outputFile + "\n");
+                  // create map with vertex to its peers in test topology
+                  let mutable vertexToPeers = Map.empty
+                  for (src, dest) in t do
+                        // add dest to src's neighbor list
+                        let neighbors =
+                              if (Map.containsKey src vertexToPeers) then Map.find src vertexToPeers
+                              else Set.empty
+                        let newneighbors = 
+                              if (Topology.isTopoNode dest.Node) then Set.add dest neighbors
+                              else neighbors
+                        if (Topology.isTopoNode src.Node) then
+                              vertexToPeers <- Map.add src newneighbors vertexToPeers
+                        else ()                
+                        //add src to dest's neighbor list
+                        let destneighbors =
+                              if (Map.containsKey dest vertexToPeers) then Map.find dest vertexToPeers
+                              else Set.empty
+                        let destnewneighbors = 
+                              if (Topology.isTopoNode src.Node) then Set.add src destneighbors
+                              else destneighbors
+                        if (Topology.isTopoNode dest.Node) then
+                              vertexToPeers <- Map.add dest destnewneighbors vertexToPeers
+                        else ()
+                  //if not (Seq.isEmpty t) then
+                  //    TestGenerator.getCBGPpeerSessions vertexToPeers routerNameToIp outputFile
+                  
+                  // output cbgp router configuration instructions for routers in the path
+                  let mutable lastRouter = "0.0.0.0"
+                  let mutable lastAsn = "0"
+                  for (src, dest) in t do
+                        let neighbors = Seq.map getAsn (Map.find src vertexToPeers)
+                        let s = Abgp.getCBGPConfig res.Abgp src neighbors routerNameToIp
+                        System.IO.File.AppendAllText(outputFile, s);
+                        if (not (Topology.isTopoNode dest.Node)) then 
+                              lastRouter <- getIp src
+                              lastAsn <- src.Node.Loc
+                  if not (Seq.isEmpty t) then
+                        System.IO.File.AppendAllText(outputFile, "\nsim run\n\n");
+                        System.IO.File.AppendAllText(outputFile, "\nbgp router " + lastRouter + " record-route " + predStr)
+                        System.IO.File.AppendAllText("solutions.txt", outputFile + " last router is " + lastAsn + "\n");
+            j <- j + 1
        //TODO: traceroute command that would output the path that the traffic took
-      Map.iter createTest predToTests;
+
+      if settings.GenLinkTests then 
+            Map.iter createTest predToTests;
+      else 
+            if settings.GenPrefTests then 
+                  Map.iter createTest predToTests;
+            else
+                  ();
 
       if settings.CheckFailures then 
          match res.AggSafety with

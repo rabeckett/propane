@@ -15,7 +15,8 @@ type T =
      Parallel : bool
      Cbgp : bool
      Test : bool
-     GenTests : bool 
+     GenLinkTests : bool 
+     GenPrefTests : bool
      Bench : bool
      Debug : bool
      DebugDir : string
@@ -56,7 +57,8 @@ Options:
     --test               Run compiler unit tests.
     --bench              Generate benchmark policies.
     --debug              Output debugging information.
-    --genTests           Generate exhaustive test cases
+    --genLinkTests       Generate exhaustive link coverage test cases
+    --genPrefTests       Generate preference coverage test cases
 """
 
 let checkFile f = 
@@ -115,7 +117,8 @@ let parse (argv : string []) : unit =
         UseNoExport = vs.["--noexport"].IsTrue
         Cbgp = vs.["--cbgp"].IsTrue
         Test = vs.["--test"].IsTrue
-        GenTests = vs.["--genTests"].IsTrue
+        GenLinkTests = vs.["--genTests"].IsTrue
+        GenPrefTests = vs.["--genPrefTests"].IsTrue
         Bench = vs.["--bench"].IsTrue
         Debug = vs.["--debug"].IsTrue
         DebugDir = !debugDir
