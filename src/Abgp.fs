@@ -291,18 +291,21 @@ let getCBGPActions sb routerToExport routerToImport pi pred actions curRouterIp 
                           "\n                                action deny" + exitStr
             routerToEsb <- Map.map (fun k (v : System.Text.StringBuilder) -> v.Append denystr) routerToEsb 
          | Allow((m, lp), es) -> 
-            let comm = 23768 - i
+            let comm = 10068 - i
             routerToIsb <- cbgpImport pi routerToIsb (m, lp) (string comm) predStr routerNameToIp
             let matchStr = sprintf "\n                        add-rule \n                                match \"community is %d\"" comm
+            let commRemStr = sprintf "\n                                action \"community remove %d\"" comm
             match es with
             | [ (peer, acts) ] -> 
               routerToEsb <- addRuleToPeer peer routerToEsb matchStr routerNameToIp
               routerToEsb <- cbgpExport pi routerToEsb peer acts routerNameToIp
+              routerToEsb <- addRuleToPeer peer routerToEsb commRemStr routerNameToIp
               routerToEsb <- addRuleToPeer peer routerToEsb exitStr routerNameToIp
             | _ -> 
                for (peer, acts) in es do
                   routerToEsb <- addRuleToPeer peer routerToEsb matchStr routerNameToIp
                   routerToEsb <- cbgpExport pi routerToEsb peer acts routerNameToIp
+                  routerToEsb <- addRuleToPeer peer routerToEsb commRemStr routerNameToIp
                   routerToEsb <- addRuleToPeer peer routerToEsb exitStr routerNameToIp
    (sb, routerToEsb, routerToIsb) 
 

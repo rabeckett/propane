@@ -8,6 +8,12 @@ net add link 0.0.0.2 0.0.0.3
 net add link 0.0.0.2 0.0.0.4
 net add link 0.0.0.3 0.0.0.4
 
+net node 0.0.0.4 route add 0.0.0.2/32 --oif=0.0.0.2 1
+net node 0.0.0.2 route add 0.0.0.4/32 --oif=0.0.0.4 1
+net node 0.0.0.2 route add 0.0.0.1/32 --oif=0.0.0.1 1
+net node 0.0.0.1 route add 0.0.0.2/32 --oif=0.0.0.2 1
+
+
 bgp add router 65531 0.0.0.4
 bgp router 0.0.0.4
         add network  1.0.0.0/24
@@ -36,12 +42,14 @@ bgp router 0.0.0.2
         peer 0.0.0.4
                 filter out
                         add-rule 
-                                match "community is 23767"
+                                match "community is 10067"
                                 action "community add 2"
+                                action "community remove 10067"
                         exit
                         add-rule 
-                                match "community is 23766"
+                                match "community is 10066"
                                 action accept
+                                action "community remove 10066"
                         exit
                         add-rule
                                 match "prefix in 1.0.0.0/24"
@@ -58,12 +66,14 @@ bgp router 0.0.0.2
         peer 0.0.0.1
                 filter out
                         add-rule 
-                                match "community is 23767"
+                                match "community is 10067"
                                 action "community add 2"
+                                action "community remove 10067"
                         exit
                         add-rule 
-                                match "community is 23766"
+                                match "community is 10066"
                                 action accept
+                                action "community remove 10066"
                         exit
                         add-rule
                                 match "prefix in 1.0.0.0/24"
@@ -83,12 +93,14 @@ bgp router 0.0.0.1
         peer 0.0.0.2
                 filter out
                         add-rule 
-                                match "community is 23767"
+                                match "community is 10067"
                                 action accept
+                                action "community remove 10067"
                         exit
                         add-rule 
-                                match "community is 23766"
+                                match "community is 10066"
                                 action accept
+                                action "community remove 10066"
                         exit
                         add-rule
                                 match "prefix in 1.0.0.0/24"
@@ -102,7 +114,7 @@ bgp router 0.0.0.1
                 filter in
                         add-rule
                                 match "prefix in 1.0.0.0/24 & community is 1"
-                                action "community add 23766"
+                                action "community add 10066"
                                 action "local-pref 99"
                         exit
                 exit

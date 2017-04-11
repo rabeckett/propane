@@ -5,14 +5,19 @@ net add link 0.0.0.1 0.0.0.2
 net add link 0.0.0.2 0.0.0.3
 net add link 0.0.0.3 0.0.0.4
 
+net node 0.0.0.3 route add 0.0.0.2/32 --oif=0.0.0.2 1
+net node 0.0.0.2 route add 0.0.0.3/32 --oif=0.0.0.3 1
+
+
 bgp add router 65533 0.0.0.2
 bgp router 0.0.0.2
         add peer 200 0.0.0.3
         peer 0.0.0.3
                 filter out
                         add-rule 
-                                match "community is 23767"
+                                match "community is 10067"
                                 action accept
+                                action "community remove 10067"
                         exit
                         add-rule
                                 match "prefix in 1.1.1.1/32"
@@ -32,3 +37,5 @@ bgp router 0.0.0.2
 exit
 sim run
 
+
+bgp router 0.0.0.2 record-route 172.0.0.0/24
