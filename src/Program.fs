@@ -94,8 +94,8 @@ let main argv =
                         if (Topology.isTopoNode dest.Node) then
                               vertexToPeers <- Map.add dest destnewneighbors vertexToPeers
                         else ()
-                  //if not (Seq.isEmpty t) then
-                  //    TestGenerator.getCBGPpeerSessions vertexToPeers routerNameToIp outputFile
+                  if not (Seq.isEmpty t) then
+                      TestGenerator.geteBGPStaticRoutes vertexToPeers routerNameToIp outputFile
                   
                   // output cbgp router configuration instructions for routers in the path
                   let mutable lastRouter = "0.0.0.0"

@@ -11,4 +11,4 @@ val genPrefTest : CGraph.T -> Route.Predicate -> Set<Set<CgState*CgState>>
 val generateRouterIp : Topology.T -> Map<string, string> 
 val runTest : unit
 val writeTopoCBGP : Topology.T -> string -> unit
-val getCBGPpeerSessions : Map<CgState, Set<CgState>> -> Map<string, string> -> string -> unit
+val geteBGPStaticRoutes : Map<CgState, Set<CgState>> -> Map<string, string> -> string -> unit

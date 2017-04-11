@@ -40,20 +40,15 @@ let generateRouterIp topo : Map<string, string> =
         routerToIpMap <- Map.add routerName (ipOfInt (uint32 (i + 1))) routerToIpMap
     routerToIpMap
 
-let getCBGPpeerSessions (vertexToPeers : Map<CgState, Set<CgState>>) (routerNameToIp : Map<string, string>) file : unit =
+let geteBGPStaticRoutes (vertexToPeers : Map<CgState, Set<CgState>>) (routerNameToIp : Map<string, string>) file : unit =
     let printSingleRouter router neighbors =
         if not (Seq.isEmpty neighbors) then
-            let routerIp = Map.find router.Node.Loc routerNameToIp
-            let routerStr = "\nbgp router " + routerIp
-            File.AppendAllText(file, routerStr);
             for n in neighbors do
                 let peerNum = n.Node.Loc
                 let peerIp = Map.find peerNum routerNameToIp
-                let peerStr = "\n    add peer " + peerNum + " " + peerIp
-                let nextHopStr = "\n    peer " + peerIp + " next-hop-self"
-                let upStr = "\n    peer " + peerIp + " up"
-                File.AppendAllText(file, peerStr + nextHopStr + upStr);
-            File.AppendAllText(file, "\n    exit");
+                let routerIp = Map.find router.Node.Loc routerNameToIp
+                let nodeConnect = "\nnet node " + routerIp + " route add " + peerIp + "/32 --oif=" + peerIp + " 1"
+                File.AppendAllText(file, nodeConnect);
         else ();               
     Map.iter printSingleRouter vertexToPeers
     File.AppendAllText(file, "\n\n"); 
