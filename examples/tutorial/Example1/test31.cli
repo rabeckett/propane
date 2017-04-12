@@ -14,7 +14,7 @@ net node 0.0.0.2 route add 0.0.0.4/32 --oif=0.0.0.4 1
 net node 0.0.0.2 route add 0.0.0.1/32 --oif=0.0.0.1 1
 net node 0.0.0.1 route add 0.0.0.2/32 --oif=0.0.0.2 1
 
-
+D
 bgp add router 65531 0.0.0.4
 bgp router 0.0.0.4
         add network 1.0.0.0/24
@@ -36,7 +36,7 @@ bgp router 0.0.0.4
                 exit
         exit
         peer 0.0.0.2 up
-exit
+exitB
 bgp add router 65533 0.0.0.2
 bgp router 0.0.0.2
         add peer 65531 0.0.0.4
@@ -87,7 +87,7 @@ bgp router 0.0.0.2
                 exit
         exit
         peer 0.0.0.1 up
-exit
+exitA
 bgp add router 65534 0.0.0.1
 bgp router 0.0.0.1
         add peer 65533 0.0.0.2

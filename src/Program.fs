@@ -112,6 +112,7 @@ let main argv =
                   for (src, dest) in t do
                         let neighbors = Seq.map getAsn (Map.find src vertexToPeers)
                         let neighborsToNode = getMap (Map.find src vertexToPeers)
+                        //System.IO.File.AppendAllText(outputFile, Topology.router src.Node.Loc topoInfo);
                         let s = Abgp.getCBGPConfig res.Abgp src neighbors routerNameToIp neighborsToNode
                         System.IO.File.AppendAllText(outputFile, s);
                         if (not (Topology.isTopoNode dest.Node)) then 
