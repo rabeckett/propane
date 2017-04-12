@@ -240,30 +240,32 @@ let cbgpExport pi routerTosb peer acts routerNameToIp neighborNodes =
     | SetMed i -> sprintf "\n                                action \"metric %d\"" i
     | PrependPath i -> sprintf "\n                                action \"as-path prepend %d\"" i
    let actStr = 
-      if acts <> [] then Util.List.joinBy " " (List.map cbgpString acts)
-      else "\n                                action accept"
+      if acts <> [] then Util.List.joinBy "\n" (List.map cbgpString acts)
+      else ""
+   let accStr = "\n                                action accept"
    
-   addRuleToPeer peer routerTosb actStr routerNameToIp neighborNodes
+   addRuleToPeer peer routerTosb (actStr + accStr) routerNameToIp neighborNodes
 
 let cbgpImport pi routerToImportSb (m, lp) comm predStr routerNameToIp neighborNodes =
   let actStr = sprintf "\n                                action \"community add %s\"" comm 
   let lpStr = sprintf "\n                                action \"local-pref %d\"" lp
+  let accStr = "\n                                action accept"
   let matchStr = "\n                        add-rule\n                                match \"prefix in " + predStr
   let exitStr = "\n                        exit"//"\n                                exit\n                         exit"
 
   match m with
   | Peer p ->
       let newSb = addRuleToPeer p routerToImportSb (matchStr + "\"") routerNameToIp neighborNodes
-      let preExit = addRuleToPeer p newSb (actStr + lpStr) routerNameToIp neighborNodes
+      let preExit = addRuleToPeer p newSb (actStr + lpStr + accStr) routerNameToIp neighborNodes
       addRuleToPeer p preExit exitStr routerNameToIp neighborNodes
   | State (c, p) -> 
     let commMatch = sprintf " & community is %s\"" c
     let newSb = addRuleToPeer p routerToImportSb (matchStr + commMatch) routerNameToIp neighborNodes
-    let preExit = addRuleToPeer p newSb (actStr + lpStr) routerNameToIp neighborNodes
+    let preExit = addRuleToPeer p newSb (actStr + lpStr + accStr) routerNameToIp neighborNodes
     addRuleToPeer p preExit exitStr routerNameToIp neighborNodes
   | PathRE r ->  //TODO for later 
     let newSb = addRuleToPeer Any routerToImportSb (matchStr + "\"") routerNameToIp neighborNodes
-    let preExit = addRuleToPeer Any newSb (actStr + lpStr) routerNameToIp neighborNodes
+    let preExit = addRuleToPeer Any newSb (actStr + lpStr + accStr) routerNameToIp neighborNodes
     addRuleToPeer Any preExit exitStr routerNameToIp neighborNodes
 
 
@@ -325,7 +327,7 @@ let getCBGPActions sb routerToExport routerToImport pi pred actions curRouterIp 
                   routerToEsb <- addRuleToPeer peer routerToEsb exitStr routerNameToIp neighborNodes
    (sb, routerToEsb, routerToIsb) 
 
-let getCBGPConfig (config : T) (vertex: CGraph.CgState) (neighbors : seq<string>) (routerNameToIp : Map<string, string>) (neighborNodes : Map<string, Topology.Node>) =
+let getCBGPConfig (config : T) (vertex: CGraph.CgState) (isStart: bool) (pref : string) (neighbors : seq<string>) (routerNameToIp : Map<string, string>) (neighborNodes : Map<string, Topology.Node>) =
   //Console.Write("router name is " + vertex.Node.Loc);
   if (Map.containsKey vertex.Node.Loc config.RConfigs) then 
     let routerConfig = Map.find vertex.Node.Loc config.RConfigs
@@ -392,6 +394,8 @@ let getCBGPConfig (config : T) (vertex: CGraph.CgState) (neighbors : seq<string>
         let routerIp = Map.find routerName routerNameToIp
         let myStr = "\nbgp add router " + routerName + " " + routerIp + "\nbgp router " + routerIp
         sb <- sb.Append myStr
+        if isStart then
+          bprintf sb "\n        add network %s" pref
         for n in neighbors do
           let peerIp = Map.find n routerNameToIp
           let routerStr = ("\n        add peer " + n + " " + peerIp)

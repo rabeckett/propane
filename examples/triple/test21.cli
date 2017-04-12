@@ -41,6 +41,7 @@ bgp router 0.0.0.1
                                 match "prefix in 172.0.0.0/24"
                                 action "community add 10067"
                                 action "local-pref 100"
+                                action accept
                         exit
                 exit
         exit
@@ -74,6 +75,7 @@ bgp router 0.0.0.2
                                 match "prefix in 172.0.0.0/24"
                                 action "community add 10067"
                                 action "local-pref 100"
+                                action accept
                         exit
                 exit
         exit
@@ -109,11 +111,13 @@ bgp router 0.0.0.2
                                 match "prefix in 1.1.1.1/32"
                                 action "community add 10068"
                                 action "local-pref 100"
+                                action accept
                         exit
                         add-rule
                                 match "prefix in 172.0.0.0/24"
                                 action "community add 10067"
                                 action "local-pref 100"
+                                action accept
                         exit
                 exit
         exit

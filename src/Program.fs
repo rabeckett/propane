@@ -110,11 +110,13 @@ let main argv =
                   let mutable lastRouter = "0.0.0.0"
                   let mutable lastAsn = "0"
                   for (src, dest) in t do
-                        let neighbors = Seq.map getAsn (Map.find src vertexToPeers)
-                        let neighborsToNode = getMap (Map.find src vertexToPeers)
                         //System.IO.File.AppendAllText(outputFile, Topology.router src.Node.Loc topoInfo);
-                        let s = Abgp.getCBGPConfig res.Abgp src neighbors routerNameToIp neighborsToNode
-                        System.IO.File.AppendAllText(outputFile, s);
+                        if (Topology.isTopoNode dest.Node) then
+                              let neighbors = Seq.map getAsn (Map.find dest vertexToPeers)
+                              let neighborsToNode = getMap (Map.find dest vertexToPeers)
+                              let isStart = not (Topology.isTopoNode src.Node) 
+                              let s = Abgp.getCBGPConfig res.Abgp dest isStart predStr neighbors routerNameToIp neighborsToNode
+                              System.IO.File.AppendAllText(outputFile, s);
                         if (not (Topology.isTopoNode dest.Node)) then 
                               lastRouter <- getIp src
                               lastAsn <- src.Node.Loc

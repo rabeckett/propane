@@ -14,7 +14,7 @@ net node 0.0.0.2 route add 0.0.0.4/32 --oif=0.0.0.4 1
 net node 0.0.0.2 route add 0.0.0.1/32 --oif=0.0.0.1 1
 net node 0.0.0.1 route add 0.0.0.2/32 --oif=0.0.0.2 1
 
-D
+
 bgp add router 65531 0.0.0.4
 bgp router 0.0.0.4
         add network 1.0.0.0/24
@@ -36,7 +36,7 @@ bgp router 0.0.0.4
                 exit
         exit
         peer 0.0.0.2 up
-exitB
+exit
 bgp add router 65533 0.0.0.2
 bgp router 0.0.0.2
         add peer 65531 0.0.0.4
@@ -45,6 +45,7 @@ bgp router 0.0.0.2
                         add-rule 
                                 match "community is 10068"
                                 action "community add 2"
+                                action accept
                                 action "community remove 10068"
                         exit
                         add-rule 
@@ -69,6 +70,7 @@ bgp router 0.0.0.2
                         add-rule 
                                 match "community is 10068"
                                 action "community add 2"
+                                action accept
                                 action "community remove 10068"
                         exit
                         add-rule 
@@ -87,7 +89,7 @@ bgp router 0.0.0.2
                 exit
         exit
         peer 0.0.0.1 up
-exitA
+exit
 bgp add router 65534 0.0.0.1
 bgp router 0.0.0.1
         add peer 65533 0.0.0.2
@@ -117,6 +119,7 @@ bgp router 0.0.0.1
                                 match "prefix in 1.0.0.0/24 & community is 1"
                                 action "community add 10068"
                                 action "local-pref 99"
+                                action accept
                         exit
                 exit
         exit
