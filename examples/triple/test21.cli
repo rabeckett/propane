@@ -52,9 +52,9 @@ bgp router 0.0.0.2
         peer 0.0.0.3
                 filter out
                         add-rule 
-                                match "community is 10067"
+                                match "community is 10068"
                                 action accept
-                                action "community remove 10067"
+                                action "community remove 10068"
                         exit
                         add-rule
                                 match "prefix in 1.1.1.1/32"
@@ -69,15 +69,22 @@ bgp router 0.0.0.2
                                 action deny
                         exit
                 exit
+                filter in
+                        add-rule
+                                match "prefix in 172.0.0.0/24"
+                                action "community add 10067"
+                                action "local-pref 100"
+                        exit
+                exit
         exit
         peer 0.0.0.3 up
         add peer 65534 0.0.0.1
         peer 0.0.0.1
                 filter out
                         add-rule 
-                                match "community is 10067"
+                                match "community is 10068"
                                 action accept
-                                action "community remove 10067"
+                                action "community remove 10068"
                         exit
                         add-rule
                                 match "prefix in 1.1.1.1/32"
@@ -100,6 +107,11 @@ bgp router 0.0.0.2
                 filter in
                         add-rule
                                 match "prefix in 1.1.1.1/32"
+                                action "community add 10068"
+                                action "local-pref 100"
+                        exit
+                        add-rule
+                                match "prefix in 172.0.0.0/24"
                                 action "community add 10067"
                                 action "local-pref 100"
                         exit

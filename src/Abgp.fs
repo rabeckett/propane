@@ -261,11 +261,15 @@ let cbgpImport pi routerToImportSb (m, lp) comm predStr routerNameToIp neighborN
     let newSb = addRuleToPeer p routerToImportSb (matchStr + commMatch) routerNameToIp neighborNodes
     let preExit = addRuleToPeer p newSb (actStr + lpStr) routerNameToIp neighborNodes
     addRuleToPeer p preExit exitStr routerNameToIp neighborNodes
-  | PathRE r -> routerToImportSb //TODO for later
+  | PathRE r ->  //TODO for later 
+    let newSb = addRuleToPeer Any routerToImportSb (matchStr + "\"") routerNameToIp neighborNodes
+    let preExit = addRuleToPeer Any newSb (actStr + lpStr) routerNameToIp neighborNodes
+    addRuleToPeer Any preExit exitStr routerNameToIp neighborNodes
+
 
 
 // get the actions in cbgp format
-let getCBGPActions sb routerToExport routerToImport pi pred actions curRouterIp routerNameToIp neighborNodes =
+let getCBGPActions sb routerToExport routerToImport pi pred actions curRouterIp routerNameToIp neighborNodes i =
    let mutable routerToEsb = routerToExport //Map<string, System.Text.StringBuilder
    let mutable routerToIsb = routerToImport //Map<string, System.Text.StringBuilder
    //let curRouterIp = Map.find routerNameToIp router
@@ -295,9 +299,7 @@ let getCBGPActions sb routerToExport routerToImport pi pred actions curRouterIp 
                 routerToEsb <- addRuleToPeer peer routerToEsb matchStr routerNameToIp neighborNodes
                 routerToEsb <- cbgpExport pi routerToEsb peer acts routerNameToIp neighborNodes
                 routerToEsb <- addRuleToPeer peer routerToEsb exitStr routerNameToIp neighborNodes
-      let mutable i = 0
       for f in fs do
-         i <- i + 1
          match f with
          | Deny -> 
             let denystr = "\n                        add-rule" + 
@@ -347,8 +349,10 @@ let getCBGPConfig (config : T) (vertex: CGraph.CgState) (neighbors : seq<string>
     //where do i call this code from? also to be figured out and bgp up/down code
     let myStr = "\nbgp add router " + routerName + " " + routerIp + "\nbgp router " + routerIp
     sb <- sb.Append myStr
+    let mutable i = 0
     for (pred, actions) in routerConfig.Actions do
-      let (tempsb, tempEsb, tempIsb) = getCBGPActions sb routerToEsb routerToIsb config.PolInfo pred actions routerIp routerNameToIp neighborNodes
+      let (tempsb, tempEsb, tempIsb) = getCBGPActions sb routerToEsb routerToIsb config.PolInfo pred actions routerIp routerNameToIp neighborNodes i
+      i <- i + 1
       routerToEsb <- tempEsb
       routerToIsb <- tempIsb
       sb <- tempsb

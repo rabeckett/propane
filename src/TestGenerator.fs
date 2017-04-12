@@ -83,7 +83,7 @@ let genLinkTest (input: CGraph.T) (pred : Route.Predicate) : TestCases =
     let vertices = input.Graph.Vertices in
     let edges = input.Graph.Edges in
 
-    Console.Write("PRoduct graph edges");
+    Console.Write("Product graph edges");
     for e in edges do
         Console.Write("(" + (string e.Source) + "," + (string e.Target) + ")");
         Console.Write("\n");
