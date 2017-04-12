@@ -26,7 +26,35 @@ New Solution
 (6, 65534)->(2, end) 4 5
 
 New Set for prefix 
+test01.cli
+(3, 65531) (4, 65532)
+test01.cli
+(4, 65532) (4, 65533)
+test01.cli
+(4, 65533) (6, 65534)
+test01.cli
+(6, 65534) (2, end)
 test01.cli last router is 65534
+test11.cli
+(3, 65531) (4, 65532)
+test11.cli
+(4, 65532) (6, 65534)
+test11.cli
+(6, 65534) (2, end)
 test11.cli last router is 65534
+test21.cli
+(3, 65531) (5, 65533)
+test21.cli
+(4, 65532) (6, 65534)
+test21.cli
+(5, 65533) (4, 65532)
+test21.cli
+(6, 65534) (2, end)
 test21.cli last router is 65534
+test31.cli
+(3, 65531) (5, 65533)
+test31.cli
+(5, 65533) (7, 65534)
+test31.cli
+(7, 65534) (2, end)
 test31.cli last router is 65534

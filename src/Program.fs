@@ -82,6 +82,8 @@ let main argv =
                   let mutable vertexToPeers = Map.empty
                   for (src, dest) in t do
                         // add dest to src's neighbor list
+                        System.IO.File.AppendAllText("solutions.txt", outputFile + "\n");
+                        System.IO.File.AppendAllText("solutions.txt", (string src) + " " + (string dest) + "\n");
                         let neighbors =
                               if (Map.containsKey src vertexToPeers) then Map.find src vertexToPeers
                               else Set.empty
