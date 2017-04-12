@@ -70,6 +70,13 @@ let main argv =
                   // get Ipaddress for a given node in the testGraph
                   let getAsn (v : CgState) = v.Node.Loc
 
+                  let getMap (neighbors : seq<CgState>) =
+                        let mutable neighborsToNode = Map.empty
+                        for n in neighbors do
+                              let routerName = n.Node.Loc
+                              neighborsToNode <- Map.add routerName n.Node neighborsToNode
+                        neighborsToNode
+
                   Console.Write(outputFile + "\n");
                   // create map with vertex to its peers in test topology
                   let mutable vertexToPeers = Map.empty
@@ -102,7 +109,8 @@ let main argv =
                   let mutable lastAsn = "0"
                   for (src, dest) in t do
                         let neighbors = Seq.map getAsn (Map.find src vertexToPeers)
-                        let s = Abgp.getCBGPConfig res.Abgp src neighbors routerNameToIp
+                        let neighborsToNode = getMap (Map.find src vertexToPeers)
+                        let s = Abgp.getCBGPConfig res.Abgp src neighbors routerNameToIp neighborsToNode
                         System.IO.File.AppendAllText(outputFile, s);
                         if (not (Topology.isTopoNode dest.Node)) then 
                               lastRouter <- getIp src

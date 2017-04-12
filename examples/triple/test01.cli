@@ -1,6 +1,7 @@
 net add node 0.0.0.1
 net add node 0.0.0.2
 net add node 0.0.0.3
+net add node 0.0.0.4
 net add link 0.0.0.1 0.0.0.2
 net add link 0.0.0.2 0.0.0.3
 net add link 0.0.0.3 0.0.0.4
@@ -9,7 +10,7 @@ net add link 0.0.0.3 0.0.0.4
 
 bgp add router 65534 0.0.0.1
 bgp router 0.0.0.1
-        add network  1.1.1.1/32
+        add network 1.1.1.1/32
 exit
 sim run
 

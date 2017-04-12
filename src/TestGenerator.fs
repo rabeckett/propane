@@ -63,16 +63,16 @@ let writeTopoCBGP (input : Topology.T) (file : string) : unit =
     for i in 0 .. (Seq.length vertices - 1) do
         let vertex = Seq.item i vertices in
         vMap <- Map.add vertex (i + 1) vMap;
-        if (not (Topology.isUnknown vertex)) then 
-            let toWrite = "net add node " + ipOfInt ((uint32) (i + 1)) in
-            File.AppendAllText(file, toWrite + "\n");
+        //if (not (Topology.isUnknown vertex)) then 
+        let toWrite = "net add node " + ipOfInt ((uint32) (i + 1)) in
+        File.AppendAllText(file, toWrite + "\n");
 
     //create links for the edges
     for e in Topology.edges input do
         let (src, target) = e
         let srcIdx = Map.find src vMap
         let targetIdx = Map.find target vMap
-        if (srcIdx < targetIdx) then 
+        if (srcIdx < targetIdx) then // &&  (not (Topology.isUnknown src)) && (not (Topology.isUnknown target)) ) then 
             let toWrite = ipOfInt ((uint32) srcIdx) + " " + ipOfInt ((uint32) targetIdx) in
             File.AppendAllText(file, "net add link " + toWrite + "\n");
         // should i be adding the bGP router/igp stuff right here -rulelessly   

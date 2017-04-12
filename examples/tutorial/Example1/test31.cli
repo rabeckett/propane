@@ -16,7 +16,7 @@ net node 0.0.0.1 route add 0.0.0.2/32 --oif=0.0.0.2 1
 
 bgp add router 65531 0.0.0.4
 bgp router 0.0.0.4
-        add network  1.0.0.0/24
+        add network 1.0.0.0/24
         add peer 65533 0.0.0.2
         peer 0.0.0.2
                 filter out

@@ -8,7 +8,7 @@ net node 0.0.0.2 route add 0.0.0.1/32 --oif=0.0.0.1 1
 
 bgp add router 65534 0.0.0.1
 bgp router 0.0.0.1
-        add network  4.4.4.4/32
+        add network 4.4.4.4/32
         add peer 65533 0.0.0.2
         peer 0.0.0.2
                 filter out
@@ -21,8 +21,9 @@ bgp router 0.0.0.1
                                 action deny
                         exit
                         add-rule 
-                                match "community is 23767"
+                                match "community is 10067"
                                 action accept
+                                action "community remove 10067"
                         exit
                         add-rule
                                 match "prefix in 0.0.0.0/0"
@@ -32,7 +33,7 @@ bgp router 0.0.0.1
                 filter in
                         add-rule
                                 match "prefix in 3.3.3.3/32"
-                                action "community add 23767"
+                                action "community add 10067"
                                 action "local-pref 100"
                         exit
                 exit
@@ -41,7 +42,7 @@ bgp router 0.0.0.1
 exit
 bgp add router 65533 0.0.0.2
 bgp router 0.0.0.2
-        add network  3.3.3.3/32
+        add network 3.3.3.3/32
         add peer 65534 0.0.0.1
         peer 0.0.0.1
                 filter out
@@ -54,8 +55,9 @@ bgp router 0.0.0.2
                                 action deny
                         exit
                         add-rule 
-                                match "community is 23767"
+                                match "community is 10067"
                                 action accept
+                                action "community remove 10067"
                         exit
                         add-rule
                                 match "prefix in 0.0.0.0/0"
@@ -65,7 +67,7 @@ bgp router 0.0.0.2
                 filter in
                         add-rule
                                 match "prefix in 4.4.4.4/32"
-                                action "community add 23767"
+                                action "community add 10067"
                                 action "local-pref 100"
                         exit
                 exit
