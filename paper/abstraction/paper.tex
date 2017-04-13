@@ -156,7 +156,7 @@ to analyze the impact of topology and routing policy on fault
 tolerance. Our algorithms operate entirely on abstract topologies.  We
 prove that the properties established by our analyses hold for every
 concrete instantiation of the given abstract topology. \sysname
-also guarantees that minimal changes to existing device configurations
+also guarantees that only incremental changes to existing device configurations
 are required when the network evolves to add or remove devices and
 links. Our experiments with real-world topologies and policies show
 that our abstractions and algorithms are effective, and that, for large
@@ -306,7 +306,7 @@ configured in devices.  We achieve it in part by leveraging BGP features that al
 
 During synthesis, our compiler analyzes abstract topologies to determine
 the fault tolerance properties of the specified routing policy.  This analysis yields a lower  
-bound on the number of link failures require to disconnect one abstract location from another. 
+bound on the number of link failures required to disconnect one abstract location from another. 
 %given the connectivity constraints of the abstract topology. 
 Any concrete instance of the abstract topology will adhere to the given fault tolerance property.
 
@@ -1409,7 +1409,7 @@ We write $m \leq n$ if the subgraph reachable from $m$ and $n$ respectively form
 
 If $m \leq n$, then advertisements received for node $m$ can safely be preferred over those received for node $n$ after accounting for the network-wide impact of the choice. For example in Figure~\ref{fig:example-compilation}, S1 can receive advertisements in two different contexts $(S1,1,0)$ and $(S1,0,1)$ and must choose between messages received in these different contexts. Advertisements are preferred in state $(S1,1,0)$ because they result in a better path for S1 ($(S1,0,1) \geq_{rank} (S1,1,0)$) and downstream routers such as A1 will also obtain paths no worse than if S1 had choosen $(S1,1,0)$. The policy is guaranteed to be safe from failures because if a link fails in the topology, then $m \leq n$ will still hold since any transition that becomes unusable for $m$ also becomes unusable for $n$. That is $m \leq n$ before the failure implies $m \leq n$ after the failure.
 
-For each router, its corresponding PG nodes are then sorted according the the $\leq$ operator. If the operator defines a total order on PG nodes, then the compiler can simply prefer advertisements from peers of node $m$ over those of $n$ whenever $m \leq n$. However, if $\leq$ does not form a total order, then the policy is rejected as being potentially unsafe under some failure conditions.
+For each router, its corresponding PG nodes are then sorted according to the $\leq$ operator. If the operator defines a total order on PG nodes, then the compiler can simply prefer advertisements from peers of node $m$ over those of $n$ whenever $m \leq n$. However, if $\leq$ does not form a total order, then the policy is rejected as being potentially unsafe under some failure conditions.
 
 
 %
