@@ -1533,13 +1533,13 @@ Although the disjoint path analysis takes place over the PG, each application of
 \section{Evaluation}
 \label{sec:evaluation}
 
-We evaluate \sysname by applying it on policies for backbone and data center networks. 
+%We evaluate \sysname on backbone and data center networks. 
 %We aim to evaluate the expressiveness of our abstractions, the precision of the abstract disjoint-path analysis, and the generation time of \sysname both with abstraction and without.
 
 \subsection{Expressiveness and precision}
-
 \begin{figure}[t!]
   \begin{center}
+\small
       \begin{tabular}{| l | c| c | c | c | c | }
       \hline
        & \textbf{Fixed} & \multicolumn{2}{|c|}{\textbf{Reachability}} & \multicolumn{2}{|c|}{\textbf{K-paths}} \\ \hline
@@ -1590,10 +1590,10 @@ We evaluate \sysname by applying it on policies for backbone and data center net
 
 We evaluate the expressiveness of \sysname's topology abstractions and the precision of its fault-tolerance analysis on a range of network topologies found in production networks and in the networking literature. We characterize expressiveness by checking if the abstractions allow the topologies to evolve arbitrarily or certain aspects must be fixed (\IE, cannot be symbolic). We measure precision by checking if we find a tight lower-bound on fault-tolerance (\IE, there is a concrete network with that fault-tolerance).
 
-The top part of Figure~\ref{fig:analysis-precision} shows the results for common real-world settings: tree-based topologies coupled with valley-free routing.
+The top part of Figure~\ref{fig:analysis-precision} shows the results for common data center networks: tree-based topologies coupled with valley-free routing.
 We consider four variants of tree topologies: a standard fat tree~\cite{fattree}, the Facebook fat tree~\cite{facebook-fattree}, the F10 fault-tolerant fat tree~\cite{f10-fattree}, and VL2~\cite{vl2-fattree}. These variants differ in the number of tiers and the connectivity pattern between roles. For each, we use a tiered abstraction similar to that in our example (\S\ref{sec:overview}) and parameterize over the number of pods, which can be scaled for expansion. We report precision of both analyzing reachability and disjoint paths, and we report if \sysname is precise for all pairs of abstract nodes or only some of them. We record a check when the analysis is precise and a \Conserv{} when the analysis is conservative.
 
-Our results are encouraging for these realistic settings. Our abstractions are perfectly expressive for all tree-based topologies---we did not have to fix any aspect of their structure---and the analysis is precise in all cases.
+Our results are encouraging for these settings. Our abstractions are perfectly expressive for all tree-based topologies---we did not have to fix any aspect of their structure---and the analysis is precise in all cases.
 
 
 %For each topology in Figure~\ref{fig:analysis-precision} we define a suitable abstraction. Since many topologies have tunable parameters (\EG, the recursion depth $k$ for the DCell topology), we list all such parameters that are fixed for the abstraction. For all topologies (Figure~\ref{fig:analysis-precision}), we implement a shortest path routing policy. Additionally, for clos-style topologies, we implement a valley-free routing policy (Figure~\ref{fig:analysis-precision2}) for comparison. In each case, we record the precision of the analysis in terms of whether or not it is able to accurately prove reachability and/or the correct number of disjoint paths between some or all pairs of nodes from a fixed source.
@@ -1622,7 +1622,7 @@ Our results are encouraging for these realistic settings. Our abstractions are p
   \vspace{-.8em}%
 \end{figure}
 
-To stress our abstractions and analysis, we consider additional topologies from the literature.
+%To stress our abstractions and analysis, we consider additional topologies from the literature.
 
 \para{Recursive Topologies}
 These topologies include BCube~\cite{bcube} and DCell~\cite{dcell}. Each topology includes a recursion depth parameter ($k$), which we fixed while abstracting them. For a recursive topology with depth $k$, we model it as an abstract topology consisting of a pod to represent all depth $k-1$ subcomponents. This allows for safe expansion within a subcomponent, but does not allow changing the recursion depth dynamically.
