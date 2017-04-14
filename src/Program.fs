@@ -30,7 +30,9 @@ let main argv =
       | None -> errorLine "No topology file specified, use --help to see options"
       | Some f -> Util.Profile.time Topology.readTopology f
    if settings.IsAbstract then AbstractAnalysis.checkWellformedTopology topoInfo
-   if (settings.GenLinkTests || settings.GenPrefTests) then System.IO.File.WriteAllText("solutions.txt", "")
+   if (settings.GenLinkTests || settings.GenPrefTests) then 
+      System.IO.File.WriteAllText("solutions.txt", "")
+      System.IO.File.WriteAllText("ExpectedOutput.txt", "")
    match settings.PolFile with
    | None -> errorLine "No policy file specified, use --help to see options"
    | Some polFile -> 
@@ -57,7 +59,7 @@ let main argv =
                   else s
             for i in 0.. Seq.length tests - 1 do
                   let t = Seq.item i tests
-                  let outputFile = "test" + (string) i + (string) j + ".cli"
+                  let outputFile = "test" + (string) j + (string) i + ".cli"
                   //let outputFile = "test" + (Route.toString pred) + (string) i + ".cli"
                   if not (Seq.isEmpty t) then
                         TestGenerator.writeTopoCBGP topo outputFile // writes physical topology to all testfiles
@@ -80,6 +82,8 @@ let main argv =
                   Console.Write(outputFile + "\n");
                   // create map with vertex to its peers in test topology
                   let mutable vertexToPeers = Map.empty
+                  let mutable testVerticesInOrder = Map.empty
+                  let mutable startingVertex = ""
                   for (src, dest) in t do
                         // add dest to src's neighbor list
                         System.IO.File.AppendAllText("solutions.txt", outputFile + "\n");
@@ -103,6 +107,13 @@ let main argv =
                         if (Topology.isTopoNode dest.Node) then
                               vertexToPeers <- Map.add dest destnewneighbors vertexToPeers
                         else ()
+
+                        // track teh vertices in order to geenrate exepcted output
+                        if (Topology.isTopoNode dest.Node) then
+                              if (Topology.isTopoNode src.Node) then
+                                    testVerticesInOrder <- Map.add dest.Node.Loc src.Node.Loc testVerticesInOrder
+                        else
+                              startingVertex <- src.Node.Loc
                   if not (Seq.isEmpty t) then
                       TestGenerator.geteBGPStaticRoutes vertexToPeers routerNameToIp outputFile
                   
@@ -124,6 +135,14 @@ let main argv =
                         System.IO.File.AppendAllText(outputFile, "\nsim run\n\n");
                         System.IO.File.AppendAllText(outputFile, "\nbgp router " + lastRouter + " record-route " + predStr)
                         System.IO.File.AppendAllText("solutions.txt", outputFile + " last router is " + lastAsn + "\n");
+
+                        // print out the reference output in a separate file
+                        let refOutputFile = "ExpectedOutput.txt"
+                        System.IO.File.AppendAllText(refOutputFile, lastRouter + "\t" + predStr + "\t" + "SUCCESS\t");
+                        while (Map.containsKey startingVertex testVerticesInOrder) do
+                              System.IO.File.AppendAllText(refOutputFile, startingVertex + " ");
+                              startingVertex <- Map.find startingVertex testVerticesInOrder
+                        System.IO.File.AppendAllText(refOutputFile, startingVertex + "\n");
             j <- j + 1
        //TODO: traceroute command that would output the path that the traffic took
 
