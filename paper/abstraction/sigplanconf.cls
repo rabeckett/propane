@@ -1312,11 +1312,11 @@
   {\leftskip = 0pt plus 0.25\linewidth
    \rightskip = 0pt plus 0.25 \linewidth
    \parfillskip = 0pt
-   \spaceskip = .7em
+   \spaceskip = 0em %ratul: was 0.7em
    \noindent \LARGE \bfseries \@titletext \par}
-  \vskip 6pt
+  \vskip -6pt    %ratul: was 6pt 
   \noindent \Large \@subtitletext \par
-  \vskip 12pt
+  \vskip 0pt   %ratul: was 12pt
   \ifcase \@authorcount
     \@latex@error{No authors were specified for this paper}{}\or
     \@titleauthors{i}{}{}\or
@@ -1340,14 +1340,14 @@
   \else
     \@latex@error{Cannot handle more than 12 authors}{}%
   \fi
-  \vspace{1.75pc}
+  \vspace{0.25pc}  %ratul: was 1.75pc
   \end{center}}
 
 \def \@settitlebanner {%
   \if \@andp{\@orp{\@preprint}{\@reprint}}
             {\@notp{\@emptydefp{\@titlebanner}}}%
     \vbox to 0pt{%
-      \vskip -32pt
+      \vskip -32pt  
       \noindent \textbf{\@titlebanner}\par
       \vss}%
     \nointerlineskip
@@ -1365,7 +1365,7 @@
               \@setauthor{12.5pc}{#3}{\@true}\par
     \relax
   \fi\fi
-  \vspace{20pt}}
+  \vspace{0pt}}  %ratul: was 20pt
 
 \def \@setauthor #1#2#3{%                       {width}{text}{unused}
   \vtop{%
