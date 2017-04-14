@@ -12,6 +12,7 @@ type Stats =
      PrefixTime : int64
      PerPrefixTimes : int64 array
      PerPrefixBuildTimes : int64 array
+     PerPrefixTestTimes : int64 array
      PerPrefixMinTimes : int64 array
      PerPrefixAggAnalysisTimes : int64 array
      PerPrefixOrderTimes : int64 array

@@ -979,6 +979,7 @@ type Stats =
      PrefixTime : int64
      PerPrefixTimes : int64 array
      PerPrefixBuildTimes : int64 array
+     PerPrefixTestTimes : int64 array
      PerPrefixMinTimes : int64 array
      PerPrefixAggAnalysisTimes : int64 array
      PerPrefixOrderTimes : int64 array
@@ -1886,6 +1887,7 @@ let compileAllPrefixes (polInfo : Ast.PolInfo) : CompilationResult * Map<Route.P
       |> tagAbstractPrefixWithCommunity
    
    let buildTimes = Array.map (fun c -> c.BuildTime) configs
+   let testTimes = Array.map (fun c -> c.TestTime) configs
    let minTimes = Array.map (fun c -> c.MinimizeTime) configs
    let aggAnalysisTimes = Array.map (fun c -> c.AggAnalysisTime) configs
    let orderTimes = Array.map (fun c -> c.OrderingTime) configs
@@ -1898,6 +1900,7 @@ let compileAllPrefixes (polInfo : Ast.PolInfo) : CompilationResult * Map<Route.P
         PrefixTime = prefixTime
         PerPrefixTimes = times
         PerPrefixBuildTimes = buildTimes
+        PerPrefixTestTimes = testTimes
         PerPrefixMinTimes = minTimes
         PerPrefixAggAnalysisTimes = aggAnalysisTimes
         PerPrefixOrderTimes = orderTimes
