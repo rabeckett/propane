@@ -25,6 +25,8 @@ bgp router 0.0.0.4
                                 match "prefix in 194.0.0.1/24"
                                 action accept
                         exit
+                exit
+                filter in
                         add-rule
                                 match "prefix in 194.0.0.1/24"
                                 action deny
@@ -47,6 +49,14 @@ bgp router 0.0.0.3
                                 action accept
                                 action "community remove 10068"
                         exit
+                exit
+                filter in
+                        add-rule
+                                match "prefix in 194.0.0.1/24"
+                                action "community add 10068"
+                                action "local-pref 100"
+                                action accept
+                        exit
                         add-rule
                                 match "prefix in 194.0.0.1/24"
                                 action deny
@@ -66,6 +76,8 @@ bgp router 0.0.0.3
                                 action accept
                                 action "community remove 10068"
                         exit
+                exit
+                filter in
                         add-rule
                                 match "prefix in 194.0.0.1/24"
                                 action deny
@@ -84,19 +96,17 @@ bgp router 0.0.0.1
         peer 0.0.0.3
                 filter out
                         add-rule 
-                                match "community is 10068"
+                                match "community is 10067"
                                 action accept
-                                action "community remove 10068"
+                                action "community remove 10067"
                         exit
-                        add-rule 
-                                match "community is 10068"
+                exit
+                filter in
+                        add-rule
+                                match "prefix in 194.0.0.1/24"
+                                action "community add 10067"
+                                action "local-pref 99"
                                 action accept
-                                action "community remove 10068"
-                        exit
-                        add-rule 
-                                match "community is 10068"
-                                action accept
-                                action "community remove 10068"
                         exit
                         add-rule
                                 match "prefix in 194.0.0.1/24"

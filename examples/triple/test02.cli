@@ -20,15 +20,16 @@ bgp add router 65533 0.0.0.2
 bgp router 0.0.0.2
         add peer 200 0.0.0.3
         peer 0.0.0.3
-                filter out
-                        add-rule 
-                                match "community is 10068"
-                                action accept
-                                action "community remove 10068"
-                        exit
+                filter in
                         add-rule
                                 match "prefix in 1.1.1.1/32"
                                 action deny
+                        exit
+                        add-rule
+                                match "prefix in 172.0.0.0/24"
+                                action "community add 10066"
+                                action "local-pref 100"
+                                action accept
                         exit
                         add-rule
                                 match "prefix in 172.0.0.0/24"
@@ -37,14 +38,6 @@ bgp router 0.0.0.2
                         add-rule
                                 match "prefix in 0.0.0.0/0"
                                 action deny
-                        exit
-                exit
-                filter in
-                        add-rule
-                                match "prefix in 172.0.0.0/24"
-                                action "community add 10067"
-                                action "local-pref 100"
-                                action accept
                         exit
                 exit
         exit

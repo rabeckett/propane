@@ -248,7 +248,7 @@ let genLinkTest (input: CGraph.T) (pred : Route.Predicate) : TestCases =
             //bgp peer up? for cbgp file
         else
             ();
-      if (Set.count curPath > 1 && (not isOutPath)) then 
+      if (Set.count curPath > 2 && (not isOutPath)) then 
         tests <- Set.add curPath tests;
       File.AppendAllText("solutions.txt", "\n")
       let negSoln = ctx.MkNot(ctx.MkAnd(Set.toArray solnSet)) in

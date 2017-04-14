@@ -73,7 +73,7 @@ let main argv =
                   let getMap (neighbors : seq<CgState>) =
                         let mutable neighborsToNode = Map.empty
                         for n in neighbors do
-                              let routerName = n.Node.Loc
+                              let routerName = getIp n
                               neighborsToNode <- Map.add routerName n.Node neighborsToNode
                         neighborsToNode
 
@@ -111,7 +111,7 @@ let main argv =
                   let mutable lastAsn = "0"
                   for (src, dest) in t do
                         //System.IO.File.AppendAllText(outputFile, Topology.router src.Node.Loc topoInfo);
-                        if (Topology.isTopoNode dest.Node) then
+                        if (Topology.isTopoNode dest.Node) then                              
                               let neighbors = Seq.map getAsn (Map.find dest vertexToPeers)
                               let neighborsToNode = getMap (Map.find dest vertexToPeers)
                               let isStart = not (Topology.isTopoNode src.Node) 
