@@ -1,6 +1,6 @@
-\documentclass[numbers, 10pt, preprint]{sigplanconf}
-%\documentclass[10pt]{sigalternate052015}
+\documentclass[numbers, 10pt]{sigplanconf}
 
+%% packages
 \usepackage{amsmath}
 \usepackage{amssymb}
 \usepackage{xcolor}
@@ -19,37 +19,36 @@
 \usepackage{textcomp}
 \usepackage{enumitem}
 \usepackage{pifont}
-\newcommand{\cmark}{\ding{51}}
-\newcommand{\xmark}{\ding{55}}
 
+%% todo comments
 \definecolor{princetonorange}{RGB}{255,143,0}
 \definecolor{tmlblue}{RGB}{0,58,120}  % tmlblue == Toronto Maple Leafs Blue!
-
 \newcommand{\todo}[1]{\textcolor{red}{[TODO: #1]}}
 \newcommand{\ratul}[1]{\textcolor{blue}{[ratul: #1]}}
 \newcommand{\ryan}[1]{\textcolor{green}{[ryan: #1]}}
 \newcommand{\dpw}[1]{\textcolor{tmlblue}{[dpw: #1]}}
 \newcommand{\todd}[1]{\textcolor{princetonorange}{[todd: #1]}}
 
+%% abbreviations
 \newcommand{\EG}{\emph{e.g.}}
 \newcommand{\IE}{\emph{i.e.}}
 \newcommand{\ETC}{\emph{etc.}}
 \newcommand{\ETAL}{\emph{et al.}}
 
+%% formatting
 \newcommand{\sysname}{{\text{}\small \sf Propane/AT}\xspace}
 \newcommand{\sysnamesec}{{\sf Propane/AT}\xspace}
-
 \newcommand{\Propane}{{\text{}\small \sf Propane}\xspace}
 \newcommand{\mbgp}{{\small \sf mBGP}\xspace}
-
 \newcommand{\para}[1]{\paragraph*{\textbf{#1}}}
 
+%% math
 \newcommand{\set}[1]{\ensuremath{\{ #1 \} }}
 \newcommand{\abs}[1]{\ensuremath{ \lvert #1 \rvert }}
 
+%% language
 \newcommand{\CD}[1]{\texttt{\small #1}}
 \newcommand{\KW}[1]{\texttt{\small\bfseries{#1}}}
-
 \newcommand{\True}{\CD{true}}
 \newcommand{\Define}{\KW{define}}
 \newcommand{\Prefer}{\texttt{>>}}
@@ -65,7 +64,6 @@
 \newcommand{\NOT}{\texttt{!}}
 \newcommand{\Intersect}{\ensuremath{\cap}}
 \newcommand{\Union}{\ensuremath{\cup}}
-
 \newcommand{\Exit}{\KW{exit}}
 \newcommand{\End}{\KW{end}}
 \newcommand{\Start}{\KW{start}}
@@ -86,38 +84,39 @@
 \newcommand{\BNFALT}{\;\;|\;\;}
 \newcommand{\hdr}[2]{\flushleft \chdr{\hspace{5mm}#1}{#2}}
 \newcommand{\chdr}[2]{\textbf{#1} {#2} \\ \centering}%
-
 \newcommand{\Topo}[1]{\ensuremath{{\mathrm{topo}}(#1)}}
 \newcommand{\Pref}{\ensuremath{\mathrm{rank}}}
 
+%% evaluation
 \newcommand{\Conserv}{\cal{C}}
+\newcommand{\cmark}{\ding{51}}
+\newcommand{\xmark}{\ding{55}}
 
-
+%% theorems / appendix
 \newtheorem{thm}{Theorem}[section]
 \newtheorem{defn}{Definition}[section]
 \newtheorem{lem}[thm]{Lemma}
-
 \newcommand{\Appendix}{technical appendix\xspace}
+
 
 \begin{document}
 
-%\CopyrightYear{2016}
-%\setcopyright{acmcopyright}
-%\conferenceinfo{SIGCOMM '16,}{August 22-26, 2016, Florianopolis , Brazil}
-%\isbn{978-1-4503-4193-6/16/08}\acmPrice{\$15.00}
-%\doi{http://dx.doi.org/10.1145/2934872.2934909}
-
+%% set paper size
 \special{papersize=8.5in,11in}
 \setlength{\pdfpageheight}{\paperheight}
 \setlength{\pdfpagewidth}{\paperwidth}
 
-\conferenceinfo{CONF 'yy}{Month d--d, 20yy, City, ST, Country}
-\copyrightyear{20yy}
-\copyrightdata{978-1-nnnn-nnnn-n/yy/mm}
-\copyrightdoi{nnnnnnn.nnnnnnn}
+%% conference information
+%\conferenceinfo{CONF 'yy}{Month d--d, 20yy, City, ST, Country}
+%\copyrightyear{20yy}
+%\copyrightdata{978-1-nnnn-nnnn-n/yy/mm}
+%\copyrightdoi{nnnnnnn.nnnnnnn}
+\toappear{}
 
-%\titlebanner{DRAFT -- do not distribute}        % These are ignored unless
-%\preprintfooter{submission for PLDI 2017}   % 'preprint' option specified.
+%% publication rights
+%\setcopyright{acmcopyright}
+%\setcopyright{acmlicensed}  % default
+%\setcopyright{rightsretained}
 
 \title{Network Configuration Synthesis with Abstract Topologies \vspace{1cm}}
 
@@ -167,10 +166,37 @@ faster than systems that operate on concrete topologies.
 %=====================================================
 %
 %
-%  **Keywords**
+%  **Keywords and Descriptions**
 %
 %
 %=====================================================
+
+\begin{CCSXML}
+<ccs2012>
+<concept>
+<concept_id>10003033.10003083.10003098</concept_id>
+<concept_desc>Networks~Network manageability</concept_desc>
+<concept_significance>300</concept_significance>
+</concept>
+<concept>
+<concept_id>10003033.10003099.10003104</concept_id>
+<concept_desc>Networks~Network management</concept_desc>
+<concept_significance>300</concept_significance>
+</concept>
+<concept>
+<concept_id>10011007.10011006.10011050.10011017</concept_id>
+<concept_desc>Software and its engineering~Domain specific languages</concept_desc>
+<concept_significance>300</concept_significance>
+</concept>
+</ccs2012>
+\end{CCSXML}
+\ccsdesc[300]{Networks~Network manageability}
+\ccsdesc[300]{Networks~Network management}
+\ccsdesc[300]{Software and its engineering~Domain specific languages}%
+
+%\printccsdesc
+
+\keywords{Propane/AT; Domain-specific Language; BGP; Fault Tolerance; Compilation; Network Management}
 
 
 
@@ -1442,7 +1468,7 @@ a predicate describing the traffic, and a predicate configuration. A predicate i
 
 \para{Compilation}
 
-Figure~\ref{fig:concretization} (right) defines compilation from \sysname to \mbgp. It proceeds by compiling constraints $p_i$ in the original \sysname policy to a tuple of: the predicate $t_i$, the product graph $PG_i$, and the preference function $pref_i$. These tuples are passed the the $\mathrm{compile}_\mathrm{mBGP}$ function, along with the network topology $G$. For each internal router in the topology $l$, and each predicate $t_i$ in the \sysname policy, compilation goes through each node $m$ for $l$ in $PG_i$, and groups the inbound neighbors of $m$ by tag ($q_n$) into sets ($in$). It allows imports from these neighbors before exporting to the outbound neighbors of $m$. The local preference for these imports is given by $\mathrm{pref}_i(m)$, which represents an integer based on the total ordering of $(\leq)$. We build configurations using list-comprehension notation. For instance, $[~ l \rightarrow rc ~\vert~ l \in V, p(l,rc) ~]$ denotes the \mbgp policy $l_1 \rightarrow rc_{1},...,l_k \rightarrow rc_{k}$ where each $rc_{i}$ satisfies $p(l_i,rc_{i})$. We use $\mathrm{append}$ to denote sequence concatenation.%
+Figure~\ref{fig:concretization} (right) defines compilation from \sysname to \mbgp. It proceeds by compiling constraints $p_i$ in the original \sysname policy to a tuple of: the predicate $t_i$, the product graph $PG_i$, and the preference function $pref_i$. These tuples are passed to the $\mathrm{compile}_\mathrm{mBGP}$ function, along with the network topology $G$. For each internal router in the topology $l$, and each predicate $t_i$ in the \sysname policy, compilation goes through each node $m$ for $l$ in $PG_i$, and groups the inbound neighbors of $m$ by tag ($q_n$) into sets ($in$). It allows imports from these neighbors before exporting to the outbound neighbors of $m$. The local preference for these imports is given by $\mathrm{pref}_i(m)$, which represents an integer based on the total ordering of $(\leq)$. We build configurations using list-comprehension notation. For instance, $[~ l \rightarrow rc ~\vert~ l \in V, p(l,rc) ~]$ denotes the \mbgp policy $l_1 \rightarrow rc_{1},...,l_k \rightarrow rc_{k}$ where each $rc_{i}$ satisfies $p(l_i,rc_{i})$. We use $\mathrm{append}$ to denote sequence concatenation.%
 
 Figure~\ref{fig:bgp-configs} (left) shows part of the generated \mbgp configuration for spine routers for both the concrete and abstract policies. For brevity, we using the symbol ($*$) to denote the set of all neighbors and omit tags when irrelevant.
 %
@@ -1648,18 +1674,16 @@ For both recursive topologies, the analysis can only accurately determine reacha
 We evaluate generation time in \sysname both with and without abstraction using routing policy for backbone and data center networks inspired by configurations obtained from a large cloud provider. For both types networks, we fix the routing policy and scale the size of the topology.
 
 
-\para{Data center}
+\para{Topologies}
 
-Routers in the data center network run BGP using unique AS numbers and connect to multiple external neighbors. The routers aggregate some prefix blocks when announcing them to external neighbors, and keep some prefixes internal. The data center prefers that traffic leave through certain neighbors over others and should not transit traffic between neighbors. The policy also says that the data center routers not use external neighbors to reach ``private" destinations  (i.e., those in the part of the IP address space reserved for private use).
-
+Routers in the data centers run BGP using unique AS numbers and connect to multiple external neighbors. The routers aggregate some prefix blocks when announcing them to external neighbors, and keep some prefixes internal. The data center prefers that traffic leave through certain neighbors over others and should not transit traffic between neighbors. The policy also prevents routers from using external neighbors to reach ``private" destinations  (i.e., those in the IP address space reserved for private use).
+%
 We use a fat tree~\cite{fattree} and scale it by increasing the number of pods. The abstract topology uses one abstract node for each tier with additional nodes for local and global ToRs.
 
-
-
-\para{Backbone}
+%\para{Backbone}
 
 The backbone policy classifies neighbors into several categories based on commercial relationship~\cite{gao-rexford} and prefers paths through them in order. Similar to the datacenter, it blocks private destinations from neighbors, drops transit traffic between certain neighbors but not others, and aggregates internal prefixes at the border of the network.
-
+%
 We scale the backbone network from 10 to 240 routers. To abstract it, we split it into two parts: border routers that connect to external neighbors and an internal core. We use one abstract node for the border routers and one for the network core with mincut annotations both within the core and between the core and border roles. For neighbors, there is one abstract role per commercial category.
 
 \para{Results}
