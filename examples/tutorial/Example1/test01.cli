@@ -27,8 +27,6 @@ bgp router 0.0.0.4
                                 match "prefix in 1.0.0.0/24"
                                 action accept
                         exit
-                exit
-                filter in
                         add-rule
                                 match "prefix in 1.0.0.0/24"
                                 action deny
@@ -58,14 +56,6 @@ bgp router 0.0.0.3
                                 action accept
                                 action "community remove 10067"
                         exit
-                exit
-                filter in
-                        add-rule
-                                match "prefix in 1.0.0.0/24"
-                                action "community add 10067"
-                                action "local-pref 100"
-                                action accept
-                        exit
                         add-rule
                                 match "prefix in 1.0.0.0/24"
                                 action deny
@@ -73,6 +63,14 @@ bgp router 0.0.0.3
                         add-rule
                                 match "prefix in 0.0.0.0/0"
                                 action deny
+                        exit
+                exit
+                filter in
+                        add-rule
+                                match "prefix in 1.0.0.0/24"
+                                action "community add 10067"
+                                action "local-pref 100"
+                                action accept
                         exit
                 exit
         exit
@@ -92,14 +90,6 @@ bgp router 0.0.0.3
                                 action accept
                                 action "community remove 10067"
                         exit
-                exit
-                filter in
-                        add-rule
-                                match "prefix in 1.0.0.0/24"
-                                action "community add 10068"
-                                action "local-pref 100"
-                                action accept
-                        exit
                         add-rule
                                 match "prefix in 1.0.0.0/24"
                                 action deny
@@ -107,6 +97,14 @@ bgp router 0.0.0.3
                         add-rule
                                 match "prefix in 0.0.0.0/0"
                                 action deny
+                        exit
+                exit
+                filter in
+                        add-rule
+                                match "prefix in 1.0.0.0/24"
+                                action "community add 10068"
+                                action "local-pref 100"
+                                action accept
                         exit
                 exit
         exit
@@ -122,14 +120,6 @@ bgp router 0.0.0.2
                                 action accept
                                 action "community remove 10067"
                         exit
-                exit
-                filter in
-                        add-rule
-                                match "prefix in 1.0.0.0/24"
-                                action "community add 10067"
-                                action "local-pref 99"
-                                action accept
-                        exit
                         add-rule
                                 match "prefix in 1.0.0.0/24"
                                 action deny
@@ -137,6 +127,14 @@ bgp router 0.0.0.2
                         add-rule
                                 match "prefix in 0.0.0.0/0"
                                 action deny
+                        exit
+                exit
+                filter in
+                        add-rule
+                                match "prefix in 1.0.0.0/24"
+                                action "community add 10067"
+                                action "local-pref 99"
+                                action accept
                         exit
                 exit
         exit
@@ -149,8 +147,6 @@ bgp router 0.0.0.2
                                 action accept
                                 action "community remove 10067"
                         exit
-                exit
-                filter in
                         add-rule
                                 match "prefix in 1.0.0.0/24"
                                 action deny
@@ -178,6 +174,14 @@ bgp router 0.0.0.1
                                 action accept
                                 action "community remove 10067"
                         exit
+                        add-rule
+                                match "prefix in 1.0.0.0/24"
+                                action deny
+                        exit
+                        add-rule
+                                match "prefix in 0.0.0.0/0"
+                                action deny
+                        exit
                 exit
                 filter in
                         add-rule
@@ -191,14 +195,6 @@ bgp router 0.0.0.1
                                 action "community add 10067"
                                 action "local-pref 99"
                                 action accept
-                        exit
-                        add-rule
-                                match "prefix in 1.0.0.0/24"
-                                action deny
-                        exit
-                        add-rule
-                                match "prefix in 0.0.0.0/0"
-                                action deny
                         exit
                 exit
         exit

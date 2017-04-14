@@ -256,7 +256,7 @@ let isPresent peer neighborNodes routerNameToIp =
     | Router x -> 
         //Console.Write("Router is :" + (string x))
         let routerIp = Map.find x routerNameToIp 
-        let thisval = Map.containsKey routerIp neighborNodes in 
+        let thisval = Map.containsKey x neighborNodes in 
         //Console.Write("neighbors are:")
         //Map.iter (fun k (v: Topology.Node) -> Console.Write("\n" + k + " " + v.Loc)) (neighborNodes)
         //Console.Write("here is the problem: " + (string thisval))
@@ -303,6 +303,7 @@ let cbgpImport pi routerToImportSb (m, lp) comm predStr routerNameToIp neighborN
         else
           routerToImportSb
     | PathRE r ->  //TODO for later 
+      flag <- true
       let newSb = addRuleToPeer Any routerToImportSb (matchStr + "\"") routerNameToIp neighborNodes
       let preExit = addRuleToPeer Any newSb (actStr + lpStr + accStr) routerNameToIp neighborNodes
       addRuleToPeer Any preExit exitStr routerNameToIp neighborNodes
@@ -348,7 +349,7 @@ let getCBGPActions sb routerToExport routerToImport pi pred actions curRouterIp 
             let denystr = "\n                        add-rule" + 
                           "\n                                match \"prefix in " + predStr + "\"" +   
                           "\n                                action deny" + exitStr
-            routerToIsb <- Map.map (fun k (v : System.Text.StringBuilder) -> v.Append denystr) routerToIsb 
+            routerToEsb <- Map.map (fun k (v : System.Text.StringBuilder) -> v.Append denystr) routerToEsb 
          | Allow((m, lp), es) -> 
             let comm = 10068 - j
             j <- j + 1

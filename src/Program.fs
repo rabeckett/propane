@@ -73,7 +73,7 @@ let main argv =
                   let getMap (neighbors : seq<CgState>) =
                         let mutable neighborsToNode = Map.empty
                         for n in neighbors do
-                              let routerName = getIp n
+                              let routerName = n.Node.Loc
                               neighborsToNode <- Map.add routerName n.Node neighborsToNode
                         neighborsToNode
 
