@@ -486,7 +486,7 @@ Figure~\ref{fig:templates} shows an example of what a small component of a templ
 %Templates provide two key advantages. First, they help eliminate a class of configuration errors that stem from typos and inconsistencies, e.g., using the wrong address for a router, having inconsistent addresses for the two ends of a link, and failing to configure one side of a routing adjacency.  Second, templates have the potential for re-use when the topology changes while maintaining its basic structure (e.g., adding a new pod to the data center) or multiple networks with similar structures need to be instantiated (e.g., in an organization that runs multiple data centers).
 
 As described earlier (\S\ref{sec:introduction}), templates are hard to author and hard to validate. Worse, templates that work for one topology may not work for seemingly-inconsequential variations which may arise after the network evolves.
-Consider the network in Figure~\ref{fig:example2}, which is similar to Figure~\ref{fig:example}; it has the same five roles, connected in a similar hierarchy. One might think that the same templates, with different database entries, can be used for both cases. However, if the templates are configured to disallow ``valley" paths (per policy (5) above), they will work for Figure~\ref{fig:example} but silently violate the fault tolerance policy $(8)$ when used for Figure~\ref{fig:example2}.  Specifically, in Figure~\ref{fig:example2}, an aggregation-based black hole (\S\ref{sec:background}) will occur when the link S1--A1 fails; after this failure, S1 has no valley-free path to P[1--2] even though it will continue to get traffic for these prefixes as it announces the covering prefix PG (because it gets routes for P[3--4]). Such a black hole will not occur in Figure~\ref{fig:example} because spine routers have two links to each pod.
+Consider the network in Figure~\ref{fig:example2}, which is similar to Figure~\ref{fig:example}; it has the same five roles, connected in a similar hierarchy. One might think that the same templates, with different database entries, can be used for both cases. However, if the templates are configured to disallow ``valley" paths (per policy (5) above), they will work for Figure~\ref{fig:example} but silently violate the fault tolerance policy $(8)$ when used for Figure~\ref{fig:example2}.  Specifically, in Figure~\ref{fig:example2}, an aggregation-based black hole (\S\ref{sec:background}) will occur when the link S1--A1 fails; after this failure, S1 has no valley-free path to P[1--2] even though it will continue to get traffic for these prefixes as it announces the covering prefix PG (because it gets routes for P[3--4]). Such a black hole will not occur in Fn Figure~\ref{fig:example} because spine routers have two links to each pod.
 
 When operators discover that an old template no longer works, they may consider changing it, which may cause a change to all devices that use it---an unacceptable disruption in many cases.  As a result, operators may abandon the template entirely and revert to hand-crafting configuration patches to accommodate the change.
 Such patches reintroduce the complexity and the risk of errors that templates were meant to prevent.
@@ -621,7 +621,7 @@ For example, with this abstraction any spine router may or may not connect to an
 %
 To capture concrete networks more precisely,
 we introduce additional concepts. The first is topology hierarchy, captured by P and Q, which indicate that nodes in the ToR and aggregator roles are grouped into pods.
-The second is node and edge \emph{multiplicity}. Each edge (and node) is labelled
+The second is node and edge \emph{multiplicity}. Each edge (and node) is labeled
 with a symbolic variable (\EG, $e1$) that denotes a constraint on the number of edges (and nodes) that may appear in any valid concrete network. Operators can capture concrete network invariants by adding constraints on the symbolic variables using logical formulas.
 
 For example, in Figure~\ref{fig:example3}, the first constraint ($e1 = AG$) 
@@ -1246,7 +1246,7 @@ Let $m \geq_{rank} n$ be a relation over PG vertices that holds iff $\Topo{m} = 
 %
 Intuitively $m \geq_{rank} n$ means that paths ending at node $n$ have lower automata rank and are thus better than paths ending at $m$.
 %\begin{defn}
-The PG can be viewed as a labelled transition system by pushing the location from each directed edge's target node onto the edge. That is, $m\overset{l}{\rightarrow}n$ if there is an edge $(m,n)$ in the PG and $\Topo{n} = l$.
+The PG can be viewed as a labeled transition system by pushing the location from each directed edge's target node onto the edge. That is, $m\overset{l}{\rightarrow}n$ if there is an edge $(m,n)$ in the PG and $\Topo{n} = l$.
 %\end{defn}
 %
 For example, in the concrete PG we have the transition $(S1,1,0)\overset{A2}{\rightarrow}(A2,1,0)$.
