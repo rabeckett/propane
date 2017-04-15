@@ -240,9 +240,9 @@ Operators author a configuration {\em template} for each role. Templates are
 macros that, given a network topology, can be instantiated with different concrete values to generate device configurations.
 
 Unfortunately, templates use the same low-level constructs as ordinary router configurations (\EG,
-adding or removing tags from particular announcements).  In both templatized
+adding or removing tags from announcements).  In both templatized
 and non-templatized configurations, ensuring that a collection of low-level, local configurations
-achieves some important global, network-wide policy, such as a guarantee of connectivity in the face of 
+achieves some important network-wide policy, such as a guarantee of connectivity in the face of 
 failures, is extremely challenging.
 %
 %Worse, operators can never be sure that their templates correctly implement the policy. %
@@ -250,7 +250,7 @@ failures, is extremely challenging.
 %policies they implement and for which topologies---other than those of the configurations obtained from 
 %instantiating them.
 %
-In order to validate  their templates, operators will typically first instantiate a template with appropriate
+To validate their templates, operators will typically first instantiate a template with appropriate
 concrete parameters
 and then test it under various scenarios.  In general, like in any complex software system, such testing is inherently incomplete.
 %Thus, operators validate templates by testing some concrete instantiations using
@@ -262,9 +262,9 @@ would not hold as the network topology evolves. Evolution of the topology is a f
 capacity.  
 Templates that
 work for the current topology may or may not work for future
-topologies. Ensuing problems may cause operators to make non-uniform changes to particular routers' configurations,
+topologies. Ensuing problems may cause operators to make non-uniform changes to routers' configurations,
 which defeats the purpose of a template system.  An even worse situation is when
-operators have to update many devices to evolve their network.  
+operators must update many devices to evolve their network.  
 Such network-wide configuration changes entail a great deal of risk and can be highly
 disruptive to live traffic.
 %Ideally, network engineers would like some guarantees about the future, namely that 
@@ -295,8 +295,7 @@ will have to consider hundreds of device configurations instead of just a handfu
 role configurations. Current synthesis systems are also brittle in the face of network
 evolution. Any change in network topology requires re-execution of the engine,
 from scratch, on the new topology, and the result may be a completely different
-set of configurations.  No operator is
-able to shut down a large, production network, upgrade policy on all devices and 
+set of configurations.  No operator can shut down a large, production network, upgrade policy on all devices and 
 then restart their network.
 
 To address the challenge of configuration synthesis in the presence of abstract roles, we develop \sysname. 
@@ -451,7 +450,7 @@ When a BGP router receives one or more announcements for a prefix from different
 %are propagated in one direction (left-to-right), then traffic will wind
 %up flowing in the opposite direction (right-to-left).
 
-When announcing destinations to certain neighbors, a BGP router may perform {\em route aggregation}, \IE, announce a single prefix that covers multiple prefixes (\EG, announce 10.1.0.0/16 instead of 10.1.[1--255].0/24). The covering prefix is announced as long as the router has a valid route for {\em any} of the covered prefixes. Aggregation helps reduce the memory consumption of routers, but it can lead to traffic black holes~\cite{route-aggregation}. A router that announces 10.1.0.0/16, because it has a route to 10.1.1.0/24, may also get traffic for 10.1.2.0/24 to which it has no route.
+When announcing destinations to certain neighbors, a BGP router may perform {\em route aggregation}, \IE, announce a single prefix that covers multiple prefixes (\EG, announce 10.1.0.0/16 instead of 10.1.[1--255].0/24). The covering prefix is announced if the router has a valid route for {\em any} of the covered prefixes. Aggregation helps reduce the memory consumption of routers, but it can lead to traffic black holes~\cite{route-aggregation}. A router that announces 10.1.0.0/16, because it has a route to 10.1.1.0/24, may also get traffic for 10.1.2.0/24 to which it has no route.
 
 %Rather than export 2$^n$ addresses in the same range, routers will
 %often perform \emph{route aggregation}, and export a single (32-$n$)-bit
@@ -703,7 +702,7 @@ outgoing edges from a node in the $AG$ role (\IE, $e2$) to a node in the $TG$ ro
 equals the number of nodes in the $TG$ role. Together these constraints capture 
 the fact that, within any pod, the global aggregators and ToRs are in 
 a full mesh. Furthermore, the constraints $AG = AL$ and $AG \leq S$ ensure 
-that, within pods P and Q, the $AG$ and $AL$ roles \dpw{This originally said $AG$ and $TG$ but I changed it.} have the same number of 
+that, within pods P and Q, the $AG$ and $AL$ roles have the same number of 
 routers, which is less than or equal to the number of routers in the spine 
 role $S$.
 %
@@ -748,7 +747,7 @@ The second line introduces a prefix \emph{template} variable $\CD{\$GP}$. Templa
 %
 The final rule matches all other IP prefix destinations and allows traffic to follow a path that leaves the data center, ending at some external role ($\CD{\Out}$), through neighbors $\CD{N1}$ or $\CD{N2}$ with a preference for leaving through $\CD{N1}$. The $\CD{\Prefer}$~symbol indicates that traffic should satisfy the constraint on the left and resort to the backup (right) only when that is not possible due to network failures.%
 
-Next we can capture constraint (4) that traffic for local prefixes must stay within in the data center:
+Next, we can capture constraint (4) that traffic for local prefixes must stay within in the data center:
 %
 \begin{code}
 \Define Local =
@@ -1213,7 +1212,7 @@ It starts with the invariant $L_m(j,k)$ at role $m$ and can be applied if each e
 %
 The remaining nodes ($m-j$) that are not part of the reachable group in the bottom role, each have $e_1$ outgoing edges and must be able to at least ``fill" the incoming edges for the remaining nodes not in the reachable group at the top ($n-g$), which each have $e_2$ incoming edges. Solving the inequality gives the lower bound for $g$ used in Figure~\ref{fig:inference-rules}.
 
-The second part of the rule uses a similar idea to reason about the overlap between roles $m$ and $o$ with respect to role $n$. This rule is particularly useful for data center topologies where routers in one tier of the data center often have a particular striping pattern with another tier.
+The second part of the rule uses a similar idea to reason about the overlap between roles $m$ and $o$ with respect to role $n$. This rule is particularly useful for data center topologies where routers in one tier of the data center often have a uniform striping pattern with another tier.
 
 Finally, rules \infrule{I-local} and \infrule{I-global} reason across pod hierarchies. \infrule{I-local} says that if there is an inference from $X$ to $Y$, then the derivation can be used inside pod P by leaving the P-label unchanged. \infrule{I-global} says that when the edge goes across pods, we can infer the fact for all pods Q since the multiplicities apply uniformly for each pod.
 
@@ -1263,7 +1262,7 @@ Note that, because each inference rule only applies to directed edges in the PG,
 
 The next step is to use \infrule{I-mesh2} together with \infrule{I-local} to infer that any single node in the TL role for any pod Q is reachable via at least 2 disjoint paths. This process will continue until a fixed point is reached.
 
-The algorithm was able to infer that there is at least 1 disjoint path to any spine router, and at least 2 disjoint paths to any TL router. In this case, the analysis is precise. There exists a concrete network, namely the data center from Figure~\ref{fig:example2}, where a single failure can disconnect a global ToR from a spine router due to the valley-free constraint.
+The algorithm could infer that there is at least 1 disjoint path to any spine router, and at least 2 disjoint paths to any TL router. In this case, the analysis is precise. There exists a concrete network, namely the data center from Figure~\ref{fig:example2}, where a single failure can disconnect a global ToR from a spine router due to the valley-free constraint.
 %The bound on the fault tolerance between ToR and spine routers can also be used to determine that an aggregation-induced black hole may arise at the data center boundary after a single failure in some concrete instantiation.
 
 
@@ -1307,7 +1306,7 @@ The BGP routing protocol allows \emph{community tags}---32-bit integer tags that
 Community tags serve as a simple form of \emph{history}, and operators routinely use such tags to implement policy. For example, operators might tag advertisements at certain entry points and then block the export of tagged 
 advertisements to prevent their network from becoming a transit point.
 
-Template generation uses community tags to record the state of the automata from the Product Graph in every BGP announcement and updates these tags whenever messages are passed between routers. This mechanism ensures that BGP only considers paths that are allowed by the \sysname policy (\IE, paths in the PG). Routers will allow advertisments that correspond to an edge in the PG and will block any advertisments that do not.
+Template generation uses community tags to record the state of the automata from the Product Graph in every BGP announcement and updates these tags whenever messages are passed between routers. This mechanism ensures that BGP only considers paths that are allowed by the \sysname policy (\IE, paths in the PG). Routers will allow advertisements that correspond to an edge in the PG and will block any advertisements that do not.
 
 For example, in the concrete PG in Figure~\ref{fig:example-compilation}, router S1 appears in two PG nodes: $(S1,1,0)$ and $(S1,0,1)$. These nodes have two peers that can send them messages: $(N1,0,0)$ and $(N2,0,0)$. Therefore, S1 will allow advertisements from both peer $N1$ and peer $N2$. If S1 uses the path advertised by neighbor N1, then it will add the tag $(1,0)$ to the advertisement before sending this to its neighbors A1 and A2. If S1 uses a path advertised from neighbor N2, then it will add the tag $(0,1)$ instead. Similarly, router A1 appears in two PG nodes. It will admit advertisements that have the $(1,0)$ or $(0,1)$ tag attached (and drop all other advertisements). In either case, it will not modify the tag before exporting the route to its neighbors.
 
@@ -1431,7 +1430,7 @@ We write $m \leq n$ if the subgraph reachable from $m$ and $n$ respectively form
 \end{defn}
 
 
-If $m \leq n$, then advertisements received for node $m$ can safely be preferred over those received for node $n$ after accounting for the network-wide impact of the choice. For example in Figure~\ref{fig:example-compilation}, S1 can receive advertisements in two different contexts $(S1,1,0)$ and $(S1,0,1)$ and must choose between messages received in these different contexts. Advertisements are preferred in state $(S1,1,0)$ because they result in a better path for S1 ($(S1,0,1) \geq_{rank} (S1,1,0)$) and downstream routers such as A1 will also obtain paths no worse than if S1 had choosen $(S1,1,0)$. The policy is guaranteed to be safe from failures because if a link fails in the topology, then $m \leq n$ will still hold since any transition that becomes unusable for $m$ also becomes unusable for $n$. That is $m \leq n$ before the failure implies $m \leq n$ after the failure.
+If $m \leq n$, then advertisements received for node $m$ can safely be preferred over those received for node $n$ after accounting for the network-wide impact of the choice. For example, in Figure~\ref{fig:example-compilation}, S1 can receive advertisements in two different contexts $(S1,1,0)$ and $(S1,0,1)$ and must choose between messages received in these different contexts. Advertisements are preferred in state $(S1,1,0)$ because they result in a better path for S1 ($(S1,0,1) \geq_{rank} (S1,1,0)$) and downstream routers such as A1 will also obtain paths no worse than if S1 had chosen $(S1,1,0)$. The policy is guaranteed to be safe from failures because if a link fails in the topology, then $m \leq n$ will still hold since any transition that becomes unusable for $m$ also becomes unusable for $n$. That is $m \leq n$ before the failure implies $m \leq n$ after the failure.
 
 For each router, its corresponding PG nodes are then sorted according to the $\leq$ operator. If the operator defines a total order on PG nodes, then the compiler can simply prefer advertisements from peers of node $m$ over those of $n$ whenever $m \leq n$. However, if $\leq$ does not form a total order, then the policy is rejected as being potentially unsafe under some failure conditions.
 
@@ -1470,9 +1469,9 @@ Figure~\ref{fig:concretization} (right) defines compilation from \sysname to \mb
 
 Figure~\ref{fig:bgp-configs} (left) shows part of the generated \mbgp configuration for spine routers for both the concrete and abstract policies. For brevity, we using the symbol ($*$) to denote the set of all neighbors and omit tags when irrelevant.
 %
-For prefix $\True$, the spine routers will match advertisements from peer N1 and N2. The match for N1 is preferred since it has a higher BGP local-preference attribute (110). If an advertisement from N1 is choosen, the spine attaches the community tag $(1,0)$ before sending the route to all its peers ($*$). If an advertisement is only available from the backup N2, then it attaches the tag $(0,1)$ instead.
+For prefix $\True$, the spine routers will match advertisements from peer N1 and N2. The match for N1 is preferred since it has a higher BGP local-preference attribute (110). If an advertisement from N1 is chosen, the spine attaches the community tag $(1,0)$ before sending the route to all its peers ($*$). If an advertisement is only available from the backup N2, then it attaches the tag $(0,1)$ instead.
 %
-The template configuration matches any global prefix {\small \$GP} from any internal peer and re-advertises the route to all of its peers. For any local prefix it will allow an advertisement from any internal peer, and re-advertise the route to only other internal peers. The concrete configurations for S1 and S2 obtained from compilation for the concerete PG from Figure~\ref{fig:example-compilation} have a similar structure for each local and global prefix where local routes are reflected downward, while global routes are advertised to all peers.
+The template configuration matches any global prefix {\small \$GP} from any internal peer and re-advertises the route to all its peers. For any local prefix, it will allow an advertisement from any internal peer, and re-advertise the route to only other internal peers. The concrete configurations for S1 and S2 obtained from compilation for the concrete PG from Figure~\ref{fig:example-compilation} have a similar structure for each local and global prefix where local routes are reflected downward, while global routes are advertised to all peers.
 
 
 \para{Concretization}
@@ -1526,7 +1525,7 @@ Figure~\ref{fig:bgp-configs} (right) shows the spine and ToR templates after thi
 %\sysname is implemented in around 9500 lines of F\# code. 
 The \sysname compiler generates configurations for Cisco and Quagga~\cite{quagga} routers. The fault-tolerance analysis uses $\nu$Z~\cite{z3opt} to both test validity and minimize variables subject to the topology constraints. Since the analysis typically calls the SMT solver many times with relatively small optimization problems, we use a timeout of 200ms.
 
-Although the disjoint path analysis takes place over the PG, each application of the inference rules from Figure~\ref{fig:inference-rules} depends on the topology locations, but not the automata states, and can be reused accross multiple PG nodes with the same topology location. Therefore, we lazily apply the rules and cache the satisfiability and minimization calls to $\nu$Z after their first use. Furthermore, the cached results are shared across different prefixes, each of which may have a unique PG representation.
+Although the disjoint path analysis takes place over the PG, each application of the inference rules from Figure~\ref{fig:inference-rules} depends on the topology locations, but not the automata states, and can be reused across multiple PG nodes with the same topology location. Therefore, we lazily apply the rules and cache the satisfiability and minimization calls to $\nu$Z after their first use. Furthermore, the cached results are shared across different prefixes, each of which may have a unique PG representation.
 
 \section{Evaluation}
 \label{sec:evaluation}
@@ -1682,7 +1681,7 @@ We use a fat tree~\cite{fattree} and scale it by increasing the number of pods. 
 
 %\para{Backbone}
 
-The backbone policy classifies neighbors into several categories based on commercial relationship~\cite{gao-rexford} and prefers paths through them in order. Similar to the datacenter, it blocks private destinations from neighbors, drops transit traffic between certain neighbors but not others, and aggregates internal prefixes at the border of the network.
+The backbone policy classifies neighbors into several categories based on commercial relationship~\cite{gao-rexford} and prefers paths through them in order. Like the data center, it blocks private destinations from neighbors, drops transit traffic between certain neighbors but not others, and aggregates internal prefixes at the border of the network.
 %
 We scale the backbone network from 10 to 240 routers. To abstract it, we split it into two parts: border routers that connect to external neighbors and an internal core. We use one abstract node for the border routers and one for the network core with mincut annotations both within the core and between the core and border roles. For neighbors, there is one abstract role per commercial category.
 
