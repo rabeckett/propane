@@ -25,7 +25,7 @@ exception UncontrollablePeerPreferenceException of string
 ///    - A collection of exports for the match (updated local-pref, community, peer)
 
 type Path = Set<CgState*CgState> 
-type TestCases = Set<Path>
+type TestCases = Set<Path*Path>
 
 type LocalPref = int
 

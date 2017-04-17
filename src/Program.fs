@@ -6,7 +6,7 @@ open Util.Format
 open CGraph
 
 type Path = Set<CgState*CgState> 
-type TestCases = Set<Path>
+type TestCases = Set<Path*Path>
 
 let runUnitTests() = 
    writeFormatted (header "Running unit tests ")
@@ -58,8 +58,9 @@ let main argv =
                   if (String.exists (fun c -> c = 'l') s) then (s.Substring (0, 9)) 
                   else s
             for i in 0.. Seq.length tests - 1 do
-                  let t = Seq.item i tests
-                  let outputFile = "test" + (string) j + (string) i + ".cli"
+                  let (t, e) = Seq.item i tests
+                  let outputFile = "test" + (string) j + ".cli"
+                  j <- j + 1
                   //let outputFile = "test" + (Route.toString pred) + (string) i + ".cli"
                   if not (Seq.isEmpty t) then
                         TestGenerator.writeTopoCBGP topo outputFile // writes physical topology to all testfiles
@@ -108,6 +109,7 @@ let main argv =
                               vertexToPeers <- Map.add dest destnewneighbors vertexToPeers
                         else ()
 
+                  for (src, dest) in e do
                         // track teh vertices in order to geenrate exepcted output
                         if (Topology.isTopoNode dest.Node) then
                               if (Topology.isTopoNode src.Node) then
@@ -136,6 +138,7 @@ let main argv =
                         System.IO.File.AppendAllText(outputFile, "\nbgp router " + lastRouter + " record-route " + predStr)
                         System.IO.File.AppendAllText("solutions.txt", outputFile + " last router is " + lastAsn + "\n");
 
+                  if not (Seq.isEmpty e) then
                         // print out the reference output in a separate file
                         let refOutputFile = "ExpectedOutput.txt"
                         System.IO.File.AppendAllText(refOutputFile, lastRouter + "\t" + predStr + "\t" + "SUCCESS\t");
@@ -143,8 +146,6 @@ let main argv =
                               System.IO.File.AppendAllText(refOutputFile, startingVertex + " ");
                               startingVertex <- Map.find startingVertex testVerticesInOrder
                         System.IO.File.AppendAllText(refOutputFile, startingVertex + "\n");
-            j <- j + 1
-       //TODO: traceroute command that would output the path that the traffic took
 
       if settings.GenLinkTests then 
             Map.iter createTest predToTests;

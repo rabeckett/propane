@@ -39,7 +39,7 @@ type CompilationResult =
      Stats : Stats }
 
 type Path = Set<CgState*CgState> 
-type TestCases = Set<Path>
+type TestCases = Set<Path*Path>
 
 /// Display the ABGP policy in a readable format
 val format : T -> string
