@@ -217,7 +217,7 @@ let genLinkTest (input: CGraph.T) (pred : Route.Predicate) : TestCases =
     File.AppendAllText("solutions.txt", "New Set for prefix \n")
     let mutable tests = Set.empty in
     //Seq.iter (fun a -> Console.Write((string a) + "\n")) s.Assertions
-    while (s.Check() = Status.SATISFIABLE && ((Set.count edgesSoFar) < (Seq.length edgesToCover)) && timer.ElapsedMilliseconds < (int64 30000)) do
+    while (s.Check() = Status.SATISFIABLE && ((Set.count edgesSoFar) < (Seq.length edgesToCover))) do
       Console.Write("iterating once with \n" + (string (Seq.length (s.Assertions))));
       Console.Write("edges so far " + (string) (Set.count edgesSoFar) + "total edges " + (string) (Seq.length edgesToCover) + "\n");      
       //Console.Write("edges covered so far");
@@ -252,12 +252,11 @@ let genLinkTest (input: CGraph.T) (pred : Route.Predicate) : TestCases =
         else
             ();
       if (Set.count curPath > 2 && (not isOutPath)) then 
-        tests <- Set.add (curPath*curPath) tests;
+        tests <- Set.add (curPath, curPath) tests;
       File.AppendAllText("solutions.txt", "\n")
       let negSoln = ctx.MkNot(ctx.MkAnd(Set.toArray solnSet)) in
       condSet <- Set.add negSoln condSet;
       s.Assert(Set.toArray condSet);
-      timer.Restart()
     Console.Write("done");
     tests
 
@@ -467,7 +466,7 @@ let genPrefTest (input: CGraph.T) (pred : Route.Predicate) : TestCases =
                             //    ();
 
                             if (s.Model.ConstInterp(Array2D.get eArray j i).IsTrue) then
-                                expectedPath <- Set.add (edge.Source, edge.Target)
+                                expectedPath <- Set.add (edge.Source, edge.Target) expectedPath;
 
                             if (Topology.isUnknown edge.Source.Node || Topology.isUnknown edge.Target.Node)  then
                                 isOutPath <- true
@@ -477,7 +476,7 @@ let genPrefTest (input: CGraph.T) (pred : Route.Predicate) : TestCases =
                         else
                             ();
                     if (Set.count curPath > 2 && (not isOutPath)) then 
-                        tests <- Set.add (curPath * expectedPath) tests;
+                        tests <- Set.add (curPath, expectedPath) tests;
                 else Console.Write("cannot find, bailing");
                 File.AppendAllText("solutions.txt", "\n")
                 Console.Write("done");
