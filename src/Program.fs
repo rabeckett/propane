@@ -71,13 +71,13 @@ let main argv =
                         Map.find routerName routerNameToIp
 
                   // get Ipaddress for a given node in the testGraph
-                  let getAsn (v : CgState) = v.Node.Loc
+                  let getAsn (v : Topology.Node) = v.Loc
 
-                  let getMap (neighbors : seq<CgState>) =
+                  let getMap (neighbors : seq<Topology.Node>) =
                         let mutable neighborsToNode = Map.empty
                         for n in neighbors do
-                              let routerName = n.Node.Loc
-                              neighborsToNode <- Map.add routerName n.Node neighborsToNode
+                              let routerName = n.Loc
+                              neighborsToNode <- Map.add routerName n neighborsToNode
                         neighborsToNode
 
                   Console.Write(outputFile + "\n");
@@ -90,23 +90,23 @@ let main argv =
                         System.IO.File.AppendAllText("solutions.txt", outputFile + "\n");
                         System.IO.File.AppendAllText("solutions.txt", (string src) + " " + (string dest) + "\n");
                         let neighbors =
-                              if (Map.containsKey src vertexToPeers) then Map.find src vertexToPeers
+                              if (Map.containsKey src.Node vertexToPeers) then Map.find src.Node vertexToPeers
                               else Set.empty
                         let newneighbors = 
-                              if (Topology.isTopoNode dest.Node) then Set.add dest neighbors
+                              if (Topology.isTopoNode dest.Node) then Set.add dest.Node neighbors
                               else neighbors
                         if (Topology.isTopoNode src.Node) then
-                              vertexToPeers <- Map.add src newneighbors vertexToPeers
+                              vertexToPeers <- Map.add src.Node newneighbors vertexToPeers
                         else ()                
                         //add src to dest's neighbor list
                         let destneighbors =
-                              if (Map.containsKey dest vertexToPeers) then Map.find dest vertexToPeers
+                              if (Map.containsKey dest.Node vertexToPeers) then Map.find dest.Node vertexToPeers
                               else Set.empty
                         let destnewneighbors = 
-                              if (Topology.isTopoNode src.Node) then Set.add src destneighbors
+                              if (Topology.isTopoNode src.Node) then Set.add src.Node destneighbors
                               else destneighbors
                         if (Topology.isTopoNode dest.Node) then
-                              vertexToPeers <- Map.add dest destnewneighbors vertexToPeers
+                              vertexToPeers <- Map.add dest.Node destnewneighbors vertexToPeers
                         else ()
 
                   for (src, dest) in e do
@@ -122,14 +122,16 @@ let main argv =
                   // output cbgp router configuration instructions for routers in the path
                   let mutable lastRouter = "0.0.0.0"
                   let mutable lastAsn = "0"
+                  let mutable verticesSoFar = Set.empty
                   for (src, dest) in t do
                         //System.IO.File.AppendAllText(outputFile, Topology.router src.Node.Loc topoInfo);
-                        if (Topology.isTopoNode dest.Node) then                              
-                              let neighbors = Seq.map getAsn (Map.find dest vertexToPeers)
-                              let neighborsToNode = getMap (Map.find dest vertexToPeers)
+                        if (Topology.isTopoNode dest.Node && (not (Set.contains dest.Node verticesSoFar))) then                              
+                              let neighbors = Seq.map getAsn (Map.find dest.Node vertexToPeers)
+                              let neighborsToNode = getMap (Map.find dest.Node vertexToPeers)
                               let isStart = not (Topology.isTopoNode src.Node) 
                               let s = Abgp.getCBGPConfig res.Abgp dest isStart predStr neighbors routerNameToIp neighborsToNode
                               System.IO.File.AppendAllText(outputFile, s);
+                              verticesSoFar <- Set.add dest.Node verticesSoFar;
                         if (not (Topology.isTopoNode dest.Node)) then 
                               lastRouter <- getIp src
                               lastAsn <- src.Node.Loc

@@ -40,13 +40,25 @@ let generateRouterIp topo : Map<string, string> =
         routerToIpMap <- Map.add routerName (ipOfInt (uint32 (i + 1))) routerToIpMap
     routerToIpMap
 
-let geteBGPStaticRoutes (vertexToPeers : Map<CgState, Set<CgState>>) (routerNameToIp : Map<string, string>) file : unit =
-    let printSingleRouter router neighbors =
+let geteBGPStaticRoutes (vertexToPeers : Map<Topology.Node, Set<Topology.Node>>) (routerNameToIp : Map<string, string>) file : unit =
+    //let mutable vertexToNodePeers = Map.empty
+    //let cleanup (router : CgState) (neighbors : Set<CgState>) =
+    //    let mutable cleanedNeighbors = 
+    //        if (Map.containsKey router.Node vertexToNodePeers) then
+    //            Map.find router.Node vertexToNodePeers
+    //        else
+    //            Set.empty
+    //    for n in neighbors do
+    //        cleanedNeighbors <- Set.add n.Node cleanedNeighbors
+    //    vertexToNodePeers <- Map.add router.Node cleanedNeighbors vertexToNodePeers
+    //Map.iter cleanup vertexToPeers;
+
+    let printSingleRouter (router : Topology.Node) (neighbors : Set<Topology.Node>) =
         if not (Seq.isEmpty neighbors) then
             for n in neighbors do
-                let peerNum = n.Node.Loc
+                let peerNum = n.Loc
                 let peerIp = Map.find peerNum routerNameToIp
-                let routerIp = Map.find router.Node.Loc routerNameToIp
+                let routerIp = Map.find router.Loc routerNameToIp
                 let nodeConnect = "\nnet node " + routerIp + " route add " + peerIp + "/32 --oif=" + peerIp + " 1"
                 File.AppendAllText(file, nodeConnect);
         else ();               

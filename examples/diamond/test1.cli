@@ -165,9 +165,19 @@ bgp router 0.0.0.1
         peer 0.0.0.3
                 filter out
                         add-rule 
+                                match "community is 10068"
+                                action accept
+                                action "community remove 10068"
+                        exit
+                        add-rule 
                                 match "community is 10067"
                                 action accept
                                 action "community remove 10067"
+                        exit
+                        add-rule 
+                                match "community is 10066"
+                                action accept
+                                action "community remove 10066"
                         exit
                         add-rule
                                 match "prefix in 194.0.0.1/24"
@@ -188,9 +198,6 @@ bgp router 0.0.0.1
                 exit
         exit
         peer 0.0.0.3 up
-exit
-bgp add router 65534 0.0.0.1
-bgp router 0.0.0.1
         add peer 65533 0.0.0.2
         peer 0.0.0.2
                 filter out
@@ -198,6 +205,11 @@ bgp router 0.0.0.1
                                 match "community is 10068"
                                 action accept
                                 action "community remove 10068"
+                        exit
+                        add-rule 
+                                match "community is 10067"
+                                action accept
+                                action "community remove 10067"
                         exit
                         add-rule 
                                 match "community is 10066"
