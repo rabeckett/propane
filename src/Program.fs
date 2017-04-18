@@ -143,7 +143,7 @@ let main argv =
                   if not (Seq.isEmpty e) then
                         // print out the reference output in a separate file
                         let refOutputFile = "ExpectedOutput.txt"
-                        System.IO.File.AppendAllText(refOutputFile, lastRouter + "\t" + predStr + "\t" + "SUCCESS\t");
+                        System.IO.File.AppendAllText(refOutputFile, outputFile + " " + lastRouter + "\t" + predStr + "\t" + "SUCCESS\t");
                         while (Map.containsKey startingVertex testVerticesInOrder) do
                               System.IO.File.AppendAllText(refOutputFile, startingVertex + " ");
                               startingVertex <- Map.find startingVertex testVerticesInOrder

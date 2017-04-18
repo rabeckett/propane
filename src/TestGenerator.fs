@@ -41,18 +41,6 @@ let generateRouterIp topo : Map<string, string> =
     routerToIpMap
 
 let geteBGPStaticRoutes (vertexToPeers : Map<Topology.Node, Set<Topology.Node>>) (routerNameToIp : Map<string, string>) file : unit =
-    //let mutable vertexToNodePeers = Map.empty
-    //let cleanup (router : CgState) (neighbors : Set<CgState>) =
-    //    let mutable cleanedNeighbors = 
-    //        if (Map.containsKey router.Node vertexToNodePeers) then
-    //            Map.find router.Node vertexToNodePeers
-    //        else
-    //            Set.empty
-    //    for n in neighbors do
-    //        cleanedNeighbors <- Set.add n.Node cleanedNeighbors
-    //    vertexToNodePeers <- Map.add router.Node cleanedNeighbors vertexToNodePeers
-    //Map.iter cleanup vertexToPeers;
-
     let printSingleRouter (router : Topology.Node) (neighbors : Set<Topology.Node>) =
         if not (Seq.isEmpty neighbors) then
             for n in neighbors do
@@ -100,19 +88,12 @@ let genLinkTest (input: CGraph.T) (pred : Route.Predicate) : TestCases =
         Console.Write("(" + (string e.Source) + "," + (string e.Target) + ")");
         Console.Write("\n");
 
-    let isEdgeInternal (e: QuickGraph.Edge<CGraph.CgState>) = 
-        if (e.Source = input.Start || e.Target = input.End) then 
-            false
-        else 
-            true
-    let edgesToCover = Seq.filter isEdgeInternal edges
-
     // array of boolExpr for vertices and edges respectively
     let vArray = Array.zeroCreate (Seq.length vertices) in
     let vIntArray = Array.zeroCreate (Seq.length vertices) in
     let mutable vMap = Map.empty in
     let mutable eMap = Map.empty in
-    let mutable edgesSoFar : Set<CGraph.CgState * CGraph.CgState> = Set.empty
+    //let mutable edgesSoFar : Set<CGraph.CgState * CGraph.CgState> = Set.empty
 
     //cretae vertex map
     //Console.Write("creating vertex map");
@@ -128,6 +109,14 @@ let genLinkTest (input: CGraph.T) (pred : Route.Predicate) : TestCases =
         Array.set eArray i (ctx.MkBoolConst ("e" + (string i)));
         let edge = Seq.item i edges in
         eMap <- Map.add (edge.Source, edge.Target) i eMap;
+
+    let isEdgeInternal (e: QuickGraph.Edge<CGraph.CgState>) = 
+        if (e.Source = input.Start || e.Target = input.End) then 
+            false
+        else 
+            true
+    let mapEdge (e: QuickGraph.Edge<CGraph.CgState>) = eArray.[Map.find (e.Source, e.Target) eMap]
+    let mutable edgesToCover = Seq.filter isEdgeInternal edges |> Seq.map mapEdge |> Set.ofSeq
 
     let mutable condSet = Set.empty in
     let src = Map.find input.Start vMap in
@@ -225,13 +214,15 @@ let genLinkTest (input: CGraph.T) (pred : Route.Predicate) : TestCases =
     //let s = ctx.MkSolver() // 
     let s = ctx.MkSolver();
     //Console.Write("Optimization parameters: " + s.Help + "\nDescriptions:" + (string s.ParameterDescriptions))
+    let mutable newSolnRule = ctx.MkTrue()
+    condSet <- Set.add newSolnRule condSet;
     s.Assert(Set.toArray condSet);
     File.AppendAllText("solutions.txt", "New Set for prefix \n")
     let mutable tests = Set.empty in
     //Seq.iter (fun a -> Console.Write((string a) + "\n")) s.Assertions
-    while (s.Check() = Status.SATISFIABLE && ((Set.count edgesSoFar) < (Seq.length edgesToCover))) do
+    while (s.Check() = Status.SATISFIABLE && (not (Seq.isEmpty edgesToCover))) do
       Console.Write("iterating once with \n" + (string (Seq.length (s.Assertions))));
-      Console.Write("edges so far " + (string) (Set.count edgesSoFar) + "total edges " + (string) (Seq.length edgesToCover) + "\n");      
+      Console.Write("edges to cover " + (string) (Set.count edgesToCover) + "\n");      
       //Console.Write("edges covered so far");
       //for (src, dst) in edgesSoFar do
         //Console.Write("(" + (string src) + "," + (string dst) + ")");
@@ -247,8 +238,8 @@ let genLinkTest (input: CGraph.T) (pred : Route.Predicate) : TestCases =
 
             //add current edge to the current Path
             let edge = Seq.item i edges in
-            if isEdgeInternal edge then
-                edgesSoFar <- Set.add (edge.Source, edge.Target) edgesSoFar;
+            if (isEdgeInternal edge && Set.contains eArray.[i] edgesToCover) then
+                edgesToCover <- Set.remove eArray.[i] edgesToCover;
            // if Topology.isTopoNode edge.Source.Node then
             curPath <- Set.add (edge.Source, edge.Target) curPath;
             //else 
@@ -266,8 +257,11 @@ let genLinkTest (input: CGraph.T) (pred : Route.Predicate) : TestCases =
       if (Set.count curPath > 2 && (not isOutPath)) then 
         tests <- Set.add (curPath, curPath) tests;
       File.AppendAllText("solutions.txt", "\n")
-      let negSoln = ctx.MkNot(ctx.MkAnd(Set.toArray solnSet)) in
-      condSet <- Set.add negSoln condSet;
+      //let negSoln = ctx.MkNot(ctx.MkAnd(Set.toArray solnSet)) in
+      //condSet <- Set.add negSoln condSet;
+      condSet <- Set.remove newSolnRule condSet;
+      newSolnRule <- ctx.MkOr(Set.toArray edgesToCover)
+      condSet <- Set.add newSolnRule condSet;
       s.Assert(Set.toArray condSet);
     Console.Write("done");
     tests

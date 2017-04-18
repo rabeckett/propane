@@ -6,10 +6,10 @@ net add link 0.0.0.1 0.0.0.2
 net add link 0.0.0.2 0.0.0.3
 net add link 0.0.0.3 0.0.0.4
 
-net node 0.0.0.1 route add 0.0.0.2/32 --oif=0.0.0.2 1
-net node 0.0.0.2 route add 0.0.0.1/32 --oif=0.0.0.1 1
-net node 0.0.0.2 route add 0.0.0.3/32 --oif=0.0.0.3 1
 net node 0.0.0.3 route add 0.0.0.2/32 --oif=0.0.0.2 1
+net node 0.0.0.2 route add 0.0.0.3/32 --oif=0.0.0.3 1
+net node 0.0.0.2 route add 0.0.0.1/32 --oif=0.0.0.1 1
+net node 0.0.0.1 route add 0.0.0.2/32 --oif=0.0.0.2 1
 
 
 bgp add router 65534 0.0.0.1
