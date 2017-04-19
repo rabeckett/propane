@@ -110,6 +110,9 @@ let main argv =
                               vertexToPeers <- Map.add dest.Node destnewneighbors vertexToPeers
                         else ()
 
+                  let mutable lastRouter = "0.0.0.0"
+                  let mutable lastAsn = "0"
+                  let mutable lastNode = 
                   for (src, dest) in e do
                         // track teh vertices in order to geenrate exepcted output
                         if (Topology.isTopoNode dest.Node) then
@@ -117,12 +120,15 @@ let main argv =
                                     testVerticesInOrder <- Map.add dest.Node.Loc src.Node.Loc testVerticesInOrder
                         else
                               startingVertex <- src.Node.Loc
+                              lastRouter <- getIp src
+                              lastAsn <- src.Node.Loc
+                              lastNode <- src.Node
                   if not (Seq.isEmpty t) then
                       TestGenerator.geteBGPStaticRoutes vertexToPeers routerNameToIp outputFile
                   
                   // output cbgp router configuration instructions for routers in the path
-                  let mutable lastRouter = "0.0.0.0"
-                  let mutable lastAsn = "0"
+                  let mutable lessPrefLastRouter = "0.0.0.0"
+                  let mutable lessPrefLastAsn = "0"
                   let mutable verticesSoFar = Set.empty
                   for (src, dest) in t do
                         //System.IO.File.AppendAllText(outputFile, Topology.router src.Node.Loc topoInfo);
@@ -133,12 +139,15 @@ let main argv =
                               let s = Abgp.getCBGPConfig res.Abgp dest isStart predStr neighbors routerNameToIp neighborsToNode
                               System.IO.File.AppendAllText(outputFile, s);
                               verticesSoFar <- Set.add dest.Node verticesSoFar;
-                        if (not (Topology.isTopoNode dest.Node)) then 
-                              lastRouter <- getIp src
-                              lastAsn <- src.Node.Loc
+                        if (not (Topology.isTopoNode dest.Node) && src.Node <> lastNode) then 
+                              lessPrefLastRouter <- getIp src
+                              lessPrefLastAsn <- src.Node.Loc
                   if not (Seq.isEmpty t) then
                         System.IO.File.AppendAllText(outputFile, "\nsim run\n\n");
                         System.IO.File.AppendAllText(outputFile, "\nbgp router " + lastRouter + " record-route " + predStr)
+                        if (settings.GenPrefTests && lessPrefLastRouter <> lastRouter)  then
+                              // expect Failure
+                              System.IO.File.AppendAllText(outputFile, "\nbgp router " + lessPrefLastRouter + " record-route " + predStr)
                         System.IO.File.AppendAllText("solutions.txt", outputFile + " last router is " + lastAsn + "\n");
 
                   if not (Seq.isEmpty e) then
@@ -149,6 +158,20 @@ let main argv =
                               System.IO.File.AppendAllText(refOutputFile, startingVertex + " ");
                               startingVertex <- Map.find startingVertex testVerticesInOrder
                         System.IO.File.AppendAllText(refOutputFile, startingVertex + "\n");
+
+                        // for preference coverage, look at the less preferred path and see if the end router is on the preferred path or not
+                        // accordingly verify that it has or doesn't have a path to the origin vertex
+                        if (settings.GenPrefTests && lessPrefLastRouter <> lastRouter) then
+                              if (not(Map.containsKey lessPrefLastAsn testVerticesInOrder)) then
+                                    System.IO.File.AppendAllText(refOutputFile, outputFile + " " + lessPrefLastRouter + "\t" + predStr + "\t" + "UNREACHABLE\t");
+                              // expect Failure
+                              else 
+                                    startingVertex <- lessPrefLastAsn
+                                    System.IO.File.AppendAllText(refOutputFile, outputFile + " " + lessPrefLastRouter + "\t" + predStr + "\t" + "SUCCESS\t");
+                                    while (Map.containsKey startingVertex testVerticesInOrder) do
+                                          System.IO.File.AppendAllText(refOutputFile, startingVertex + " ");
+                                          startingVertex <- Map.find startingVertex testVerticesInOrder
+                                    System.IO.File.AppendAllText(refOutputFile, startingVertex + "\n");
 
       if settings.GenLinkTests then 
             Map.iter createTest predToTests;
