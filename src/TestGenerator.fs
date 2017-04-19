@@ -68,8 +68,11 @@ let writeTopoCBGP (input : Topology.T) (file : string) : unit =
         File.AppendAllText(file, toWrite + "\n");
 
     //create links for the edges
-    for e in Topology.edges input do
+    let mutable edgeSet = Set.ofSeq (Topology.edges input)
+    for e in edgeSet do
         let (src, target) = e
+        if (Set.contains (target, src) edgeSet) then
+         edgeSet <- Set.remove (target, src) edgeSet
         let srcIdx = Map.find src vMap
         let targetIdx = Map.find target vMap
         if (srcIdx < targetIdx) then // &&  (not (Topology.isUnknown src)) && (not (Topology.isUnknown target)) ) then 
@@ -93,6 +96,7 @@ let genLinkTest (input: CGraph.T) (pred : Route.Predicate) : TestCases =
     let vIntArray = Array.zeroCreate (Seq.length vertices) in
     let mutable vMap = Map.empty in
     let mutable eMap = Map.empty in
+    let mutable condSet = Set.empty in
     //let mutable edgesSoFar : Set<CGraph.CgState * CGraph.CgState> = Set.empty
 
     //cretae vertex map
@@ -101,6 +105,9 @@ let genLinkTest (input: CGraph.T) (pred : Route.Predicate) : TestCases =
         Array.set vArray i (ctx.MkBoolConst ("v" + (string i)));
         Array.set vIntArray i (ctx.MkIntConst ("vI" + (string i)));
         vMap <- Map.add (Seq.item i vertices)  i vMap;
+        let vertex = Seq.item i vertices
+        if (Topology.isUnknown vertex.Node) then
+            condSet <- Set.add (ctx.MkNot vArray.[i]) condSet
     let eArray = Array.zeroCreate (Seq.length edges) in
 
     // create edge map
@@ -111,14 +118,11 @@ let genLinkTest (input: CGraph.T) (pred : Route.Predicate) : TestCases =
         eMap <- Map.add (edge.Source, edge.Target) i eMap;
 
     let isEdgeInternal (e: QuickGraph.Edge<CGraph.CgState>) = 
-        if (e.Source = input.Start || e.Target = input.End) then 
-            false
-        else 
-            true
+        not (e.Source = input.Start || e.Target = input.End)
+
     let mapEdge (e: QuickGraph.Edge<CGraph.CgState>) = eArray.[Map.find (e.Source, e.Target) eMap]
     let mutable edgesToCover = Seq.filter isEdgeInternal edges |> Seq.map mapEdge |> Set.ofSeq
 
-    let mutable condSet = Set.empty in
     let src = Map.find input.Start vMap in
     condSet <- Set.add (Array.get vArray src) condSet ;
     condSet <- Set.add (ctx.MkEq (vIntArray.[src], ctx.MkInt(0))) condSet;
@@ -213,10 +217,8 @@ let genLinkTest (input: CGraph.T) (pred : Route.Predicate) : TestCases =
     //Console.Write("make solver and iterate");
     //let s = ctx.MkSolver() // 
     let s = ctx.MkSolver();
-    //Console.Write("Optimization parameters: " + s.Help + "\nDescriptions:" + (string s.ParameterDescriptions))
-    let mutable newSolnRule = ctx.MkTrue()
-    condSet <- Set.add newSolnRule condSet;
     s.Assert(Set.toArray condSet);
+    s.Push();
     File.AppendAllText("solutions.txt", "New Set for prefix \n")
     let mutable tests = Set.empty in
     //Seq.iter (fun a -> Console.Write((string a) + "\n")) s.Assertions
@@ -230,7 +232,7 @@ let genLinkTest (input: CGraph.T) (pred : Route.Predicate) : TestCases =
 
       let mutable solnSet = Set.empty in
       let mutable curPath = Set.empty in
-      let mutable isOutPath = false in
+      //let mutable isOutPath = false in
       File.AppendAllText("solutions.txt", "New Solution\n")
       for i in 0 .. (Seq.length edges - 1) do
         if (s.Model.ConstInterp(eArray.[i]).IsTrue) then
@@ -244,8 +246,8 @@ let genLinkTest (input: CGraph.T) (pred : Route.Predicate) : TestCases =
             curPath <- Set.add (edge.Source, edge.Target) curPath;
             //else 
             //    ();
-            if (Topology.isUnknown edge.Source.Node || Topology.isUnknown edge.Target.Node)  then
-                isOutPath <- true
+            //if (Topology.isUnknown edge.Source.Node || Topology.isUnknown edge.Target.Node)  then
+            //    isOutPath <- true
 
             let a = s.Model.Evaluate(vIntArray.[Map.find edge.Source vMap]) in
             let b = s.Model.Evaluate(vIntArray.[Map.find edge.Target vMap]) in
@@ -254,15 +256,16 @@ let genLinkTest (input: CGraph.T) (pred : Route.Predicate) : TestCases =
             //bgp peer up? for cbgp file
         else
             ();
-      if (Set.count curPath > 2 && (not isOutPath)) then 
+      if (Set.count curPath > 2) then 
         tests <- Set.add (curPath, curPath) tests;
-      File.AppendAllText("solutions.txt", "\n")
+      //File.AppendAllText("solutions.txt", "\n")
       //let negSoln = ctx.MkNot(ctx.MkAnd(Set.toArray solnSet)) in
       //condSet <- Set.add negSoln condSet;
-      condSet <- Set.remove newSolnRule condSet;
-      newSolnRule <- ctx.MkOr(Set.toArray edgesToCover)
-      condSet <- Set.add newSolnRule condSet;
-      s.Assert(Set.toArray condSet);
+      //condSet <- Set.remove newSolnRule condSet;
+      s.Pop()
+      s.Push()
+      let newSolnRule = ctx.MkOr(Set.toArray edgesToCover)
+      s.Assert(Array.create 1 newSolnRule);
     Console.Write("done");
     tests
 
@@ -321,6 +324,8 @@ let getPrefIndividualProblems (input: CGraph.T) (ctx : Context) nodeSet vArray e
         for j in 0 .. (Seq.length vertices - 1) do
             // find vertices at the start and end of an edge for implication between edges and vertices for connectivity
             let vertex = Seq.item j vertices in   
+            if (Topology.isUnknown vertex.Node) then
+                condSet <- Set.add (ctx.MkNot (Array2D.get vArray j index)) condSet
 
             // atleast one incoming edge is true
             //Console.Write("ifvertex then incoming");
@@ -460,7 +465,7 @@ let genPrefTest (input: CGraph.T) (pred : Route.Predicate) : TestCases =
                 if (s.Check() = Status.SATISFIABLE) then
                     let mutable curPath = Set.empty in
                     let mutable expectedPath = Set.empty in
-                    let mutable isOutPath = false in
+                    //let mutable isOutPath = false in
                     File.AppendAllText("solutions.txt", "New Solution\n")
                     for j in 0 .. (Seq.length edges - 1) do
                         if (s.Model.ConstInterp(Array2D.get eArray j i).IsTrue || s.Model.ConstInterp(Array2D.get eArray j (i + 1)).IsTrue) then
@@ -474,14 +479,14 @@ let genPrefTest (input: CGraph.T) (pred : Route.Predicate) : TestCases =
                             if (s.Model.ConstInterp(Array2D.get eArray j i).IsTrue) then
                                 expectedPath <- Set.add (edge.Source, edge.Target) expectedPath;
 
-                            if (Topology.isUnknown edge.Source.Node || Topology.isUnknown edge.Target.Node)  then
-                                isOutPath <- true
+                            //if (Topology.isUnknown edge.Source.Node || Topology.isUnknown edge.Target.Node)  then
+                            //    isOutPath <- true
 
                             File.AppendAllText("solutions.txt", (string) (Seq.item j edges) + "\n");
                             //bgp peer up? for cbgp file
                         else
                             ();
-                    if (Set.count curPath > 2 && (not isOutPath)) then 
+                    if (Set.count curPath > 2) then 
                         tests <- Set.add (curPath, expectedPath) tests;
                 else Console.Write("cannot find, bailing");
                 File.AppendAllText("solutions.txt", "\n")

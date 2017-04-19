@@ -52,6 +52,7 @@ let main argv =
       // write the tests into CBGP file
       let mutable j = 0
       let createTest (pred: Route.Predicate) (tests : TestCases) = 
+            Console.Write("number of tests for thsi pred: " + (string (Set.count tests)))
             let predStr = 
                   let (Route.TrafficClassifier(pref, _)) = List.head (Route.trafficClassifiers pred)
                   let s = (string) pref
