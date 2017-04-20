@@ -45,7 +45,9 @@ let geteBGPStaticRoutes (vertexToPeers : Map<Topology.Node, Set<Topology.Node>>)
         if not (Seq.isEmpty neighbors) then
             for n in neighbors do
                 let peerNum = n.Loc
+                if (not(Map.containsKey peerNum routerNameToIp)) then Console.Write("missing this" + peerNum);
                 let peerIp = Map.find peerNum routerNameToIp
+                if (not(Map.containsKey router.Loc routerNameToIp)) then Console.Write("missing this me" + router.Loc);
                 let routerIp = Map.find router.Loc routerNameToIp
                 let nodeConnect = "\nnet node " + routerIp + " route add " + peerIp + "/32 --oif=" + peerIp + " 1"
                 File.AppendAllText(file, nodeConnect);
@@ -86,10 +88,10 @@ let genLinkTest (input: CGraph.T) (pred : Route.Predicate) : TestCases =
     let vertices = input.Graph.Vertices in
     let edges = input.Graph.Edges in
 
-    Console.Write("Product graph edges");
-    for e in edges do
-        Console.Write("(" + (string e.Source) + "," + (string e.Target) + ")");
-        Console.Write("\n");
+    //Console.Write("Product graph edges");
+    //for e in edges do
+    //    Console.Write("(" + (string e.Source) + "," + (string e.Target) + ")");
+    //    Console.Write("\n");
 
     // array of boolExpr for vertices and edges respectively
     let vArray = Array.zeroCreate (Seq.length vertices) in
@@ -97,7 +99,6 @@ let genLinkTest (input: CGraph.T) (pred : Route.Predicate) : TestCases =
     let mutable vMap = Map.empty in
     let mutable eMap = Map.empty in
     let mutable condSet = Set.empty in
-    //let mutable edgesSoFar : Set<CGraph.CgState * CGraph.CgState> = Set.empty
 
     //cretae vertex map
     //Console.Write("creating vertex map");
@@ -214,8 +215,6 @@ let genLinkTest (input: CGraph.T) (pred : Route.Predicate) : TestCases =
     Map.iter prepCondition topoNodeToVertexSet;
 
     // make the solver and iterate through it
-    //Console.Write("make solver and iterate");
-    //let s = ctx.MkSolver() // 
     let s = ctx.MkSolver();
     s.Assert(Set.toArray condSet);
     s.Push();
@@ -223,12 +222,8 @@ let genLinkTest (input: CGraph.T) (pred : Route.Predicate) : TestCases =
     let mutable tests = Set.empty in
     //Seq.iter (fun a -> Console.Write((string a) + "\n")) s.Assertions
     while (s.Check() = Status.SATISFIABLE && (not (Seq.isEmpty edgesToCover))) do
-      Console.Write("iterating once with \n" + (string (Seq.length (s.Assertions))));
-      Console.Write("edges to cover " + (string) (Set.count edgesToCover) + "\n");      
-      //Console.Write("edges covered so far");
-      //for (src, dst) in edgesSoFar do
-        //Console.Write("(" + (string src) + "," + (string dst) + ")");
-        //Console.Write("\n");
+      //Console.Write("iterating once with \n" + (string (Seq.length (s.Assertions))));
+      //Console.Write("edges to cover " + (string) (Set.count edgesToCover) + "\n");      
 
       let mutable solnSet = Set.empty in
       let mutable curPath = Set.empty in
@@ -242,12 +237,7 @@ let genLinkTest (input: CGraph.T) (pred : Route.Predicate) : TestCases =
             let edge = Seq.item i edges in
             if (isEdgeInternal edge && Set.contains eArray.[i] edgesToCover) then
                 edgesToCover <- Set.remove eArray.[i] edgesToCover;
-           // if Topology.isTopoNode edge.Source.Node then
             curPath <- Set.add (edge.Source, edge.Target) curPath;
-            //else 
-            //    ();
-            //if (Topology.isUnknown edge.Source.Node || Topology.isUnknown edge.Target.Node)  then
-            //    isOutPath <- true
 
             let a = s.Model.Evaluate(vIntArray.[Map.find edge.Source vMap]) in
             let b = s.Model.Evaluate(vIntArray.[Map.find edge.Target vMap]) in
@@ -258,10 +248,6 @@ let genLinkTest (input: CGraph.T) (pred : Route.Predicate) : TestCases =
             ();
       if (Set.count curPath > 2) then 
         tests <- Set.add (curPath, curPath) tests;
-      //File.AppendAllText("solutions.txt", "\n")
-      //let negSoln = ctx.MkNot(ctx.MkAnd(Set.toArray solnSet)) in
-      //condSet <- Set.add negSoln condSet;
-      //condSet <- Set.remove newSolnRule condSet;
       s.Pop()
       s.Push()
       let newSolnRule = ctx.MkOr(Set.toArray edgesToCover)

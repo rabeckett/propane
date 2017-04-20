@@ -2,49 +2,63 @@ New Set for prefix
 New Solution
 (1, start)->(3, 65531) 0 1
 (3, 65531)->(5, 65533) 1 2
-(4, 65532)->(6, 65534) 3 4
-(5, 65533)->(4, 65532) 2 3
-(6, 65534)->(2, end) 4 5
-
+(5, 65533)->(7, 65534) 2 3
+(7, 65534)->(2, end) 3 4
 New Solution
 (1, start)->(3, 65531) 0 1
 (3, 65531)->(5, 65533) 1 2
-(5, 65533)->(7, 65534) 2 3
-(7, 65534)->(2, end) 3 4
-
+(4, 65532)->(6, 65534) 3 4
+(5, 65533)->(4, 65532) 2 3
+(6, 65534)->(2, end) 4 5
 New Solution
 (1, start)->(3, 65531) 0 1
 (3, 65531)->(4, 65532) 1 2
 (4, 65532)->(6, 65534) 2 3
 (6, 65534)->(2, end) 3 4
-
+New Solution
+(1, start)->(3, 65531) 0 1
+(3, 65531)->(4, 65532) 1 2
+(4, 65532)->(4, 65533) 2 3
+(4, 65533)->(6, 65534) 3 4
+(6, 65534)->(2, end) 4 5
 New Set for prefix 
-test10.cli
+test0.cli
 (1, start) (3, 65531)
-test10.cli
+test0.cli
 (3, 65531) (4, 65532)
-test10.cli
-(4, 65532) (6, 65534)
-test10.cli
+test0.cli
+(4, 65532) (4, 65533)
+test0.cli
+(4, 65533) (6, 65534)
+test0.cli
 (6, 65534) (2, end)
-test10.cli last router is 65534
-test11.cli
+test0.cli last router is 65534
+test1.cli
 (1, start) (3, 65531)
-test11.cli
-(3, 65531) (5, 65533)
-test11.cli
+test1.cli
+(3, 65531) (4, 65532)
+test1.cli
 (4, 65532) (6, 65534)
-test11.cli
+test1.cli
+(6, 65534) (2, end)
+test1.cli last router is 65534
+test2.cli
+(1, start) (3, 65531)
+test2.cli
+(3, 65531) (5, 65533)
+test2.cli
+(4, 65532) (6, 65534)
+test2.cli
 (5, 65533) (4, 65532)
-test11.cli
+test2.cli
 (6, 65534) (2, end)
-test11.cli last router is 65534
-test12.cli
+test2.cli last router is 65534
+test3.cli
 (1, start) (3, 65531)
-test12.cli
+test3.cli
 (3, 65531) (5, 65533)
-test12.cli
+test3.cli
 (5, 65533) (7, 65534)
-test12.cli
+test3.cli
 (7, 65534) (2, end)
-test12.cli last router is 65534
+test3.cli last router is 65534
