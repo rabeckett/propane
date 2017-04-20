@@ -251,8 +251,7 @@ let genLinkTest (input: CGraph.T) (pred : Route.Predicate) : TestCases =
       s.Pop()
       s.Push()
       let newSolnRule = ctx.MkOr(Set.toArray edgesToCover)
-      s.Assert(Array.create 1 newSolnRule);
-    Console.Write("done");
+      s.Assert(Array.create 1 newSolnRule)
     tests
 
 

@@ -52,7 +52,7 @@ let main argv =
       // write the tests into CBGP file
       let mutable j = 0
       let createTest (pred: Route.Predicate) (tests : TestCases) = 
-            Console.Write("number of tests for thsi pred: " + (string (Set.count tests)))
+            //Console.Write("number of tests for thsi pred: " + (string (Set.count tests)))
             let predStr = 
                   let (Route.TrafficClassifier(pref, _)) = List.head (Route.trafficClassifiers pred)
                   let s = (string) pref
@@ -62,7 +62,6 @@ let main argv =
                   let (t, e) = Seq.item i tests
                   let outputFile = "test" + (string) j + ".cli"
                   j <- j + 1
-                  //let outputFile = "test" + (Route.toString pred) + (string) i + ".cli"
                   if not (Seq.isEmpty t) then
                         TestGenerator.writeTopoCBGP topo outputFile // writes physical topology to all testfiles
                   
@@ -81,7 +80,7 @@ let main argv =
                               neighborsToNode <- Map.add routerName n neighborsToNode
                         neighborsToNode
 
-                  Console.Write(outputFile + "\n");
+                  //Console.Write(outputFile + "\n");
                   // create map with vertex to its peers in test topology
                   let mutable vertexToPeers = Map.empty
                   let mutable testVerticesInOrder = Map.empty
