@@ -112,7 +112,7 @@ let main argv =
 
                   let mutable lastRouter = "0.0.0.0"
                   let mutable lastAsn = "0"
-                  let mutable lastNode = 
+                  let mutable lastNode = new Topology.Node("", Topology.Start)
                   for (src, dest) in e do
                         // track teh vertices in order to geenrate exepcted output
                         if (Topology.isTopoNode dest.Node) then

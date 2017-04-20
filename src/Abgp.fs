@@ -322,7 +322,10 @@ let getCBGPActions sb routerToExport routerToImport pi pred actions curRouterIp 
       | Pred p ->
         let (Route.TrafficClassifier(pref, _)) = List.head (Route.trafficClassifiers p)
         let s = (string) pref
-        if (String.exists (fun c -> c = 'l') s) then Console.Write("hitting here -l "); s, (s.Substring (0, 9)) 
+        if (String.exists (fun c -> c = 'l') s) then 
+          //Console.Write("hitting here -l ") 
+          let temps = (string (pref.Example())) in
+          temps, temps 
         else s,s
           //else Console.Write("hitting here"); (s + "/32"), (s + "/32")
       | Comm(p, c) -> Route.toString p, "comm=" + c // ??
