@@ -195,90 +195,6 @@ bgp router 0.0.0.1
         exit
         peer 0.0.0.3 up
 exit
-bgp add router 65530 0.0.0.5
-bgp router 0.0.0.5
-        add network 1.2.3.4/24
-        add peer 65531 0.0.0.4
-        peer 0.0.0.4
-                filter out
-                        add-rule
-                                match "prefix in 1.2.3.4/24"
-                                action accept
-                        exit
-                        add-rule
-                                match "prefix in 1.2.3.4/24"
-                                action deny
-                        exit
-                        add-rule 
-                                match "community is 10067"
-                                action accept
-                                action "community remove 10067"
-                        exit
-                        add-rule 
-                                match "community is 10066"
-                                action accept
-                                action "community remove 10066"
-                        exit
-                        add-rule
-                                match "prefix in 172.0.0.0/24"
-                                action deny
-                        exit
-                        add-rule
-                                match "prefix in 0.0.0.0/0"
-                                action deny
-                        exit
-                exit
-                filter in
-                        add-rule
-                                match "prefix in 172.0.0.0/24"
-                                action "community add 10067"
-                                action "local-pref 100"
-                                action accept
-                        exit
-                exit
-        exit
-        peer 0.0.0.4 up
-        add peer 65533 0.0.0.2
-        peer 0.0.0.2
-                filter out
-                        add-rule
-                                match "prefix in 1.2.3.4/24"
-                                action accept
-                        exit
-                        add-rule
-                                match "prefix in 1.2.3.4/24"
-                                action deny
-                        exit
-                        add-rule 
-                                match "community is 10067"
-                                action accept
-                                action "community remove 10067"
-                        exit
-                        add-rule 
-                                match "community is 10066"
-                                action accept
-                                action "community remove 10066"
-                        exit
-                        add-rule
-                                match "prefix in 172.0.0.0/24"
-                                action deny
-                        exit
-                        add-rule
-                                match "prefix in 0.0.0.0/0"
-                                action deny
-                        exit
-                exit
-                filter in
-                        add-rule
-                                match "prefix in 172.0.0.0/24"
-                                action "community add 10066"
-                                action "local-pref 99"
-                                action accept
-                        exit
-                exit
-        exit
-        peer 0.0.0.2 up
-exit
 bgp add router 65532 0.0.0.3
 bgp router 0.0.0.3
         add peer 65531 0.0.0.4
@@ -461,8 +377,91 @@ bgp router 0.0.0.4
         exit
         peer 0.0.0.3 up
 exit
+bgp add router 65530 0.0.0.5
+bgp router 0.0.0.5
+        add network 1.2.3.4/24
+        add peer 65531 0.0.0.4
+        peer 0.0.0.4
+                filter out
+                        add-rule
+                                match "prefix in 1.2.3.4/24"
+                                action accept
+                        exit
+                        add-rule
+                                match "prefix in 1.2.3.4/24"
+                                action deny
+                        exit
+                        add-rule 
+                                match "community is 10067"
+                                action accept
+                                action "community remove 10067"
+                        exit
+                        add-rule 
+                                match "community is 10066"
+                                action accept
+                                action "community remove 10066"
+                        exit
+                        add-rule
+                                match "prefix in 172.0.0.0/24"
+                                action deny
+                        exit
+                        add-rule
+                                match "prefix in 0.0.0.0/0"
+                                action deny
+                        exit
+                exit
+                filter in
+                        add-rule
+                                match "prefix in 172.0.0.0/24"
+                                action "community add 10067"
+                                action "local-pref 100"
+                                action accept
+                        exit
+                exit
+        exit
+        peer 0.0.0.4 up
+        add peer 65533 0.0.0.2
+        peer 0.0.0.2
+                filter out
+                        add-rule
+                                match "prefix in 1.2.3.4/24"
+                                action accept
+                        exit
+                        add-rule
+                                match "prefix in 1.2.3.4/24"
+                                action deny
+                        exit
+                        add-rule 
+                                match "community is 10067"
+                                action accept
+                                action "community remove 10067"
+                        exit
+                        add-rule 
+                                match "community is 10066"
+                                action accept
+                                action "community remove 10066"
+                        exit
+                        add-rule
+                                match "prefix in 172.0.0.0/24"
+                                action deny
+                        exit
+                        add-rule
+                                match "prefix in 0.0.0.0/0"
+                                action deny
+                        exit
+                exit
+                filter in
+                        add-rule
+                                match "prefix in 172.0.0.0/24"
+                                action "community add 10066"
+                                action "local-pref 99"
+                                action accept
+                        exit
+                exit
+        exit
+        peer 0.0.0.2 up
+exit
 sim run
 
 
-bgp router 0.0.0.5 record-route 172.0.0.0/24
-bgp router 0.0.0.3 record-route 172.0.0.0/24
+bgp router 0.0.0.2 record-route 172.0.0.0/24

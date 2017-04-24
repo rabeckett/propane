@@ -8,7 +8,7 @@ let inline total xs =
 let inline totalInSec x = total x / 1000.0
 let inline valueInSec x = float x / 1000.0
 
-let printCsv (abgp : Abgp.Stats) (gen : Generate.Stats option) (parseTime : int64) (genTime : int64) 
+let printCsv (abgp : Abgp.Stats) (gen : Generate.Stats option) (parseTime : int64) (genTime : int64) (testPrintTime : int64)
     (totalTime : int64) = 
    printfn "%s" 
       ("Total Time, Build AST, Total Compile to ABGP, Total Abgp to Low-level, " 
@@ -25,6 +25,7 @@ let printCsv (abgp : Abgp.Stats) (gen : Generate.Stats option) (parseTime : int6
    let parse = valueInSec parseTime
    let toAbgp = valueInSec abgp.PrefixTime
    let toConfig = valueInSec genTime
+   let totalTestPrintTime = valueInSec testPrintTime
    let pgConstruction = totalInSec abgp.PerPrefixBuildTimes
    let testgen = totalInSec abgp.PerPrefixTestTimes
    let pgMinimize = totalInSec abgp.PerPrefixMinTimes
@@ -33,11 +34,11 @@ let printCsv (abgp : Abgp.Stats) (gen : Generate.Stats option) (parseTime : int6
    let inboundAnalysis = totalInSec abgp.PerPrefixInboundTimes
    let genAbgp = totalInSec abgp.PerPrefixGenTimes
    let minAbgp = valueInSec abgp.MinTime
-   printfn "%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f" total parse toAbgp toConfig pgConstruction testgen
+   printfn "%f,%f,%f,%f, %f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f" total parse toAbgp toConfig pgConstruction testgen totalTestPrintTime
       pgMinimize aggAnalysis findOrdering inboundAnalysis genAbgp minAbgp genCore genLowLevel 
       substitution genVendor
 
-let print (abgp : Abgp.Stats) (gen : Generate.Stats option) (parseTime : int64) (genTime : int64) 
+let print (abgp : Abgp.Stats) (gen : Generate.Stats option) (parseTime : int64) (genTime : int64) (testPrintTime : int64)
     (totalTime : int64) = 
    let (genCore, genLowLevel, substitution, genVendor) = 
       match gen with
@@ -50,6 +51,7 @@ let print (abgp : Abgp.Stats) (gen : Generate.Stats option) (parseTime : int64) 
    let parse = valueInSec parseTime
    let toAbgp = valueInSec abgp.PrefixTime
    let toConfig = valueInSec genTime
+   let totalTestPrintTime = valueInSec testPrintTime
    let pgConstruction = totalInSec abgp.PerPrefixBuildTimes
    let testgen = totalInSec abgp.PerPrefixTestTimes
    let pgMinimize = totalInSec abgp.PerPrefixMinTimes
@@ -70,6 +72,7 @@ let print (abgp : Abgp.Stats) (gen : Generate.Stats option) (parseTime : int64) 
    printfn "PGIR Construction:                %f sec" pgConstruction
    printfn "PGIR Minimization:                %f sec" pgMinimize
    printfn "PGIR Test Generation:             %f sec" testgen
+   printfn "Cbgp Test Printing:               %f sec" totalTestPrintTime
    printfn "Aggregation Safety:               %f sec" aggAnalysis
    printfn "Local-pref search:                %f sec" findOrdering
    printfn "Determine MEDs/Prepending:        %f sec" inboundAnalysis

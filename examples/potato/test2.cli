@@ -465,4 +465,3 @@ sim run
 
 
 bgp router 0.0.0.5 record-route 172.0.0.0/24
-bgp router 0.0.0.1 record-route 172.0.0.0/24

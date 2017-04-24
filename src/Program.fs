@@ -31,7 +31,7 @@ let main argv =
       | Some f -> Util.Profile.time Topology.readTopology f
    if settings.IsAbstract then AbstractAnalysis.checkWellformedTopology topoInfo
    if (settings.GenLinkTests || settings.GenPrefTests) then 
-      System.IO.File.WriteAllText("solutions.txt", "")
+      //System.IO.File.WriteAllText("solutions.txt", "")
       System.IO.File.WriteAllText("ExpectedOutput.txt", "")
    match settings.PolFile with
    | None -> errorLine "No policy file specified, use --help to see options"
@@ -87,8 +87,9 @@ let main argv =
                   let mutable startingVertex = ""
                   for (src, dest) in t do
                         // add dest to src's neighbor list
-                        System.IO.File.AppendAllText("solutions.txt", outputFile + "\n");
-                        System.IO.File.AppendAllText("solutions.txt", (string src) + " " + (string dest) + "\n");
+                        //System.IO.File.AppendAllText("solutions.txt", outputFile + "\n");
+                        //System.IO.File.AppendAllText("solutions.txt", (string src) + " " + (string dest) + "\n");
+                        //System.IO.File.AppendAllText("solutions.txt", (Topology.router src.Node.Loc topoInfo) + " "+ (Topology.router dest.Node.Loc topoInfo) + "\n");
                         let neighbors =
                               if (Map.containsKey src.Node vertexToPeers) then Map.find src.Node vertexToPeers
                               else Set.empty
@@ -137,6 +138,7 @@ let main argv =
                   let mutable verticesSoFar = Set.empty
                   for (src, dest) in t do
                         //System.IO.File.AppendAllText(outputFile, Topology.router src.Node.Loc topoInfo);
+                        //System.IO.File.AppendAllText(outputFile, src.Node.Loc);
                         if (Topology.isTopoNode dest.Node && (not (Set.contains dest.Node verticesSoFar))) then                              
                               let neighbors = Seq.map getAsn (Map.find dest.Node vertexToPeers)
                               let neighborsToNode = getMap (Map.find dest.Node vertexToPeers)
@@ -150,10 +152,9 @@ let main argv =
                   if not (Seq.isEmpty t) then
                         System.IO.File.AppendAllText(outputFile, "\nsim run\n\n");
                         System.IO.File.AppendAllText(outputFile, "\nbgp router " + lastRouter + " record-route " + predStr)
-                        if (settings.GenPrefTests && lessPrefLastRouter <> lastRouter)  then
+                        //if (settings.GenPrefTests && lessPrefLastRouter <> lastRouter)  then
                               // expect Failure
-                              System.IO.File.AppendAllText(outputFile, "\nbgp router " + lessPrefLastRouter + " record-route " + predStr)
-                        System.IO.File.AppendAllText("solutions.txt", outputFile + " last router is " + lastAsn + "\n");
+                        //      System.IO.File.AppendAllText(outputFile, "\nbgp router " + lessPrefLastRouter + " record-route " + predStr)
 
                   if not (Seq.isEmpty e) then
                         // print out the reference output in a separate file
@@ -166,25 +167,26 @@ let main argv =
 
                         // for preference coverage, look at the less preferred path and see if the end router is on the preferred path or not
                         // accordingly verify that it has or doesn't have a path to the origin vertex
-                        if (settings.GenPrefTests && lessPrefLastRouter <> lastRouter) then
-                              if (not(Map.containsKey lessPrefLastAsn testVerticesInOrder)) then
-                                    System.IO.File.AppendAllText(refOutputFile, outputFile + " " + lessPrefLastRouter + "\t" + predStr + "\t" + "UNREACHABLE\t\n");
+                        //if (settings.GenPrefTests && lessPrefLastRouter <> lastRouter) then
+                        //      if (not(Map.containsKey lessPrefLastAsn testVerticesInOrder)) then
+                        //            System.IO.File.AppendAllText(refOutputFile, outputFile + " " + lessPrefLastRouter + "\t" + predStr + "\t" + "UNREACHABLE\t\n");
                               // expect Failure
-                              else 
-                                    startingVertex <- lessPrefLastAsn
-                                    System.IO.File.AppendAllText(refOutputFile, outputFile + " " + lessPrefLastRouter + "\t" + predStr + "\t" + "SUCCESS\t");
-                                    while (Map.containsKey startingVertex testVerticesInOrder) do
-                                          System.IO.File.AppendAllText(refOutputFile, startingVertex + " ");
-                                          startingVertex <- Map.find startingVertex testVerticesInOrder
-                                    System.IO.File.AppendAllText(refOutputFile, startingVertex + "\n");
+                        //      else 
+                        //            startingVertex <- lessPrefLastAsn
+                        //            System.IO.File.AppendAllText(refOutputFile, outputFile + " " + lessPrefLastRouter + "\t" + predStr + "\t" + "SUCCESS\t");
+                        //            while (Map.containsKey startingVertex testVerticesInOrder) do
+                        //                  System.IO.File.AppendAllText(refOutputFile, startingVertex + " ");
+                        //                  startingVertex <- Map.find startingVertex testVerticesInOrder
+                        //            System.IO.File.AppendAllText(refOutputFile, startingVertex + "\n");
 
-      if settings.GenLinkTests then 
-            Map.iter createTest predToTests;
-      else 
-            if settings.GenPrefTests then 
-                  Map.iter createTest predToTests;
-            else
-                  ();
+      let _, testPrintTime = 
+            if settings.GenLinkTests then 
+                  Util.Profile.time (Map.iter createTest) predToTests;
+            else 
+                  if settings.GenPrefTests then 
+                        Util.Profile.time (Map.iter createTest) predToTests;
+                  else
+                        (), (int64 0);
 
       if settings.CheckFailures then 
          match res.AggSafety with
@@ -223,8 +225,8 @@ let main argv =
             Some(stats), t
       s.Stop()
       if settings.Csv then 
-         Stats.printCsv res.Stats genStats (t1 + t2 + t3) genTime s.ElapsedMilliseconds
+         Stats.printCsv res.Stats genStats (t1 + t2 + t3) genTime s.ElapsedMilliseconds testPrintTime
       else if settings.Stats then 
-         Stats.print res.Stats genStats (t1 + t2 + t3) genTime s.ElapsedMilliseconds
+         Stats.print res.Stats genStats (t1 + t2 + t3) genTime s.ElapsedMilliseconds testPrintTime
       else ()
    0
