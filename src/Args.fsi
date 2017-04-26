@@ -14,7 +14,7 @@ type T =
      Test : bool
      GenLinkTests : bool
      GenPrefTests : bool
-     Coverage : int
+     Coverage : Option<int>
      Bench : bool
      Debug : bool
      DebugDir : string

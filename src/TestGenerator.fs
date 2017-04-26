@@ -121,9 +121,24 @@ let genLinkTest (input: CGraph.T) (coverage : int) (pred : Route.Predicate) : Te
     let isEdgeInternal (e: QuickGraph.Edge<CGraph.CgState>) = 
         not (e.Source = input.Start || e.Target = input.End)
 
+    // generate a random set of edges to cover
     let mapEdge (e: QuickGraph.Edge<CGraph.CgState>) = eArray.[Map.find (e.Source, e.Target) eMap]
-    let mutable edgesToCover = Seq.filter isEdgeInternal edges |> Seq.map mapEdge |> Set.ofSeq
-    let origSize = Set.count edgesToCover
+    let internalEdges = Seq.filter isEdgeInternal edges |> Seq.map mapEdge
+    let origSize = Seq.length internalEdges
+    let mutable edgesToCover = Set.empty
+    Console.Write("coverage value is " + (string coverage) + "\n");
+    if (coverage = 100) then
+        edgesToCover <- Set.ofSeq internalEdges
+        Console.Write("hittinh here");
+    else 
+        let R = System.Random()
+        while (float (Set.count edgesToCover) < (float coverage) / 100.0 * (float origSize)) do 
+            let newindex = R.Next(1, origSize)
+            if (not (Set.contains (Seq.item newindex internalEdges) edgesToCover)) then
+                edgesToCover <- Set.add (Seq.item newindex internalEdges) edgesToCover;
+            else ();
+    Console.Write((string origSize) + " edges out of which covering " + (string (Set.count edgesToCover)) + "\n");
+    
 
     let src = Map.find input.Start vMap in
     condSet <- Set.add (Array.get vArray src) condSet ;

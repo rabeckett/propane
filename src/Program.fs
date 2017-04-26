@@ -33,6 +33,9 @@ let main argv =
    if (settings.GenLinkTests || settings.GenPrefTests) then 
       //System.IO.File.WriteAllText("solutions.txt", "")
       System.IO.File.WriteAllText("ExpectedOutput.txt", "")
+   match settings.Coverage with
+   | None -> Console.Write("none");
+   | Some s -> Console.Write("coverage value in program is " + (string s));
    match settings.PolFile with
    | None -> errorLine "No policy file specified, use --help to see options"
    | Some polFile -> 
@@ -47,12 +50,12 @@ let main argv =
       let topo = reb.Topo()
 
       // where can i get topo from
-      let routerNameToIp = Map.empty //TestGenerator.generateRouterIp topo
+      let routerNameToIp = TestGenerator.generateRouterIp topo
 
       // write the tests into CBGP file
       let mutable j = 0
       let createTest (pred: Route.Predicate) (tests : TestCases) = 
-            //Console.Write("number of tests for thsi pred: " + (string (Set.count tests)))
+            Console.Write("number of tests for thsi pred: " + (string (Set.count tests)))
             let predStr = 
                   let (Route.TrafficClassifier(pref, _)) = List.head (Route.trafficClassifiers pred)
                   let s = (string) pref
@@ -179,14 +182,14 @@ let main argv =
                         //                  startingVertex <- Map.find startingVertex testVerticesInOrder
                         //            System.IO.File.AppendAllText(refOutputFile, startingVertex + "\n");
 
-      let _, testPrintTime = (), (int64 0);
-            //if settings.GenLinkTests then 
-            //      Util.Profile.time (Map.iter createTest) predToTests;
-            //else 
-            //      if settings.GenPrefTests then 
-            //            Util.Profile.time (Map.iter createTest) predToTests;
-            //      else
-            //            (), (int64 0);
+      let _, testPrintTime = 
+            if settings.GenLinkTests then 
+                 Util.Profile.time (Map.iter createTest) predToTests;
+            else 
+                  if settings.GenPrefTests then 
+                        Util.Profile.time (Map.iter createTest) predToTests;
+                  else
+                        (), (int64 0);
             
 
       if settings.CheckFailures then 

@@ -17,7 +17,7 @@ type T =
      Test : bool
      GenLinkTests : bool 
      GenPrefTests : bool
-     Coverage : int
+     Coverage : Option<int>
      Bench : bool
      Debug : bool
      DebugDir : string
@@ -60,7 +60,7 @@ Options:
     --debug              Output debugging information.
     --genLinkTests       Generate exhaustive link coverage test cases
     --genPrefTests       Generate preference coverage test cases
-    --coverage           % random coverage of tests 
+    --coverage k         k % random coverage of tests 
 """
 
 let checkFile f = 
@@ -92,9 +92,9 @@ let getFailures (vo : ValueObject) =
    else Some(vo.AsInt)
 
 
-let getCoverage (vo : ValueObject) = 
-   if vo = null then 100
-   else vo.AsInt
+let getCoverage (vo : ValueObject) =
+   if vo = null then None
+   else Some(vo.AsInt)
 
 let parse (argv : string []) : unit = 
    let d = Docopt()

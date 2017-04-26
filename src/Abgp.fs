@@ -1575,12 +1575,16 @@ let compileToIR idx pred (polInfo : Ast.PolInfo) aggInfo (reb : Regex.REBuilder)
    let cg, minTime = Profile.time (CGraph.Minimize.minimize idx ti) cg
    debug (fun () -> CGraph.generatePNG cg polInfo (debugName + "-min"))
    // generate tests for minimized PG
+   let coverage = 
+    match settings.Coverage with
+    | None -> 100
+    | Some s -> s
    let tests, testTime = 
       if settings.GenLinkTests then
-        Profile.time (TestGenerator.genLinkTest cg settings.Coverage) pred
+        Profile.time (TestGenerator.genLinkTest cg coverage) pred
       else 
         if settings.GenPrefTests then
-          Profile.time (TestGenerator.genPrefTest cg settings.Coverage) pred 
+          Profile.time (TestGenerator.genPrefTest cg coverage) pred 
         else Set.empty, (int64 0)
    // get the abstract reachability information
    let abstractPathInfo, at1 = 
