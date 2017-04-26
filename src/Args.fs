@@ -17,6 +17,7 @@ type T =
      Test : bool
      GenLinkTests : bool 
      GenPrefTests : bool
+     Coverage : int
      Bench : bool
      Debug : bool
      DebugDir : string
@@ -59,6 +60,7 @@ Options:
     --debug              Output debugging information.
     --genLinkTests       Generate exhaustive link coverage test cases
     --genPrefTests       Generate preference coverage test cases
+    --coverage           % random coverage of tests 
 """
 
 let checkFile f = 
@@ -89,6 +91,11 @@ let getFailures (vo : ValueObject) =
    if vo = null then None
    else Some(vo.AsInt)
 
+
+let getCoverage (vo : ValueObject) = 
+   if vo = null then 100
+   else vo.AsInt
+
 let parse (argv : string []) : unit = 
    let d = Docopt()
    let vs = d.Apply(usage, argv, version = "Propane version 0.1", exit = true)
@@ -117,6 +124,7 @@ let parse (argv : string []) : unit =
         UseNoExport = vs.["--noexport"].IsTrue
         Cbgp = vs.["--cbgp"].IsTrue
         Test = vs.["--test"].IsTrue
+        Coverage = getCoverage vs.["--coverage"]
         GenLinkTests = vs.["--genLinkTests"].IsTrue
         GenPrefTests = vs.["--genPrefTests"].IsTrue
         Bench = vs.["--bench"].IsTrue

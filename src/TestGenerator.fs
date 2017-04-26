@@ -83,7 +83,7 @@ let writeTopoCBGP (input : Topology.T) (file : string) : unit =
         // should i be adding the bGP router/igp stuff right here -rulelessly   
 
 // generates the link ocverage tests for the given predicate
-let genLinkTest (input: CGraph.T) (pred : Route.Predicate) : TestCases =
+let genLinkTest (input: CGraph.T) (coverage : int) (pred : Route.Predicate) : TestCases =
     let ctx = new Context() in
     let vertices = input.Graph.Vertices in
     let edges = input.Graph.Edges in
@@ -123,6 +123,7 @@ let genLinkTest (input: CGraph.T) (pred : Route.Predicate) : TestCases =
 
     let mapEdge (e: QuickGraph.Edge<CGraph.CgState>) = eArray.[Map.find (e.Source, e.Target) eMap]
     let mutable edgesToCover = Seq.filter isEdgeInternal edges |> Seq.map mapEdge |> Set.ofSeq
+    let origSize = Set.count edgesToCover
 
     let src = Map.find input.Start vMap in
     condSet <- Set.add (Array.get vArray src) condSet ;
@@ -221,7 +222,7 @@ let genLinkTest (input: CGraph.T) (pred : Route.Predicate) : TestCases =
     //File.AppendAllText("solutions.txt", "New Set for prefix \n")
     let mutable tests = Set.empty in
     //Seq.iter (fun a -> Console.Write((string a) + "\n")) s.Assertions
-    while (s.Check() = Status.SATISFIABLE && (not (Seq.isEmpty edgesToCover))) do
+    while (s.Check() = Status.SATISFIABLE && not (Set.isEmpty edgesToCover)) do
       let mutable solnSet = Set.empty in
       let mutable curPath = Set.empty in
       //let mutable isOutPath = false in
@@ -410,7 +411,7 @@ let getPrefIndividualProblems (input: CGraph.T) (ctx : Context) nodeSet vArray e
     
 
 // generates test for preference coverage for this given predicate
-let genPrefTest (input: CGraph.T) (pred : Route.Predicate) : TestCases =
+let genPrefTest (input: CGraph.T) (coverage : int) (pred : Route.Predicate) : TestCases =
     let ctx = new Context() in
     let mutable tests = Set.empty
     let vertices = input.Graph.Vertices
