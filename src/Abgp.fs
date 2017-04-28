@@ -1560,7 +1560,7 @@ let getMinAggregateFailures (cg : CGraph.T) (pred : Route.Predicate)
 
 let inline buildDfas (reb : Regex.REBuilder) res = List.map (fun r -> reb.MakeDFA(Regex.rev r)) res
 
-let compileToIR idx pred (polInfo : Ast.PolInfo) aggInfo (reb : Regex.REBuilder) res : PrefixCompileResult * TestCases = 
+let compileToIR idx pred (polInfo : Ast.PolInfo) aggInfo (reb : Regex.REBuilder) res : PrefixCompileResult * (TestCases*float) = 
    let settings = Args.getSettings()
    let ti = polInfo.Ast.TopoInfo
    let name = sprintf "(%d)" idx
@@ -1585,7 +1585,7 @@ let compileToIR idx pred (polInfo : Ast.PolInfo) aggInfo (reb : Regex.REBuilder)
       else 
         if settings.GenPrefTests then
           Profile.time (TestGenerator.genPrefTest cg coverage) pred 
-        else Set.empty, (int64 0)
+        else (Set.empty, 0.0), (int64 0)
    // get the abstract reachability information
    let abstractPathInfo, at1 = 
       if settings.IsAbstract && not settings.Test (* && not (Map.isEmpty aggInfo) *) then 
@@ -1645,7 +1645,7 @@ let compileToIR idx pred (polInfo : Ast.PolInfo) aggInfo (reb : Regex.REBuilder)
       | UncontrollableEnterException s -> ((Err(UncontrollableEnter s)), tests)
       | UncontrollablePeerPreferenceException s -> ((Err(UncontrollablePeerPreference s)), tests)
 
-let compileForSinglePrefix idx (polInfo : Ast.PolInfo) aggInfo (pred, reb, res) : PrefixResult * TestCases = 
+let compileForSinglePrefix idx (polInfo : Ast.PolInfo) aggInfo (pred, reb, res) : PrefixResult * (TestCases*float) = 
    match compileToIR idx pred polInfo aggInfo reb res with
    | (Ok(config), tests) -> (config, tests)
    | (Err(x), tests) -> 
@@ -1862,7 +1862,7 @@ let moveOriginationToTop (config : T) : T =
    let rcs = Map.map aux config.RConfigs
    { config with RConfigs = rcs }
 
-let compileAllPrefixes (polInfo : Ast.PolInfo) : CompilationResult * Map<Route.Predicate, TestCases> = 
+let compileAllPrefixes (polInfo : Ast.PolInfo) : CompilationResult * Map<Route.Predicate, TestCases*float> = 
    let settings = Args.getSettings()
    let mutable tests = Map.empty
    let mapi = 

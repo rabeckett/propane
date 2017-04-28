@@ -83,7 +83,7 @@ let writeTopoCBGP (input : Topology.T) (file : string) : unit =
         // should i be adding the bGP router/igp stuff right here -rulelessly   
 
 // generates the link ocverage tests for the given predicate
-let genLinkTest (input: CGraph.T) (coverage : int) (pred : Route.Predicate) : TestCases =
+let genLinkTest (input: CGraph.T) (coverage : int) (pred : Route.Predicate) : TestCases*float =
     let ctx = new Context() in
     let vertices = input.Graph.Vertices in
     let edges = input.Graph.Edges in
@@ -126,10 +126,8 @@ let genLinkTest (input: CGraph.T) (coverage : int) (pred : Route.Predicate) : Te
     let internalEdges = Seq.filter isEdgeInternal edges |> Seq.map mapEdge
     let origSize = Seq.length internalEdges
     let mutable edgesToCover = Set.empty
-    Console.Write("coverage value is " + (string coverage) + "\n");
     if (coverage = 100) then
         edgesToCover <- Set.ofSeq internalEdges
-        Console.Write("hittinh here");
     else 
         let R = System.Random()
         while (float (Set.count edgesToCover) < (float coverage) / 100.0 * (float origSize)) do 
@@ -137,7 +135,7 @@ let genLinkTest (input: CGraph.T) (coverage : int) (pred : Route.Predicate) : Te
             if (not (Set.contains (Seq.item newindex internalEdges) edgesToCover)) then
                 edgesToCover <- Set.add (Seq.item newindex internalEdges) edgesToCover;
             else ();
-    Console.Write((string origSize) + " edges out of which covering " + (string (Set.count edgesToCover)) + "\n");
+    //Console.Write((string origSize) + " edges out of which covering " + (string (Set.count edgesToCover)) + "\n");
     
 
     let src = Map.find input.Start vMap in
@@ -232,8 +230,15 @@ let genLinkTest (input: CGraph.T) (coverage : int) (pred : Route.Predicate) : Te
 
     // make the solver and iterate through it
     let s = ctx.MkSolver();
+    //let p = ctx.MkParams();
+    //p.Add("timeout", (uint32 600000));
+    //s.Parameters <- p;
+
+    //Console.Write(string s.timeout);
     s.Assert(Set.toArray condSet);
     s.Push();
+    let newSolnRule = ctx.MkOr(Set.toArray edgesToCover)
+    s.Assert(Array.create 1 newSolnRule)
     //File.AppendAllText("solutions.txt", "New Set for prefix \n")
     let mutable tests = Set.empty in
     //Seq.iter (fun a -> Console.Write((string a) + "\n")) s.Assertions
@@ -250,6 +255,7 @@ let genLinkTest (input: CGraph.T) (coverage : int) (pred : Route.Predicate) : Te
             let edge = Seq.item i edges in
             if (isEdgeInternal edge && Set.contains eArray.[i] edgesToCover) then
                 edgesToCover <- Set.remove eArray.[i] edgesToCover;
+
             curPath <- Set.add (edge.Source, edge.Target) curPath;
 
             //let a = s.Model.Evaluate(vIntArray.[Map.find edge.Source vMap]) in
@@ -265,7 +271,10 @@ let genLinkTest (input: CGraph.T) (coverage : int) (pred : Route.Predicate) : Te
       s.Push()
       let newSolnRule = ctx.MkOr(Set.toArray edgesToCover)
       s.Assert(Array.create 1 newSolnRule)
-    tests
+    if (origSize = 0) then
+        (tests, -1.0)
+    else
+        (tests, (1.0 - (float (Set.count edgesToCover))/ (float origSize)))
 
 
 // generates the individual pref tests for all nodes that share a given topological node
@@ -426,7 +435,7 @@ let getPrefIndividualProblems (input: CGraph.T) (ctx : Context) nodeSet vArray e
     
 
 // generates test for preference coverage for this given predicate
-let genPrefTest (input: CGraph.T) (coverage : int) (pred : Route.Predicate) : TestCases =
+let genPrefTest (input: CGraph.T) (coverage : int) (pred : Route.Predicate) : TestCases*float =
     let ctx = new Context() in
     let mutable tests = Set.empty
     let vertices = input.Graph.Vertices
@@ -521,7 +530,7 @@ let genPrefTest (input: CGraph.T) (coverage : int) (pred : Route.Predicate) : Te
                 //else Console.Write("cannot find, bailing");
                 //File.AppendAllText("solutions.txt", "\n")
                 //Console.Write("done");
-    tests
+    (tests, 0.0)
 
     //done  
 

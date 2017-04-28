@@ -44,7 +44,7 @@ type TestCases = Set<Path*Path>
 /// Display the ABGP policy in a readable format
 val format : T -> string
 /// Compile the entire policy for all prefixes
-val compileAllPrefixes : Ast.PolInfo -> CompilationResult * Map<Route.Predicate, TestCases>
+val compileAllPrefixes : Ast.PolInfo -> CompilationResult * Map<Route.Predicate, TestCases*float>
 /// Convert the ABGP configuration to a more concrete configuration.
 val toConfig : T -> Config.NetworkConfiguration
 /// Display the Abgp policy in a CBGP manner for a given router

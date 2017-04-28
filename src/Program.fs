@@ -34,8 +34,12 @@ let main argv =
       //System.IO.File.WriteAllText("solutions.txt", "")
       System.IO.File.WriteAllText("ExpectedOutput.txt", "")
    match settings.Coverage with
-   | None -> Console.Write("none");
-   | Some s -> Console.Write("coverage value in program is " + (string s));
+   | None -> (); //Console.Write("none");
+   | Some s ->  
+      if (s < 0 || s > 100) then 
+            errorLine "Invalid coverage amount, specify something between 0 and 100"
+      else
+            (); //Console.Write("coverage value in program is " + (string s));
    match settings.PolFile with
    | None -> errorLine "No policy file specified, use --help to see options"
    | Some polFile -> 
@@ -54,8 +58,8 @@ let main argv =
 
       // write the tests into CBGP file
       let mutable j = 0
-      let createTest (pred: Route.Predicate) (tests : TestCases) = 
-            Console.Write("number of tests for thsi pred: " + (string (Set.count tests)))
+      let createTest (pred: Route.Predicate) ((tests, cov) : TestCases*float) = 
+            //Console.Write("number of tests for thsi pred: " + (string (Set.count tests)))
             let predStr = 
                   let (Route.TrafficClassifier(pref, _)) = List.head (Route.trafficClassifiers pred)
                   let s = (string) pref
@@ -190,6 +194,10 @@ let main argv =
                         Util.Profile.time (Map.iter createTest) predToTests;
                   else
                         (), (int64 0);
+
+      let sumCoverage = Map.fold (fun s k (_, c) -> if (c = -1.0) then s else s + c) 0.0 predToTests;
+      let numKeys = Map.fold (fun s k (_, c) -> if (c = -1.0) then s else s + 1) 0 predToTests;
+      let cover = sumCoverage / (float numKeys);
             
 
       if settings.CheckFailures then 
@@ -229,8 +237,8 @@ let main argv =
             Some(stats), t
       s.Stop()
       if settings.Csv then 
-         Stats.printCsv res.Stats genStats (t1 + t2 + t3) genTime s.ElapsedMilliseconds testPrintTime
+         Stats.printCsv res.Stats genStats (t1 + t2 + t3) genTime testPrintTime cover s.ElapsedMilliseconds 
       else if settings.Stats then 
-         Stats.print res.Stats genStats (t1 + t2 + t3) genTime s.ElapsedMilliseconds testPrintTime
+         Stats.print res.Stats genStats (t1 + t2 + t3) genTime testPrintTime cover s.ElapsedMilliseconds 
       else ()
    0
