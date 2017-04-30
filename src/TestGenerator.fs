@@ -458,7 +458,11 @@ let genPrefTest (input: CGraph.T) (coverage : int) (pred : Route.Predicate) : Te
         | _ -> Dictionary<String, seq<CgState>>();
 
     // generate a random set of vertices to cover
-    let getVertices curSeq k v = Seq.append curSeq (Seq.tail v)
+    let getVertices curSeq k v = 
+        if (Seq.length v > 1) then
+            Seq.append curSeq (Seq.tail v)
+        else
+            curSeq
     let allVertices = Dictionary.fold getVertices Seq.empty vertexToCGraphNodes
     let origSize = Seq.length allVertices
     let mutable verticesToCover = Set.empty
@@ -521,6 +525,7 @@ let genPrefTest (input: CGraph.T) (coverage : int) (pred : Route.Predicate) : Te
                         
 
                     s.Assert(ctx.MkAnd (Set.toArray condSet));
+                    //Console.Write(string s.NumAssertions);
                     //File.AppendAllText("solutions.txt", "New Set for prefix \n")
                     if (s.Check() = Status.SATISFIABLE) then
                         let mutable curPath = Set.empty in
