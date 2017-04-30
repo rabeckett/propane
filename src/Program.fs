@@ -54,7 +54,7 @@ let main argv =
       let topo = reb.Topo()
 
       // where can i get topo from
-      let routerNameToIp = TestGenerator.generateRouterIp topo
+      let routerNameToIp = Map.empty //TestGenerator.generateRouterIp topo
 
       // write the tests into CBGP file
       let mutable j = 0
@@ -186,14 +186,14 @@ let main argv =
                         //                  startingVertex <- Map.find startingVertex testVerticesInOrder
                         //            System.IO.File.AppendAllText(refOutputFile, startingVertex + "\n");
 
-      let _, testPrintTime = 
-            if settings.GenLinkTests then 
-                 Util.Profile.time (Map.iter createTest) predToTests;
-            else 
-                  if settings.GenPrefTests then 
-                        Util.Profile.time (Map.iter createTest) predToTests;
-                  else
-                        (), (int64 0);
+      let _, testPrintTime = (), (int64 0);
+            //if settings.GenLinkTests then 
+            //     Util.Profile.time (Map.iter createTest) predToTests;
+            //else 
+            //      if settings.GenPrefTests then 
+            //            Util.Profile.time (Map.iter createTest) predToTests;
+            //      else
+            //            (), (int64 0);
 
       let sumCoverage = Map.fold (fun s k (_, c) -> if (c = -1.0) then s else s + c) 0.0 predToTests;
       let numKeys = Map.fold (fun s k (_, c) -> if (c = -1.0) then s else s + 1) 0 predToTests;
