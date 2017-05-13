@@ -12,7 +12,7 @@ let printCsv (abgp : Abgp.Stats) (gen : Generate.Stats option) (parseTime : int6
     (totalTime : int64) = 
    printfn "%s" 
       ("Total Time, Build AST, Total Compile to ABGP, Total Abgp to Low-level, " 
-       + "PG Construction, Test Generation, PG Minimization, Aggregate Analysis, Find Preferences, Inbound Traffic Analysis, Generate ABGP, " 
+       + "PG Construction, Test Generation, TestPrintTime, Coverage, PG Minimization, Aggregate Analysis, Find Preferences, Inbound Traffic Analysis, Generate ABGP, " 
        + "ABGP Minimization, Generate Core, Generate Low-level, Substitution, Generate Vendor")
    let (genCore, genLowLevel, substitution, genVendor) = 
       match gen with

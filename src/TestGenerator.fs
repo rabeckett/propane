@@ -30,6 +30,7 @@ let ipOfInt (d : uint32) =
     |> IPAddress
     |> string
 
+//generate a random IP address for every single router AS number in the network
 let generateRouterIp topo : Map<string, string> =
     let mutable routerToIpMap = Map.empty
     let vertices = Topology.vertices topo in
@@ -40,14 +41,15 @@ let generateRouterIp topo : Map<string, string> =
         routerToIpMap <- Map.add routerName (ipOfInt (uint32 (i + 1))) routerToIpMap
     routerToIpMap
 
+// print cBGP commands to setup eBGP links for each pair of neighbors in the current network environment
 let geteBGPStaticRoutes (vertexToPeers : Map<Topology.Node, Set<Topology.Node>>) (routerNameToIp : Map<string, string>) file : unit =
     let printSingleRouter (router : Topology.Node) (neighbors : Set<Topology.Node>) =
         if not (Seq.isEmpty neighbors) then
             for n in neighbors do
                 let peerNum = n.Loc
-                if (not(Map.containsKey peerNum routerNameToIp)) then Console.Write("missing this" + peerNum);
+                //if (not(Map.containsKey peerNum routerNameToIp)) then Console.Write("missing this" + peerNum);
                 let peerIp = Map.find peerNum routerNameToIp
-                if (not(Map.containsKey router.Loc routerNameToIp)) then Console.Write("missing this me" + router.Loc);
+                //if (not(Map.containsKey router.Loc routerNameToIp)) then Console.Write("missing this me" + router.Loc);
                 let routerIp = Map.find router.Loc routerNameToIp
                 let nodeConnect = "\nnet node " + routerIp + " route add " + peerIp + "/32 --oif=" + peerIp + " 1"
                 File.AppendAllText(file, nodeConnect);
@@ -64,8 +66,7 @@ let writeTopoCBGP (input : Topology.T) (file : string) : unit =
     // create nodes for the vertices
     for i in 0 .. (Seq.length vertices - 1) do
         let vertex = Seq.item i vertices in
-        vMap <- Map.add vertex (i + 1) vMap;
-        //if (not (Topology.isUnknown vertex)) then 
+        vMap <- Map.add vertex (i + 1) vMap; 
         let toWrite = "net add node " + ipOfInt ((uint32) (i + 1)) in
         File.AppendAllText(file, toWrite + "\n");
 
@@ -77,21 +78,15 @@ let writeTopoCBGP (input : Topology.T) (file : string) : unit =
          edgeSet <- Set.remove (target, src) edgeSet
         let srcIdx = Map.find src vMap
         let targetIdx = Map.find target vMap
-        if (srcIdx < targetIdx) then // &&  (not (Topology.isUnknown src)) && (not (Topology.isUnknown target)) ) then 
+        if (srcIdx < targetIdx) then 
             let toWrite = ipOfInt ((uint32) srcIdx) + " " + ipOfInt ((uint32) targetIdx) in
-            File.AppendAllText(file, "net add link " + toWrite + "\n");
-        // should i be adding the bGP router/igp stuff right here -rulelessly   
+            File.AppendAllText(file, "net add link " + toWrite + "\n");   
 
 // generates the link ocverage tests for the given predicate
 let genLinkTest (input: CGraph.T) (coverage : int) (pred : Route.Predicate) : TestCases*float =
     let ctx = new Context() in
     let vertices = input.Graph.Vertices in
     let edges = input.Graph.Edges in
-
-    //Console.Write("Product graph edges");
-    //for e in edges do
-    //    Console.Write("(" + (string e.Source) + "," + (string e.Target) + ")");
-    //    Console.Write("\n");
 
     // array of boolExpr for vertices and edges respectively
     let vArray = Array.zeroCreate (Seq.length vertices) in
@@ -100,8 +95,7 @@ let genLinkTest (input: CGraph.T) (coverage : int) (pred : Route.Predicate) : Te
     let mutable eMap = Map.empty in
     let mutable condSet = Set.empty in
 
-    //cretae vertex map
-    //Console.Write("creating vertex map");
+    //create vertex map
     for i in 0 .. (Seq.length vertices - 1) do
         Array.set vArray i (ctx.MkBoolConst ("v" + (string i)));
         Array.set vIntArray i (ctx.MkIntConst ("vI" + (string i)));
@@ -112,7 +106,6 @@ let genLinkTest (input: CGraph.T) (coverage : int) (pred : Route.Predicate) : Te
     let eArray = Array.zeroCreate (Seq.length edges) in
 
     // create edge map
-    //Console.Write("creating edge map");
     for i in 0 .. (Seq.length edges - 1) do
         Array.set eArray i (ctx.MkBoolConst ("e" + (string i)));
         let edge = Seq.item i edges in
@@ -135,7 +128,6 @@ let genLinkTest (input: CGraph.T) (coverage : int) (pred : Route.Predicate) : Te
             if (not (Set.contains (Seq.item newindex internalEdges) edgesToCover)) then
                 edgesToCover <- Set.add (Seq.item newindex internalEdges) edgesToCover;
             else ();
-    //Console.Write((string origSize) + " edges out of which covering " + (string (Set.count edgesToCover)) + "\n");
     
 
     let src = Map.find input.Start vMap in
@@ -145,7 +137,6 @@ let genLinkTest (input: CGraph.T) (coverage : int) (pred : Route.Predicate) : Te
     condSet <- Set.add (Array.get vArray target) condSet ;
 
     // if edge is true, both vertices are true, and int for source vertex is one less than dest
-    //Console.Write("if edge then ends");
     for i in 0 .. (Seq.length edges - 1) do
         // find vertices at the start and end of an edge for implication between edges and vertices for connectivity
         let edge = Seq.item i edges in
@@ -166,14 +157,11 @@ let genLinkTest (input: CGraph.T) (coverage : int) (pred : Route.Predicate) : Te
         let vertex = Seq.item j vertices in   
 
         // atleast one incoming edge is true
-        //Console.Write("ifvertex then incoming");
         let incoming = input.Graph.InEdges vertex in
         let arr = Array.create (Seq.length incoming) (ctx.MkTrue()) in
         for i in 0 .. (Seq.length incoming - 1) do
             let e = Seq.item i incoming in
-            //Console.Write("edge is " + (string) e + "\n");
             let eVar = Map.find (e.Source, e.Target) eMap in
-            //Console.Write("eVar is " + (string) eVar + "\n");
             Array.set arr i (ctx.MkNot eArray.[eVar]);
         if Seq.length incoming > 0 then
             let exp = ctx.MkAtMost(arr, ((uint32) (Seq.length incoming) - 1u)) in
@@ -181,7 +169,6 @@ let genLinkTest (input: CGraph.T) (coverage : int) (pred : Route.Predicate) : Te
         else ();
 
         // exactly one outgoing edge is true
-        //Console.Write("if vertex then one outgoing edge");
         let outgoing = input.Graph.OutEdges vertex in
         let arr = Array.create (Seq.length outgoing) (ctx.MkTrue()) in
         let notArr = Array.create (Seq.length outgoing) (ctx.MkTrue()) in
@@ -200,14 +187,8 @@ let genLinkTest (input: CGraph.T) (coverage : int) (pred : Route.Predicate) : Te
         Array.set combArr 1 notexp;
         condSet <- Set.add (ctx.MkImplies (vArray.[j], ctx.MkAnd(combArr))) condSet;
 
-    // relationship between nodes with the same topological location
-    // identify using CgState.Node field which gives the topo.node
-    // basically put all of these variables in one set and use a mutual
-    //implication statement?
-    //use Start and End in CGraph, map them to topological node and use
-    // them for first connectivity constraint
-
-    //Console.Write("loopfree");
+    // create topological loopfree conditions 
+    // first find cgraph nodes that use the same topological node
     let mutable topoNodeToVertexSet = Map.empty in
     for i in 0 .. (Seq.length vertices - 1) do
         let vertex = Seq.item i vertices in
@@ -221,7 +202,6 @@ let genLinkTest (input: CGraph.T) (coverage : int) (pred : Route.Predicate) : Te
             topoNodeToVertexSet <- Map.add topoNode newSet topoNodeToVertexSet;
 
     //iterate through this map, creating statements per set for topological Node 
-    //Console.Write("actually adding loopfree condiitons");
     let prepCondition key value = 
         let exp = ctx.MkAtMost((Set.toArray value), 1u) in
         condSet <- Set.add exp condSet;
@@ -230,6 +210,8 @@ let genLinkTest (input: CGraph.T) (coverage : int) (pred : Route.Predicate) : Te
 
     // make the solver and iterate through it
     let s = ctx.MkSolver();
+
+    // addiitonal solver parameters
     //let p = ctx.MkParams();
     //p.Add("timeout", (uint32 10000));
     //s.Parameters <- p;
@@ -237,20 +219,16 @@ let genLinkTest (input: CGraph.T) (coverage : int) (pred : Route.Predicate) : Te
     let timer = new System.Diagnostics.Stopwatch()
     timer.Start()
 
-    //Console.Write(string s.timeout);
     s.Assert(Set.toArray condSet);
     s.Push();
     let newSolnRule = ctx.MkOr(Set.toArray edgesToCover)
     s.Assert(Array.create 1 newSolnRule)
-    //File.AppendAllText("solutions.txt", "New Set for prefix \n")
     let mutable tests = Set.empty in
-    //Seq.iter (fun a -> Console.Write((string a) + "\n")) s.Assertions
-    //while (timer.ElapsedMilliseconds <= (int64 30000) && s.Check() = Status.SATISFIABLE && not (Set.isEmpty edgesToCover)) do
+    
+    //while (timer.ElapsedMilliseconds <= (int64 100000) && s.Check() = Status.SATISFIABLE && not (Set.isEmpty edgesToCover)) do
     while (s.Check() = Status.SATISFIABLE && not (Set.isEmpty edgesToCover)) do
       let mutable solnSet = Set.empty in
       let mutable curPath = Set.empty in
-      //let mutable isOutPath = false in
-      //File.AppendAllText("solutions.txt", "New Solution\n")
       for i in 0 .. (Seq.length edges - 1) do
         if (s.Model.ConstInterp(eArray.[i]).IsTrue) then
             solnSet <- Set.add eArray.[i] solnSet;
@@ -261,12 +239,6 @@ let genLinkTest (input: CGraph.T) (coverage : int) (pred : Route.Predicate) : Te
                 edgesToCover <- Set.remove eArray.[i] edgesToCover;
 
             curPath <- Set.add (edge.Source, edge.Target) curPath;
-
-            //let a = s.Model.Evaluate(vIntArray.[Map.find edge.Source vMap]) in
-            //let b = s.Model.Evaluate(vIntArray.[Map.find edge.Target vMap]) in
-            //File.AppendAllText("solutions.txt", (string) (Seq.item i edges) + " " + (string a) + " " + (string b) + "\n");
-            
-            //bgp peer up? for cbgp file
         else
             ();
       if (Set.count curPath > 2) then 
@@ -281,7 +253,7 @@ let genLinkTest (input: CGraph.T) (coverage : int) (pred : Route.Predicate) : Te
         (tests, (1.0 - (float (Set.count edgesToCover))/ (float origSize)))
 
 
-// generates the individual pref tests for all nodes that share a given topological node
+// generates the individual pref tests/conditions for all nodes that share a given topological node
 let getPrefIndividualProblems (input: CGraph.T) (ctx : Context) nodeSet vArray eArray vIntArray =
     let k = Seq.length nodeSet
     let sameTopoCond = Array.create k Set.empty
@@ -291,12 +263,6 @@ let getPrefIndividualProblems (input: CGraph.T) (ctx : Context) nodeSet vArray e
     let mutable vMap = Map.empty in
     let mutable eMap = Map.empty in
 
-    //Console.Write("\nNew nodes sharing location");
-    //for n in nodeSet do
-    //    Console.Write((string n) + " ");
-    
-    //create vertex map
-    //Console.Write("creating vertex map");
     for i in 0 .. (Seq.length vertices - 1) do
         vMap <- Map.add (Seq.item i vertices)  i vMap;
 
@@ -304,6 +270,7 @@ let getPrefIndividualProblems (input: CGraph.T) (ctx : Context) nodeSet vArray e
         let edge = Seq.item i edges in
         eMap <- Map.add (edge.Source, edge.Target) i eMap;
 
+    // create same path constraints across the k cgraph nodes that share this topological node
     for index in 0 .. (k - 1) do      
         let mutable condSet = Set.empty in
 
@@ -315,25 +282,9 @@ let getPrefIndividualProblems (input: CGraph.T) (ctx : Context) nodeSet vArray e
         condSet <- Set.add (Array2D.get vArray target index) condSet ;
         let myIndex = Map.find (Seq.item index nodeSet) vMap in
         condSet <- Set.add (Array2D.get vArray myIndex index) condSet; 
-
-        let mkImplicationsAcrossEdges (thisEdge : QuickGraph.Edge<CgState>)  (otherEdge : QuickGraph.Edge<CgState>) =
-            let myNode = Seq.item index nodeSet
-            let thisa = thisEdge.Source in
-            let thisb = thisEdge.Target in
-            let thisIndex = Map.find (thisa, thisb) eMap
     
-            let othera = otherEdge.Source in
-            let otherb = otherEdge.Target in
-            let otherIndex = Map.find (othera, otherb) eMap
-
-            if (thisa.Node = othera.Node && thisb.Node = otherb.Node && thisa.State = myNode.State) then
-                for j in 0 .. (k - 1) do
-                    if (j <> index) then
-                        condSet <- Set.add (ctx.MkImplies ((Array2D.get eArray otherIndex j), (Array2D.get eArray thisIndex index))) condSet
-
-    
-        //Console.Write("if edge then ends");
         for i in 0 .. (Seq.length edges - 1) do
+            // if an edge is true, both vertices at its ends should be also set to true
             // find vertices at the start and end of an edge for implication between edges and vertices for connectivity
             let edge = Seq.item i edges in
             let a = Map.find edge.Source vMap in
@@ -347,7 +298,8 @@ let getPrefIndividualProblems (input: CGraph.T) (ctx : Context) nodeSet vArray e
             let incValueExp = ctx.MkEq((Array2D.get vIntArray b index), srcPlusOne) in
             condSet <- Set.add (ctx.MkImplies ((Array2D.get eArray i index), incValueExp)) condSet
 
-            // if edge is present in another of the k problems, it should be present her too
+            // if an edge is true in one of the k copies of the SAT instance, it should be true in every
+            // other copy as long as the edge shares state with the node that is to be covered in that copy
             for otherEdge in edges do
                 let myNode = Seq.item index nodeSet
                 let thisa = edge.Source in
@@ -371,14 +323,11 @@ let getPrefIndividualProblems (input: CGraph.T) (ctx : Context) nodeSet vArray e
                 condSet <- Set.add (ctx.MkNot (Array2D.get vArray j index)) condSet
 
             // atleast one incoming edge is true
-            //Console.Write("ifvertex then incoming");
             let incoming = input.Graph.InEdges vertex in
             let arr = Array.create (Seq.length incoming) (ctx.MkTrue()) in
             for i in 0 .. (Seq.length incoming - 1) do
                 let e = Seq.item i incoming in
-                //Console.Write("edge is " + (string) e + "\n");
                 let eVar = Map.find (e.Source, e.Target) eMap in
-                //Console.Write("eVar is " + (string) eVar + "\n");
                 Array.set arr i (ctx.MkNot (Array2D.get eArray eVar index));
             if Seq.length incoming > 0 then
                 let exp = ctx.MkAtMost(arr, ((uint32) (Seq.length incoming) - 1u)) in
@@ -386,7 +335,6 @@ let getPrefIndividualProblems (input: CGraph.T) (ctx : Context) nodeSet vArray e
             else ();
 
             // exactly one outgoing edge is true
-            //Console.Write("if vertex then one outgoing edge");
             let outgoing = input.Graph.OutEdges vertex in
             let arr = Array.create (Seq.length outgoing) (ctx.MkTrue()) in
             let notArr = Array.create (Seq.length outgoing) (ctx.MkTrue()) in
@@ -406,14 +354,9 @@ let getPrefIndividualProblems (input: CGraph.T) (ctx : Context) nodeSet vArray e
             condSet <- Set.add (ctx.MkImplies ((Array2D.get vArray j index), ctx.MkAnd(combArr))) condSet;
         
 
-        // relationship between nodes with the same topological location
-        // identify using CgState.Node field which gives the topo.node
-        // basically put all of these variables in one set and use a mutual
-        //implication statement?
-        //use Start and End in CGraph, map them to topological node and use
-        // them for first connectivity constraint
-
-        //Console.Write("loopfree");
+        // create topological loopfree conditions to ensure that two
+        // cgraph nodes with the same topological node arent in the path
+        // first find cgraph nodes that use the same topological node
         let mutable topoNodeToVertexSet = Map.empty in
         for i in 0 .. (Seq.length vertices - 1) do
             let vertex = Seq.item i vertices in
@@ -427,7 +370,6 @@ let getPrefIndividualProblems (input: CGraph.T) (ctx : Context) nodeSet vArray e
                 topoNodeToVertexSet <- Map.add topoNode newSet topoNodeToVertexSet;
 
         //iterate through this map, creating statements per set for topological Node 
-        //Console.Write("actually adding loopfree condiitons");
         let prepCondition key value = 
             let exp = ctx.MkAtMost((Set.toArray value), 1u) in
             condSet <- Set.add exp condSet;
@@ -445,13 +387,7 @@ let genPrefTest (input: CGraph.T) (coverage : int) (pred : Route.Predicate) : Te
     let vertices = input.Graph.Vertices
     let edges = input.Graph.Edges
 
-    //Console.Write("Product graph edges");
-    //for e in edges do
-    //    Console.Write("(" + (string e.Source) + "," + (string e.Target) + ")");
-    //    Console.Write("\n");
-
     // find map between topological node and all the cgraph nodes that have the same topo node in order of preference
-    //Console.Write("loopfree");
     let vertexToCGraphNodes : Dictionary<String, seq<CGraph.CgState>> =
         match (Consistency.findOrderingConservative 1 input) with
         | Ok ord -> ord
@@ -476,93 +412,70 @@ let genPrefTest (input: CGraph.T) (coverage : int) (pred : Route.Predicate) : Te
                 verticesToCover <- Set.add (Seq.item newindex allVertices) verticesToCover;
             else ();    
 
-    //cretae vertex map
-    //Console.Write("creating vertex map");
 
+    let timer = new System.Diagnostics.Stopwatch()
+    timer.Start()
     for kv in vertexToCGraphNodes do
-        let topoNode = kv.Key
-        let vertexSet = kv.Value
+        if timer.ElapsedMilliseconds < (int64 6000000) then
+            let topoNode = kv.Key
+            let vertexSet = kv.Value
 
-        if (Seq.length vertexSet > 1) then 
-            let vArray = Array2D.zeroCreate (Seq.length vertices) (Seq.length vertexSet)
-            let eArray = Array2D.zeroCreate (Seq.length edges) (Seq.length vertexSet) 
-            let vIntArray = Array2D.zeroCreate (Seq.length vertices) (Seq.length vertexSet)
+            if (Seq.length vertexSet > 1) then 
+                // create k different sets of variables for the edges, vertices and the integers on the vertices
+                let vArray = Array2D.zeroCreate (Seq.length vertices) (Seq.length vertexSet)
+                let eArray = Array2D.zeroCreate (Seq.length edges) (Seq.length vertexSet) 
+                let vIntArray = Array2D.zeroCreate (Seq.length vertices) (Seq.length vertexSet)
 
-            for j in 0 .. (Seq.length vertexSet - 1) do
-                for i in 0 .. (Seq.length vertices - 1) do
-                    Array2D.set vArray i j (ctx.MkBoolConst ("v" + (string i) + (string j)));
-                    Array2D.set vIntArray i j (ctx.MkIntConst ("vI" + (string i) + (string j)));
-                for i in 0 .. (Seq.length edges - 1) do
-                    Array2D.set eArray i j (ctx.MkBoolConst ("e" + (string i) + (string j)))
-                
-
-            for i in 0 .. (Seq.length vertexSet - 2) do
-                let firstVertex = Seq.item i vertexSet in // TODO: this needs to be in preference order
-                let secondVertex = Seq.item (i + 1) vertexSet
-
-                if (Set.contains secondVertex verticesToCover) then
-
-                    //Console.Write("here looking at vertex neighbors: " + (string firstVertex) + " " + (string secondVertex))
+                for j in 0 .. (Seq.length vertexSet - 1) do
+                    for i in 0 .. (Seq.length vertices - 1) do
+                        Array2D.set vArray i j (ctx.MkBoolConst ("v" + (string i) + (string j)));
+                        Array2D.set vIntArray i j (ctx.MkIntConst ("vI" + (string i) + (string j)));
+                    for i in 0 .. (Seq.length edges - 1) do
+                        Array2D.set eArray i j (ctx.MkBoolConst ("e" + (string i) + (string j)))
                     
-                    // create K equivalent SAT problems
-                    // use new variables that if true imply that that particular problem is true?
-                    // then you want first and second to be true but rest to be false
-                    // use an array of condSets and set one to true and other to false
-                    let problemSet = getPrefIndividualProblems input ctx vertexSet vArray eArray vIntArray
 
-                    // make the solver and iterate through it
-                    //Console.Write("make solver and iterate");
-                    let s = ctx.MkSolver()
-                    let mutable condSet = Set.empty;
+                for i in 0 .. (Seq.length vertexSet - 2) do
+                    let firstVertex = Seq.item i vertexSet in 
+                    let secondVertex = Seq.item (i + 1) vertexSet
 
-                    for j in 0 .. (Seq.length problemSet - 1) do
-                        let curProblem = Seq.item j problemSet
-                        if (j = i || j = (i + 1)) then
-                            //Console.Write("writing my own nodes");
-                            condSet <- Set.add (ctx.MkAnd(Set.toArray curProblem)) condSet;
-                        else
-                            condSet <- Set.add (ctx.MkNot(ctx.MkAnd(Set.toArray curProblem))) condSet;
-                        
+                    if (Set.contains secondVertex verticesToCover) then
 
-                    s.Assert(ctx.MkAnd (Set.toArray condSet));
-                    //Console.Write(string s.NumAssertions);
-                    //File.AppendAllText("solutions.txt", "New Set for prefix \n")
-                    if (s.Check() = Status.SATISFIABLE) then
-                        let mutable curPath = Set.empty in
-                        let mutable expectedPath = Set.empty in
-                        verticesToCover <- Set.remove secondVertex verticesToCover
-                        //let mutable isOutPath = false in
-                        //File.AppendAllText("solutions.txt", "New Solution\n")
-                        for j in 0 .. (Seq.length edges - 1) do
-                            if (s.Model.ConstInterp(Array2D.get eArray j i).IsTrue || s.Model.ConstInterp(Array2D.get eArray j (i + 1)).IsTrue) then
-                                //add current edge to the current Path
-                                let edge = Seq.item j edges in
-                                //if Topology.isTopoNode edge.Source.Node then
-                                curPath <- Set.add (edge.Source, edge.Target) curPath;
-                                //else 
-                                //    ();
+                        // create K equivalent SAT problems with their appropriate constraints
+                        let problemSet = getPrefIndividualProblems input ctx vertexSet vArray eArray vIntArray
 
-                                if (s.Model.ConstInterp(Array2D.get eArray j i).IsTrue) then
-                                    expectedPath <- Set.add (edge.Source, edge.Target) expectedPath;
+                        // make the solver and iterate through it
+                        let s = ctx.MkSolver()
+                        let mutable condSet = Set.empty;
 
-                                //if (Topology.isUnknown edge.Source.Node || Topology.isUnknown edge.Target.Node)  then
-                                //    isOutPath <- true
-
-                            // File.AppendAllText("solutions.txt", (string) (Seq.item j edges) + "\n");
-                                //bgp peer up? for cbgp file
+                        for j in 0 .. (Seq.length problemSet - 1) do
+                            let curProblem = Seq.item j problemSet
+                            // the given two cgraph nodes whose preferences are being tested should 
+                            // have their problems evaluate to true
+                            if (j = i || j = (i + 1)) then
+                                condSet <- Set.add (ctx.MkAnd(Set.toArray curProblem)) condSet;
                             else
-                                ();
-                        if (Set.count curPath > 2) then 
-                            tests <- Set.add (curPath, expectedPath) tests;
-                    //else Console.Write("cannot find, bailing");
-                    //File.AppendAllText("solutions.txt", "\n")
-                    //Console.Write("done");
+                            // rest are to be false so that no competing paths are activated
+                                condSet <- Set.add (ctx.MkNot(ctx.MkAnd(Set.toArray curProblem))) condSet;
+                            
+                        // get the current solution path
+                        s.Assert(ctx.MkAnd (Set.toArray condSet));
+                        if (s.Check() = Status.SATISFIABLE) then
+                            let mutable curPath = Set.empty in
+                            let mutable expectedPath = Set.empty in
+                            verticesToCover <- Set.remove secondVertex verticesToCover
+                            for j in 0 .. (Seq.length edges - 1) do
+                                if (s.Model.ConstInterp(Array2D.get eArray j i).IsTrue || s.Model.ConstInterp(Array2D.get eArray j (i + 1)).IsTrue) then
+                                    //add current edge to the current Path
+                                    let edge = Seq.item j edges in
+                                    curPath <- Set.add (edge.Source, edge.Target) curPath;
+
+                                    if (s.Model.ConstInterp(Array2D.get eArray j i).IsTrue) then
+                                        expectedPath <- Set.add (edge.Source, edge.Target) expectedPath;
+                                else
+                                    ();
+                            if (Set.count curPath > 2) then 
+                                tests <- Set.add (curPath, expectedPath) tests;
     if (origSize = 0) then
         (tests, -1.0)
     else
-        (tests, (1.0 - (float (Set.count verticesToCover))/ (float origSize)))
-
-    //done  
-
-let runTest =
-    ()
+        (tests, (1.0 - (float (Set.count verticesToCover))/ (float origSize)))  

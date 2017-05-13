@@ -202,6 +202,7 @@ let format (config : T) =
       bprintf sb "\n\n"
    sb.ToString()
 
+// add cbgp rule to the appropriate peer based on match criteria
 let addRuleToPeer peer routerTosb (actStr : string) routerNameToIp neighborNodes = 
   let updateRule k (v : System.Text.StringBuilder) = v.Append actStr 
 
@@ -226,24 +227,21 @@ let addRuleToPeer peer routerTosb (actStr : string) routerNameToIp neighborNodes
       v 
     
 
-  // update dictionary
+  // update correpsonding portions of the dictionary
   let newmap = 
     match peer with
     | Any -> Map.map updateRule routerTosb
-    | In -> Map.map updateIn routerTosb// routerTosb// what is to be done
-    | Out -> Map.map updateOut routerTosb //what is to be done
+    | In -> Map.map updateIn routerTosb
+    | Out -> Map.map updateOut routerTosb 
     | Router x -> 
       let routerIp = Map.find x routerNameToIp 
-      //Console.Write("Router is :" + (string x))
-      //Console.Write("Router ip :" + (string routerIp))
-     // Map.iter (fun k v -> Console.Write("\n" + k + " ")) (routerTosb)
       if (Map.containsKey x routerTosb) then
         let v = Map.find x routerTosb
-        //Console.Write("changing sb for peer " + (string peer) + " with actStr " + actStr)
         Map.add x (v.Append actStr)  routerTosb
       else routerTosb
   newmap
 
+// check if any matching peers exists amongst the beigboring nodes
 let isPresent peer neighborNodes routerNameToIp =
   let isNotOut k v = not (Topology.isUnknown v)
   let inFilter k v = Topology.isInside v
@@ -252,16 +250,13 @@ let isPresent peer neighborNodes routerNameToIp =
   match peer with
     | Any -> Map.exists isNotOut neighborNodes
     | In -> Map.exists inFilter neighborNodes
-    | Out -> Map.exists outFilter neighborNodes//what is to be done
+    | Out -> Map.exists outFilter neighborNodes
     | Router x -> 
-        //Console.Write("Router is :" + (string x))
         let routerIp = Map.find x routerNameToIp 
         let thisval = Map.containsKey x neighborNodes in 
-        //Console.Write("neighbors are:")
-        //Map.iter (fun k (v: Topology.Node) -> Console.Write("\n" + k + " " + v.Loc)) (neighborNodes)
-        //Console.Write("here is the problem: " + (string thisval))
         thisval
 
+//process export rules
 let cbgpExport pi routerTosb peer acts routerNameToIp neighborNodes = 
    let cbgpString a = 
     match a with 
@@ -275,6 +270,7 @@ let cbgpExport pi routerTosb peer acts routerNameToIp neighborNodes =
    
    addRuleToPeer peer routerTosb (actStr + accStr) routerNameToIp neighborNodes
 
+// add import rules wherever relevant
 let cbgpImport pi routerToImportSb (m, lp) comm predStr routerNameToIp neighborNodes =
   let actStr = "\n                                action \"community add " + comm + "\"" 
   let lpStr = "\n                                action \"local-pref " + (string lp) + "\""
@@ -311,23 +307,20 @@ let cbgpImport pi routerToImportSb (m, lp) comm predStr routerNameToIp neighborN
 
 
 
-// get the actions in cbgp format
+// get the actions in cbgp format for export, import after processing predicates
 let getCBGPActions sb routerToExport routerToImport pi pred actions curRouterIp routerNameToIp neighborNodes i =
    let mutable j = i
-   let mutable routerToEsb = routerToExport //Map<string, System.Text.StringBuilder
-   let mutable routerToIsb = routerToImport //Map<string, System.Text.StringBuilder
-   //let curRouterIp = Map.find routerNameToIp router
+   let mutable routerToEsb = routerToExport 
+   let mutable routerToIsb = routerToImport 
    let origStr, predStr = 
       match pred with
       | Pred p ->
         let (Route.TrafficClassifier(pref, _)) = List.head (Route.trafficClassifiers p)
         let s = (string) pref
         if (String.exists (fun c -> c = 'l') s) then 
-          //Console.Write("hitting here -l ") 
           let temps = (string (pref.Example())) in
           temps, temps 
         else s,s
-          //else Console.Write("hitting here"); (s + "/32"), (s + "/32")
       | Comm(p, c) -> Route.toString p, "comm=" + c // ??
    let exitStr = "\n                        exit"
    match actions with
@@ -376,15 +369,13 @@ let getCBGPActions sb routerToExport routerToImport pi pred actions curRouterIp 
                     routerToEsb <- addRuleToPeer peer routerToEsb exitStr routerNameToIp neighborNodes              
    (j, sb, routerToEsb, routerToIsb) 
 
+// main routine to get the cbgp configuration associated with a given vertex
 let getCBGPConfig (config : T) (vertex: CGraph.CgState) (isStart: bool) (pref : string) (neighbors : seq<string>) (routerNameToIp : Map<string, string>) (neighborNodes : Map<string, Topology.Node>) =
-  //Console.Write("router name is " + vertex.Node.Loc);
   if (Map.containsKey vertex.Node.Loc config.RConfigs) then 
     let routerConfig = Map.find vertex.Node.Loc config.RConfigs
     let ti = config.PolInfo.Ast.TopoInfo
-    let routerName = vertex.Node.Loc //Topology.router vertex.Node.Loc ti
-    //Console.Write("router name is " + routerName);
+    let routerName = vertex.Node.Loc 
     let routerIp = Map.find routerName routerNameToIp
-    //Console.Write("router ip is " + routerIp);
     let mutable sb = System.Text.StringBuilder()
     let mutable routerToEsb : Map<string, System.Text.StringBuilder> = Map.empty 
     let mutable routerToIsb : Map<string, System.Text.StringBuilder> = Map.empty 
@@ -394,10 +385,8 @@ let getCBGPConfig (config : T) (vertex: CGraph.CgState) (isStart: bool) (pref : 
       flag <- 1
       routerToEsb <- Map.add s (System.Text.StringBuilder ()) routerToEsb
       routerToIsb <- Map.add s (System.Text.StringBuilder ()) routerToIsb
-    // control code taken out from above - format, borrow back when needed
 
-    // figure out how to initialize the two maps with all the peers that are up for this vertex
-    //where do i call this code from? also to be figured out and bgp up/down code
+    // get export import peer rules and build string builders for each
     let myStr = "\nbgp add router " + routerName + " " + routerIp + "\nbgp router " + routerIp
     sb <- sb.Append myStr
     let mutable i = 0
@@ -408,12 +397,11 @@ let getCBGPConfig (config : T) (vertex: CGraph.CgState) (isStart: bool) (pref : 
       routerToIsb <- tempIsb
       sb <- tempsb
 
+    // print from string builder onto actual output
     for kv in routerToEsb do
       flag <- 1
       let peer = kv.Key 
-      //Console.Write("peer name is " + peer);
       let peerIp = Map.find peer routerNameToIp
-      //Console.Write("peer Ip is " + peerIp);
       let mutable isFiltered = false
       let routerStr = ("\n        add peer " + peer + " " + peerIp)
       sb <- sb.Append routerStr
@@ -436,10 +424,10 @@ let getCBGPConfig (config : T) (vertex: CGraph.CgState) (isStart: bool) (pref : 
     bprintf sb "\nexit"
     sb.ToString()
   else
+      // special ownership and peer setup for external AS routers
       if (Topology.isOutside vertex.Node) then
         let mutable sb = System.Text.StringBuilder()
-        let routerName = vertex.Node.Loc //Topology.router vertex.Node.Loc ti
-        //Console.Write("router name is " + routerName);
+        let routerName = vertex.Node.Loc 
         let routerIp = Map.find routerName routerNameToIp
         let myStr = "\nbgp add router " + routerName + " " + routerIp + "\nbgp router " + routerIp
         sb <- sb.Append myStr
@@ -455,14 +443,115 @@ let getCBGPConfig (config : T) (vertex: CGraph.CgState) (isStart: bool) (pref : 
       else 
         ""
 
-  // TODO: add this before this function is called
-  // bgp router routerIp 
-  //     add peer peerIp
-  //     peer peerIp next-hop-self
-  //     peer peerIp up
-  //     exit
-  // use this to get full list of peers for this routerIp
+let writeCBGPTests (config:T) routerNameToIp topo predToTests : int64 =       
+      // write the tests into CBGP file
+      let mutable j = 0
+      let createTest (pred: Route.Predicate) ((tests, cov) : TestCases*float) = 
+            let predStr = 
+                  let (Route.TrafficClassifier(pref, _)) = List.head (Route.trafficClassifiers pred)
+                  let s = (string) pref
+                  if (String.exists (fun c -> c = 'l') s) then (s.Substring (0, 9)) 
+                  else s
+            for i in 0.. Seq.length tests - 1 do
+                  let (t, e) = Seq.item i tests
+                  let outputFile = "test" + (string) j + ".cli"
+                  j <- j + 1
+                  if not (Seq.isEmpty t) then
+                        TestGenerator.writeTopoCBGP topo outputFile // writes physical topology to all testfiles
+                  
+                  // get Ipaddress for a given node in the testGraph
+                  let getIp (v : CgState) =
+                        let routerName = v.Node.Loc
+                        Map.find routerName routerNameToIp
 
+                  // get Ipaddress for a given node in the testGraph
+                  let getAsn (v : Topology.Node) = v.Loc
+
+                  let getMap (neighbors : seq<Topology.Node>) =
+                        let mutable neighborsToNode = Map.empty
+                        for n in neighbors do
+                              let routerName = n.Loc
+                              neighborsToNode <- Map.add routerName n neighborsToNode
+                        neighborsToNode
+
+                  // create map with vertex to its peers in test topology
+                  let mutable vertexToPeers = Map.empty
+                  let mutable testVerticesInOrder = Map.empty
+                  let mutable startingVertex = ""
+                  for (src, dest) in t do
+                        // add dest to src's neighbor list
+                        let neighbors =
+                              if (Map.containsKey src.Node vertexToPeers) then Map.find src.Node vertexToPeers
+                              else Set.empty
+                        let newneighbors = 
+                              if (Topology.isTopoNode dest.Node) then Set.add dest.Node neighbors
+                              else neighbors
+                        if (Topology.isTopoNode src.Node) then
+                              vertexToPeers <- Map.add src.Node newneighbors vertexToPeers
+                        else ()                
+                        //add src to dest's neighbor list
+                        let destneighbors =
+                              if (Map.containsKey dest.Node vertexToPeers) then Map.find dest.Node vertexToPeers
+                              else Set.empty
+                        let destnewneighbors = 
+                              if (Topology.isTopoNode src.Node) then Set.add src.Node destneighbors
+                              else destneighbors
+                        if (Topology.isTopoNode dest.Node) then
+                              vertexToPeers <- Map.add dest.Node destnewneighbors vertexToPeers
+                        else ()
+
+                  let mutable lastRouter = "0.0.0.0"
+                  let mutable lastAsn = "0"
+                  let mutable lastCGNode = 
+                        {
+                              Id = 0
+                              State = 0
+                              Accept = (int16 0)
+                              Node = new Topology.Node("", Topology.Start)
+                        }
+                  for (src, dest) in e do
+                        // track the vertices in order to geenrate exepcted output
+                        if (Topology.isTopoNode dest.Node) then
+                              if (Topology.isTopoNode src.Node) then
+                                    testVerticesInOrder <- Map.add dest.Node.Loc src.Node.Loc testVerticesInOrder
+                        else
+                              startingVertex <- src.Node.Loc
+                              lastRouter <- getIp src
+                              lastAsn <- src.Node.Loc
+                              lastCGNode <- src
+                  if not (Seq.isEmpty t) then
+                      TestGenerator.geteBGPStaticRoutes vertexToPeers routerNameToIp outputFile
+                  
+                  // output cbgp router configuration instructions for routers in the path
+                  let mutable lessPrefLastRouter = "0.0.0.0"
+                  let mutable lessPrefLastAsn = "0"
+                  let mutable verticesSoFar = Set.empty
+                  for (src, dest) in t do
+                        if (Topology.isTopoNode dest.Node && (not (Set.contains dest.Node verticesSoFar))) then                              
+                              let neighbors = Seq.map getAsn (Map.find dest.Node vertexToPeers)
+                              let neighborsToNode = getMap (Map.find dest.Node vertexToPeers)
+                              let isStart = not (Topology.isTopoNode src.Node) 
+                              let s = getCBGPConfig config dest isStart predStr neighbors routerNameToIp neighborsToNode
+                              System.IO.File.AppendAllText(outputFile, s);
+                              verticesSoFar <- Set.add dest.Node verticesSoFar;
+                        if (not (Topology.isTopoNode dest.Node) && src <> lastCGNode) then 
+                              lessPrefLastRouter <- getIp src
+                              lessPrefLastAsn <- src.Node.Loc
+                  if not (Seq.isEmpty t) then
+                        System.IO.File.AppendAllText(outputFile, "\nsim run\n\n");
+                        System.IO.File.AppendAllText(outputFile, "\nbgp router " + lastRouter + " record-route " + predStr)
+
+                  if not (Seq.isEmpty e) then
+                        // print out the reference output in a separate file
+                        let refOutputFile = "ExpectedOutput.txt"
+                        System.IO.File.AppendAllText(refOutputFile, outputFile + " " + lastRouter + "\t" + predStr + "\t" + "SUCCESS\t");
+                        while (Map.containsKey startingVertex testVerticesInOrder) do
+                              System.IO.File.AppendAllText(refOutputFile, startingVertex + " ");
+                              startingVertex <- Map.find startingVertex testVerticesInOrder
+                        System.IO.File.AppendAllText(refOutputFile, startingVertex + "\n");
+      let _, testPrintTime = Util.Profile.time (Map.iter createTest) predToTests;
+      testPrintTime
+      
 
 /// Helper functions to make changes to the configuration
 /// either by modifying or removing a part of the configuration.
