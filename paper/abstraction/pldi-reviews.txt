@@ -1,0 +1,607 @@
+Shepherd letter:
+
+> Here are the most important changes (which are all "must changes"):
+>
+> - title, abstract, and introduction (and throughout the paper): tone
+>   down the contributions and make sure it is clear this paper is about
+>   BGP (which is fine... BGP is the currently (and only) default
+>   protocol in large-scale Data-Centers. In other contexts, such as
+>   Internet Service Providers (ISPs), BGP is not the only protocol but
+>   by far the hardest to configure. The ability to automate its
+>   configuration is therefore useful.)
+
+As we wrote and rewrote the abstract and introduction, we did notice that the fact that
+we rely on BGP was not mentioned.  We agree that having it first mentioned at the beginning of 
+section 2 is jarring and could lead a reader who only reads the abstract or introduction to
+our paper to come away misinformed.  We made the following changes:
+
+- we mentioned BGP in the first sentence of the new abstract:
+
+"We develop \sysname, a system to synthesize provably-correct
+BGP configurations for large, evolving networks from high-level
+specifications of topology, routing policy, and fault-tolerance
+requirements."
+
+- we modified the introduction in several key places (there are other modifications just to improve
+the overall quality of the writing)
+
+First, we spend a paragraph saying explicitly that we target BGP and that other
+protocols are beyond the scope of the paper:
+
+"Based on these inputs, \sysname generates one template per role.
+These templates specify routing policy using the Border Gateway
+Protocol (BGP).  BGP is a useful target for synthesis, as it is the
+standard protocol for interdomain routing and it is also commonly used
+within data centers due to its scalability properties.  However, it is
+far from the only control plane protocol; synthesis of configurations
+for other common protocols such as OSPF is beyond the scope of this
+paper."
+
+Second, we explain that our evolution-friendly property depends on BGP's tagging mechanism:
+
+"First, its templates are evolution friendly.  When the network
+migrates from one concrete topology to another, both of which comply
+with the abstract topology, only the configurations of devices that
+acquire or lose a neighbor need to change.  This guarantee is the best
+that any system can give as neighbor relationships are explicitly
+configured in devices.  We achieve this guarantee in part by relying
+on the ability of BGP to tag announcements with abstract values.  For
+example, these abstract values make it possible to change the source
+of an announcement without the target being aware of a change
+happening.  Other control plane protocols that do not provide such
+tagging mechanisms or that implement link-state as opposed to
+path-vector protocols would not be able to avail themselves of these
+techniques."
+
+Third, when we summarize our contributions, we again mention that
+our templates are for BGP:
+
+"Implementation and evaluation of the \sysname compiler that generates
+provably-correct BGP templates and is much faster than compilers based
+on concrete topologies."
+
+- While we are in complete agreement with the reviewers comments
+concerning our abstract and introduction and have done our best to
+address those comments, we do rather like the existing title and
+believe it is quite a good title for the paper.  We were a bit surprised
+by the request to change the title as no problem with the title was mentioned 
+in any reviews that we saw.  We like the title because it is concise and it
+emphasizes what, in our opinion, is the most novel element of the paper (analysis of abstract
+topologies).  We also think the title is appropriate because the most
+closely related work is our own previous work on Propane.  That paper,
+published in SIGCOMM 2016 was titled "Don't Mind the Gap: Bridging
+Network-wide Objectives and Device-level Configurations."  The main
+difference between the two pieces of work is the abstract topologies and 
+the analysis over those topologies.  Hence, to distinguish the paper from
+past work, it makes sense to highlight that element.
+
+The title does not make any specific technical claim that is false --
+it doesn't make any claim at all in fact.  It merely suggests a
+general area of work, like many titles do.  The choice of title is a
+highly subjective, artistic choice and depends largely on aesthetics.
+We hope that you will simply grant us poetic license to choose our own
+title.
+
+> 
+> - In places where you feel can say more than just about BGP make an explicit remark and 
+> explain clearly how you would generalise the results.
+
+In the introduction, we added a few remarks.  (Broadly speaking, an
+interesting open question is how to obtain similar kinds of results
+for link-state protocols.  We do not have an answer to that at the
+moment.)
+
+"We achieve this guarantee in part by relying on the ability of BGP to
+tag announcements with abstract values. These abstract values make it
+possible to change the source of an announcement without the target
+being aware of a change happening. Other control plane protocols that
+do not provide such tagging mechanisms or that implement link-state
+protocols as opposed to path-vector protocols would not be able to
+avail themselves of these techniques."
+
+> - Section on template generation: please improve the explanations (see reviews).
+
+We expanded section 7 significantly to give a more comprehensive explanation of the compiler
+algorithms.
+
+> 
+> - Theorem 7.2 - make clear what the proof covers and improve proof.
+
+We revised our presentation of the proof in the appendix substantially
+(there is no room in the paper).  We were not completely sure what is meant by
+"make clear what the proof covers" --- the proof covers theorem 7.2.
+We hope our revisions to section 7 will have clarified any confusion here.
+
+In the appendix, we put significant effort into rewriting the proof.  In particular, we:
+1. Added a proof outline that explains the high-level 
+   ideas and important lemmas used to prove theorem 7.2
+2. Broke the proof into 3 parts, each of which has its own explanation 
+   for what we are proving, why we are proving it, and how we are proving it.
+3. Reformatted and refactored the proof to make it cleaner and clearer than before.
+
+
+
+
+
+
+> ===========================================================================
+>                            PLDI '17 Review #187A
+> ---------------------------------------------------------------------------
+>    Paper #187: Network Configuration Synthesis with Abstract Topologies
+> ---------------------------------------------------------------------------
+
+>                  Reviewer expertise: Y. Knowledgeable
+>                       Overall merit: B. OK paper, but I will not champion
+>                                         it
+
+>                            ===== Strengths =====
+
+> - the problem of synthesizing control plane configurations is important and well motivated
+> - the insight of synthesizing templates for the different roles of routers is great
+> - extensive evaluation
+
+>                           ===== Weaknesses =====
+
+> - presentation is difficult to follow
+> - the approach is specific to BGP, and it uses the protocol in a certain way
+> - the required input from the user might be difficult to provide
+
+>                       ===== Comments to authors =====
+
+> The paper addresses the problem of synthesizing configurations of
+> routers that participate in the BGP protocol. The authors claim
+> that existing synthesis techniques are not adopted by network
+> operators since they do not synthesize uniform configurations for
+> routers with similar roles.
+
+> To address this issue, the paper suggests to divide routers based
+> on their roles, and to automatically synthesize templates for these
+> roles. Technically, instead of working at the level of the concrete
+> topology, the paper considers abstract topologies where routers are
+> grouped into abstract nodes based on their roles.
+
+> Roughly speaking, abstract topologies are an existential
+> abstraction of concrete ones (i.e., abstract nodes are connected by
+> an edge if some concrete nodes that they represent are connected by
+> a concrete edge). This abstraction is refined with constraints that
+> restrict the edges in concretizations. The abstract topology
+> including the constraints are provided by the user.
+
+> The generated templates are correct for every concretization of the
+> abstract topology. The considered policies include routing
+> constraints (that are translated to regular expressions) as well as
+> fault tolerance constraints. The most interesting part of the
+> proposed technique is the way in which fault tolerance is ensured.
+> The authors suggest several inference rule for inferring
+> information on the existence of edge disjoint paths in the network
+> (that also satisfy the routing constraints -- this is achieved by
+> performing the analysis on a product graph of the DFAs of the
+> routing constraints and the topology). Their fault tolerance
+> analysis then iteratively applies these rules. Once the analysis is
+> complete, templates are generated.
+
+> Comments:
+> ---------
+
+> The paper addresses an important problem and takes a really nice
+> approach for solving it. Synthesizing templates for roles is a
+> great idea. I was very excited to read this paper. The evaluation
+> of the approach is also extensive and shows promise. But despite my
+> enthusiasm, I found the presentation of the paper lacking.
+
+> The technical details of the paper were at times difficult to
+> understand. In addition, some of the concepts used are related to
+> existing concepts, but these relations are not mentioned nor
+> explained. Below are some concrete examples.
+
+> One of the contributions listed by the authors is the notion of
+> abstract topologies. Topology abstractions for BGP were also
+> defined in the following paper:
+
+> Adi Sosnovich, Orna Grumberg, Gabi Nakibly: Analyzing Internet
+> Routing Security Using Model Checking. LPAR 2015: 112-129
+
+> The abstractions there are quite different, but some discussion is
+> appropriate.
+
+> In particular, the notion of abstract topology is based on an
+> existential abstraction which is a classical notion, and it would
+> be good to relate the two.
+
+> The product graph construction is also very similar to standard
+> constructions used in the automata-theoretic approach to
+> verification.
+
+> Providing an abstract topology that is ``precise'' enough is
+> tedious. The user has to provide invariants on the structure of the
+> underlying concrete topology. Is this a reasonable requirement from
+> a network operator?
+
+> In page 4, the role of the template variables is not explained. In
+> addition, the TG, TL, N1 and N2 are what you later call locations,
+> right? these are the abstract nodes of the topology. These
+> connections are not explained explicitly, which make the paper
+> difficult to follow.
+
+We explained more precisely the role of template variables on page 4, 
+and also made the language clearer about locations and roles. This is
+further clarified in section 5 to explicitly say that we use location
+to refer to either routers for concrete networks, or roles for abstract 
+networks.
+
+> In page 5, PG is used in two different meanings: once as part of
+> the policy, and later as the acronym for product graph. This is
+> extremely confusing. In general, less acronyms would help. In
+> addition, the use of PG in the policy could use further
+> explanation. Why isn't it $PG?
+
+We changed the name of the prefix to avoid this naming clash
+and also added an explanation for why it is not a template
+variable in our particular example.
+
+> In page 5, please clarify what you mean by soundness. I assume that
+> you mean that every inferred fact is correct for every
+> concretization of the abstract topology.
+
+> fig 5: please add "l" to the figure.
+
+We added this to the figure.
+
+> page 5 "for each predicate matching traffic" -- what are those?
+
+We clarified by using the metavariable in the grammar.
+
+> page 6: you suddenly mention E which was defined in a completely
+> different section all the way back in page 3. Please clarify that
+> this is simply an edge of the topology.
+
+We briefly reintroduced the definition of the graph G=(V,E) inline
+so there is no need to look back at page 3.
+
+> page 8: I did not understand how \nu Z is used. It would help to
+> first explain what you are trying to find. You say that you
+> minimize j and k. Don't you want to maximize them?
+
+We clarified this point by adding a paragraph to section 6: 
+
+"At a higher level, what is happening is that each inference rule is attempting to learn the maximum fault tolerance information possible as a function of the symbolic inputs. The νZ [6] solver will then minimize this maximum by accounting for all possible topologies that meet the abstraction. Facts learned with j = 0 or k = 0 are discarded."
+
+> Template generation: if I understand correctly, you add tags to the
+> BGP announcements. Is this acceptable by network operators? Doesn't
+> it affect the protocol? It seems that you in fact change the
+> protocol (or refine it). In addition, this raises a question
+> regarding the generality of the approach. Can a variant be used
+> with different protocols?
+
+> This section was especially difficult for me to understand. For
+> example:
+
+> page 9 "If we determine that each router..." -- what happens if you
+> don't?
+
+> The part about instantiating the templates (explained in page 3) is
+> under-explained in the paper. A lot of it is deferred to the
+> appendix (as mentioned after theorem 7.2). I believe a better
+> explanation should be included in the paper.
+
+> Regarding the paragraph on "incrementality" -- please clarify
+> whether these optimizations are manual (my understanding is that
+> they are).
+
+We also explain incrementality in much more detail now, 
+The optimizations are not manual, and require no effort on the 
+part of the operator. This is also clarified in the implementation 
+section now.
+
+> Implementation "inference rules... depend only on the topology" --
+> then why didn't you present them this way? This is confusing since
+> earlier you explained that it is important to perform the inference
+> on the product graph that also includes routing information.
+
+We clarified this point. The rules do not depend on the automata state, 
+so even though we perform the analysis over the product graph, there
+might be multiple copies of edges between the same two locations in the
+product graph. These can be cached.
+
+> typo:
+
+> - p3 "template has... and are..."
+
+
+
+
+
+> ===========================================================================
+>                            PLDI '17 Review #187B
+> ---------------------------------------------------------------------------
+>    Paper #187: Network Configuration Synthesis with Abstract Topologies
+> ---------------------------------------------------------------------------
+
+>                  Reviewer expertise: X. Expert
+>                       Overall merit: A. Good paper, I will champion it
+
+>                            ===== Strengths =====
+
+> - very relevant practical problem
+
+> - interesting insights on how to reason about fault-tolerance at an abstract level (could spur further research in this area)
+
+> - working system that generates actual router configuration (Quagga-based by default)
+
+>                           ===== Weaknesses =====
+
+> - expressiveness and resilience analysis is rather coarse-grained: no bound is given/discussed and the evaluation only presents binary information (precise/conservative)
+
+> - lack of details regarding configuration evolvability/incrementality
+
+>                       ===== Comments to authors =====
+
+> I really enjoyed the paper and I would like to see it accepted. The
+> problem is very relevant, both practically (the insight of working at
+> the template level closely matches operators’ practice while enabling
+> the synthesis engine to scale much better) and theoretically
+> (inferences rules to reason about failures at the abstract level). The
+> solutions proposed are promising and novel. While Methane and Propane
+> (its closest competitor, published at SIGCOMM’16) share common themes
+> (the policy languages, in particular, are quite close), Methane does
+> provide significant benefits with respect to Propane in terms of
+> abstract reasoning.
+
+> On the minus side, while the paper builds a compelling argument
+> regarding configuration evolvability, I found the paper quite thin on
+> that front. Based on the elements provided, it is hard to assess that
+> any changes to the concrete topology is guaranteed to cause local
+> changes only. It is not a show-stopper though as the rest of the paper
+> contributions are significant enough.
+
+> Methane has been implemented and generates actual router
+> configurations (expressed in the Quagga language). The evaluation is
+> good even though some points could be perfected (see below).
+
+> Below are a few questions I’d like the authors to answer:
+
+> * As far as I can tell, Methane fault-tolerance policies and inference
+>   rules are restricted to link failures, not node failures which,
+>   although less likely, do still happen quite often in large-scale
+>   networks. Do the inference rules and facts generalize to
+>   node-disjointness? If so how, if not why?
+
+We made sure to say that we are talking about link failures. In section 4,
+we added a sentence to say the fault-tolerance policy is for link failures:
+
+"This policy specifies how many link failures the network should be able 
+to withstand before traffic experiences connectivity loss."
+
+> * How far away from the real value can the lower bound computed by the
+>   inference rules be? Can you bound it somehow? In general, I think it
+>   would help the reader to illustrate a situation in which Methane’s
+>   inferred lower-bound is conservative instead of being precise,
+>   e.g. could be the case that you mention in Section 9.1.
+
+> * How far off was Methane when it generated conservative bound instead
+>   of precise ones? The Evaluation only gives binary information right
+>   now. Please add these numbers to the paper. Also, and this goes back
+>   to my point above, the fact that you start to have conservative
+>   results instead of precise ones when switching from valley-free
+>   routing to shortest-path routing makes the reader wonder how would the
+>   result change should you use more complex routing policies. This goes
+>   back to my point above
+
+We extended the results paragraph in section 9.1 to discuss in 
+further detail some of the examples that were conservative and why:
+
+"For all tree-based topologies, the analysis is precise for determining reachability, but for three of them, it does not compute a tight bound for disjoint paths for all router pairs. Specifically, it underestimates ToR-to-spine paths; it fails to account for some circuitous paths that traverse another spine because it could not disambiguate two concrete spines that map to the same abstract role. For instance, for the fat tree topology [2], it only finds 1 path be- tween any ToR and any Spine when there should always be at least two. However, in this case the analysis computes the correct worst case connectivity between any source ToR and any other destination aggregation or ToR router. A similar pattern occurs with other tree-based topologies.""
+
+> * I think the paper is quite thin on incrementality. While the
+>   intuition presented in Section 7 is nice (I see a parallel with
+>   source routing in which the rules in the core of the network are
+>   fixed and where the tagging is moved to the edge), it seems hard to
+>   believe that prefix template variable is the only piece that
+>   requires to be changed upon change in the concrete topology. If
+>   that's the case, it requires more backing on why it is the case.
+
+We expanded on incrementality a bit by stating more explicitly what 
+can change and what does not. This hopefully makes it easier to 
+follow the reasoning.
+
+> * Another point regarding incrementality. Would you also have it
+>   considering other protocols? In particular, my intuition is that
+>   incrementality is possible in your case because you’re considering
+>   neighbor & policy-based configurations. This wouldn’t be true for
+>   say, link-state protocols where I would expect that more
+>   network-wide changes are required to implement a requirement (e.g.,
+>   weight changes in multiple locations).
+
+> > Please comment on what Methane precision depends on.
+
+> * AFAIU, you used a fat tree topology for the ISP topology, which is
+>   not so realistic IMHO.  Would the results be any different should
+>   you use a (much less regular) topology from topology-zoo or
+>   RocketFuel instead? Please justify why/why not?
+
+> * Related work on the connectivity guarantees provided by policy-based
+>   routing protocols exists, in particular “A Theory for the
+>   Connectivity Discovered by Routing Protocols” (TON 2012) by Sobrinho
+>   and Quelhas. In this paper, the authors provide a “polynomial time
+>   algorithm to compute the minimum number of links whose failure
+>   leaves a route-vector protocol without a communication path from one
+>   given node to another”. As it relates to Methane reasoning on
+>   policy-compliant connectivity (arguably on abstract, not concrete
+>   topologies), I would still cite it and distinguish from it.
+
+> ### Nits:
+
+> - blackhoes > blackholes.
+> - It would be nice to have a legend in Figure 4 describing 
+>   what TL, TG, AL,  G, and S are.
+
+Added a legend for Figure 4.
+
+
+
+> ===========================================================================
+>                            PLDI '17 Review #187C
+> ---------------------------------------------------------------------------
+>    Paper #187: Network Configuration Synthesis with Abstract Topologies
+> ---------------------------------------------------------------------------
+
+>                  Reviewer expertise: Y. Knowledgeable
+>                       Overall merit: C. Weak paper, though I will not fight
+>                                         strongly against it
+
+>                            ===== Strengths =====
+
+> - timely problem
+> - basic set up interesting
+
+>                           ===== Weaknesses =====
+
+> - falls short of promised generality
+>  - fault tolerance analysis is too basic
+
+>                       ===== Comments to authors =====
+
+> The paper introduces Methane, a tool to synthesize
+> correct-by-construction network role templates. The tool takes as
+> input three things: high level description of the network topology,
+> the routing policy, and fault tolerance requirements. Then Methane
+> generates role templates if the fault tolerance policy can be met.
+
+> I liked the idea of the paper and the synthesis problem is a very
+> timely one. However, I think the paper fall short of its promises in
+> the introduction and hence I cannot really recommend it to be
+> accepted.
+
+> Major comments 
+> - One of the contributions claimed in the end of the
+> introduction is "new topology abstractions". After reading the paper I
+> am still not quite sure what you mean by this.
+
+> - Your main theoretical result (Theorem 7.2) applies only to a network
+>   running the BGP protocol. Is this correct?
+
+Yes, this is stated more explicitly now.
+
+> - I found the proof in the appendix almost impossible to follow. It
+>   needs to first be explained at a high level (enumerating all the
+>   auxiliary lemmas) and you should describe concretely where the hard
+>   parts are. As it stands it looks like a routine induction proof
+>   (which is long, messy and poorly typeset in LaTeX).
+
+See the comments above about the appendix.
+
+> - I was expecting (since you are doing fault tolerance analysis) that
+>   you would compile your language into a probabilistic automaton
+>   rather than the usual DFA. Can you comment?
+
+> - In the current version, your notion of fault tolerance and fault
+> tolerance analysis is quite limited. Namely, you can only say whether
+> all concrete instances will be able to remain functional up to k link
+> failure. Is this really enough in practical contexts? Would one not
+> want a finer analysis?
+
+> - In particular, I would expect a sort of threshold analysis. And that
+>   would mean that you might be able to generate more templates than
+>   you currently can (with associated QoS guarantees).
+
+> All in all, I think the main problem of the paper is that it starts
+> with a promise of generality that as the reader makes his way through
+> disappears. I cannot completely see the added value of the abstract
+> topology analysis and the claim on fault tolerance if then properties
+> are proved for a very concrete network.
+
+> Minor comments
+> - Compilation (I guess) could be improved using work by Smolka 
+> et al (done in the context of NetKAT).
+> - the constraints displayed on Fig 7 made me wonder if you could not 
+> use a constraint solver or similar methods to help in your algorithm.
+> - The mathematical notation chosen is somewhat confusing. Eg you use (-)^A 
+> to name the abstract graph, etc, but since you re also talking about 
+> homomorphisms I thought for a while this was a real exponential. Others 
+> might be confused too.
+
+> - on page 4 you say there will be a one to one correspondence between 
+> the concrete and abstract nodes. are you sure you mean one to one? I would 
+> expect to have less abstract nodes...
+
+We clarified this point, we are talking about how abstract
+topologies are strictly more expressive than concrete topologies.
+
+
+
+
+> ===========================================================================
+>                            PLDI '17 Review #187D
+> ---------------------------------------------------------------------------
+>    Paper #187: Network Configuration Synthesis with Abstract Topologies
+> ---------------------------------------------------------------------------
+
+>                  Reviewer expertise: Y. Knowledgeable
+>                       Overall merit: B. OK paper, but I will not champion
+>                                         it
+
+>                            ===== Strengths =====
+
+> + Interesting high-level objective
+> + Good experimental results
+
+>                           ===== Weaknesses =====
+
+> - The description of the template generation process -- a central 
+> contribution of the paper -- is hard to follow and tied to a particular 
+> example.
+
+>                       ===== Comments to authors =====
+
+> Summary:
+
+> The paper presents a method for synthesis of provably-correct "role"
+> templates networks. A role is as an abstraction of a device
+> functionality that can be served by one or more devices. in current
+> practice, engineers hand-write "configuration templates" for each role
+> in the network.  Concrete network configurations are obtained by
+> instantiating these templates with concrete parameters, based on the
+> topology of the network. The paper argues that the these templates are
+> challenging to construct and error-prone. Its solution is to
+> automatically synthesize these templates for the different roles given
+> a description of the topology in terms of roles, and requirements such
+> as the routing policy or fault-tolerance requirements of the
+> network. It is guaranteed that every configuration obtained by
+> concretizing the profile of synthesized templates will satisfy these
+> requirements. The system is evaluated on a range of backbone and data
+> center networks.
+
+> Evaluation:
+
+> The high-level goals of the paper are appealing.  The paper makes a
+> convincing case that the manual design of roles is brittle and
+> difficult, and therefore a natural target for synthesis.
+
+> As for the technical approach, the idea of defining abstract
+> topologies in terms of roles is natural (even if some additional
+> constraints are needed to make abstract topologies carry enough
+> information). The idea of using a product of the policy and the
+> abstract topology as an intermediate representation is also
+> reasonable.
+
+> However, the template generation component is disappointing. This
+> description of this process in the paper primarily speaks of the
+> particular example of the BGP protocol. This makes it hard to tell the
+> scope of the method. Given that the paper positions itself as a
+> general method for configuration synthesis, this is not adequate.
+
+See the comments about section 7.
+
+> In many other circumstances, I would have requested the authors to
+> come up with a more abstract description of the algorithm in the final
+> version of the paper. The problem in this case is that I don't even
+> see what that more abstract algorithm would be. It seems to me that
+> the method here may only be for a specific application. If that is so,
+> the text in the early parts of the paper needs to be significantly
+> rewritten.
+
+> The experimental results are impressive. Specifically, the method
+> seems to offer substantially better performance than the existing
+> Propane system. However, the paper doesn't discuss the effort required
+> in defining the specification (in particular the abstract topology),
+> and this is a flaw.

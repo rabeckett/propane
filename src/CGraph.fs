@@ -321,7 +321,7 @@ let toDot (cg : T) (pi : Ast.PolInfo) : string =
             let label = sprintf "%s, %s" state location
             v.VertexFormatter.Label <- label
          else 
-            let label = sprintf "%s, %s\nRank=%d" state location v.Vertex.Accept
+            let label = sprintf "%s, %s, Rank=%d" state location v.Vertex.Accept
             v.VertexFormatter.Label <- label
             v.VertexFormatter.Shape <- Graphviz.Dot.GraphvizVertexShape.DoubleCircle
             v.VertexFormatter.Style <- Graphviz.Dot.GraphvizVertexStyle.Filled

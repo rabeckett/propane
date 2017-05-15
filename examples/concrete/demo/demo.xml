@@ -1,0 +1,35 @@
+<topology asn="100">
+  <node internal="true" name="A"></node>
+  <node internal="true" name="B"></node>
+  <node internal="true" name="C"></node>
+  <node internal="true" name="D"></node>
+  <node internal="true" name="E"></node>
+  <node internal="true" name="F"></node>
+  <node internal="true" name="G"></node>
+  <node internal="true" name="H"></node>
+  <node internal="true" name="I"></node>
+  <node internal="true" name="J"></node>
+  <node internal="false" asn="200" name="CORE"></node>
+  <node internal="false" asn="300" name="IDAT"></node>
+
+  <edge source="A" target="E"></edge>
+  <edge source="A" target="F"></edge>
+  <edge source="B" target="E"></edge>
+  <edge source="B" target="F"></edge>
+  <edge source="C" target="G"></edge>
+  <edge source="C" target="H"></edge>
+  <edge source="D" target="G"></edge>
+  <edge source="D" target="H"></edge>
+  <edge source="E" target="I"></edge>
+  <edge source="E" target="J"></edge>
+  <edge source="F" target="I"></edge>
+  <edge source="F" target="J"></edge>
+  <edge source="G" target="I"></edge>
+  <edge source="G" target="J"></edge>
+  <edge source="H" target="I"></edge>
+  <edge source="H" target="J"></edge>
+  <edge source="I" target="CORE"></edge>
+  <edge source="I" target="IDAT"></edge>
+  <edge source="J" target="CORE"></edge>
+  <edge source="J" target="IDAT"></edge>
+</topology>

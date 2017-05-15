@@ -1,0 +1,184 @@
+\documentclass[10pt]{sig-alternate}
+
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{url}
+\usepackage{xspace}
+
+\newcommand{\EG}{\emph{e.g.}}
+\newcommand{\sysname}{{\small \sf Propane}\xspace}
+\newcommand{\para}[1]{\paragraph*{\textbf{#1}}}
+
+\newfont{\mycrnotice}{ptmr8t at 7pt}
+\newfont{\myconfname}{ptmri8t at 7pt}
+\let\crnotice\mycrnotice
+\let\confname\myconfname
+
+\permission{Permission to make digital or hard copies of all or part of this work for personal or classroom use is granted without fee provided that copies are not made or distributed for profit or commercial advantage and that copies bear this notice and the full citation on the first page. Copyrights for components of this work owned by others than ACM must be honored. Abstracting with credit is permitted. To copy otherwise, or republish, to post on servers or to redistribute to lists, requires prior specific permission and/or a fee. Request permissions from Permissions@acm.org.}
+
+\begin{document}
+\title{Demo: Programming Distributed Control Planes}
+\subtitle{Invited Demo}
+ 
+\author{%
+Ryan Beckett\\
+  \affaddr{Princeton}
+  %\\
+  %\email{rbeckett@princeton.edu}
+\and
+Ratul Mahajan\\
+  \affaddr{Microsoft}
+  %\\
+  %\email{ratul@microsoft.com}
+\and
+Jitendra Padhye\\
+  \affaddr{Microsoft}
+  %\\
+  %\email{padhye@microsoft.com}
+\and
+Todd Millstein\\
+  \affaddr{UCLA}
+  %\affaddr{University of California, Los Angeles}
+  %\\
+  %\email{todd@cs.ucla.edu}
+\and
+David Walker\\
+  \affaddr{Princeton}
+  %\\
+  %\email{dpw@princeton.edu}
+}
+
+\CopyrightYear{2017} 
+\setcopyright{acmlicensed}
+\conferenceinfo{SOSR '17,}{April 03 - 04, 2017, Santa Clara, CA, USA}
+\isbn{978-1-4503-4947-5/17/04}\acmPrice{\$15.00}
+\doi{http://dx.doi.org/10.1145/3050220.3063774}
+
+\maketitle
+
+
+\begin{abstract} 
+We describe \sysname, a system that consists of a language for specifying the end-to-end routing policy for a network and a compiler for implementing the policy by generating a collection of device configurations for the BGP routing protocol that run on unmodified vendor hardware. \sysname allows operators to describe their policy through high-level constraints on both the shape and preference of paths for different types of traffic. Constraints can describe paths both through the user's network, as well as through other networks that are not under the user's control.
+When \sysname compiles a policy, the resulting BGP configurations are guaranteed to 
+correctly implement the centralized policy in a distributed fashion -- without any centralized coordination and regardless of any number of network failures.
+\end{abstract}
+
+%=====================================================
+%
+%
+%  **Keywords and Descriptions**
+%
+%
+%=====================================================
+
+%\category{C.2.3}{Computer-Communication Networks}{Network Operations}
+%\category{D.2.2}{Software Engineering}{Design Tools and Techniques}
+
+\begin{CCSXML}
+<ccs2012>
+<concept>
+<concept_id>10003033.10003083.10003098</concept_id>
+<concept_desc>Networks~Network manageability</concept_desc>
+<concept_significance>300</concept_significance>
+</concept>
+<concept>
+<concept_id>10003033.10003099.10003104</concept_id>
+<concept_desc>Networks~Network management</concept_desc>
+<concept_significance>300</concept_significance>
+</concept>
+<concept>
+<concept_id>10003033.10003068.10003073.10003075</concept_id>
+<concept_desc>Networks~Network control algorithms</concept_desc>
+<concept_significance>300</concept_significance>
+</concept>
+<concept>
+<concept_id>10011007.10011006.10011050.10011017</concept_id>
+<concept_desc>Software and its engineering~Domain specific languages</concept_desc>
+<concept_significance>300</concept_significance>
+</concept>
+</ccs2012>
+\end{CCSXML}
+
+\ccsdesc[300]{Networks~Network manageability}
+\ccsdesc[300]{Networks~Network management}
+\ccsdesc[300]{Networks~Network control algorithms}
+\ccsdesc[300]{Software and its engineering~Domain specific languages}
+
+\printccsdesc
+
+\keywords{Propane; Domain-specific Language; BGP; Fault Tolerance; Compilation, SDN, Network Control Plane}
+
+%=====================================================
+%
+%
+%  **Introduction**
+%
+%
+%=====================================================
+
+\section{Introduction}
+ 
+Operators of networks have a difficult job: They are charged
+with achieving a wide variety of network-wide objectives, but they must do so by
+managing and configuring many individual, separate devices, each of which runs
+complex distributed control plane protocols. 
+Many policies involve network-wide properties, for example to prefer a certain neighbor, keep certain traffic in a geographic region, or use a particular path only as a backup -- yet configurations describe the behavior of individual devices.
+%
+In addition, existing languages
+for network configuration provided by vendors are too low level, requiring operators to work with assembly-language-like primitives such as route-filters, community tags, and local-preference. 
+%
+It is up to the operator then to perform the intellectually challenging task of decomposing a network-wide policy into a collection of distributed device policies such that their distributed interactions emulate the original policy.
+
+To make matters worse, the possibility for network failures is an 
+ever-present concern that significantly complicates the operator's task. 
+Reasoning about all possible combinations of failures
+and their potential impact on a distributed system is simply too hard for most humans. 
+It is not surprising then that configurations that work correctly in fault-free 
+environments, may not work when network elements go down~\cite{batfish}.
+%
+As a consequence of the difficulty of achieving network-wide objectives through device-level configuration, in practice, configuration errors are responsible for a large number of highly disruptive network outages~\cite{time-warner,batfish,mahajan+:bgp-misconfiguration,yankee-study,juniper-study}.
+
+In recent years, Software-Defined Networking (SDN) has become an alternative 
+approach to traditional network configuration. Rather than defining routing policy
+through a collection of configurations that compute routes via well-known distributed
+protocols, users can directly program the forwarding tables of SDN-enabled switches via
+a centralized controller.
+
+However, the SDN approach comes with its own set of challenges. For one, centralized SDN systems introduce a potential single point of failure and thus must be carefully designed with robustness in mind. The controller(s) must always be able to communicate with every switch even when failures occur, or if the network is large and geographically-distributed. Furthermore, such systems must also be carefully engineered for low-latency and scalability since the centralized controller can quickly become a potential performance bottleneck. For many of these challenges, researchers have looked at systems with multiple, interacting controllers, thus bringing back some aspects of distributed
+control planes~\cite{onos,mccauley2013extending}.
+Second, current SDN systems focus only on configuration of intra-domain routing policy, forcing users to fall back to traditional methods for configuring inter-domain routing policy.
+More pragmatically, many networks will continue to use a distributed control plane for the foreseeable future, due to the difficulty of migrating to SDN or the inherent scalability and failure-robustness of distributed control.
+
+\para{Language Overview}
+Our recent effort to simplify the task of programming distributed control planes has lead to the design and implementation of a new language called \sysname, which allows operators to specify their objectives using high-level, \emph{end-to-end} constraints on forwarding paths rather than writing explicit device-by-device configurations.
+%
+More specifically, \sysname allows operators to describe the kinds of paths traffic may or may not follow, as well as the relative preferences of such paths. Paths can reference both devices in the network as well as other networks that are not under the control of the operator. 
+
+Taken together, these constraints allow users to describe a wide variety of rich routing policies. For example, a user can require that two nodes be reachable, that traffic never leaves a particular part of the network, or that traffic is waypointed through middleboxes. In addition, path preferences allow operators to write policies that describe the desired behavior of the network after failures occur, such as preferring to use routes through one neighboring network over another, or using particular paths only as backups for other paths when they become unavailable.
+
+%The \sysname language also supports network operators by defining a set of common abbreviations for entering, leaving, and traversing the user network and provides abstractions for managing common features of control plane algorithms such as route aggregation. Operators use familiar logical operations to build routes in a modular and compositional manner. 
+
+\para{Compiler Overview}
+
+The \sysname compiler rather than a human is responsible for bridging the gap between high-level goals and the low-level mechanisms. \sysname analyzes these user specifications and then compiles them to a collection of BGP configurations, so they may exploit existing distributed policy and fault tolerance mechanisms and execute on existing commodity hardware. During the compilation process, the compiler automatically synthesizes low-level configuration primitives such as per-device import and export filters as well as BGP local preferences, MED attributes, and community tags. The compiler accomplishes this by first transforming the policy into a graph-based intermediate representation that is more amenable to compilation and analysis.
+
+An important feature of the language is that if possible, compiled configurations are guaranteed to implement the correct routing policy, regardless of any number of failures that might occur in the network. This guarantee does not mean that the implementation can, for example, ensure that two nodes are always reachable (\EG, when there is no path available in the topology), but rather that traffic is always forwarded according to the centralized policy, which may require dropping traffic when there is no path. If correct compilation is impossible, the compiler notifies the user at compile time rather than waiting until the system is deployed in operation and failures have occurred in the network.
+
+Overall, we believe the approach taken with \sysname combines easy programmability of centralized control planes with the failure robustness and scalability of distributed control planes.
+
+
+\para{Demo Overview}
+The \sysname demo will give a brief overview of the language and compiler by demonstrating how to write and compile a simple \sysname policy for a data center network. We will then demonstrate how the generated configurations can be emulated using Quagga router software with the open-source CORE network emulator. An overview of what the demo can look like can be found here:
+
+\vspace{1em}
+\begin{sloppypar}
+\url{https://drive.google.com/open?id=0B-rjACAtTwE_c0JGczdNRFBYcEE}
+\end{sloppypar}
+
+\para{Acknowledgments}
+We thank R. Aditya, George Chen, and Lihua Yuan for feedback on the work and the SIGCOMM reviewers for comments on the work. This work is supported in part by the National Science Foundation awards CNS-1161595 as well as a gift from Cisco.
+
+\bibliographystyle{abbrv}
+\bibliography{references}
+
+\end{document}

@@ -1,5 +1,0 @@
-<topology asn="100">
-  <node internal="true" name="A"></node>
-  <node internal="true" name="B"></node>
-  <edge source="A" target="B"></edge>
-</topology>
