@@ -12,6 +12,9 @@ type T =
      Parallel : bool
      Cbgp : bool
      Test : bool
+     GenLinkTests : bool
+     GenPrefTests : bool
+     Coverage : Option<int>
      Bench : bool
      Debug : bool
      DebugDir : string

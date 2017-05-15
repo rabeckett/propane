@@ -6,7 +6,7 @@ open System.IO
 type T = 
    { PolFile : string option
      TopoFile : string option
-     OutDir : string
+     OutDir : string  
      Anycast : bool
      UseMed : bool
      UsePrepending : bool
@@ -15,6 +15,9 @@ type T =
      Parallel : bool
      Cbgp : bool
      Test : bool
+     GenLinkTests : bool 
+     GenPrefTests : bool
+     Coverage : Option<int>
      Bench : bool
      Debug : bool
      DebugDir : string
@@ -57,6 +60,9 @@ Options:
     --test               Run compiler unit tests.
     --bench              Generate benchmark policies.
     --debug              Output debugging information.
+    --genLinkTests       Generate exhaustive link coverage test cases
+    --genPrefTests       Generate preference coverage test cases
+    --coverage k         k % random coverage of tests 
 """
 
 let checkFile f = 
@@ -84,6 +90,11 @@ let getDir (vo : ValueObject) =
    else Some(string vo)
 
 let getFailures (vo : ValueObject) = 
+   if vo = null then None
+   else Some(vo.AsInt)
+
+
+let getCoverage (vo : ValueObject) =
    if vo = null then None
    else Some(vo.AsInt)
 
@@ -116,6 +127,9 @@ let parse (argv : string []) : unit =
         UseNoExport = vs.["--noexport"].IsTrue
         Cbgp = vs.["--cbgp"].IsTrue
         Test = vs.["--test"].IsTrue
+        Coverage = getCoverage vs.["--coverage"]
+        GenLinkTests = vs.["--genLinkTests"].IsTrue
+        GenPrefTests = vs.["--genPrefTests"].IsTrue
         Bench = vs.["--bench"].IsTrue
         Debug = vs.["--debug"].IsTrue
         DebugDir = !debugDir

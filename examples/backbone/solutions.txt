@@ -1,0 +1,742 @@
+New Set for prefix 
+New Solution
+(1, start)->(3, 500)
+(3, 500)->(3, 200)
+(3, 200)->(4, 65533)
+(3, 200)->(5, 65534)
+(4, 65533)->(4, 65532)
+(5, 65534)->(5, 65533)
+(4, 65531)->(7, 400)
+(4, 65532)->(4, 65531)
+(5, 65531)->(2, end)
+(5, 65533)->(5, 65531)
+(7, 400)->(2, end)
+
+New Set for prefix 
+
+New Set for prefix 
+New Solution
+(1, start)->(3, 500)
+(3, 500)->(3, 200)
+(3, 200)->(4, 65533)
+(3, 200)->(5, 65534)
+(4, 65533)->(4, 65532)
+(5, 65534)->(5, 65533)
+(4, 65532)->(7, 300)
+(5, 65532)->(8, 300)
+(5, 65533)->(5, 65532)
+(7, 300)->(2, end)
+(8, 300)->(2, end)
+
+New Set for prefix 
+
+New Set for prefix 
+New Solution
+(1, start)->(3, 500)
+(3, 500)->(3, 200)
+(3, 200)->(4, 65533)
+(3, 200)->(5, 65534)
+(4, 65533)->(4, 65531)
+(5, 65534)->(5, 65533)
+(4, 65531)->(4, 65532)
+(4, 65532)->(7, 300)
+(5, 65532)->(8, 300)
+(5, 65533)->(5, 65532)
+(7, 300)->(2, end)
+(8, 300)->(2, end)
+
+New Set for prefix 
+
+New Set for prefix 
+New Solution
+(1, start)->(3, 500)
+(3, 500)->(3, 200)
+(3, 200)->(4, 65533)
+(3, 200)->(5, 65534)
+(4, 65533)->(4, 65534)
+(5, 65534)->(5, 65532)
+(4, 65531)->(4, 65532)
+(4, 65532)->(7, 300)
+(4, 65534)->(4, 65531)
+(5, 65532)->(8, 300)
+(7, 300)->(2, end)
+(8, 300)->(2, end)
+
+New Set for prefix 
+
+test0.cli
+(1, start) (3, 500)
+test0.cli
+(3, 500) (3, 200)
+test0.cli
+(3, 200) (4, 65533)
+test0.cli
+(3, 200) (5, 65534)
+test0.cli
+(4, 65533) (4, 65531)
+test0.cli
+(5, 65534) (5, 65533)
+test0.cli
+(4, 65531) (4, 65532)
+test0.cli
+(4, 65532) (7, 300)
+test0.cli
+(5, 65532) (8, 300)
+test0.cli
+(5, 65533) (5, 65532)
+test0.cli
+(7, 300) (2, end)
+test0.cli
+(8, 300) (2, end)
+test0.cli last router is 300
+test1.cli
+(1, start) (3, 500)
+test1.cli
+(3, 500) (3, 200)
+test1.cli
+(3, 200) (4, 65533)
+test1.cli
+(3, 200) (5, 65534)
+test1.cli
+(4, 65533) (4, 65532)
+test1.cli
+(5, 65534) (5, 65533)
+test1.cli
+(4, 65531) (7, 400)
+test1.cli
+(4, 65532) (4, 65531)
+test1.cli
+(5, 65531) (2, end)
+test1.cli
+(5, 65533) (5, 65531)
+test1.cli
+(7, 400) (2, end)
+test1.cli last router is 65531
+test2.cli
+(1, start) (3, 500)
+test2.cli
+(3, 500) (3, 200)
+test2.cli
+(3, 200) (4, 65533)
+test2.cli
+(3, 200) (5, 65534)
+test2.cli
+(4, 65533) (4, 65532)
+test2.cli
+(5, 65534) (5, 65533)
+test2.cli
+(4, 65532) (7, 300)
+test2.cli
+(5, 65532) (8, 300)
+test2.cli
+(5, 65533) (5, 65532)
+test2.cli
+(7, 300) (2, end)
+test2.cli
+(8, 300) (2, end)
+test2.cli last router is 300
+test3.cli
+(1, start) (3, 500)
+test3.cli
+(3, 500) (3, 200)
+test3.cli
+(3, 200) (4, 65533)
+test3.cli
+(3, 200) (5, 65534)
+test3.cli
+(4, 65533) (4, 65534)
+test3.cli
+(5, 65534) (5, 65532)
+test3.cli
+(4, 65531) (4, 65532)
+test3.cli
+(4, 65532) (7, 300)
+test3.cli
+(4, 65534) (4, 65531)
+test3.cli
+(5, 65532) (8, 300)
+test3.cli
+(7, 300) (2, end)
+test3.cli
+(8, 300) (2, end)
+test3.cli last router is 300
+New Set for prefix 
+New Solution
+(1, start)->(3, 500)
+(3, 500)->(3, 200)
+(3, 200)->(4, 65533)
+(3, 200)->(5, 65534)
+(4, 65533)->(4, 65532)
+(5, 65534)->(5, 65533)
+(4, 65531)->(7, 400)
+(4, 65532)->(4, 65531)
+(5, 65531)->(2, end)
+(5, 65533)->(5, 65531)
+(7, 400)->(2, end)
+
+New Set for prefix 
+
+New Set for prefix 
+New Solution
+(1, start)->(3, 500)
+(3, 500)->(3, 200)
+(3, 200)->(4, 65533)
+(3, 200)->(5, 65534)
+(4, 65533)->(4, 65532)
+(5, 65534)->(5, 65533)
+(4, 65532)->(7, 300)
+(5, 65532)->(8, 300)
+(5, 65533)->(5, 65532)
+(7, 300)->(2, end)
+(8, 300)->(2, end)
+
+New Set for prefix 
+
+New Set for prefix 
+New Solution
+(1, start)->(3, 500)
+(3, 500)->(3, 200)
+(3, 200)->(4, 65533)
+(3, 200)->(5, 65534)
+(4, 65533)->(4, 65531)
+(5, 65534)->(5, 65533)
+(4, 65531)->(4, 65532)
+(4, 65532)->(7, 300)
+(5, 65532)->(8, 300)
+(5, 65533)->(5, 65532)
+(7, 300)->(2, end)
+(8, 300)->(2, end)
+
+New Set for prefix 
+
+New Set for prefix 
+New Solution
+(1, start)->(3, 500)
+(3, 500)->(3, 200)
+(3, 200)->(4, 65533)
+(3, 200)->(5, 65534)
+(4, 65533)->(4, 65534)
+(5, 65534)->(5, 65532)
+(4, 65531)->(4, 65532)
+(4, 65532)->(7, 300)
+(4, 65534)->(4, 65531)
+(5, 65532)->(8, 300)
+(7, 300)->(2, end)
+(8, 300)->(2, end)
+
+New Set for prefix 
+
+test0.cli
+(1, start) (3, 500)
+ASstart Princeton
+test0.cli
+(3, 500) (3, 200)
+Princeton Cust
+test0.cli
+(3, 200) (4, 65533)
+Cust R2
+test0.cli
+(3, 200) (5, 65534)
+Cust R1
+test0.cli
+(4, 65533) (4, 65531)
+R2 R4
+test0.cli
+(5, 65534) (5, 65533)
+R1 R2
+test0.cli
+(4, 65531) (4, 65532)
+R4 R3
+test0.cli
+(4, 65532) (7, 300)
+R3 Sprint
+test0.cli
+(5, 65532) (8, 300)
+R3 Sprint
+test0.cli
+(5, 65533) (5, 65532)
+R2 R3
+test0.cli
+(7, 300) (2, end)
+Sprint ASend
+test0.cli
+(8, 300) (2, end)
+Sprint ASend
+test1.cli
+(1, start) (3, 500)
+ASstart Princeton
+test1.cli
+(3, 500) (3, 200)
+Princeton Cust
+test1.cli
+(3, 200) (4, 65533)
+Cust R2
+test1.cli
+(3, 200) (5, 65534)
+Cust R1
+test1.cli
+(4, 65533) (4, 65532)
+R2 R3
+test1.cli
+(5, 65534) (5, 65533)
+R1 R2
+test1.cli
+(4, 65531) (7, 400)
+R4 Level3
+test1.cli
+(4, 65532) (4, 65531)
+R3 R4
+test1.cli
+(5, 65531) (2, end)
+R4 ASend
+test1.cli
+(5, 65533) (5, 65531)
+R2 R4
+test1.cli
+(7, 400) (2, end)
+Level3 ASend
+test2.cli
+(1, start) (3, 500)
+ASstart Princeton
+test2.cli
+(3, 500) (3, 200)
+Princeton Cust
+test2.cli
+(3, 200) (4, 65533)
+Cust R2
+test2.cli
+(3, 200) (5, 65534)
+Cust R1
+test2.cli
+(4, 65533) (4, 65532)
+R2 R3
+test2.cli
+(5, 65534) (5, 65533)
+R1 R2
+test2.cli
+(4, 65532) (7, 300)
+R3 Sprint
+test2.cli
+(5, 65532) (8, 300)
+R3 Sprint
+test2.cli
+(5, 65533) (5, 65532)
+R2 R3
+test2.cli
+(7, 300) (2, end)
+Sprint ASend
+test2.cli
+(8, 300) (2, end)
+Sprint ASend
+test3.cli
+(1, start) (3, 500)
+ASstart Princeton
+test3.cli
+(3, 500) (3, 200)
+Princeton Cust
+test3.cli
+(3, 200) (4, 65533)
+Cust R2
+test3.cli
+(3, 200) (5, 65534)
+Cust R1
+test3.cli
+(4, 65533) (4, 65534)
+R2 R1
+test3.cli
+(5, 65534) (5, 65532)
+R1 R3
+test3.cli
+(4, 65531) (4, 65532)
+R4 R3
+test3.cli
+(4, 65532) (7, 300)
+R3 Sprint
+test3.cli
+(4, 65534) (4, 65531)
+R1 R4
+test3.cli
+(5, 65532) (8, 300)
+R3 Sprint
+test3.cli
+(7, 300) (2, end)
+Sprint ASend
+test3.cli
+(8, 300) (2, end)
+Sprint ASend
+New Set for prefix 
+New Solution
+(1, start)->(3, 500)
+(3, 500)->(3, 200)
+(3, 200)->(4, 65533)
+(3, 200)->(5, 65534)
+(4, 65533)->(4, 65534)
+(5, 65534)->(5, 65532)
+(4, 65531)->(2, end)
+(4, 65532)->(4, 65531)
+(4, 65534)->(4, 65532)
+(5, 65531)->(2, end)
+(5, 65532)->(5, 65531)
+
+New Set for prefix 
+
+New Set for prefix 
+New Solution
+(1, start)->(3, 500)
+(3, 500)->(3, 200)
+(3, 200)->(4, 65533)
+(3, 200)->(5, 65534)
+(4, 65533)->(4, 65534)
+(5, 65534)->(5, 65532)
+(4, 65532)->(2, end)
+(4, 65534)->(4, 65532)
+(5, 65532)->(2, end)
+
+New Set for prefix 
+
+New Set for prefix 
+New Solution
+(1, start)->(3, 500)
+(3, 500)->(3, 200)
+(3, 200)->(4, 65533)
+(3, 200)->(5, 65534)
+(4, 65533)->(4, 65532)
+(5, 65534)->(5, 65533)
+(4, 65532)->(7, 300)
+(5, 65532)->(8, 300)
+(5, 65533)->(5, 65532)
+(7, 300)->(2, end)
+(8, 300)->(2, end)
+
+New Set for prefix 
+
+New Set for prefix 
+New Solution
+(1, start)->(3, 500)
+(3, 500)->(3, 200)
+(3, 200)->(4, 65533)
+(3, 200)->(5, 65534)
+(4, 65533)->(4, 65534)
+(5, 65534)->(5, 65532)
+(4, 65532)->(7, 300)
+(4, 65534)->(4, 65532)
+(5, 65532)->(8, 300)
+(7, 300)->(2, end)
+(8, 300)->(2, end)
+
+New Set for prefix 
+
+test0.cli
+(1, start) (3, 500)
+ASstart Princeton
+test0.cli
+(3, 500) (3, 200)
+Princeton Cust
+test0.cli
+(3, 200) (4, 65533)
+Cust R2
+test0.cli
+(3, 200) (5, 65534)
+Cust R1
+test0.cli
+(4, 65533) (4, 65532)
+R2 R3
+test0.cli
+(5, 65534) (5, 65533)
+R1 R2
+test0.cli
+(4, 65532) (7, 300)
+R3 Sprint
+test0.cli
+(5, 65532) (8, 300)
+R3 Sprint
+test0.cli
+(5, 65533) (5, 65532)
+R2 R3
+test0.cli
+(7, 300) (2, end)
+Sprint ASend
+test0.cli
+(8, 300) (2, end)
+Sprint ASend
+test1.cli
+(1, start) (3, 500)
+ASstart Princeton
+test1.cli
+(3, 500) (3, 200)
+Princeton Cust
+test1.cli
+(3, 200) (4, 65533)
+Cust R2
+test1.cli
+(3, 200) (5, 65534)
+Cust R1
+test1.cli
+(4, 65533) (4, 65534)
+R2 R1
+test1.cli
+(5, 65534) (5, 65532)
+R1 R3
+test1.cli
+(4, 65531) (2, end)
+R4 ASend
+test1.cli
+(4, 65532) (4, 65531)
+R3 R4
+test1.cli
+(4, 65534) (4, 65532)
+R1 R3
+test1.cli
+(5, 65531) (2, end)
+R4 ASend
+test1.cli
+(5, 65532) (5, 65531)
+R3 R4
+test2.cli
+(1, start) (3, 500)
+ASstart Princeton
+test2.cli
+(3, 500) (3, 200)
+Princeton Cust
+test2.cli
+(3, 200) (4, 65533)
+Cust R2
+test2.cli
+(3, 200) (5, 65534)
+Cust R1
+test2.cli
+(4, 65533) (4, 65534)
+R2 R1
+test2.cli
+(5, 65534) (5, 65532)
+R1 R3
+test2.cli
+(4, 65532) (2, end)
+R3 ASend
+test2.cli
+(4, 65534) (4, 65532)
+R1 R3
+test2.cli
+(5, 65532) (2, end)
+R3 ASend
+test3.cli
+(1, start) (3, 500)
+ASstart Princeton
+test3.cli
+(3, 500) (3, 200)
+Princeton Cust
+test3.cli
+(3, 200) (4, 65533)
+Cust R2
+test3.cli
+(3, 200) (5, 65534)
+Cust R1
+test3.cli
+(4, 65533) (4, 65534)
+R2 R1
+test3.cli
+(5, 65534) (5, 65532)
+R1 R3
+test3.cli
+(4, 65532) (7, 300)
+R3 Sprint
+test3.cli
+(4, 65534) (4, 65532)
+R1 R3
+test3.cli
+(5, 65532) (8, 300)
+R3 Sprint
+test3.cli
+(7, 300) (2, end)
+Sprint ASend
+test3.cli
+(8, 300) (2, end)
+Sprint ASend
+New Set for prefix 
+New Solution
+(1, start)->(3, 500)
+(3, 500)->(3, 200)
+(3, 200)->(4, 65533)
+(3, 200)->(5, 65534)
+(4, 65533)->(4, 65534)
+(5, 65534)->(5, 65532)
+(4, 65531)->(2, end)
+(4, 65532)->(4, 65531)
+(4, 65534)->(4, 65532)
+(5, 65531)->(2, end)
+(5, 65532)->(5, 65531)
+
+New Set for prefix 
+
+New Set for prefix 
+New Solution
+(1, start)->(3, 500)
+(3, 500)->(3, 200)
+(3, 200)->(4, 65533)
+(3, 200)->(5, 65534)
+(4, 65533)->(4, 65534)
+(5, 65534)->(5, 65532)
+(4, 65532)->(2, end)
+(4, 65534)->(4, 65532)
+(5, 65532)->(2, end)
+
+New Set for prefix 
+
+New Set for prefix 
+New Solution
+(1, start)->(3, 500)
+(3, 500)->(3, 200)
+(3, 200)->(4, 65533)
+(3, 200)->(5, 65534)
+(4, 65533)->(4, 65532)
+(5, 65534)->(5, 65533)
+(4, 65532)->(7, 300)
+(5, 65532)->(8, 300)
+(5, 65533)->(5, 65532)
+(7, 300)->(2, end)
+(8, 300)->(2, end)
+
+New Set for prefix 
+
+New Set for prefix 
+New Solution
+(1, start)->(3, 500)
+(3, 500)->(3, 200)
+(3, 200)->(4, 65533)
+(3, 200)->(5, 65534)
+(4, 65533)->(4, 65534)
+(5, 65534)->(5, 65532)
+(4, 65532)->(7, 300)
+(4, 65534)->(4, 65532)
+(5, 65532)->(8, 300)
+(7, 300)->(2, end)
+(8, 300)->(2, end)
+
+New Set for prefix 
+
+test0.cli
+(1, start) (3, 500)
+ASstart Princeton
+test0.cli
+(3, 500) (3, 200)
+Princeton Cust
+test0.cli
+(3, 200) (4, 65533)
+Cust R2
+test0.cli
+(3, 200) (5, 65534)
+Cust R1
+test0.cli
+(4, 65533) (4, 65532)
+R2 R3
+test0.cli
+(5, 65534) (5, 65533)
+R1 R2
+test0.cli
+(4, 65532) (7, 300)
+R3 Sprint
+test0.cli
+(5, 65532) (8, 300)
+R3 Sprint
+test0.cli
+(5, 65533) (5, 65532)
+R2 R3
+test0.cli
+(7, 300) (2, end)
+Sprint ASend
+test0.cli
+(8, 300) (2, end)
+Sprint ASend
+test1.cli
+(1, start) (3, 500)
+ASstart Princeton
+test1.cli
+(3, 500) (3, 200)
+Princeton Cust
+test1.cli
+(3, 200) (4, 65533)
+Cust R2
+test1.cli
+(3, 200) (5, 65534)
+Cust R1
+test1.cli
+(4, 65533) (4, 65534)
+R2 R1
+test1.cli
+(5, 65534) (5, 65532)
+R1 R3
+test1.cli
+(4, 65531) (2, end)
+R4 ASend
+test1.cli
+(4, 65532) (4, 65531)
+R3 R4
+test1.cli
+(4, 65534) (4, 65532)
+R1 R3
+test1.cli
+(5, 65531) (2, end)
+R4 ASend
+test1.cli
+(5, 65532) (5, 65531)
+R3 R4
+test2.cli
+(1, start) (3, 500)
+ASstart Princeton
+test2.cli
+(3, 500) (3, 200)
+Princeton Cust
+test2.cli
+(3, 200) (4, 65533)
+Cust R2
+test2.cli
+(3, 200) (5, 65534)
+Cust R1
+test2.cli
+(4, 65533) (4, 65534)
+R2 R1
+test2.cli
+(5, 65534) (5, 65532)
+R1 R3
+test2.cli
+(4, 65532) (2, end)
+R3 ASend
+test2.cli
+(4, 65534) (4, 65532)
+R1 R3
+test2.cli
+(5, 65532) (2, end)
+R3 ASend
+test3.cli
+(1, start) (3, 500)
+ASstart Princeton
+test3.cli
+(3, 500) (3, 200)
+Princeton Cust
+test3.cli
+(3, 200) (4, 65533)
+Cust R2
+test3.cli
+(3, 200) (5, 65534)
+Cust R1
+test3.cli
+(4, 65533) (4, 65534)
+R2 R1
+test3.cli
+(5, 65534) (5, 65532)
+R1 R3
+test3.cli
+(4, 65532) (7, 300)
+R3 Sprint
+test3.cli
+(4, 65534) (4, 65532)
+R1 R3
+test3.cli
+(5, 65532) (8, 300)
+R3 Sprint
+test3.cli
+(7, 300) (2, end)
+Sprint ASend
+test3.cli
+(8, 300) (2, end)
+Sprint ASend

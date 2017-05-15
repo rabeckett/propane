@@ -228,6 +228,9 @@ benchmarks/
 # generated test results
 TestResult.xml
 
+#generated testfiles
+test*.cli
+
 # src packages
 src/packages
 

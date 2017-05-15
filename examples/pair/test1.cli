@@ -1,0 +1,83 @@
+net add node 0.0.0.1
+net add node 0.0.0.2
+net add node 0.0.0.3
+net add link 0.0.0.1 0.0.0.2
+
+net node 0.0.0.2 route add 0.0.0.1/32 --oif=0.0.0.1 1
+net node 0.0.0.1 route add 0.0.0.2/32 --oif=0.0.0.2 1
+
+
+bgp add router 65534 0.0.0.1
+bgp router 0.0.0.1
+        add network 4.4.4.4/32
+        add peer 65533 0.0.0.2
+        peer 0.0.0.2
+                filter out
+                        add-rule
+                                match "prefix in 4.4.4.4/32"
+                                action accept
+                        exit
+                        add-rule
+                                match "prefix in 4.4.4.4/32"
+                                action deny
+                        exit
+                        add-rule 
+                                match "community is 10067"
+                                action accept
+                                action "community remove 10067"
+                        exit
+                        add-rule
+                                match "prefix in 0.0.0.0/0"
+                                action deny
+                        exit
+                exit
+                filter in
+                        add-rule
+                                match "prefix in 3.3.3.3/32"
+                                action "community add 10067"
+                                action "local-pref 100"
+                                action accept
+                        exit
+                exit
+        exit
+        peer 0.0.0.2 up
+exit
+bgp add router 65533 0.0.0.2
+bgp router 0.0.0.2
+        add network 3.3.3.3/32
+        add peer 65534 0.0.0.1
+        peer 0.0.0.1
+                filter out
+                        add-rule
+                                match "prefix in 3.3.3.3/32"
+                                action accept
+                        exit
+                        add-rule
+                                match "prefix in 3.3.3.3/32"
+                                action deny
+                        exit
+                        add-rule 
+                                match "community is 10067"
+                                action accept
+                                action "community remove 10067"
+                        exit
+                        add-rule
+                                match "prefix in 0.0.0.0/0"
+                                action deny
+                        exit
+                exit
+                filter in
+                        add-rule
+                                match "prefix in 4.4.4.4/32"
+                                action "community add 10067"
+                                action "local-pref 100"
+                                action accept
+                        exit
+                exit
+        exit
+        peer 0.0.0.1 up
+exit
+sim run
+
+
+bgp router 0.0.0.2 record-route 4.4.4.4/32
