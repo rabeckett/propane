@@ -61,7 +61,6 @@ let main argv =
 
       let sumCoverage = Map.fold (fun s k (_, c) -> if (c = -1.0) then s else s + c) 0.0 predToTests;
       let numKeys = Map.fold (fun s k (_, c) -> if (c = -1.0) then s else s + 1) 0 predToTests;
-      Console.Write("number of predicates: " + (string numKeys));
       let cover = sumCoverage / (float numKeys);            
 
       if settings.CheckFailures then 
