@@ -1,7 +1,6 @@
 ﻿module Abgp
 
 open CGraph
-open TestGenerator
 open System.Collections.Generic
 open Util
 open Util.Debug
@@ -23,9 +22,6 @@ exception UncontrollablePeerPreferenceException of string
 ///    - What they match - peer, community, regex filter
 ///    - The preference of the match (local-pref)
 ///    - A collection of exports for the match (updated local-pref, community, peer)
-
-type Path = Set<CgState*CgState> 
-type TestCases = Set<Path*Path>
 
 type LocalPref = int
 
@@ -202,357 +198,7 @@ let format (config : T) =
       bprintf sb "\n\n"
    sb.ToString()
 
-// add cbgp rule to the appropriate peer based on match criteria
-let addRuleToPeer peer routerTosb (actStr : string) routerNameToIp neighborNodes = 
-  let updateRule k (v : System.Text.StringBuilder) = v.Append actStr 
-
-  let updateIn k (v : System.Text.StringBuilder) =
-    if (Map.containsKey k neighborNodes) then
-      let node = Map.find k neighborNodes
-      if (Topology.isInside node) then 
-        v.Append actStr
-      else 
-        v
-    else
-      v
-
-  let updateOut k (v : System.Text.StringBuilder) =
-    if (Map.containsKey k neighborNodes) then 
-      let node = Map.find k neighborNodes
-      if (Topology.isOutside node) then 
-        v.Append actStr
-      else 
-        v
-    else
-      v 
-    
-
-  // update correpsonding portions of the dictionary
-  let newmap = 
-    match peer with
-    | Any -> Map.map updateRule routerTosb
-    | In -> Map.map updateIn routerTosb
-    | Out -> Map.map updateOut routerTosb 
-    | Router x -> 
-      let routerIp = Map.find x routerNameToIp 
-      if (Map.containsKey x routerTosb) then
-        let v = Map.find x routerTosb
-        Map.add x (v.Append actStr)  routerTosb
-      else routerTosb
-  newmap
-
-// check if any matching peers exists amongst the beigboring nodes
-let isPresent peer neighborNodes routerNameToIp =
-  let isNotOut k v = not (Topology.isUnknown v)
-  let inFilter k v = Topology.isInside v
-  let outFilter k v = Topology.isOutside v
-
-  match peer with
-    | Any -> Map.exists isNotOut neighborNodes
-    | In -> Map.exists inFilter neighborNodes
-    | Out -> Map.exists outFilter neighborNodes
-    | Router x -> 
-        let routerIp = Map.find x routerNameToIp 
-        let thisval = Map.containsKey x neighborNodes in 
-        thisval
-
-//process export rules
-let cbgpExport pi routerTosb peer acts routerNameToIp neighborNodes = 
-   let cbgpString a = 
-    match a with 
-    | SetComm(is) -> sprintf "\n                                action \"community add %s\"" is
-    | SetMed i -> sprintf "\n                                action \"metric %d\"" i
-    | PrependPath i -> sprintf "\n                                action \"as-path prepend %d\"" i
-   let actStr = 
-      if acts <> [] then Util.List.joinBy "\n" (List.map cbgpString acts)
-      else ""
-   let accStr = "\n                                action accept"
-   
-   addRuleToPeer peer routerTosb (actStr + accStr) routerNameToIp neighborNodes
-
-// add import rules wherever relevant
-let cbgpImport pi routerToImportSb (m, lp) comm predStr routerNameToIp neighborNodes =
-  let actStr = "\n                                action \"community add " + comm + "\"" 
-  let lpStr = "\n                                action \"local-pref " + (string lp) + "\""
-  let accStr = "\n                                action accept"
-  let matchStr = "\n                        add-rule\n                                match \"prefix in " + predStr
-  let exitStr = "\n                        exit"
-
-  let mutable flag = false
-  let newsb =
-    match m with
-    | Peer p ->
-        flag <- isPresent p neighborNodes routerNameToIp 
-        if flag then 
-          let newSb = addRuleToPeer p routerToImportSb (matchStr + "\"") routerNameToIp neighborNodes
-          let preExit = addRuleToPeer p newSb (actStr + lpStr + accStr) routerNameToIp neighborNodes
-          addRuleToPeer p preExit exitStr routerNameToIp neighborNodes
-        else
-          routerToImportSb
-    | State (c, p) -> 
-        flag <- isPresent p neighborNodes routerNameToIp 
-        if flag then 
-          let commMatch = " & community is " + c + "\""
-          let newSb = addRuleToPeer p routerToImportSb (matchStr + commMatch) routerNameToIp neighborNodes
-          let preExit = addRuleToPeer p newSb (actStr + lpStr + accStr) routerNameToIp neighborNodes
-          addRuleToPeer p preExit exitStr routerNameToIp neighborNodes
-        else
-          routerToImportSb
-    | PathRE r ->  //TODO for later 
-      flag <- true
-      let newSb = addRuleToPeer Any routerToImportSb (matchStr + "\"") routerNameToIp neighborNodes
-      let preExit = addRuleToPeer Any newSb (actStr + lpStr + accStr) routerNameToIp neighborNodes
-      addRuleToPeer Any preExit exitStr routerNameToIp neighborNodes
-  (newsb, flag)
-
-
-
-// get the actions in cbgp format for export, import after processing predicates
-let getCBGPActions sb routerToExport routerToImport pi pred actions curRouterIp routerNameToIp neighborNodes i =
-   let mutable j = i
-   let mutable routerToEsb = routerToExport 
-   let mutable routerToIsb = routerToImport 
-   let origStr, predStr = 
-      match pred with
-      | Pred p ->
-        let (Route.TrafficClassifier(pref, _)) = List.head (Route.trafficClassifiers p)
-        let s = (string) pref
-        if (String.exists (fun c -> c = 'l') s) then 
-          let temps = (string (pref.Example())) in
-          temps, temps 
-        else s,s
-      | Comm(p, c) -> Route.toString p, "comm=" + c // ??
-   let exitStr = "\n                        exit"
-   match actions with
-   | Filters(o, fs) -> 
-      match o with
-      | None -> ()
-      | Some es -> 
-         bprintf sb "\n        add network %s" origStr
-         let matchStr = "\n                        add-rule\n                                match \"prefix in " + origStr + "\"" 
-         match es with
-         | [ (peer, acts) ] -> 
-              routerToEsb <- addRuleToPeer peer routerToEsb matchStr routerNameToIp neighborNodes
-              routerToEsb <- cbgpExport pi routerToEsb peer acts routerNameToIp neighborNodes
-              routerToEsb <- addRuleToPeer peer routerToEsb exitStr routerNameToIp neighborNodes
-         | _ -> 
-            for (peer, acts) in es do               
-                routerToEsb <- addRuleToPeer peer routerToEsb matchStr routerNameToIp neighborNodes
-                routerToEsb <- cbgpExport pi routerToEsb peer acts routerNameToIp neighborNodes
-                routerToEsb <- addRuleToPeer peer routerToEsb exitStr routerNameToIp neighborNodes
-      for f in fs do
-         match f with
-         | Deny -> 
-            let denystr = "\n                        add-rule" + 
-                          "\n                                match \"prefix in " + predStr + "\"" +   
-                          "\n                                action deny" + exitStr
-            routerToEsb <- Map.map (fun k (v : System.Text.StringBuilder) -> v.Append denystr) routerToEsb 
-         | Allow((m, lp), es) -> 
-            let comm = 10068 - j
-            j <- j + 1
-            let (newIsb, flag) = cbgpImport pi routerToIsb (m, lp) (string comm) predStr routerNameToIp neighborNodes
-            routerToIsb <- newIsb
-            let matchStr = sprintf "\n                        add-rule \n                                match \"community is %d\"" comm
-            let commRemStr = sprintf "\n                                action \"community remove %d\"" comm
-            if flag then
-              match es with
-              | [ (peer, acts) ] -> 
-                routerToEsb <- addRuleToPeer peer routerToEsb matchStr routerNameToIp neighborNodes
-                routerToEsb <- cbgpExport pi routerToEsb peer acts routerNameToIp neighborNodes
-                routerToEsb <- addRuleToPeer peer routerToEsb commRemStr routerNameToIp neighborNodes
-                routerToEsb <- addRuleToPeer peer routerToEsb exitStr routerNameToIp neighborNodes
-              | _ -> 
-                for (peer, acts) in es do
-                    routerToEsb <- addRuleToPeer peer routerToEsb matchStr routerNameToIp neighborNodes
-                    routerToEsb <- cbgpExport pi routerToEsb peer acts routerNameToIp neighborNodes
-                    routerToEsb <- addRuleToPeer peer routerToEsb commRemStr routerNameToIp neighborNodes
-                    routerToEsb <- addRuleToPeer peer routerToEsb exitStr routerNameToIp neighborNodes              
-   (j, sb, routerToEsb, routerToIsb) 
-
-// main routine to get the cbgp configuration associated with a given vertex
-let getCBGPConfig (config : T) (vertex: CGraph.CgState) (isStart: bool) (pref : string) (neighbors : seq<string>) (routerNameToIp : Map<string, string>) (neighborNodes : Map<string, Topology.Node>) =
-  if (Map.containsKey vertex.Node.Loc config.RConfigs) then 
-    let routerConfig = Map.find vertex.Node.Loc config.RConfigs
-    let ti = config.PolInfo.Ast.TopoInfo
-    let routerName = vertex.Node.Loc 
-    let routerIp = Map.find routerName routerNameToIp
-    let mutable sb = System.Text.StringBuilder()
-    let mutable routerToEsb : Map<string, System.Text.StringBuilder> = Map.empty 
-    let mutable routerToIsb : Map<string, System.Text.StringBuilder> = Map.empty 
-
-    let mutable flag = 0
-    for s in neighbors do
-      flag <- 1
-      routerToEsb <- Map.add s (System.Text.StringBuilder ()) routerToEsb
-      routerToIsb <- Map.add s (System.Text.StringBuilder ()) routerToIsb
-
-    // get export import peer rules and build string builders for each
-    let myStr = "\nbgp add router " + routerName + " " + routerIp + "\nbgp router " + routerIp
-    sb <- sb.Append myStr
-    let mutable i = 0
-    for (pred, actions) in routerConfig.Actions do
-      let (newi, tempsb, tempEsb, tempIsb) = getCBGPActions sb routerToEsb routerToIsb config.PolInfo pred actions routerIp routerNameToIp neighborNodes i
-      i <- newi + 1
-      routerToEsb <- tempEsb
-      routerToIsb <- tempIsb
-      sb <- tempsb
-
-    // print from string builder onto actual output
-    for kv in routerToEsb do
-      flag <- 1
-      let peer = kv.Key 
-      let peerIp = Map.find peer routerNameToIp
-      let mutable isFiltered = false
-      let routerStr = ("\n        add peer " + peer + " " + peerIp)
-      sb <- sb.Append routerStr
-      if (String.Compare ((kv.Value.ToString ()),"") <> 0) then 
-        bprintf sb "\n        peer %s" peerIp
-        isFiltered <- true
-        bprintf sb "\n                filter out"
-        sb <- sb.Append (kv.Value.ToString())
-        bprintf sb "\n                exit"
-      let routerCBGP = Map.find peer routerToIsb
-      if (String.Compare ((routerCBGP.ToString ()),"") <> 0) then 
-        if (not isFiltered) then
-          bprintf sb "\n        peer %s" peerIp
-          isFiltered <- true        
-        bprintf sb "\n                filter in"
-        sb <- sb.Append (routerCBGP)
-        bprintf sb "\n                exit"
-      if (isFiltered) then bprintf sb "\n        exit"
-      bprintf sb "\n        peer %s up" peerIp
-    bprintf sb "\nexit"
-    sb.ToString()
-  else
-      // special ownership and peer setup for external AS routers
-      if (Topology.isOutside vertex.Node) then
-        let mutable sb = System.Text.StringBuilder()
-        let routerName = vertex.Node.Loc 
-        let routerIp = Map.find routerName routerNameToIp
-        let myStr = "\nbgp add router " + routerName + " " + routerIp + "\nbgp router " + routerIp
-        sb <- sb.Append myStr
-        if isStart then
-          bprintf sb "\n        add network %s" pref
-        for n in neighbors do
-          let peerIp = Map.find n routerNameToIp
-          let routerStr = ("\n        add peer " + n + " " + peerIp)
-          sb <- sb.Append routerStr
-          bprintf sb "\n        peer %s up" peerIp
-        bprintf sb "\nexit"
-        sb.ToString()
-      else 
-        ""
-
-let writeCBGPTests (config:T) routerNameToIp topo predToTests : int64 =       
-      // write the tests into CBGP file
-      let mutable j = 0
-      let createTest (pred: Route.Predicate) ((tests, cov) : TestCases*float) = 
-            let predStr = 
-                  let (Route.TrafficClassifier(pref, _)) = List.head (Route.trafficClassifiers pred)
-                  let s = (string) pref
-                  if (String.exists (fun c -> c = 'l') s) then (s.Substring (0, 9)) 
-                  else s
-            for i in 0.. Seq.length tests - 1 do
-                  let (t, e) = Seq.item i tests
-                  let outputFile = "test" + (string) j + ".cli"
-                  j <- j + 1
-                  if not (Seq.isEmpty t) then
-                        TestGenerator.writeTopoCBGP topo outputFile // writes physical topology to all testfiles
-                  
-                  // get Ipaddress for a given node in the testGraph
-                  let getIp (v : CgState) =
-                        let routerName = v.Node.Loc
-                        Map.find routerName routerNameToIp
-
-                  // get Ipaddress for a given node in the testGraph
-                  let getAsn (v : Topology.Node) = v.Loc
-
-                  let getMap (neighbors : seq<Topology.Node>) =
-                        let mutable neighborsToNode = Map.empty
-                        for n in neighbors do
-                              let routerName = n.Loc
-                              neighborsToNode <- Map.add routerName n neighborsToNode
-                        neighborsToNode
-
-                  // create map with vertex to its peers in test topology
-                  let mutable vertexToPeers = Map.empty
-                  let mutable testVerticesInOrder = Map.empty
-                  let mutable startingVertex = ""
-                  for (src, dest) in t do
-                        // add dest to src's neighbor list
-                        let neighbors =
-                              if (Map.containsKey src.Node vertexToPeers) then Map.find src.Node vertexToPeers
-                              else Set.empty
-                        let newneighbors = 
-                              if (Topology.isTopoNode dest.Node) then Set.add dest.Node neighbors
-                              else neighbors
-                        if (Topology.isTopoNode src.Node) then
-                              vertexToPeers <- Map.add src.Node newneighbors vertexToPeers
-                        else ()                
-                        //add src to dest's neighbor list
-                        let destneighbors =
-                              if (Map.containsKey dest.Node vertexToPeers) then Map.find dest.Node vertexToPeers
-                              else Set.empty
-                        let destnewneighbors = 
-                              if (Topology.isTopoNode src.Node) then Set.add src.Node destneighbors
-                              else destneighbors
-                        if (Topology.isTopoNode dest.Node) then
-                              vertexToPeers <- Map.add dest.Node destnewneighbors vertexToPeers
-                        else ()
-
-                  let mutable lastRouter = "0.0.0.0"
-                  let mutable lastAsn = "0"
-                  let mutable lastCGNode = 
-                        {
-                              Id = 0
-                              State = 0
-                              Accept = (int16 0)
-                              Node = new Topology.Node("", Topology.Start)
-                        }
-                  for (src, dest) in e do
-                        // track the vertices in order to geenrate exepcted output
-                        if (Topology.isTopoNode dest.Node) then
-                              if (Topology.isTopoNode src.Node) then
-                                    testVerticesInOrder <- Map.add dest.Node.Loc src.Node.Loc testVerticesInOrder
-                        else
-                              startingVertex <- src.Node.Loc
-                              lastRouter <- getIp src
-                              lastAsn <- src.Node.Loc
-                              lastCGNode <- src
-                  if not (Seq.isEmpty t) then
-                      TestGenerator.geteBGPStaticRoutes vertexToPeers routerNameToIp outputFile
-                  
-                  // output cbgp router configuration instructions for routers in the path
-                  let mutable lessPrefLastRouter = "0.0.0.0"
-                  let mutable lessPrefLastAsn = "0"
-                  let mutable verticesSoFar = Set.empty
-                  for (src, dest) in t do
-                        if (Topology.isTopoNode dest.Node && (not (Set.contains dest.Node verticesSoFar))) then                              
-                              let neighbors = Seq.map getAsn (Map.find dest.Node vertexToPeers)
-                              let neighborsToNode = getMap (Map.find dest.Node vertexToPeers)
-                              let isStart = not (Topology.isTopoNode src.Node) 
-                              let s = getCBGPConfig config dest isStart predStr neighbors routerNameToIp neighborsToNode
-                              System.IO.File.AppendAllText(outputFile, s);
-                              verticesSoFar <- Set.add dest.Node verticesSoFar;
-                        if (not (Topology.isTopoNode dest.Node) && src <> lastCGNode) then 
-                              lessPrefLastRouter <- getIp src
-                              lessPrefLastAsn <- src.Node.Loc
-                  if not (Seq.isEmpty t) then
-                        System.IO.File.AppendAllText(outputFile, "\nsim run\n\n");
-                        System.IO.File.AppendAllText(outputFile, "\nbgp router " + lastRouter + " record-route " + predStr)
-
-                  if not (Seq.isEmpty e) then
-                        // print out the reference output in a separate file
-                        let refOutputFile = "ExpectedOutput.txt"
-                        System.IO.File.AppendAllText(refOutputFile, outputFile + " " + lastRouter + "\t" + predStr + "\t" + "SUCCESS\t");
-                        while (Map.containsKey startingVertex testVerticesInOrder) do
-                              System.IO.File.AppendAllText(refOutputFile, startingVertex + " ");
-                              startingVertex <- Map.find startingVertex testVerticesInOrder
-                        System.IO.File.AppendAllText(refOutputFile, startingVertex + "\n");
-      let _, testPrintTime = Util.Profile.time (Map.iter createTest) predToTests;
-      testPrintTime
       
-
 /// Helper functions to make changes to the configuration
 /// either by modifying or removing a part of the configuration.
 module Update = 
@@ -1056,7 +702,6 @@ type PredConfig = Route.Predicate * Map<string, Actions>
 type PrefixResult = 
    { K : AggregationSafety option
      BuildTime : int64
-     TestTime: int64
      MinimizeTime : int64
      AggAnalysisTime : int64
      OrderingTime : int64
@@ -1072,7 +717,6 @@ type Stats =
      PrefixTime : int64
      PerPrefixTimes : int64 array
      PerPrefixBuildTimes : int64 array
-     PerPrefixTestTimes : int64 array
      PerPrefixMinTimes : int64 array
      PerPrefixAggAnalysisTimes : int64 array
      PerPrefixOrderTimes : int64 array
@@ -1649,7 +1293,7 @@ let getMinAggregateFailures (cg : CGraph.T) (pred : Route.Predicate)
 
 let inline buildDfas (reb : Regex.REBuilder) res = List.map (fun r -> reb.MakeDFA(Regex.rev r)) res
 
-let compileToIR idx pred (polInfo : Ast.PolInfo) aggInfo (reb : Regex.REBuilder) res : PrefixCompileResult * (TestCases*float) = 
+let compileToIR idx pred (polInfo : Ast.PolInfo) aggInfo (reb : Regex.REBuilder) res : PrefixCompileResult = 
    let settings = Args.getSettings()
    let ti = polInfo.Ast.TopoInfo
    let name = sprintf "(%d)" idx
@@ -1663,18 +1307,14 @@ let compileToIR idx pred (polInfo : Ast.PolInfo) aggInfo (reb : Regex.REBuilder)
    // minimize PG and record time
    let cg, minTime = Profile.time (CGraph.Minimize.minimize idx ti) cg
    debug (fun () -> CGraph.generatePNG cg polInfo (debugName + "-min"))
-   // generate tests for minimized PG
-   let coverage = 
-    match settings.Coverage with
-    | None -> 100
-    | Some s -> s
-   let tests, testTime = 
-      if settings.GenLinkTests then
-        Profile.time (TestGenerator.genLinkTest cg coverage) pred
-      else 
-        if settings.GenPrefTests then
-          Profile.time (TestGenerator.genPrefTest cg coverage) pred 
-        else (Set.empty, 0.0), (int64 0)
+
+   if settings.CreateDags then
+      let dagDir = settings.OutDir + File.sep + "dags"
+      let fileName = dagDir + File.sep + (name + "-dag")
+      // string test |> File.writeFileWithExtension fileName "dag"
+      let cg2 = createDag cg
+      CGraph.generatePNG cg2 polInfo fileName
+
    // get the abstract reachability information
    let abstractPathInfo, at1 = 
       if settings.IsAbstract && not settings.Test (* && not (Map.isEmpty aggInfo) *) then 
@@ -1718,7 +1358,6 @@ let compileToIR idx pred (polInfo : Ast.PolInfo) aggInfo (reb : Regex.REBuilder)
          let result = 
             { K = k
               BuildTime = buildTime
-              TestTime = testTime
               MinimizeTime = minTime
               AggAnalysisTime = aggAnalysisTime
               OrderingTime = orderTime
@@ -1728,16 +1367,16 @@ let compileToIR idx pred (polInfo : Ast.PolInfo) aggInfo (reb : Regex.REBuilder)
          debug (fun () -> 
             let msg = formatPred polInfo (Pred pred) (snd config)
             System.IO.File.WriteAllText(sprintf "%s/%s.ir" settings.DebugDir name, msg))
-         (Ok(result), tests)
-      | Err((x, y, (ns, example))) -> (Err(InconsistentPrefs(x, y, (ns, example))), tests)
+         Ok(result)
+      | Err((x, y, (ns, example))) -> Err(InconsistentPrefs(x, y, (ns, example)))
    with
-      | UncontrollableEnterException s -> ((Err(UncontrollableEnter s)), tests)
-      | UncontrollablePeerPreferenceException s -> ((Err(UncontrollablePeerPreference s)), tests)
+      | UncontrollableEnterException s -> Err(UncontrollableEnter s)
+      | UncontrollablePeerPreferenceException s -> Err(UncontrollablePeerPreference s)
 
-let compileForSinglePrefix idx (polInfo : Ast.PolInfo) aggInfo (pred, reb, res) : PrefixResult * (TestCases*float) = 
+let compileForSinglePrefix idx (polInfo : Ast.PolInfo) aggInfo (pred, reb, res) : PrefixResult = 
    match compileToIR idx pred polInfo aggInfo reb res with
-   | (Ok(config), tests) -> (config, tests)
-   | (Err(x), tests) -> 
+   | Ok(config) -> config
+   | Err(x) -> 
       let ti = polInfo.Ast.TopoInfo
       match x with
       | InconsistentPrefs(x, y, (ns, example)) -> 
@@ -1773,7 +1412,7 @@ let compileForSinglePrefix idx (polInfo : Ast.PolInfo) aggInfo (pred, reb, res) 
                + (sprintf "However, %s might not be able to use " dst2) 
                + (sprintf "its preferred path %s, " path2) 
                + (sprintf "even though the path exists in the network.")
-         (error msg, tests)
+         error msg
       | UncontrollableEnter x -> 
          let l = Topology.router x ti
          let msg = 
@@ -1782,14 +1421,14 @@ let compileForSinglePrefix idx (polInfo : Ast.PolInfo) aggInfo (pred, reb, res) 
             + (sprintf 
                   "If you only want to allow traffic from neighbor %s (and not beyond), enable the --noexport flag." 
                   l)
-         (error msg, tests)
+         error msg
       | UncontrollablePeerPreference x -> 
          let l = Topology.router x ti
          let msg = 
             sprintf "Cannot control inbound preference from peer: %s for " l 
             + sprintf "predicate %s. Possibly enable prepending: --med or --prepending." 
                  (Route.toString pred)
-         (error msg, tests)
+         error msg
 
 let checkAggregateLocs ins _ prefix links = 
    if Set.contains "out" ins then 
@@ -1951,7 +1590,7 @@ let moveOriginationToTop (config : T) : T =
    let rcs = Map.map aux config.RConfigs
    { config with RConfigs = rcs }
 
-let compileAllPrefixes (polInfo : Ast.PolInfo) : CompilationResult * Map<Route.Predicate, TestCases*float> = 
+let compileAllPrefixes (polInfo : Ast.PolInfo) : CompilationResult = 
    let settings = Args.getSettings()
    let mutable tests = Map.empty
    let mapi = 
@@ -1961,16 +1600,12 @@ let compileAllPrefixes (polInfo : Ast.PolInfo) : CompilationResult * Map<Route.P
    let info = splitConstraints polInfo
    let (aggInfo, _, _) = info
    let pairs = Array.ofList polInfo.Policy
-   let timedTestConfigs, prefixTime = 
+   let timedConfigs, prefixTime = 
       Profile.time 
          (mapi (fun i x -> Profile.time (compileForSinglePrefix (i + 1) polInfo aggInfo) x)) pairs
-   let testConfigs, times = Array.unzip timedTestConfigs
-   let configs, testPerPred = Array.unzip testConfigs
-   Array.iteri(fun i (pred, reb, res) -> tests <- Map.add pred testPerPred.[i] tests) pairs
-   //let nAggFails = Array.map (fun (res, _) -> res.K) timedConfigs
-   let nAggFails = Array.map (fun (res, _) -> res.K) (Array.zip configs times)
+   let nAggFails = Array.map (fun (res, _) -> res.K) timedConfigs
    let k = Array.fold minFails None nAggFails
-   //let configs, times = Array.unzip timedConfigs
+   let configs, times = Array.unzip timedConfigs
    let joined, joinTime = Profile.time (joinConfigs polInfo info) (Array.toList configs)
    let joined = moveOriginationToTop joined
    
@@ -1984,7 +1619,6 @@ let compileAllPrefixes (polInfo : Ast.PolInfo) : CompilationResult * Map<Route.P
       |> tagAbstractPrefixWithCommunity
    
    let buildTimes = Array.map (fun c -> c.BuildTime) configs
-   let testTimes = Array.map (fun c -> c.TestTime) configs
    let minTimes = Array.map (fun c -> c.MinimizeTime) configs
    let aggAnalysisTimes = Array.map (fun c -> c.AggAnalysisTime) configs
    let orderTimes = Array.map (fun c -> c.OrderingTime) configs
@@ -1997,7 +1631,6 @@ let compileAllPrefixes (polInfo : Ast.PolInfo) : CompilationResult * Map<Route.P
         PrefixTime = prefixTime
         PerPrefixTimes = times
         PerPrefixBuildTimes = buildTimes
-        PerPrefixTestTimes = testTimes
         PerPrefixMinTimes = minTimes
         PerPrefixAggAnalysisTimes = aggAnalysisTimes
         PerPrefixOrderTimes = orderTimes
@@ -2009,7 +1642,7 @@ let compileAllPrefixes (polInfo : Ast.PolInfo) : CompilationResult * Map<Route.P
     { Abgp = minJoined
       AggSafety = k
       Stats = stats }
-   res, tests
+   res
 
 /// Conversion from Abstract BGP to a more low-level format
 /// specified in Config.fs. The low-level format includes features 

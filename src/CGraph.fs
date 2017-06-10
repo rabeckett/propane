@@ -415,7 +415,6 @@ module Reachable =
       let f = 
          if direction = Up then neighborsIn
          else neighbors
-      
       let mutable ret = Set.empty
       let marked = HashSet()
       let s = Stack()
@@ -428,6 +427,28 @@ module Reachable =
             for w in f cg v do
                s.Push(w)
       ret
+
+let createDag (cg : T) : T = 
+   let copy = copyGraph cg
+   let toDelete = HashSet()
+   let length = Dictionary()
+   let marked = HashSet()
+   let s = Queue()
+   // initialize path length to 0
+   for v in cg.Graph.Vertices do
+      length.Add(v, Int32.MaxValue) |> ignore
+   // walk over nodes are remove edges
+   s.Enqueue((copy.Start,0))
+   while s.Count > 0 do
+      let (v,n) = s.Dequeue()
+      if not (marked.Contains v) then
+         length.[v] <- n
+         marked.Add v |> ignore
+         for e in copy.Graph.OutEdges v do 
+            s.Enqueue((e.Target,n+1))
+
+   copy.Graph.RemoveEdgeIf (fun e -> length.[e.Source] >= length.[e.Target] && e.Target <> copy.End) |> ignore
+   copy
 
 /// Implementation of graph dominators as described in:
 ///

@@ -12,7 +12,6 @@ type Stats =
      PrefixTime : int64
      PerPrefixTimes : int64 array
      PerPrefixBuildTimes : int64 array
-     PerPrefixTestTimes : int64 array
      PerPrefixMinTimes : int64 array
      PerPrefixAggAnalysisTimes : int64 array
      PerPrefixOrderTimes : int64 array
@@ -38,17 +37,12 @@ type CompilationResult =
      AggSafety : AggregationSafety option
      Stats : Stats }
 
-type Path = Set<CgState*CgState> 
-type TestCases = Set<Path*Path>
-
 /// Display the ABGP policy in a readable format
 val format : T -> string
 /// Compile the entire policy for all prefixes
-val compileAllPrefixes : Ast.PolInfo -> CompilationResult * Map<Route.Predicate, TestCases*float>
+val compileAllPrefixes : Ast.PolInfo -> CompilationResult
 /// Convert the ABGP configuration to a more concrete configuration.
 val toConfig : T -> Config.NetworkConfiguration
-/// get the cbgp output for a set of tests
-val writeCBGPTests : T -> Map<string,string> -> Topology.T -> Map<Route.Predicate, TestCases*float> -> int64
 
 module Test = 
    val run : unit -> unit

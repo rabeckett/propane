@@ -13,11 +13,7 @@ type T =
      UseNoExport : bool
      Minimize : bool
      Parallel : bool
-     Cbgp : bool
      Test : bool
-     GenLinkTests : bool 
-     GenPrefTests : bool
-     Coverage : Option<int>
      Bench : bool
      Debug : bool
      DebugDir : string
@@ -28,7 +24,8 @@ type T =
      Csv : bool
      CheckOnly : bool
      IsAbstract : bool
-     IsTemplate : bool }
+     IsTemplate : bool 
+     CreateDags : bool }
 
 let currentDir = System.Environment.CurrentDirectory
 let sep = string Path.DirectorySeparatorChar
@@ -48,6 +45,7 @@ Options:
     --no-failures        Disable checks for aggregation safety
     --failures k         Guarantee k failure safety for aggregation.
     --check              Only check for correctness, don't generate configs.
+    --createDags         Create directed graphs for shortest path routing
     --parallel           Enable parallel compilation.
     --naive              Disable policy minimization.
     --stats              Display compilation statistics in readable format.
@@ -56,13 +54,9 @@ Options:
     --med                Allow use of the BGP MED attribute.
     --prepending         Allow use of AS path prepending.
     --noexport           Allow use of the BGP no-export community.
-    --cbgp               Generate C-BGP tests.
     --test               Run compiler unit tests.
     --bench              Generate benchmark policies.
     --debug              Output debugging information.
-    --genLinkTests       Generate exhaustive link coverage test cases
-    --genPrefTests       Generate preference coverage test cases
-    --coverage k         k % random coverage of tests 
 """
 
 let checkFile f = 
@@ -125,13 +119,10 @@ let parse (argv : string []) : unit =
         UseMed = vs.["--med"].IsTrue
         UsePrepending = vs.["--prepending"].IsTrue
         UseNoExport = vs.["--noexport"].IsTrue
-        Cbgp = vs.["--cbgp"].IsTrue
         Test = vs.["--test"].IsTrue
-        Coverage = getCoverage vs.["--coverage"]
-        GenLinkTests = vs.["--genLinkTests"].IsTrue
-        GenPrefTests = vs.["--genPrefTests"].IsTrue
         Bench = vs.["--bench"].IsTrue
         Debug = vs.["--debug"].IsTrue
+        CreateDags = vs.["--createDags"].IsTrue
         DebugDir = !debugDir
         IsAbstract = false
         IsTemplate = false } // these get set from the topology

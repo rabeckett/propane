@@ -10,11 +10,7 @@ type T =
      UseNoExport : bool
      Minimize : bool
      Parallel : bool
-     Cbgp : bool
      Test : bool
-     GenLinkTests : bool
-     GenPrefTests : bool
-     Coverage : Option<int>
      Bench : bool
      Debug : bool
      DebugDir : string
@@ -25,7 +21,8 @@ type T =
      Csv : bool
      CheckOnly : bool
      IsAbstract : bool
-     IsTemplate : bool }
+     IsTemplate : bool 
+     CreateDags : bool }
 
 /// Get the command-line settings
 val getSettings : unit -> T

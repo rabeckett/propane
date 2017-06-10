@@ -30,39 +30,25 @@ let main argv =
       | None -> errorLine "No topology file specified, use --help to see options"
       | Some f -> Util.Profile.time Topology.readTopology f
    if settings.IsAbstract then AbstractAnalysis.checkWellformedTopology topoInfo
-   if (settings.GenLinkTests || settings.GenPrefTests) then 
-      System.IO.File.WriteAllText("ExpectedOutput.txt", "")
-   match settings.Coverage with
-   | None -> (); //Console.Write("none");
-   | Some s ->  
-      if (s < 0 || s > 100) then 
-            errorLine "Invalid coverage amount, specify something between 0 and 100"
-      else
-            (); //Console.Write("coverage value in program is " + (string s));
+
    match settings.PolFile with
    | None -> errorLine "No policy file specified, use --help to see options"
    | Some polFile -> 
       Util.File.createDir settings.OutDir
       Util.File.createDir settings.DebugDir
+      if settings.CreateDags then
+         Util.File.createDir (settings.OutDir + Util.File.sep + "dags")
+
       let ast, t2 = Util.Profile.time (Input.readFromFile topoInfo) polFile
       let polInfo, t3 = Util.Profile.time Ast.build ast
 
-      let res, predToTests = Abgp.compileAllPrefixes polInfo
+      let res = Abgp.compileAllPrefixes polInfo
       let policy = polInfo.Policy.Head
       let _, reb, _ = policy
       let topo = reb.Topo()
 
-      // where can i get topo from
-      let routerNameToIp = TestGenerator.generateRouterIp topo
 
-      let testPrintTime = 
-            if settings.GenLinkTests || settings.GenPrefTests then Abgp.writeCBGPTests res.Abgp routerNameToIp topo predToTests
-            else (int64 0);
-
-      let sumCoverage = Map.fold (fun s k (_, c) -> if (c = -1.0) then s else s + c) 0.0 predToTests;
-      let numKeys = Map.fold (fun s k (_, c) -> if (c = -1.0) then s else s + 1) 0 predToTests;
-      let cover = sumCoverage / (float numKeys);            
-
+               
       if settings.CheckFailures then 
          match res.AggSafety with
          | Some safetyInfo -> 
@@ -100,8 +86,8 @@ let main argv =
             Some(stats), t
       s.Stop()
       if settings.Csv then 
-         Stats.printCsv res.Stats genStats (t1 + t2 + t3) genTime testPrintTime cover s.ElapsedMilliseconds 
+         Stats.printCsv res.Stats genStats (t1 + t2 + t3) genTime s.ElapsedMilliseconds 
       else if settings.Stats then 
-         Stats.print res.Stats genStats (t1 + t2 + t3) genTime testPrintTime cover s.ElapsedMilliseconds 
+         Stats.print res.Stats genStats (t1 + t2 + t3) genTime s.ElapsedMilliseconds 
       else ()
    0

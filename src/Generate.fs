@@ -502,14 +502,13 @@ let generate (res : Abgp.CompilationResult) (ti : Topology.TopoInfo) : Stats =
    let _, coreTime = 
       if not settings.IsTemplate then Util.Profile.time (genCore out rInternal) nc
       else (), int64 0
-   // C-BGP testing code
-   if settings.Cbgp then 
+   (* if settings.Cbgp then 
       let cbgpDir = out + File.sep + "cbgp"
       File.createDir cbgpDir
       let tests = createInterestingTests res.Abgp
       for test in tests do
          let name = "foo"
-         string test |> File.writeFileWithExtension (cbgpDir + File.sep + name) "cbgp"
+         string test |> File.writeFileWithExtension (cbgpDir + File.sep + name) "cbgp" *)
    { // Return compilation statistics
      GenLowLevelConfigTime = lowLevelTime
      SubstitutionTime = subTime

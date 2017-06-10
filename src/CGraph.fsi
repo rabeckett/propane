@@ -68,6 +68,8 @@ val isRealNode : CgState -> bool
 val isInside : CgState -> bool
 /// Returns true if the graph contains only the start and end nodes
 val isEmpty : T -> bool
+/// Create a DAG from a product graph 
+val createDag : T -> T
 /// Convert the constraint graph to the DOT format for visualization
 val toDot : T -> Ast.PolInfo -> string
 /// Generate a png file for the constraint graph (requires graphviz dot utility)
