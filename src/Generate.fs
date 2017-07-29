@@ -60,6 +60,9 @@ let quagga (rInternal : Set<string>) (rc : RouterConfiguration) : string =
    let settings = Args.getSettings()
    let sb = System.Text.StringBuilder()
    // generate interface info
+   bprintf sb "!\n"
+   bprintf sb "hostname %s\n" rc.Name
+   bprintf sb "!\n"
    bprintf sb "%s" (quaggaInterfaces rc)
    // bgp network and peers
    bprintf sb "router bgp %s\n" rc.RouterAsn
