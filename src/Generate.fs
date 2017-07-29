@@ -132,7 +132,7 @@ let quagga (rInternal : Set<string>) (rc : RouterConfiguration) : string =
       let mutable comms = ""
       for c in rm.SetCommunities do
          comms <- comms + c.Value + " "
-      if comms <> "" then bprintf sb "  set community additive %s\n" comms
+      if comms <> "" then bprintf sb "  set community %s additive\n" (comms.Trim())
       if not (isNull rm.SetMED) then bprintf sb "  set metric %d\n" rm.SetMED.Value
       if not (isNull rm.SetPathPrepend) then 
          let asn = string rc.NetworkAsn
