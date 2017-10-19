@@ -380,8 +380,8 @@ module PrefixWide =
       let allFilters = 
          config |> Map.fold (fun acc router actions -> 
                       match actions with
-                      | Filters(o, fs) -> acc @ fs) []
-      
+                      | Filters(o, fs) -> 
+                        acc @ fs) []
       let usedMatches = allCommMatches allFilters
       Map.map (updateActions usedMatches) config
    
@@ -1141,7 +1141,8 @@ let genConfig (cg : CGraph.T) (pred : Route.Predicate) (ord : Consistency.Orderi
       // prefix-wide minimizations
       config <- if settings.Minimize then PrefixWide.minimize cg config
                 else config
-      reindexPrefixCommunities (pred, config)
+      (pred, config)
+      // reindexPrefixCommunities (pred, config)
 
 let inline insideLoc v = 
    if Topology.isInside v.Node then Some(v)
@@ -1768,7 +1769,9 @@ let relevantCommsByPeer (exportMap : Reindexer<_>) (all, ins, outs) =
    let mutable relevantCommMap = Map.empty
    for peer in all do
       exportMap.Iter(fun (p, ms) c -> 
+         // printfn "  peer=%A, (%A,%A) %A" peer p ms c
          if peerApplies p peer (all, ins, outs) then 
+            // printfn "    peer applies"
             let existing = Util.Map.getOrDefault peer Set.empty relevantCommMap
             relevantCommMap <- Map.add peer (Set.add (c, ms) existing) relevantCommMap)
    relevantCommMap
@@ -1785,12 +1788,14 @@ let getCommunity c =
 
 let createExportRouteMap pfxInfo (origins : List<Route.TempPrefix * Export list>) peerExportMap id 
     (cMap, cLists, clID) (polLists, polID) rMaps allLocal cs ps = 
+   // printfn "ORIGINS2: %A" origins
    incr id
    let (plID, pfxMap, pLists) = pfxInfo
    let rmname = "export-" + (string !id)
    let mutable priority = 10
    // allow the originated prefix to be exported
    for (pfx, es) in origins do
+      // printfn "ORIGIN: prefix=%A, exports=%A" pfx es
       let pfx = string pfx
       let pls = List()
       createPrefixList (Config.Kind.Permit, plID, pfxMap, pLists, pls, pfx)
@@ -1840,6 +1845,8 @@ let createExportRouteMap pfxInfo (origins : List<Route.TempPrefix * Export list>
       peerExportMap := Map.add peer ("rm-" + rmname) !peerExportMap
 
 let addExportLists pfxInfo origins peerExportMap peerGroups commInfo polInfo rMaps allLocal = 
+   // printfn "ORIGINS1: %A" origins
+   // printfn "Peer Groups: %A" peerGroups
    let id = ref 0
    peerGroups 
    |> Map.iter 
@@ -1859,12 +1866,17 @@ let adjustIfTagNotNeeded (m : Map<Set<_>, Set<_>>) =
 
 let computeExportFilters (exportMap : Reindexer<_>) pfxInfo origins peerInfo commInfo polInfo rMaps 
     allLocal = 
+   // printfn "ORIGINS: %A" origins
+   // printfn "peerInfo: %A" peerInfo
    // group export peer by applicable communities
    let relevantCommMap = relevantCommsByPeer exportMap peerInfo
+   // printfn "relvant comm map: %A" relevantCommMap
    // group sets of communities with sets of peers
    let peerGroups = commGroupsByRelevantPeers relevantCommMap
    // if only 1 unique action, then no need for tagging
+   // printfn "Peer groups before: %A" peerGroups
    let peerGroups = adjustIfTagNotNeeded peerGroups
+   // printfn "Peer groups after: %A" peerGroups
    // add new export community lists / route maps 
    let peerExportMap = ref Map.empty
    addExportLists pfxInfo origins peerExportMap peerGroups commInfo polInfo rMaps allLocal
@@ -1931,10 +1943,11 @@ let toConfig (abgp : T) =
                      match oprefix with
                      | None -> prefix
                      | Some p -> p
-                  
                   let mostGeneral = prefix.Example()
                   origins.Add((mostGeneral, es))
+                  // printfn "Adding origixns: %A" es
                   originPfxs.Add(mostGeneral)
+                  importFilterCommunityMods exportMap es |> ignore
                for f in fs do
                   priority := !priority + 10
                   let (rms, pls, als, cls) = List(), List(), List(), List()

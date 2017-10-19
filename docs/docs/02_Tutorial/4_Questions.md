@@ -26,17 +26,29 @@ Write a Propane policy that implements cold potato routing for this toy example.
 
 **Question**: What BGP mechanism(s) does Propane use to implement each of the constraints (1-3) for your policy?
 
-## 2) BGP Instability 
 
-Recall the BGP Bad Gadget example from before.
-Can the Propane language express the BGP Bad Gadget example? If so, give the policy + topology and report whether or not the compiler will accept the policy or reject it. If not, why can't this policy be expressed in Propane?
 
-<img style="width:50%;height:50%" src="../img/BadGadget.jpg" />
+
+
+## 2) BGP Expressiveness
+
+Consider the topology shown below.  
+
+<img style="width:50%;height:50%" src="../img/Topology3.png" />
+
+A) Suppose we want all traffic from A to 1.2.3.4/24 (at G) to prefer “top” paths that avoid nodes C and F over “bottom” paths that avoid nodes B and E. Can the Propane language express this policy? If so, give the policy & topology. If not, explain why this policy gets rejected by the Propane compiler.
+
+B) What happens if we change our specification such that we want all traffic from A to 1.2.3.4/24 to prefer “top” paths that avoid nodes C and F over any other arbitrary path. Can the Propane language express this policy? If so, give the policy & topology. If not, explain why this policy gets rejected by the Propane compiler.
+
+C) If you (correctly) found that only one of the above policies is expressible in Propane, explain why the seemingly minor change allows the expressible policy to work where the non-expressible policy doesn’t.
+
+Note: The compiler error messages are helpful and should inform your explanations, but don’t just copy them.
 
 ## What to Turn In
 
 Submit a compressed zip file containing the following for the assignment:
 
   1. The topology (.xml) and Propane policy (.pro) files used for the cold potato routing example.
-  2. In a separate `answers.txt` file, answer the question about what BGP mechanism(s) Propane uses for this example.
-  3. In the same `answers.txt` file, also answer the question about expressing the BGP Bad Gadget in Propane.
+  2. In a separate answers.txt file, answer the question about what BGP mechanism(s) Propane uses for the cold potato routing example.
+  3. The topology (.xml) and Propane policy (.pro) files for the expressible policy from the BGP expressiveness question.
+  4. In the same answers.txt file, provide your explanations from the BGP expressiveness question.
